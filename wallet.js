@@ -1982,7 +1982,7 @@ $(document).ready(function() {
 				  },
 				  transparent: false,
 				  swf: resource + 'downloadify.swf',
-				  downloadImage: 'downloadify_button.png',
+				  downloadImage: resource + 'downloadify_button.png',
 				  width: 95,
 				  height: 32,
 				  transparent: true,
