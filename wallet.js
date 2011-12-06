@@ -53,9 +53,13 @@ function websocketConnect() {
 		
 		} else if (obj.op == 'utx') {
 			
-			if (sound_on) {
-				document.getElementById("beep").play(10);
-			}
+            try {
+                if (sound_on) {
+                    document.getElementById("beep").play(10);
+                }
+            } catch (e} {
+                console.log(e);
+            }
 			
 			var tx = TransactionFromJSON(obj.x);
 			
