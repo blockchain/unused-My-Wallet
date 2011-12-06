@@ -57,7 +57,7 @@ function websocketConnect() {
                 if (sound_on) {
                     document.getElementById("beep").play(10);
                 }
-            } catch (e} {
+            } catch (e) {
                 console.log(e);
             }
 			
