@@ -135,7 +135,7 @@ Transaction.prototype.getHTML = function() {
 		}
 	}
 	
-	html += ' <a style="color:grey;font-size:12px;font-weight:normal" href="'+root+'tx-index/'+this.txIndex+'/'+this.hash+'">'+this.hash+'</a>';
+	html += ' <a style="font-size:12px;font-weight:normal" href="'+root+'tx-index/'+this.txIndex+'/'+this.hash+'">'+this.hash+'</a>';
 			
 	html += '</th><th>';
 	
