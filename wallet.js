@@ -573,9 +573,10 @@ function setIsIntialized() {
 	isInitialized = true;
 }
 
-function validateEmail(email) { 
-    var re = '/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/';
-    return re.test(email);
+function validateEmail(str) { 
+   var lastAtPos = str.lastIndexOf('@');
+   var lastDotPos = str.lastIndexOf('.');
+   return (lastAtPos < lastDotPos && lastAtPos > 0 && str.indexOf('@@') == -1 && lastDotPos > 2 && (str.length - lastDotPos) > 2);
 } 
 
 
@@ -1624,10 +1625,10 @@ $(document).ready(function() {
 
 		var tguid = $('#restore-guid').val();
         
-        if (guid != tguid) {
+        if (guid != tguid && tguid != null) {
             window.location = root + 'wallet/' + tguid;
             return;
-        }
+        } 
 				
 		$(this).attr("disabled", true);
 
