@@ -18,6 +18,7 @@ var address_book = []; //Holds the address book {addr : label}
 var loading_text = '';
 var block_heights = []; //BlockIndex to height
 
+
 function setLoadingText(txt) {
 	$('.loading-text').text(txt);
 }
@@ -661,7 +662,7 @@ function backupWallet(method) {
 		},
 			
 		error : function(data) {
-		   makeNotice('error', 'misc-error', 'Error saving up wallet'); 
+		   makeNotice('error', 'misc-error', 'Error Saving Wallet'); 
 		}
 	});
 }
@@ -1450,7 +1451,11 @@ $(document).ready(function() {
 	
 	$("#start-wallet").unbind().click(function() {
 		
-		$('#tech-faq').hide();
+		$('#intro-header').fadeOut(200);
+		$('#intro-body').fadeOut(200);
+
+		$('#new-wallet').fadeIn(200);
+		$('#password-strength').fadeIn(200);
 
 		$('#new-wallet-alias').unbind().bind('change keyup', function() {
 						
@@ -1470,13 +1475,13 @@ $(document).ready(function() {
 			
 			try {
 				if (generateNewWallet()) {
-					
-					$('.blueberry').hide();
-					
+										
+                    $('#password-strength').fadeOut(200);
+
 					changeView($("#new-wallet-success"));
 
 					$('#new-wallet-url').html('http://www.blockchain.info/wallet/' + guid);
-				} 
+				}
 
 				$("#new-wallet-continue").attr("disabled", false);	
 			} catch (e) {
@@ -1566,6 +1571,17 @@ $(document).ready(function() {
 	});
 	
 	}
+    
+    //Popovers! 
+    $(function () {
+     $("a[rel=popover]")
+       .popover({
+         offset: 10
+       })
+       .click(function(e) {
+         e.preventDefault()
+       })
+   })
 	
 	$('body').ajaxStart(function() {
 		$('.loading-indicator').fadeIn(200);
@@ -1788,6 +1804,15 @@ $(document).ready(function() {
 		addAddressBookEntry();
 	});
 	
+    	
+    $("#my-account-btn").click(function() {
+		if (!isInitialized)
+			return;
+		
+		changeView($("#my-account"));
+	});
+
+
 	$("#my-transactions-btn").click(function() {
 		if (!isInitialized)
 			return;
@@ -2001,9 +2026,7 @@ $(document).ready(function() {
 	
 	if (guid == null) {
 		cVisible = $("#getting-started");
-		
-		$('.blueberry').blueberry();
-	} else {
+    } else {
 		cVisible = $("#restore-wallet");
 	}
 	
