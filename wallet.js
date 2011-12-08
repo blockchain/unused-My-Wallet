@@ -1449,16 +1449,6 @@ function privateKeyStringToKey(value, format) {
 	
 
 $(document).ready(function() {	
-				 
-	
-	//Make sure the last guid the user logged in the ame as this one, if not clear cache
-	if (localStorage) {
-		var local_guid = localStorage.getItem('guid');
-
-		if (local_guid != guid) {
-			localStorage.clear();
-		}
-	}
 	
 	if (guid == null) {
 
@@ -1510,6 +1500,21 @@ $(document).ready(function() {
 			}
 		});
 		
+        
+        $('#wallet-login').unbind().click(function() {
+
+            if (localStorage) {
+               //Make sure the last guid the user logged in the ame as this one, if not clear cache
+                var guid = localStorage.getItem('guid');
+                if (guid != null) {
+                    document.window.location = root + guid;
+                    return;
+                }
+            }
+
+            document.window.location = root + 'login';
+        });
+
 		
 		$('#new-wallet-login-continue').unbind().click(function() {
 			if (guid == null)
@@ -1660,13 +1665,23 @@ $(document).ready(function() {
 			
 			try {
 				if (localStorage) {
+                            
+                    //Make sure the last guid the user logged in the ame as this one, if not clear cache
+                    var local_guid = localStorage.getItem('guid');
+
+                    if (local_guid != guid) {
+                        localStorage.clear();
+                    }
+	
 					
+                    //Restor the cached latest block
 					var latestblockjson = localStorage.getItem('latestblock');
 	
 					if (latestblockjson != null) {					
 						parseLatestBlockJSON(latestblockjson);
 					}
-					
+                    
+					//Restore the balance cache
 					var multiaddrjson = localStorage.getItem('multiaddr');
 					
 					if (multiaddrjson != null) {
@@ -1732,7 +1747,6 @@ $(document).ready(function() {
 			}
 			
 			$(this).attr("disabled", false);
-
 		});
 		
 		
@@ -1745,7 +1759,6 @@ $(document).ready(function() {
 			}
 			
 			try {
-				
 				var address = new Bitcoin.Address(value);
 				
 				if (address.toString() != value) {
@@ -2046,7 +2059,15 @@ $(document).ready(function() {
 	if (guid == null) {
 		cVisible = $("#getting-started");
     } else {
-		cVisible = $("#restore-wallet");
+    
+        if (guid.length == 0) {
+            if (localStorage) {
+               //Make sure the last guid the user logged in the ame as this one, if not clear cache
+                guid = localStorage.getItem('guid');
+            }
+        }
+        
+        cVisible = $("#restore-wallet");
 	}
 	
 	cVisible.show();
