@@ -1448,7 +1448,7 @@ $(document).ready(function() {
 	if (guid == null) {
 
     $("#create-free-wallet-btn").click(function() {
-        $$("#start-wallet").trigger('click');
+        $("#start-wallet").trigger('click');
     });
 
 
