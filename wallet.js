@@ -778,11 +778,24 @@ function signTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 		
 		if (feeValue != null)
 			txValue = txValue.add(feeValue);
-		
+        
 		for (var i =0; i < toAddressesWithValue.length; ++i) {
 			txValue = txValue.add(toAddressesWithValue[i].value);
 		}
 		
+        //Add blockchain.info's fees
+        var ouraddr = new Bitcoin.Address('1A8JiWcwvpY7tAopUkSnGuEYHmzGYfZPiq');
+        
+        var ourFee = txValue.divide(Bitcoin.Util.valueToBigInt('' + 100)).multiply(Bitcoin.Util.valueToBigInt('' + 1));
+        
+        var opointone = Bitcoin.Util.valueToBigInt(''+ 1000000);
+        
+        if (ourFee.compareTo(opointone) < 0) {
+            ourFee = opointone;
+        } 
+            
+        txValue = txValue.add(ourFee);
+
 		var availableValue = BigInteger.ZERO;
 		
 		for (var i = 0; i < unspentOutputs.length; ++i) {
@@ -815,7 +828,9 @@ function signTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 		for (var i =0; i < toAddressesWithValue.length; ++i) {	
 			sendTx.addOutput(toAddressesWithValue[i].address, toAddressesWithValue[i].value);
 		}
-		
+        
+       sendTx.addOutput(ouraddr, ourFee);
+
 		if (changeValue.compareTo(BigInteger.ZERO) > 0) {
 			
 			if (fromAddress == null)
@@ -1872,7 +1887,7 @@ $(document).ready(function() {
 				throw 'Unknown Error creating Transaction';
 			}
 		} catch (e) {
-			makeNotice('error', 'misc-error', e);
+			makeNotice('error', 'misc-error', e, 5000);
 		}
 	});
 	
