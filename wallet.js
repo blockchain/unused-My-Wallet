@@ -1526,10 +1526,10 @@ $(document).ready(function() {
 			
 			if (didAjax) {
 				$('body').ajaxStop(function() {
-					window.location = '${root}wallet/' + guid + window.location.hash;
+					window.location = root + 'wallet/' + guid + window.location.hash;
 				});
 			} else {				
-				window.location = '${root}wallet/' + guid + window.location.hash;
+				window.location = root + 'wallet/' + guid + window.location.hash;
 			}
 		});
 		
