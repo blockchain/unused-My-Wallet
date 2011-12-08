@@ -1469,6 +1469,10 @@ $(document).ready(function() {
 		});
 		
 		
+        $("#create-free-wallet-btn").click(function() {
+            $("#new-wallet-continue").click();
+        });
+
 		$("#new-wallet-continue").click(function() {
 
 			$("#new-wallet-continue").attr("disabled", true);		
