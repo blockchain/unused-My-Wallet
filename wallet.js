@@ -1610,9 +1610,9 @@ $(document).ready(function() {
     
         if (localStorage) {
            //Make sure the last guid the user logged in the ame as this one, if not clear cache
-            var guid = localStorage.getItem('guid');
-            if (guid != null) {
-                window.location = root + 'wallet/' + guid;
+            var tguid = localStorage.getItem('guid');
+            if (tguid != null) {
+                window.location = root + 'wallet/' + tguid;
                 return;
             }
         }
@@ -2069,8 +2069,8 @@ $(document).ready(function() {
                //Make sure the last guid the user logged in the ame as this one, if not clear cache
                var tguid = localStorage.getItem('guid');
             
-               if (guid != tguid) {
-                    window.location = root + 'wallet/' + tguid;
+               if (guid != tguid && tguid != null) {
+                window.location = root + 'wallet/' + tguid;
                 return;
                }
             }
