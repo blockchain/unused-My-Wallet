@@ -1447,6 +1447,11 @@ $(document).ready(function() {
 	
 	if (guid == null) {
 
+    $("#create-free-wallet-btn").click(function() {
+        $$("#start-wallet").trigger('click');
+    });
+
+
 	//Initially hide all the UI elements
 	
 	$("#start-wallet").unbind().click(function() {
@@ -1468,14 +1473,6 @@ $(document).ready(function() {
 			}
 		});
 		
-		
-        $("#create-free-wallet-btn").click(function() {
-            
-            alert('click');
-            
-            $("#new-wallet-continue").trigger('click');
-        });
-
 		$("#new-wallet-continue").click(function() {
 
 			$("#new-wallet-continue").attr("disabled", true);		
