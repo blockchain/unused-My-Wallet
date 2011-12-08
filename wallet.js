@@ -1470,6 +1470,9 @@ $(document).ready(function() {
 		
 		
         $("#create-free-wallet-btn").click(function() {
+            
+            alert('click');
+            
             $("#new-wallet-continue").trigger('click');
         });
 
