@@ -1606,28 +1606,28 @@ $(document).ready(function() {
 		  backupWallet('update');
 	});
 	
-    $('#wallet-login').unbind().click(function() {
-
-            if (localStorage) {
-               //Make sure the last guid the user logged in the ame as this one, if not clear cache
-                var guid = localStorage.getItem('guid');
-                if (guid != null) {
-                    document.window.location = root + guid;
-                    return;
-                }
+    $('#wallet-login').unbind().click(function() {    
+    
+        if (localStorage) {
+           //Make sure the last guid the user logged in the ame as this one, if not clear cache
+            var guid = localStorage.getItem('guid');
+            if (guid != null) {
+                window.location = root + 'wallet/' + guid;
+                return;
             }
+        }
 
-            document.window.location = root + 'login';
-        });
+        window.location = root + 'wallet/' + 'login';
+    });
 
 	$("#restore-wallet-continue").click(function() {
 
-        if (guid == 'login') {
-            document.window.location.pathname = root + 'wallet' + $('restore-guid').val();
+		var tguid = $('#restore-guid').val();
+        
+        if (guid != tguid) {
+            window.location = root + 'wallet/' + tguid;
             return;
         }
-
-		guid = $('restore-guid').val();
 				
 		$(this).attr("disabled", true);
 
@@ -2067,7 +2067,12 @@ $(document).ready(function() {
         if (guid.length == 0) {
             if (localStorage) {
                //Make sure the last guid the user logged in the ame as this one, if not clear cache
-                guid = localStorage.getItem('guid');
+               var tguid = localStorage.getItem('guid');
+            
+               if (guid != tguid) {
+                    window.location = root + 'wallet/' + tguid;
+                return;
+               }
             }
         }
         
