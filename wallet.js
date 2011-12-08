@@ -1623,6 +1623,11 @@ $(document).ready(function() {
 	
 	$("#restore-wallet-continue").click(function() {
 
+        if (guid == 'login') {
+            document.window.location.pathname = root + 'wallet' + $('restore-guid').val();
+            return;
+        }
+
 		guid = $('restore-guid').val();
 				
 		$(this).attr("disabled", true);
