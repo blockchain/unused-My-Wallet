@@ -1501,21 +1501,6 @@ $(document).ready(function() {
 		});
 		
         
-        $('#wallet-login').unbind().click(function() {
-
-            if (localStorage) {
-               //Make sure the last guid the user logged in the ame as this one, if not clear cache
-                var guid = localStorage.getItem('guid');
-                if (guid != null) {
-                    document.window.location = root + guid;
-                    return;
-                }
-            }
-
-            document.window.location = root + 'login';
-        });
-
-		
 		$('#new-wallet-login-continue').unbind().click(function() {
 			if (guid == null)
 				return;
@@ -1621,6 +1606,20 @@ $(document).ready(function() {
 		  backupWallet('update');
 	});
 	
+    $('#wallet-login').unbind().click(function() {
+
+            if (localStorage) {
+               //Make sure the last guid the user logged in the ame as this one, if not clear cache
+                var guid = localStorage.getItem('guid');
+                if (guid != null) {
+                    document.window.location = root + guid;
+                    return;
+                }
+            }
+
+            document.window.location = root + 'login';
+        });
+
 	$("#restore-wallet-continue").click(function() {
 
         if (guid == 'login') {
