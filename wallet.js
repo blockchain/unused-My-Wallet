@@ -370,15 +370,19 @@ function updateTransactions() {
 		return;
 	
 	for (var i=0;i<transactions.length;++i) {
-		
-		var height = block_heights[transactions[i].blockIndex];
-		
-		if (height != null) {
-			var nconfirmations = latest_block.height - height + 1;
-			
-			transactions[i].setConfirmations(nconfirmations);
+	
+		if (transactions[i].blockIndex > latest_block.blockIndex) {
+			transactions[i].setConfirmations(0);
 		} else {
-			break;
+			var height = block_heights[transactions[i].blockIndex];
+			
+			if (height != null) {
+				var nconfirmations = latest_block.height - height + 1;
+				
+				transactions[i].setConfirmations(nconfirmations);
+			} else {
+				break;
+			}
 		}
 	}
 }
