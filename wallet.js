@@ -45,47 +45,56 @@ function websocketConnect() {
 	ws = new WebSocket("ws://api.blockchain.info:8335/inv");
 	
 	ws.onmessage = function(e) {
-											
-		var obj = jQuery.parseJSON(e.data);
-
-		if (obj.op == 'status') {
-		
-			$('#status').html(obj.msg);
-		
-		} else if (obj.op == 'utx') {
+						
+		try {
+	
+			var obj = jQuery.parseJSON(e.data);
+	
+			if (obj.op == 'status') {
 			
-            if (AlreadyHaveTransaction(obj.x.txIndex))
-                return;
-            
-            try {
-                if (sound_on) {
-                    document.getElementById("beep").play(10);
-                }
-            } catch (e) {
-                console.log(e);
-            }
+				$('#status').html(obj.msg);
 			
-			var tx = TransactionFromJSON(obj.x);
-			
-			tx.setMyHashes(getMyHash160s());
-
-			var result = tx.getResult();
-			
-			if (result > 0) {
-				final_balance += result;
-				total_received += result;
-			} else if (result < 0) {
-				total_sent -= result;
+			} else if (obj.op == 'utx') {
+				
+	            if (AlreadyHaveTransaction(obj.x.txIndex))
+	                return;
+	            
+	            try {
+	                if (sound_on) {
+	                    document.getElementById("beep").play(10);
+	                }
+	            } catch (e) {
+	                console.log(e);
+	            }
+				
+				var tx = TransactionFromJSON(obj.x);
+				
+				tx.setMyHashes(getMyHash160s());
+	
+				var result = tx.getResult();
+				
+				if (result > 0) {
+					final_balance += result;
+					total_received += result;
+				} else if (result < 0) {
+					total_sent -= result;
+				}
+				
+				n_tx++;
+	
+				transactions.push(tx);
+	
+				$('#transactions').prepend(tx.getHTML()).hide().fadeIn("slow").slideDown('slow');
+	
+			}  else if (obj.op == 'block') {
+				
+				setLatestBlock(BlockFromJSON(obj.x));
 			}
+		
+		} catch(e) {
+			console.log(e);
 			
-			n_tx++;
-
-			transactions.push(tx);
-
-			$('#transactions').prepend(tx.getHTML()).hide().fadeIn("slow").slideDown('slow');
-
-		}  else if (obj.op == 'block') {
-			setLatestBlock(BlockFromJSON(obj.x));
+			console.log(e.data);
 		}
 	};
 	
