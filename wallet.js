@@ -371,7 +371,7 @@ function updateTransactions() {
 	
 	for (var i=0;i<transactions.length;++i) {
 	
-		if (transactions[i].blockIndex > latest_block.blockIndex) {
+		if (transactions[i].blockIndex == null || transactions[i].blockIndex == 0) {
 			transactions[i].setConfirmations(0);
 		} else {
 			var height = block_heights[transactions[i].blockIndex];
