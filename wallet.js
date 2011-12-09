@@ -57,11 +57,8 @@ function websocketConnect() {
 			} else if (obj.op == 'utx') {
 				
 				//Check for duplicates
-				for (var i = 0; i < transactions.length; ++i) {
-					
-					console.log(transactions[i].txIndex + ' == ' + obj.x.txIndex);
-					
-					if (transactions[i].txIndex == obj.x.txIndex)
+				for (var i = 0; i < transactions.length; ++i) {					
+					if (transactions[i].txIndex == obj.x.tx_index)
 						return;
 				}
 	            
