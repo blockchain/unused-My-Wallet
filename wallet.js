@@ -54,6 +54,9 @@ function websocketConnect() {
 		
 		} else if (obj.op == 'utx') {
 			
+            if (AlreadyHaveTransaction(obj.x.txIndex))
+                return;
+            
             try {
                 if (sound_on) {
                     document.getElementById("beep").play(10);

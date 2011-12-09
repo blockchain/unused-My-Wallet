@@ -14,6 +14,11 @@ function BlockFromJSON(json) {
 	return block;
 }
 
+
+function AlreadyHaveTransaction(txIndex) {
+    return ($('#tx-'+txIndex).length > 0);
+}
+
 function TransactionFromJSON(json) {
 	
 	var tx = new Transaction();
