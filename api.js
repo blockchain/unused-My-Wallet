@@ -216,7 +216,7 @@ Transaction.prototype.getHTML = function() {
 	
 	html += '<button class="confirmations" style="display:hidden"></button> ';
 		
-	html += '<button class="btn info">'+  Math.round(total_output * market_price * 100)/100 + ' USD</button> <button class="'+button_class+'">'+  total_output + ' BTC</button></span></div>';
+	html += '<button class="btn info">'+  (Math.round(total_output * market_price * 100)/100).toFixed(2) + ' USD</button> <button class="'+button_class+'">'+  total_output.toFixed(4) + ' BTC</button></span></div>';
 	
 	return html;
 };

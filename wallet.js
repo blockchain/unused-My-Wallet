@@ -56,8 +56,11 @@ function websocketConnect() {
 			
 			} else if (obj.op == 'utx') {
 				
-	            if (AlreadyHaveTransaction(obj.x.txIndex))
-	                return;
+				//Check for duplicates
+				for (var i =0; i < transactions.length; ++i) {
+					if (transactions[i].txIndex == obj.x.txIndex)
+						return;
+				}
 	            
 	            try {
 	                if (sound_on) {
