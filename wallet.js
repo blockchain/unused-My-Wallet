@@ -57,7 +57,10 @@ function websocketConnect() {
 			} else if (obj.op == 'utx') {
 				
 				//Check for duplicates
-				for (var i =0; i < transactions.length; ++i) {
+				for (var i = 0; i < transactions.length; ++i) {
+					
+					console.log(transactions[i].txIndex + ' == ' + obj.x.txIndex);
+					
 					if (transactions[i].txIndex == obj.x.txIndex)
 						return;
 				}
@@ -90,7 +93,6 @@ function websocketConnect() {
 				$('#transactions').prepend(tx.getHTML()).hide().fadeIn("slow").slideDown('slow');
 	
 			}  else if (obj.op == 'block') {
-				
 				setLatestBlock(BlockFromJSON(obj.x));
 			}
 		
