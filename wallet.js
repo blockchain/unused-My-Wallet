@@ -73,6 +73,8 @@ function websocketConnect() {
 				var tx = TransactionFromJSON(obj.x);
 				
 				tx.setMyHashes(getMyHash160s());
+				
+				tx.setConfirmations(0);
 	
 				var result = tx.getResult();
 				
