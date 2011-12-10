@@ -330,8 +330,16 @@ function getMyHash160s() {
 	return array;
 }
 
-function roundTwoDecimals(i) {
-	return Math.round((i*100)/100);
+function toFixed(value, precision) {
+    var precision = precision || 0,
+    neg = value < 0,
+    power = Math.pow(10, precision),
+    value = Math.round(value * power),
+    integral = String((neg ? Math.ceil : Math.floor)(value / power)),
+    fraction = String((neg ? -value : value) % power),
+    padding = new Array(Math.max(precision - fraction.length, 0) + 1).join('0');
+
+    return precision ? integral + '.' +  padding + fraction : integral;
 }
 
 function updateTransactionsSummary() {
@@ -344,24 +352,24 @@ function updateTransactionsSummary() {
 		$('#balance-usd').html('0');
 	} else {
 		
-		$('#balance-btc').html(final_balance / satoshi);
+		$('#balance-btc').html(toFixed(final_balance / satoshi, 4));
 	
-		$('#balance-usd').html(roundTwoDecimals(final_balance / satoshi * market_price));
+		$('#balance-usd').html(toFixed(final_balance / satoshi * market_price, 2));
 	}
 
 	$('#summary-n-tx').html(n_tx);
 
-	$('#summary-received-usd').html(roundTwoDecimals(total_received / satoshi  * market_price));
+	$('#summary-received-usd').html(toFixed(total_received / satoshi  * market_price, 2));
 
-	$('#summary-received-btc').html(roundTwoDecimals(total_received / satoshi));
+	$('#summary-received-btc').html(toFixed(total_received / satoshi, 4));
 
-	$('#summary-sent-usd').html(roundTwoDecimals(total_sent / satoshi  * market_price));
+	$('#summary-sent-usd').html(toFixed(total_sent / satoshi  * market_price, 4));
 
-	$('#summary-sent-btc').html(roundTwoDecimals(total_sent / satoshi));
+	$('#summary-sent-btc').html(toFixed(total_sent / satoshi, 4));
 
-	$('#summary-balance-usd').html(roundTwoDecimals(final_balance / satoshi  * market_price));
+	$('#summary-balance-usd').html(toFixed(final_balance / satoshi  * market_price, 2));
 
-	$('#summary-balance-btc').html(roundTwoDecimals(final_balance / satoshi));
+	$('#summary-balance-btc').html(toFixed(final_balance / satoshi, 4));
 }
 
 function updateTransactions() {
@@ -597,17 +605,28 @@ function validateEmail(str) {
    return (lastAtPos < lastDotPos && lastAtPos > 0 && str.indexOf('@@') == -1 && lastDotPos > 2 && (str.length - lastDotPos) > 2);
 } 
 
+function emailBackup() {
+
+	setLoadingText('Sending email backup');
+
+	$.post("/wallet", { guid: guid, sharedKey: sharedKey, method : 'email-backup' },  function(data) { 
+		makeNotice('success', 'backup-success', data, 5000);
+	})
+    .error(function(data) { 
+    	makeNotice('error', 'misc-error', data.responseText); 
+    });
+}
 
 function updateAlias(alias) {
 	
-	if (alias.length == 0) {
+	if (alias == null || alias.length == 0) {
 		makeNotice('error', 'misc-error', 'You must enter an alias');
 		return;
 	}
 	
 	setLoadingText('Updating Alias');
 	
-	$.post("/wallet", { guid: guid, payload: alias, length : alias.length, method : 'update-alias' },  function(data) { 
+	$.post("/wallet", { guid: guid, payload : alias, sharedKey: sharedKey, length : alias.length, method : 'update-alias' },  function(data) { 
 		makeNotice('success', 'alias-success', data, 5000);
 	})
     .error(function(data) { 
@@ -617,7 +636,7 @@ function updateAlias(alias) {
 
 function updateEmail(email) {
 	
-	if (email.length == 0) {
+	if (email == null || email.length == 0) {
 		makeNotice('error', 'misc-error', 'You must enter an email');
 		return;
 	}
@@ -629,7 +648,7 @@ function updateEmail(email) {
 		
 	setLoadingText('Updating Email');
 
-	$.post("/wallet", { guid: guid, payload: email, length : email.length, method : 'update-email' },  function(data) { 
+	$.post("/wallet", { guid: guid, payload: email, sharedKey: sharedKey, length : email.length, method : 'update-email' },  function(data) { 
 		makeNotice('success', 'email-success', data, 5000);
 	})
     .error(function(data) { 
@@ -686,6 +705,58 @@ function backupWallet(method) {
 	});
 }
 
+function checkAndSetPassword() {
+	
+	var tpassword = $("#password").val();
+	
+	var tpassword2 = $("#password2").val();
+	
+	console.log(tpassword + ' == ' + tpassword2);
+
+	if (tpassword != tpassword2) {
+		makeNotice('error', 'misc-error', 'Passwords do not match.', 5000);
+		return false;
+	}
+	
+	if (tpassword.length == 0 || tpassword.length < 10 || tpassword.length > 255) {
+		makeNotice('error', 'misc-error', 'Password must be 10 characters or more in length', 5000);
+		return false;
+	} 
+	
+	password = tpassword;
+	
+	return true;
+}
+
+function updatePassword() {
+		
+	var modal = $('#update-password-modal');
+
+	modal.modal({
+		  keyboard: true,
+		  backdrop: "static",
+		  show: true
+	});
+		
+	modal.find('.btn.primary').unbind().click(function() {
+		modal.modal('hide');
+
+		if (!checkAndSetPassword()) {
+			return false;
+		}
+		
+		backupWallet('update');
+		
+		$('body').ajaxStop(function() {
+			window.location = root + 'wallet/' + guid + window.location.hash;
+		});
+	});
+
+	modal.find('.btn.secondary').unbind().click(function() {
+		modal.modal('hide');
+	});
+}
+
 function generateNewWallet() {
 
 	if (addresses.length > 0) {
@@ -702,21 +773,8 @@ function generateNewWallet() {
 		return false;
 	}
 	
-	password = $("#password").val();
-	
-	password2 = $("#password2").val();
-
-	if (password != password2) {
-		makeNotice('error', 'misc-error', 'Passwords do not match.');
+	if (!checkAndSetPassword())
 		return false;
-	}
-	
-	if (password.length == 0 || password.length < 10 || password.length > 255) {
-		makeNotice('error', 'misc-error', 'Password must be 10 characters or more in length');
-		return false;
-	} else {
-		hideNotice('misc-error');
-	}
 	
 	if (!generateNewAddressAndKey()) {
 		makeNotice('error', 'misc-error', 'Error generating new bitcoin address');
@@ -1144,10 +1202,9 @@ function setReviewTransactionContent(modal, tx) {
 }
 
 function createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, missingPrivateKeys) {
+	var modal = $('#new-transaction-modal');
 
-	try {
-		var modal = $('#new-transaction-modal');
-	
+	try {	
 		var tx = signTransaction(toAddressesWithValue, fromAddress, fees, unspent, missingPrivateKeys);
 		
 		if (tx != null) {
@@ -1382,7 +1439,6 @@ function newTxValidateFormAndGetUnspent() {
 		
 		modal.find('.btn.primary').text('Send Transaction');
 
-		
 		modal.find('.btn.secondary').unbind().click(function() {
 			modal.modal('hide');
 		});
@@ -1493,6 +1549,26 @@ $(document).ready(function() {
 		  
 		  backupWallet('update');
 	});
+	
+    $('#update-email-btn').unbind().click(function() {    
+		var email = $('#wallet-email').val();
+				
+		updateEmail(email);
+    });
+    
+	$('#update-password-btn').unbind().click(function() {    			
+		updatePassword();
+    });
+	
+    $('#email-backup-btn').unbind().click(function() {    			
+		emailBackup();
+    });
+	
+    $('#update-alias-btn').unbind().click(function() {    
+		var alias = $('#wallet-alias').val();
+			
+		updateAlias(alias);
+    });
 	
     $('#wallet-login').unbind().click(function() {    
     
@@ -1728,12 +1804,72 @@ $(document).ready(function() {
 		addAddressBookEntry();
 	});
 	
-    	
+	//Password strength meter
+	$('#passwords').unbind().bind('change keypress keyup', function() {
+				
+	    var warnings = document.getElementById('password-warnings');
+	    var result = document.getElementById('password-result');
+	    var password = $(this).val();
+	    
+	        var cps = HSIMP.convertToNumber('250000000'),
+	            time, i, checks;
+	            
+	        warnings.innerHTML = '';
+	        if(password) {   
+	            time = HSIMP.time(password, cps.numeric);
+	            time = HSIMP.timeInPeriods(time);
+	            
+	           	$('#password-result').fadeIn(200);
+	
+	            if (time.period === 'seconds') {
+	                if (time.time < 0.000001) {
+	                    result.innerHTML = 'Your password would be hacked <span>Instantly</span>';
+	                } else if (time.time < 1) {
+	                    result.innerHTML = 'It would take a desktop PC <span>' + time.time+' '+time.period+ '</span> to hack your password';
+	                } else {
+	                    result.innerHTML = 'It would take a desktop PC <span>About ' + time.time+' '+time.period+ '</span> to hack your password';
+	                }
+	            } else {
+	            
+	                result.innerHTML = 'It would take a desktop PC <span>About ' + time.time+' '+time.period+ '</span> to hack your password';
+	            }
+	            
+	            checks = HSIMP.check(password);
+	            HSIMP.formatChecks(checks.results, warnings);
+	            
+	            if (checks.insecure) {
+	                result.innerHTML = '';
+	               	$('#password-result').fadeOut(200);
+	            }
+	            
+	        } else {
+	            result.innerHTML = '';
+	           	$('#password-result').fadeOut(200);
+	        }
+	});
+	
+	$('#wallet-alias').unbind().bind('change keyup', function() {
+		$(this).val($(this).val().replace(/[\.,\/ #!$%\^&\*;:{}=`~()]/g,""));
+	
+		if ($(this).val().length > 0) {
+			$('.alias').fadeIn(200);
+	
+			$('.alias span').text($(this).val());
+		}
+	});
+	
     $("#my-account-btn").click(function() {
 		if (!isInitialized)
 			return;
 		
 		changeView($("#my-account"));
+	});
+
+    $("#home-intro-btn").click(function() {
+		if (!isInitialized)
+			return;
+		
+		changeView($("#home-intro"));
 	});
 
 
