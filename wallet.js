@@ -363,7 +363,7 @@ function updateTransactionsSummary() {
 
 	$('#summary-received-btc').html(toFixed(total_received / satoshi, 4));
 
-	$('#summary-sent-usd').html(toFixed(total_sent / satoshi  * market_price, 4));
+	$('#summary-sent-usd').html(toFixed(total_sent / satoshi  * market_price, 2));
 
 	$('#summary-sent-btc').html(toFixed(total_sent / satoshi, 4));
 
