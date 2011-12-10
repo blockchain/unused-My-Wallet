@@ -374,7 +374,7 @@ function updateTransactionsSummary() {
 	$('#summary-balance-btc').html(toFixed(final_balance / satoshi, 4));
 }
 
-function updateTransactions() {
+function updateTransactionConfirmations() {
 	
 	if (block_heights == null || block_heights.length == 0)
 		return;
@@ -424,7 +424,7 @@ function setLatestBlock(block) {
 	
 	updateLatestBlockAge();
 	
-	updateTransactions();
+	updateTransactionConfirmations();
 }
 
 function parseLatestBlockJSON(json) {
@@ -521,7 +521,7 @@ function queryAPIMultiAddress() {
 			//Rebuild the my-addresse s list with the new updated balances
 			buildReceivingAddressList();
 			 
-			updateTransactions();
+			updateTransactionConfirmations();
 			
 			updateTransactionsSummary();
 			
@@ -1651,24 +1651,22 @@ $(document).ready(function() {
                     if (local_guid != guid) {
                         localStorage.clear();
                     }
-	
 					
-                    //Restor the cached latest block
-					var latestblockjson = localStorage.getItem('latestblock');
-	
-					if (latestblockjson != null) {					
-						parseLatestBlockJSON(latestblockjson);
-					}
                     
 					//Restore the balance cache
 					var multiaddrjson = localStorage.getItem('multiaddr');
 					
 					if (multiaddrjson != null) {
 						parseMultiAddressJSON(multiaddrjson);
-		
-						updateTransactions();
-						
+								
 						updateTransactionsSummary();
+					}
+					
+					//Restor the cached latest block
+					var latestblockjson = localStorage.getItem('latestblock');
+	
+					if (latestblockjson != null) {					
+						parseLatestBlockJSON(latestblockjson);
 					}
 					
 					localStorage.setItem('guid', guid);
