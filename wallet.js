@@ -77,9 +77,10 @@ function websocketConnect() {
 				tx.setConfirmations(0);
 	
 				var result = tx.getResult();
-				
+
+				final_balance += result;
+
 				if (result > 0) {
-					final_balance += result;
 					total_received += result;
 				} else if (result < 0) {
 					total_sent -= result;
@@ -213,6 +214,12 @@ function parseWalletJSONObject(obj) {
 	}
 }
 
+//Why does javascript not have copy to clipboard?
+function pasteAddress(addr) {
+	//Constuct the recepient address array
+	$('#recipient-container').find('input[name="send-to-address"]').last().val(addr);
+}
+	
 function buildAddressBook() {
 	
 	if (address_book.length == 0)
@@ -223,7 +230,7 @@ function buildAddressBook() {
 	el.empty();
 	
 	for (var i = 0; i < address_book.length; ++i) {
-		el.append('<tr><td>'+ address_book[i].label + '</td><td>'+ address_book[i].addr + '</td></tr>');
+		el.append('<tr><td>'+ address_book[i].label + '</td><td>'+ address_book[i].addr + '</td><td><img src="' + resource+ 'paste.png" onclick="pasteAddress(\''+ address_book[i].addr + '\')"></tr>');
 	}
 }
 
@@ -1375,7 +1382,7 @@ function createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, 
 }
 
 
-//Adapted from bitcoin-js wallet.js Wallet.createSend
+//Check for inputs and get unspent for before signinging
 function newTxValidateFormAndGetUnspent() {
 	
 	var modal = null;
@@ -2174,7 +2181,7 @@ function buildReceivingAddressList() {
 	
 	tbody.empty();
 	
-	var img = $('<img class="address-delete-btn" src="'+resource+'delete.png" />')
+	var img = $('<img class="address-delete-btn" src="'+resource+'delete.png" />');
 
 	if (!$('#edit-addresses-checkbox').is(":checked")) {
 		img.hide();
@@ -2193,7 +2200,7 @@ function buildReceivingAddressList() {
 		
 		var noPrivateKey = '';
 		if (private_keys[i] == null)
-			noPrivateKey = ' <font color="red">(No Private Key)</font>'
+			noPrivateKey = ' <font color="red">(No Private Key)</font>';
 		
 		tbody.append('<tr><td>' + addr + noPrivateKey+'</td><td><span id="'+addr+'" style="color:green">' + balance +'</span></td><td></td></tr>');
 
