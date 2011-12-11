@@ -73,9 +73,7 @@ function websocketConnect() {
 				var tx = TransactionFromJSON(obj.x);
 				
 				tx.setMyHashes(getMyHash160s());
-				
-				tx.setConfirmations(0);
-	
+					
 				var result = tx.getResult();
 
 				final_balance += result;
@@ -92,7 +90,22 @@ function websocketConnect() {
 	
 				$('#transactions').prepend(tx.getHTML()).hide().fadeIn("slow").slideDown('slow');
 	
+				tx.setConfirmations(0);
+
 			}  else if (obj.op == 'block') {
+
+				//Check any transactions included in this block, if the match one our ours then set the block index
+				for (var i = 0; i < obj.x.txIndexes.length; ++i) {
+					for (var ii = 0; ii < transactions.length; ++ii) {
+						if (transactions[ii].txIndex == obj.x.txIndexes[i]) {
+							if (transactions[ii].blockIndex == null) {
+								transactions[ii].blockIndex = obj.x.block_index;
+								break;
+							}
+						}
+					}
+				}
+				
 				setLatestBlock(BlockFromJSON(obj.x));
 			}
 		
@@ -392,7 +405,7 @@ function updateTransactionConfirmations() {
 			transactions[i].setConfirmations(0);
 		} else {
 			var height = block_heights[transactions[i].blockIndex];
-			
+
 			if (height != null) {
 				var nconfirmations = latest_block.height - height + 1;
 				
@@ -426,9 +439,7 @@ function setLatestBlock(block) {
 	$('#nodes-connected').html(nconnected);
 	
 	$('#market-price').html(market_price);
-		
-	block_heights[block.blockIndex] = block.height;
-	
+			
 	latest_block = block;
 	
 	updateLatestBlockAge();
@@ -439,13 +450,13 @@ function setLatestBlock(block) {
 function parseLatestBlockJSON(json) {
 	var obj = jQuery.parseJSON(json);
 
-	setLatestBlock(BlockFromJSON(obj));
-
-	if (obj.past_blocks != null) {
+	if (obj.past_blocks != null) {		
 		for (var i=0; i< obj.past_blocks.length; ++i) {
 			block_heights[obj.past_blocks[i].blockIndex] = obj.past_blocks[i].height;
 		}
 	}
+	
+	setLatestBlock(BlockFromJSON(obj));
 }
 
 function queryAPILatestBlock() {
@@ -858,8 +869,6 @@ function compareArray(a, b) {
 
 function signTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOutputs, missingPrivateKeys) {
 		
-		console.log('Sign Transaction');
-		
 		var selectedOuts = [];
 		
 		var txValue = 0;
@@ -914,12 +923,7 @@ function signTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 		}
 
 		for (var i =0; i < toAddressesWithValue.length; ++i) {	
-			
-			console.log('Added output ' + toAddressesWithValue[i].address);
-			console.log('Added output ' + toAddressesWithValue[i].value);
-
 			sendTx.addOutput(toAddressesWithValue[i].address, BigInteger.valueOf(toAddressesWithValue[i].value));
-			
 		}
         
        sendTx.addOutput(ouraddr, BigInteger.valueOf(ourFee));
