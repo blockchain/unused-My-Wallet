@@ -27,13 +27,13 @@ function TransactionFromJSON(json) {
 	tx.size = json.size;
 	tx.txIndex = json.tx_index;
 	tx.time = json.time;
-	tx.in = json.in;
+	tx.inputs = json.inputs;
 	tx.out = json.out;
 	tx.blockIndex = json.block_index;
 
 	try {
-		for (var i = 0; i < tx.in.length; i++) {		
-			tx.in[i].prev_out.addr = new Bitcoin.Address(Crypto.util.hexToBytes(tx.in[i].prev_out.hash));
+		for (var i = 0; i < tx.inputs.length; i++) {		
+			tx.inputs[i].prev_out.addr = new Bitcoin.Address(Crypto.util.hexToBytes(tx.inputs[i].prev_out.hash));
 		}
 		
 		for (var i = 0; i < tx.out.length; i++) {		
@@ -83,8 +83,8 @@ Transaction.prototype.getResult = function() {
 	if (this.myHashes160 == null) 
 		return total_output;
 		
-	for (var i = 0; i < this.in.length; i++) {
-		input = this.in[i];
+	for (var i = 0; i < this.inputs.length; i++) {
+		input = this.inputs[i];
 		 
 		var value = parseInt(input.prev_out.value) / 100000000;
 
@@ -152,9 +152,9 @@ Transaction.prototype.getHTML = function() {
 	
 	html += '</th><th><span class="adv">' + this.size + ' (bytes)</span></th></tr><tr><td width="55%" style="vertical-align:middle;"><ul class="txul">';
    
-    if (this.in.length > 0) {
-		for (var i = 0; i < this.in.length; i++) {
-			input = this.in[i];
+    if (this.inputs.length > 0) {
+		for (var i = 0; i < this.inputs.length; i++) {
+			input = this.inputs[i];
 			 
 			//total_fees += input.prevOutputValue;
 			

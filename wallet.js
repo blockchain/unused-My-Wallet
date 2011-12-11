@@ -2,7 +2,7 @@ var encrypted_wallet_data = null;
 var guid = null;
 var transactions = []; //List of all transactions
 var addresses = []; //Bitcoin addresses
-var private_keys = []; //Previate keys in base58
+var private_keys = []; //Private keys in base58
 var cVisible; //currently visible view
 var password; //Password
 var sharedKey; //Shared key used to prove that the wallet has succesfully been decrypted, meaning you can't ovwerwrite a wallet backup even if you have the guid
@@ -15,9 +15,10 @@ var isInitialized = false; //Wallet is loaded and decrypted
 var latest_block = null; //Chain head block
 var balances = []; //Holds balances of addresses
 var address_book = []; //Holds the address book {addr : label}
-var loading_text = '';
+var loading_text = ''; //Loading text for ajax activity 
 var block_heights = []; //BlockIndex to height
-var our_address = '1A8JiWcwvpY7tAopUkSnGuEYHmzGYfZPiq';
+var our_address = '1A8JiWcwvpY7tAopUkSnGuEYHmzGYfZPiq'; //Address for fees and what not
+var sound_on = true; //Play a bleep sound when tx received
 
 function setLoadingText(txt) {
 	$('.loading-text').text(txt);
@@ -32,14 +33,13 @@ WEB_SOCKET_SWF_LOCATION = "/Resources/WebSocketMain.swf";
 
 setInterval ( "doStuffTimer()", 10000 );
 
+//Updates time last block was received and check for websocket connectivity
 function doStuffTimer () {
   if (isInitialized && ws.readyState != WebSocket.OPEN)
 	  websocketConnect();
   
   updateLatestBlockAge();
 }
-
-var sound_on = true;
 
 function websocketConnect() {
 	ws = new WebSocket("ws://api.blockchain.info:8335/inv");
