@@ -427,6 +427,8 @@ function setLatestBlock(block) {
 	
 	$('#market-price').html(market_price);
 		
+	block_heights[block.blockIndex] = block.height;
+	
 	latest_block = block;
 	
 	updateLatestBlockAge();
