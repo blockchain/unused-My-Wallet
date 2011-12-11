@@ -1118,11 +1118,11 @@ function addAddressBookEntry() {
          }
 	        
 		makeNotice('success', 'misc-success', 'Added Address book entry', 5000);
-
-		backupWallet('update');
 		
 		internalAddAddressBookEntry(bitcoinAddress, label);
-		
+
+		backupWallet('update');
+
 		buildAddressBook();
 	});
 	
