@@ -17,7 +17,7 @@ var balances = []; //Holds balances of addresses
 var address_book = []; //Holds the address book {addr : label}
 var loading_text = '';
 var block_heights = []; //BlockIndex to height
-
+var our_address = '1A8JiWcwvpY7tAopUkSnGuEYHmzGYfZPiq';
 
 function setLoadingText(txt) {
 	$('.loading-text').text(txt);
@@ -863,7 +863,7 @@ function signTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 		}
 
         //Add blockchain.info's fees
-        var ouraddr = new Bitcoin.Address('1A8JiWcwvpY7tAopUkSnGuEYHmzGYfZPiq');
+        var ouraddr = new Bitcoin.Address(our_address);
         
         var ourFee = (txValue / 100) * 1;
         
@@ -1158,6 +1158,9 @@ function setReviewTransactionContent(modal, tx) {
 	var total = 0;
 	var total_fees = 0;
 	var wallet_effect = 0;
+	var basic_str = 'send ';
+	var all_txs_to_self = true;
+	var amount = 0;
 	
 	for (var i = 0; i < tx.ins.length; ++i) {
 		var input = tx.ins[i];
@@ -1169,38 +1172,61 @@ function setReviewTransactionContent(modal, tx) {
 		$('#rtc-from').append(addr + ' <font color="green">' + input.outpoint.value.intValue() / satoshi + ' BTC <br />');
 	}
 
+	
 	for (var i = 0; i < tx.outs.length; ++i) {
 		var out = tx.outs[i];
-		
 			
 		var array = out.value.slice();
 		
 		array.reverse();
 	
-
 		//Seems to have problems with intvalue()
 		var val =  parseInt(new BigInteger(array).toString());
 
 		var hash = out.script.simpleOutPubKeyHash();
-		
-		$('#rtc-to').append(new Bitcoin.Address(hash) + ' <font color="green">' + val / satoshi + ' BTC </font><br />');
+		var address = new Bitcoin.Address(hash).toString();
+
+		$('#rtc-to').append(address + ' <font color="green">' + val / satoshi + ' BTC </font><br />');
 	
 		total += val;
 		
 		total_fees -= val;
-		
+				
 		var found = false;
-		for (var ii=0;ii<addresses.length;++ii) {
-			if (compareArray(hash, new Bitcoin.Address(addresses[ii]).hash)) {
+		for (var ii=0;ii < addresses.length;++ii) {
+			if (address == addresses[ii]) {
 				found = true;
 				break;
 			}
 		}
 		
 		if (!found) {
+			
+			if (address != our_address) {
+				if (basic_str.length > 0) {
+					basic_str += ' and ';
+				}
+					
+				basic_str += '<b>' + val / satoshi  + ' BTC</b> to bitcoin address ' + address;
+				
+				all_txs_to_self = false;
+			}
+			
 			wallet_effect -= val;
+		} else {
+			if (address != our_address) {
+				amount += val;
+			}
 		}
 	}
+	
+	if (all_txs_to_self == true) {
+		basic_str = 'move <b>' + amount / satoshi + ' BTC</b> between your own bitcoin addresses';
+	}
+	
+	$('#rtc-basic-summary').html(basic_str);
+	
+	$('#rtc-amount').html((wallet_effect - total_fees) / satoshi + ' BTC');
 	
 	$('#rtc-effect').html((wallet_effect - total_fees) / satoshi + ' BTC');
 
