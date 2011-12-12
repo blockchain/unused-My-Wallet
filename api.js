@@ -16,11 +16,12 @@ function BlockFromJSON(json) {
 
 function toFixed(x, n) {
  if(!parseInt(n))
-	  	var n=0;
-	  if(!parseFloat(x))
-	  	return 0;
-
-	  return Math.round(x*Math.pow(10,n))/Math.pow(10,n);
+	 var n=0;
+ 
+ if(!parseFloat(x))
+	 return 0;
+ 
+  return Math.round(x*Math.pow(10,n))/Math.pow(10,n);
 }
 
 function TransactionFromJSON(json) {
