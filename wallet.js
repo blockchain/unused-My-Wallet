@@ -277,7 +277,10 @@ function importPyWalletJSONObject(obj) {
 						
 			//Check the the private keys matches the bitcoin address
 			if (obj.keys[i].addr ==  key.getBitcoinAddress().toString()) {				
-				internalAddKey(obj.keys[i].addr, Bitcoin.Base58.encode(obj.keys[i].priv));
+				
+				if (checkCanAddKey(obj.keys[i].addr))
+					internalAddKey(obj.keys[i].addr, Bitcoin.Base58.encode(obj.keys[i].priv));
+				
 			} else {
 				makeNotice('error', 'misc-error', 'Private key doesn\'t seem to match the address. Possible corruption', 1000);
 				return false;
@@ -331,6 +334,16 @@ function importJSON() {
 		if (obj.keys[0].hexsec != null) {
 			importPyWalletJSONObject(obj);
 		} else {
+			
+			for (var i = 0; i < obj.keys.length; ++i) {	
+				
+				//If we can't add it then remove it from the array
+				if (!checkCanAddKey(obj.keys[i].addr)) {
+					obj.keys.slice(i, i+1);
+					--i;
+				}
+			}
+			
 			parseWalletJSONObject(obj);
 		}
 	} catch (e) {
@@ -407,12 +420,9 @@ function updateTransactionConfirmations() {
 			var height = block_heights[transactions[i].blockIndex];
 
 			if (height != null) {
-				var nconfirmations = latest_block.height - height + 1;
-				
+				var nconfirmations = latest_block.height - height + 1;		
 				transactions[i].setConfirmations(nconfirmations);
-			} else {
-				break;
-			}
+			} 
 		}
 	}
 }
@@ -1046,21 +1056,24 @@ function internalAddAddressBookEntry(addr, label) {
 	address_book.push({ addr: addr, label : label});
 }
 
-function internalAddKey(addr, priv) {
-	
+function checkCanAddKey(addr) {
+
 	if (addresses.length >= 200) {
 		makeNotice('error', 'misc-error', 'We currently support a maximum of 200 private keys, please remove some unsused ones.', 5000);
-		return;
+		return false;
 	}
 	
 	//Check for duplicates
 	for (var ii=0;ii<addresses.length;++ii) {
-		
 		if (addr == addresses[ii]) {
-			return;
+			return false;
 		}
 	}
 	
+	return true;
+}
+
+function internalAddKey(addr, priv) {
 	addresses.push(addr);
 	private_keys.push(priv);
 }
@@ -1663,9 +1676,14 @@ $(document).ready(function() {
 							var address = new Bitcoin.Address(value);
 							
 							if (address != null && address.toString() == value) {
-								internalAddKey(value, null);
-								didChangeWallet = true;
-								makeNotice('success', 'added-addr', 'Added Bitcoin Address ' + value, 5000); 
+								
+								if (checkCanAddKey(value)) {
+									internalAddKey(value, null);
+									didChangeWallet = true;
+									makeNotice('success', 'added-addr', 'Added Bitcoin Address ' + value, 5000); 
+								} else {
+									makeNotice('error', 'error-addr', 'Error Adding Bitcoin Address ' + value, 5000); 
+								}
 							}
 						}
 					}
@@ -1782,18 +1800,23 @@ $(document).ready(function() {
 					return;
 				}
 				
-				internalAddKey(value, null);
-
-				makeNotice('success', 'added-address', 'Sucessfully Added Address ' + address, 5000);
 				
-				//Rebuild the list
-				buildReceivingAddressList();
-
-				//Backup
-				backupWallet('update');
-				
-				//Update the balance list
-				queryAPIMultiAddress(); 
+				if (checkCanAddKey(value)) {
+					internalAddKey(value, null);
+	
+					makeNotice('success', 'added-address', 'Sucessfully Added Address ' + address, 5000);
+					
+					//Rebuild the list
+					buildReceivingAddressList();
+	
+					//Backup
+					backupWallet('update');
+					
+					//Update the balance list
+					queryAPIMultiAddress(); 
+				} else {
+					makeNotice('error', 'add-error', 'Error Adding Address ' + address, 5000);
+				}
 
 			} catch (e) {
 				makeNotice('error', 'misc-error', 'Error importing address: ' + e, 5000);
@@ -1823,19 +1846,23 @@ $(document).ready(function() {
 					throw 'Decode returned null key';
 				
 				var addr = key.getBitcoinAddress().toString();
-									
-				internalAddKey(addr, Bitcoin.Base58.encode(key.priv));
-				
-				//Rebuild the My-address list
-				buildReceivingAddressList();
-				
-				//Perform a wallet backup
-				backupWallet('update');
-				
-				//Get the new list of transactions
-				queryAPIMultiAddress();
-				
-				makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr, 5000);
+								
+				if (checkCanAddKey(addr)) {
+					internalAddKey(addr, Bitcoin.Base58.encode(key.priv));
+					
+					//Rebuild the My-address list
+					buildReceivingAddressList();
+					
+					//Perform a wallet backup
+					backupWallet('update');
+					
+					//Get the new list of transactions
+					queryAPIMultiAddress();
+					
+					makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr, 5000);
+				}else {
+					makeNotice('error', 'add-error', 'Error Adding Address ' + address, 5000);
+				}
 				
 			} catch(e) {
 				console.log(e);
@@ -2241,17 +2268,19 @@ function generateNewAddressAndKey() {
 			return false;
 		}
 
-		internalAddKey(addr, Bitcoin.Base58.encode(key.priv));
-		
-		buildReceivingAddressList();
-		
-		makeNotice('info', 'new-address', 'Generated new bitcoin address ' + addr, 5000);
-		
-		//Subscribe to tranaction updates through websockets
-		try {
-			ws.send('{"op":"addr_sub", "hash":"'+Crypto.util.bytesToHex(key.getPubKeyHash())+'"}');
-		} catch (e) { 
+		if (checkCanAddKey(addr)) {
+			internalAddKey(addr, Bitcoin.Base58.encode(key.priv));
 			
+			buildReceivingAddressList();
+			
+			makeNotice('info', 'new-address', 'Generated new bitcoin address ' + addr, 5000);
+			
+			//Subscribe to tranaction updates through websockets
+			try {
+				ws.send('{"op":"addr_sub", "hash":"'+Crypto.util.bytesToHex(key.getPubKeyHash())+'"}');
+			} catch (e) { }
+		} else {
+			makeNotice('error', 'add-error', 'Unable to add generated bitcoin address.');
 		}
 		
 	} catch (e) {
