@@ -492,6 +492,7 @@ function parseMultiAddressJSON(json) {
 	total_sent = 0;
 	final_balance = 0;
 	n_tx = 0;
+	transactions = [];
 	
 	for (var i = 0; i < obj.addresses.length; ++i) {
 		
