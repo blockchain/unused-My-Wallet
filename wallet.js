@@ -1851,10 +1851,10 @@ $(document).ready(function() {
 	$('#add-address-book-entry-btn').click(function() {
 		addAddressBookEntry();
 	});
-	
+
 	//Password strength meter
-	$('#passwords').unbind().bind('change keypress keyup', function() {
-				
+	$('#password').unbind().bind('change keypress keyup', function() {
+						
 	    var warnings = document.getElementById('password-warnings');
 	    var result = document.getElementById('password-result');
 	    var password = $(this).val();
