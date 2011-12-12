@@ -837,6 +837,12 @@ function changeView(id) {
 }
 
 function pushTx(tx) {	
+	
+	makeNotice('error', 'misc-error', 'Transactions are disabled temporarily. Please try again in a few hours.', 5000);
+
+	return;
+	
+	
 	var s = tx.serialize();
 
 	var hex = Crypto.util.bytesToHex(s);
