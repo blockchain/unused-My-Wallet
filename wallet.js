@@ -921,7 +921,7 @@ function signTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 		}
 
 	    if (availableValue <= txValue) {
-			throw 'Insufficient funds.';
+			throw 'Insufficient funds. Value Needed ' + (txValue / satoshi) + ' BTC. Available amount ' + toFixed((availableValue / satoshi), 4) + ' BTC';
 	    }
 
 		var changeValue = availableValue - txValue;
