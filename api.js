@@ -14,9 +14,12 @@ function BlockFromJSON(json) {
 	return block;
 }
 
-
-function AlreadyHaveTransaction(txIndex) {
-    return ($('#tx-'+txIndex).length > 0);
+function toFixed(x, n) {
+ if(!parseInt(n))
+	  	var n=0;
+	  if(!parseFloat(x))
+	  	return false;
+	  return Math.round(x*Math.pow(10,n))/Math.pow(10,n);
 }
 
 function TransactionFromJSON(json) {
@@ -216,7 +219,7 @@ Transaction.prototype.getHTML = function() {
 	
 	html += '<button class="confirmations" style="display:hidden"></button> ';
 		
-	html += '<button class="btn info">'+  (Math.round(total_output * market_price * 100)/100).toFixed(2) + ' USD</button> <button class="'+button_class+'">'+  total_output.toFixed(4) + ' BTC</button></span></div>';
+	html += '<button class="btn info">'+  toFixed((Math.round(total_output * market_price * 100)/100), 2) + ' USD</button> <button class="'+button_class+'">'+  toFixed(total_output, 4) + ' BTC</button></span></div>';
 	
 	return html;
 };
