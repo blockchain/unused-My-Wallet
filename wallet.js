@@ -448,6 +448,9 @@ function setLatestBlock(block) {
 function parseLatestBlockJSON(json) {
 	var obj = jQuery.parseJSON(json);
 
+	if (obj == null)
+		return;
+	
 	if (obj.past_blocks != null) {		
 		for (var i=0; i< obj.past_blocks.length; ++i) {
 			block_heights[obj.past_blocks[i].blockIndex] = obj.past_blocks[i].height;
@@ -838,11 +841,6 @@ function changeView(id) {
 
 function pushTx(tx) {	
 	
-	makeNotice('error', 'misc-error', 'Transactions are disabled temporarily. Please try again in a few hours.', 5000);
-
-	return;
-	
-	
 	var s = tx.serialize();
 
 	var hex = Crypto.util.bytesToHex(s);
@@ -876,29 +874,30 @@ function signTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 		
 		var selectedOuts = [];
 		
-		var txValue = 0;
+		var txValue = BigInteger.ZERO;
 		
 		if (feeValue != null)
-			txValue += feeValue;
+			txValue = txValue.add(feeValue);
         
 		for (var i = 0; i < toAddressesWithValue.length; ++i) {			
-			txValue += toAddressesWithValue[i].value;
+			txValue = txValue.add(toAddressesWithValue[i].value);
 		}
+
 
         //Add blockchain.info's fees
         var ouraddr = new Bitcoin.Address(our_address);
         
-        var ourFee = (txValue / 100) * 1;
+        var ourFee = txValue.divide(BigInteger.valueOf(100)).multiply(BigInteger.valueOf(1));
         
-        var opointone = 1000000;
+        var opointone = BigInteger.valueOf(1000000); // 0.01 BTC
         
-        if (ourFee < opointone) {
+        if (ourFee.compareTo(opointone) < 0) {
             ourFee = opointone;
         } 
             
-        txValue += ourFee;
+        txValue = txValue.add(ourFee);
 
-		var availableValue = 0;
+		var availableValue = BigInteger.ZERO;
 		
 		for (var i = 0; i < unspentOutputs.length; ++i) {
 			
@@ -908,18 +907,18 @@ function signTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 
 				var b64hash = Crypto.util.bytesToBase64(Crypto.util.hexToBytes(out.tx_hash));
 				
-				selectedOuts.push(new Bitcoin.TransactionIn({outpoint: {hash: b64hash, hexhash: hexhash, index: out.tx_output_n, value:BigInteger.valueOf(out.value)}, script: out.script, sequence: 4294967295}));
+				selectedOuts.push(new Bitcoin.TransactionIn({outpoint: {hash: b64hash, hexhash: hexhash, index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295}));
 								
-				availableValue += out.value;
+				availableValue = availableValue.add(out.value);
 				
-				if (availableValue >= txValue) break;
+				if (availableValue.compareTo(txValue) >= 0) break;
 		}
-
-	    if (availableValue <= txValue) {
-			throw 'Insufficient funds. Value Needed ' + (txValue / satoshi) + ' BTC. Available amount ' + toFixed((availableValue / satoshi), 4) + ' BTC';
+		
+	    if (availableValue.compareTo(txValue) < 0) {
+			throw 'Insufficient funds. Value Needed ' +  Bitcoin.Util.formatValue(txValue.toString()) + ' BTC. Available amount ' + Bitcoin.Util.formatValue(availableValue.toString()) + ' BTC';
 	    }
 
-		var changeValue = availableValue - txValue;
+		var changeValue = availableValue.subtract(txValue);
 
 		var sendTx = new Bitcoin.Transaction();
 
@@ -928,17 +927,18 @@ function signTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 		}
 
 		for (var i =0; i < toAddressesWithValue.length; ++i) {	
-			sendTx.addOutput(toAddressesWithValue[i].address, BigInteger.valueOf(toAddressesWithValue[i].value));
+						
+			sendTx.addOutput(toAddressesWithValue[i].address, toAddressesWithValue[i].value);
 		}
         
-       sendTx.addOutput(ouraddr, BigInteger.valueOf(ourFee));
+       sendTx.addOutput(ouraddr, ourFee);
 
 		if (changeValue > 0) {
 			
 			if (fromAddress == null)
-				sendTx.addOutput(new Bitcoin.Address(addresses[0]), BigInteger.valueOf(changeValue));
+				sendTx.addOutput(new Bitcoin.Address(addresses[0]), changeValue);
 			else
-				sendTx.addOutput(fromAddress, BigInteger.valueOf(changeValue));
+				sendTx.addOutput(fromAddress, changeValue);
 		}
 				
 		var hashType = 1; // SIGHASH_ALL
@@ -1176,21 +1176,21 @@ function setReviewTransactionContent(modal, tx) {
 	$('#rtc-from').html('');
 	$('#rtc-to').html('');
 	
-	var total = 0;
-	var total_fees = 0;
-	var wallet_effect = 0;
+	var total = BigInteger.ZERO;
+	var total_fees =  BigInteger.ZERO;
+	var wallet_effect =  BigInteger.ZERO;
 	var basic_str = 'send ';
 	var all_txs_to_self = true;
-	var amount = 0;
+	var amount =  BigInteger.ZERO;
 	
 	for (var i = 0; i < tx.ins.length; ++i) {
 		var input = tx.ins[i];
 					
 		var addr = new Bitcoin.Address(input.script.simpleInPubKeyHash());			
-	
-		total_fees += input.outpoint.value.intValue();
 		
-		$('#rtc-from').append(addr + ' <font color="green">' + input.outpoint.value.intValue() / satoshi + ' BTC <br />');
+		total_fees = total_fees.add(input.outpoint.value);
+		
+		$('#rtc-from').append(addr + ' <font color="green">' + Bitcoin.Util.formatValue(input.outpoint.value) + ' BTC <br />');
 	}
 
 	
@@ -1201,18 +1201,16 @@ function setReviewTransactionContent(modal, tx) {
 		
 		array.reverse();
 	
-		//Seems to have problems with intvalue()
-		var val =  parseInt(new BigInteger(array).toString());
+		var val =  new BigInteger(array);
 
 		var hash = out.script.simpleOutPubKeyHash();
 		var address = new Bitcoin.Address(hash).toString();
 
-		$('#rtc-to').append(address + ' <font color="green">' + val / satoshi + ' BTC </font><br />');
+		$('#rtc-to').append(address + ' <font color="green">' + Bitcoin.Util.formatValue(val.intValue()) + ' BTC </font><br />');
 	
-		total += val;
+		total = total.add(val);
 		
-		total_fees -= val;
-				
+		total_fees = total_fees.subtract(val);
 		var found = false;
 		for (var ii=0;ii < addresses.length;++ii) {
 			if (address == addresses[ii]) {
@@ -1228,32 +1226,34 @@ function setReviewTransactionContent(modal, tx) {
 					basic_str += ' and ';
 				}
 					
-				basic_str += '<b>' + val / satoshi  + ' BTC</b> to bitcoin address ' + address;
+				basic_str += '<b>' + Bitcoin.Util.formatValue(val.intValue())  + ' BTC</b> to bitcoin address ' + address;
 				
 				all_txs_to_self = false;
 			}
 			
-			wallet_effect -= val;
+			wallet_effect = wallet_effect.subtract(val);
 		} else {
 			if (address != our_address) {
-				amount += val;
+				amount = amount.add(val);
 			}
 		}
 	}
 	
+	if (total_fees.compareTo(BigInteger.valueOf(1).multiply(BigInteger.valueOf(satoshi))) >= 0) {
+		alert('Warning fees are very high for this transaction. Please double check each output!');
+	}
+	
 	if (all_txs_to_self == true) {
-		basic_str = 'move <b>' + amount / satoshi + ' BTC</b> between your own bitcoin addresses';
+		basic_str = 'move <b>' + Bitcoin.Util.formatValue(amount) + ' BTC</b> between your own bitcoin addresses';
 	}
 	
 	$('#rtc-basic-summary').html(basic_str);
-	
-	$('#rtc-amount').html((wallet_effect - total_fees) / satoshi + ' BTC');
-	
-	$('#rtc-effect').html((wallet_effect - total_fees) / satoshi + ' BTC');
+		
+	$('#rtc-effect').html(Bitcoin.Util.formatValue(wallet_effect.subtract(total_fees)) + ' BTC');
 
-	$('#rtc-fees').html(total_fees / satoshi + ' BTC');
+	$('#rtc-fees').html(Bitcoin.Util.formatValue(total_fees) + ' BTC');
 
-	$('#rtc-value').html(total / satoshi + ' BTC');
+	$('#rtc-value').html(Bitcoin.Util.formatValue(total) + ' BTC');
 }
 
 function createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, missingPrivateKeys) {
@@ -1416,9 +1416,10 @@ function newTxValidateFormAndGetUnspent() {
 		        var toAddress;
 		        
 		    	try {
-	    			value = parseFloat(value_input.val()) * satoshi;
-			        	    			
-					if (value == null || value <= 0) 
+		    				    		
+	    			value = Bitcoin.Util.parseValue(value_input.val());
+			        	 
+					if (value == null || value.compareTo(BigInteger.ZERO) <= 0) 
 						throw 'You must enter a value greater than zero';
 				} catch (e) {
 					throw 'Invalid send amount';
@@ -1457,9 +1458,9 @@ function newTxValidateFormAndGetUnspent() {
 		
 		var fees;
 		try {
-			 fees = parseFloat($('#send-fees').val() * satoshi);
+			 fees = Bitcoin.Util.parseValue($('#send-fees').val());
 			
-			if (fees == null || fees < 0) 
+			if (fees == null || fees.compareTo(BigInteger.ZERO) < 0) 
 				throw 'Fees cannot be negative';
 			
 		} catch (e) {
@@ -1506,7 +1507,7 @@ function newTxValidateFormAndGetUnspent() {
 			setLoadingText('Getting Unspent Outputs');
 
 			$.post(root + 'unspent', {'address[]' : fromAddresses},  function(obj) {  
-						
+
 				try {
 					var unspent = [];
 							
@@ -1519,9 +1520,8 @@ function newTxValidateFormAndGetUnspent() {
 							makeNotice('error', 'misc-error', 'Error decoding script: ' + e);
 							continue;
 						}
-									
 						var out = {script : script,
-							value : parseInt(obj.unspent_outputs[i].value),
+							value : BigInteger.fromByteArrayUnsigned(Crypto.util.hexToBytes(obj.unspent_outputs[i].value_hex)),
 							tx_output_n : obj.unspent_outputs[i].tx_output_n,
 							tx_hash : obj.unspent_outputs[i].tx_hash
 						};
@@ -1542,6 +1542,7 @@ function newTxValidateFormAndGetUnspent() {
 				}
 				
 			}).error(function(data) {  
+				
 				$('#new-transaction-modal').modal('hide');
 				makeNotice('error', 'misc-error', 'Error getting unspent outputs. Please check your internet connection.'); 
 			});
@@ -1582,7 +1583,7 @@ function privateKeyStringToKey(value, format) {
 	
 
 $(document).ready(function() {	
-    
+
     //Popovers! 
     $(function () {
      $("a[rel=popover]")
