@@ -98,7 +98,7 @@ function websocketConnect() {
 				for (var i = 0; i < obj.x.txIndexes.length; ++i) {
 					for (var ii = 0; ii < transactions.length; ++ii) {
 						if (transactions[ii].txIndex == obj.x.txIndexes[i]) {
-							if (transactions[ii].blockIndex == null) {
+							if (transactions[ii].blockIndex == null || transactions[ii].blockIndex.length == 0) {
 								transactions[ii].blockIndex = obj.x.block_index;
 								break;
 							}
