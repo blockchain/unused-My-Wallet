@@ -1743,7 +1743,11 @@ function privateKeyStringToKey(value, format) {
 	
 
 $(document).ready(function() {	
-
+	
+	if (window.location.protocol == 'http:') {
+		window.location.protocol = 'https:';
+	}
+	
     //Popovers! 
     $(function () {
      $("a[rel=popover]")
