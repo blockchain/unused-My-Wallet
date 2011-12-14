@@ -558,6 +558,124 @@ function queryAPIMultiAddress() {
 	});
 }
 
+function didDecryptWallet() {
+
+	try {
+		//Check if we have any addresses to add
+		var hash = decodeURI(window.location.hash.replace("#", ""));
+
+		if (hash != null && hash.length > 0) {
+		
+			var didChangeWallet = false;
+			var components = hash.split("|");
+			for (var i = 0; i < components.length; i += 2) {
+				var key = components[i];
+				var value = components[i+1];
+										
+				if (key == 'newaddr') {
+					var address = new Bitcoin.Address(value);
+					
+					if (address != null && address.toString() == value) {
+						
+						if (checkCanAddKey(value)) {
+							internalAddKey(value, null);
+							didChangeWallet = true;
+							makeNotice('success', 'added-addr', 'Added Bitcoin Address ' + value, 5000); 
+						} else {
+							makeNotice('error', 'error-addr', 'Error Adding Bitcoin Address ' + value, 5000); 
+						}
+					}
+				}
+			}
+			
+			window.location.hash = '';
+			
+			if (didChangeWallet) {
+				backupWallet('update');
+			}
+		}
+	} catch (e) {
+		makeNotice('error', 'add-address-error', 'Error adding new address from page link', 5000); 
+	}
+	
+	try {
+		
+		//Check local storage for a cache of address balances and transactions
+		if (localStorage) {
+                    
+            //Make sure the last guid the user logged in the ame as this one, if not clear cache
+            var local_guid = localStorage.getItem('guid');
+
+            if (local_guid != guid) {
+                localStorage.clear();
+            }
+			
+            
+			//Restore the balance cache
+			var multiaddrjson = localStorage.getItem('multiaddr');
+			
+			if (multiaddrjson != null) {
+				parseMultiAddressJSON(multiaddrjson);
+						
+				updateTransactionsSummary();
+			}
+			
+			//Restor the cached latest block
+			var latestblockjson = localStorage.getItem('latestblock');
+
+			if (latestblockjson != null) {					
+				parseLatestBlockJSON(latestblockjson);
+			}
+			
+			localStorage.setItem('guid', guid);
+		}
+	} catch (e) {
+		makeNotice('error', 'local-error', 'Error parsing local storage cache', 5000); 
+	}
+	
+	//Build the My-Address list again
+	buildReceivingAddressList();
+	
+	///Get the list of transactions from the http API
+	queryAPIMultiAddress();
+	
+	//Get data on the latest block
+	queryAPILatestBlock();
+	
+	changeView($("#receive-coins"));
+	
+	makeNotice('success', 'misc-success', 'Sucessfully Decrypted Wallet', 5000); 
+}
+
+function internalRestoreWallet() {
+	try {
+		var decrypted = Crypto.AES.decrypt(encrypted_wallet_data, password);
+		
+		if (decrypted.length == 0) {
+			makeNotice('error', 'misc-error', 'Error Decrypting Wallet', 5000);	
+			return false;
+		}
+		
+		var obj = jQuery.parseJSON(decrypted);
+
+		parseWalletJSONObject(obj);
+
+		sharedKey = obj.sharedKey;
+
+		setIsIntialized();
+		
+		return true;
+		
+	} catch (e) {
+		
+		console.log(e);
+		
+		makeNotice('error', 'misc-error', 'Error decrypting wallet. Please check you entered your password correctly.', 5000);
+	}
+
+	return false;
+}
+
 function restoreWallet() {
 
 	guid = $("#restore-guid").val();
@@ -577,33 +695,40 @@ function restoreWallet() {
 	} else {
 		hideNotice('password-error');
 	}
-
-	try {
-		var decrypted = Crypto.AES.decrypt(encrypted_wallet_data, password);
+	
+	//If we don't have any wallet data then we must have two factor authenitcation enabled
+	if (encrypted_wallet_data == null) {
 		
-		if (decrypted.length == 0) {
-			makeNotice('error', 'misc-error', 'Error Decrypting Wallet', 5000);
-						
+		setLoadingText('Validating authentication key');
+		
+		var auth_key = $('#restore-auth-key').val();
+		
+		if (auth_key == null || auth_key.length == 0 || auth_key.length > 255) {
+			makeNotice('error', 'misc-error', 'You must enter a Yubikey or Email confirmation code', 5000);
 			return false;
 		}
 		
-		var obj = jQuery.parseJSON(decrypted);
-
-		parseWalletJSONObject(obj);
-
-		sharedKey = obj.sharedKey;
-
-		
-	} catch (e) {
-		
-		console.log(e);
-		
-		makeNotice('error', 'misc-error', 'Error decrypting wallet. Please check you entered your password correctly.', 5000);
-
-		return false;
+		$.post("/wallet", { guid: guid, payload: auth_key, length : auth_key.length,  method : 'get-wallet' },  function(data) { 			
+			encrypted_wallet_data = data;
+			
+			if (internalRestoreWallet()) {
+				didDecryptWallet();
+			} else {
+				$("#restore-wallet-continue").attr("disabled", false);
+			}
+	
+		})
+	    .error(function(data) { 
+	    	
+	    	$("#restore-wallet-continue").attr("disabled", false);
+	    	
+	    	makeNotice('error', 'misc-error', data.responseText, 5000); 
+	    });
+	} else {
+		if (internalRestoreWallet())
+			didDecryptWallet();
 	}
-		
-	setIsIntialized();
+
 	
 	return true;
 }
@@ -641,6 +766,41 @@ function emailBackup() {
     });
 }
 
+function updateAuthType(authstr) {
+	var auth_type = parseInt(authstr);
+	
+	if (auth_type < 0 || auth_type > 4) {
+		makeNotice('error', 'misc-error', 'Invalid auth type');
+		return;
+	}
+	
+	setLoadingText('Updating Two Factor Authentication');
+	
+	$.post("/wallet", { guid: guid, payload : auth_type, sharedKey: sharedKey, length : auth_type.length, method : 'update-auth-type' },  function(data) { 
+		makeNotice('success', 'auth-type-success', data, 5000);
+	})
+    .error(function(data) { 
+    	makeNotice('error', 'misc-error', data.responseText); 
+    });
+}
+
+function updateYubikey(yubikey) {
+	
+	if (yubikey == null || yubikey.length == 0) {
+		makeNotice('error', 'misc-error', 'You must enter Yubikey');
+		return;
+	}
+	
+	setLoadingText('Updating Yubikey');
+	
+	$.post("/wallet", { guid: guid, payload : yubikey, sharedKey: sharedKey, length : yubikey.length, method : 'update-yubikey' },  function(data) { 
+		makeNotice('success', 'yubikey-success', data, 5000);
+	})
+    .error(function(data) { 
+    	makeNotice('error', 'misc-error', data.responseText); 
+    });
+}
+
 function updateAlias(alias) {
 	
 	if (alias == null || alias.length == 0) {
@@ -661,12 +821,12 @@ function updateAlias(alias) {
 function updateEmail(email) {
 	
 	if (email == null || email.length == 0) {
-		makeNotice('error', 'misc-error', 'You must enter an email');
+		makeNotice('error', 'misc-error', 'You must enter an email', 5000);
 		return;
 	}
 	
 	if (!validateEmail(email)) {
-		makeNotice('error', 'misc-error', 'Email address is not valid');
+		makeNotice('error', 'misc-error', 'Email address is not valid', 5000);
 		return;
 	}
 		
@@ -676,7 +836,7 @@ function updateEmail(email) {
 		makeNotice('success', 'email-success', data, 5000);
 	})
     .error(function(data) { 
-    	makeNotice('error', 'misc-error', data.responseText); 
+    	makeNotice('error', 'misc-error', data.responseText, 5000); 
     });
 }
 
@@ -1602,6 +1762,24 @@ $(document).ready(function() {
 	$('body').ajaxStop(function() {
 		$('.loading-indicator').fadeOut(200);
 	});
+
+	
+	$('#two-factor-select').change(function() {
+		
+		var val = parseInt($(this).val());
+		
+		updateAuthType(val);
+		
+		if (val == 0) {
+			$('#two-factor-yubikey').hide();
+			$('#two-factor-none').show(200);
+		} else if (val == 1 || val == 4) {
+			$('#two-factor-none').hide();
+			$('#two-factor-yubikey').show(200);
+
+		}
+	});
+	
 	
 	$("#new-addr").click(function() {
 		  generateNewAddressAndKey();
@@ -1609,24 +1787,32 @@ $(document).ready(function() {
 		  backupWallet('update');
 	});
 	
-    $('#update-email-btn').unbind().click(function() {    
-		var email = $('#wallet-email').val();
-				
-		updateEmail(email);
-    });
-    
+	$('#wallet-email').change(function(e) {		
+		updateEmail($(this).val());
+	});
+	
+	$('#wallet-yubikey').change(function(e) {		
+		updateYubikey($(this).val());
+	});
+	
+	$('#wallet-alias').change(function(e) {		
+		$(this).val($(this).val().replace(/[\.,\/ #!$%\^&\*;:{}=`~()]/g,""));
+	
+		if ($(this).val().length > 0) {
+			$('.alias').fadeIn(200);
+	
+			$('.alias span').text($(this).val());
+		}
+		
+		updateAlias($(this).val());
+	});
+	
 	$('#update-password-btn').unbind().click(function() {    			
 		updatePassword();
     });
 	
     $('#email-backup-btn').unbind().click(function() {    			
 		emailBackup();
-    });
-	
-    $('#update-alias-btn').unbind().click(function() {    
-		var alias = $('#wallet-alias').val();
-			
-		updateAlias(alias);
     });
 	
     $('#wallet-login').unbind().click(function() {    
@@ -1654,96 +1840,7 @@ $(document).ready(function() {
 				
 		$(this).attr("disabled", true);
 
-		if (restoreWallet()) {
-			
-			try {
-				 //Check if we have any addresses to add
-				var hash = decodeURI(window.location.hash.replace("#", ""));
-	
-				if (hash != null && hash.length > 0) {
-				
-					var didChangeWallet = false;
-					var components = hash.split("|");
-					for (var i = 0; i < components.length; i += 2) {
-						var key = components[i];
-						var value = components[i+1];
-												
-						if (key == 'newaddr') {
-							var address = new Bitcoin.Address(value);
-							
-							if (address != null && address.toString() == value) {
-								
-								if (checkCanAddKey(value)) {
-									internalAddKey(value, null);
-									didChangeWallet = true;
-									makeNotice('success', 'added-addr', 'Added Bitcoin Address ' + value, 5000); 
-								} else {
-									makeNotice('error', 'error-addr', 'Error Adding Bitcoin Address ' + value, 5000); 
-								}
-							}
-						}
-					}
-					
-					window.location.hash = '';
-					
-					if (didChangeWallet) {
-						backupWallet('update');
-					}
-				}
-			} catch (e) {
-				makeNotice('error', 'add-address-error', 'Error adding new address from page link', 5000); 
-			}
-			
-			
-			try {
-				if (localStorage) {
-                            
-                    //Make sure the last guid the user logged in the ame as this one, if not clear cache
-                    var local_guid = localStorage.getItem('guid');
-
-                    if (local_guid != guid) {
-                        localStorage.clear();
-                    }
-					
-                    
-					//Restore the balance cache
-					var multiaddrjson = localStorage.getItem('multiaddr');
-					
-					if (multiaddrjson != null) {
-						parseMultiAddressJSON(multiaddrjson);
-								
-						updateTransactionsSummary();
-					}
-					
-					//Restor the cached latest block
-					var latestblockjson = localStorage.getItem('latestblock');
-	
-					if (latestblockjson != null) {					
-						parseLatestBlockJSON(latestblockjson);
-					}
-					
-					localStorage.setItem('guid', guid);
-				}
-			} catch (e) {
-				makeNotice('error', 'local-storeage-error', 'Error parsing local storage cache', 5000); 
-			}
-			
-
-			//Build the My-Address list again
-			buildReceivingAddressList();
-			
-			///Get the list of transactions from the http API
-			queryAPIMultiAddress();
-			
-			//Get data on the latest block
-			queryAPILatestBlock();
-
-			makeNotice('success', 'misc-success', 'Sucessfully Decrypted Wallet', 5000); 
-			
-			changeView($("#receive-coins"));
-			
-			$(this).attr("disabled", true);
-		} else {
+		if (!restoreWallet()) {
 			$(this).attr("disabled", false);
 		}
 
@@ -1917,16 +2014,6 @@ $(document).ready(function() {
 	            result.innerHTML = '';
 	           	$('#password-result').fadeOut(200);
 	        }
-	});
-	
-	$('#wallet-alias').unbind().bind('change keyup', function() {
-		$(this).val($(this).val().replace(/[\.,\/ #!$%\^&\*;:{}=`~()]/g,""));
-	
-		if ($(this).val().length > 0) {
-			$('.alias').fadeIn(200);
-	
-			$('.alias span').text($(this).val());
-		}
 	});
 	
     $("#my-account-btn").click(function() {
