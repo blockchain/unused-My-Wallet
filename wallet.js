@@ -173,8 +173,19 @@ function makeNotice(type, id, msg, timeout) {
 	}
 }
 
+function base58ToBase58(x) { return x; }
+function base58ToBase64(x) { var bytes = Bitcoin.Base58.decode(x); return Crypto.util.bytesToBase64(bytes); }
+function base58ToHex(x) { var bytes = Bitcoin.Base58.decode(x); return Crypto.util.bytesToHex(bytes); }
 
-function makeWalletJSON() {
+function makeWalletJSON(format) {
+	
+	var encode_func = base58ToBase58;
+	
+	if (format == 'base64') 
+		encode_func = base58ToBase64;
+	else if (format == 'hex') 
+		encode_func = base58ToHex;
+	
 	var out = '{\n	"guid" : "'+guid+'",\n	"sharedKey" : "'+sharedKey+'",\n';
 	
 	out += '	"keys" : [\n';
@@ -183,7 +194,7 @@ function makeWalletJSON() {
 		out += '	{"addr" : "'+ addresses[i] +'"';
 		
 		if (private_keys[i] != null) {
-			out += ',\n	 "priv" : "'+private_keys[i]+ '"';
+			out += ',\n	 "priv" : "'+ encode_func(private_keys[i]) + '"';
 		}
 		
 		out += '}';
@@ -208,7 +219,7 @@ function makeWalletJSON() {
 		out += "\n	]";
 	}
 	
-	out += '}';
+	out += '\n}';
 	
 	//Write the address book
 
@@ -1744,10 +1755,6 @@ function privateKeyStringToKey(value, format) {
 
 $(document).ready(function() {	
 	
-	if (window.location.protocol == 'http:') {
-		window.location.protocol = 'https:';
-	}
-	
     //Popovers! 
     $(function () {
      $("a[rel=popover]")
@@ -1957,8 +1964,8 @@ $(document).ready(function() {
 					queryAPIMultiAddress();
 					
 					makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr, 5000);
-				}else {
-					makeNotice('error', 'add-error', 'Error Adding Address ' + address, 5000);
+				} else {
+					makeNotice('error', 'add-error', 'Unable to add private key for bitcoin address ' + addr, 5000);
 				}
 				
 			} catch(e) {
@@ -2116,6 +2123,12 @@ $(document).ready(function() {
 	
 	$('.tabs').tabs();
 	
+	
+	 $('#export-priv-format').change(function (e) {
+	  	var data = makeWalletJSON($('#export-priv-format').val());
+		$("#json-unencrypted-export").val(data);
+	 });
+	
 	$('.tabs').bind('change', function (e) {
 		 // e.target // activated tab
 		  //e.relatedTarget // previous tab
@@ -2123,7 +2136,8 @@ $(document).ready(function() {
 		  var el = $(e.target);
 		 
 		 if (el.text() == 'Export Unencrypted') {
-			  	var data = makeWalletJSON();
+			 			 
+			  	var data = makeWalletJSON($('#export-priv-format').val());
 				
 				$("#json-unencrypted-export").val(data);
 				
