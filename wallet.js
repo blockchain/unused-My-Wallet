@@ -620,7 +620,6 @@ function didDecryptWallet() {
             if (local_guid != guid) {
                 localStorage.clear();
             }
-			
             
 			//Restore the balance cache
 			var multiaddrjson = localStorage.getItem('multiaddr');
@@ -640,9 +639,7 @@ function didDecryptWallet() {
 			
 			localStorage.setItem('guid', guid);
 		}
-	} catch (e) {
-		makeNotice('error', 'local-error', 'Error parsing local storage cache', 5000); 
-	}
+	} catch (e) { } //Don't care - cache is optional
 	
 	//Build the My-Address list again
 	buildReceivingAddressList();
@@ -738,6 +735,8 @@ function restoreWallet() {
 	} else {
 		if (internalRestoreWallet())
 			didDecryptWallet();
+		else
+			$("#restore-wallet-continue").attr("disabled", false);
 	}
 
 	
@@ -764,6 +763,37 @@ function validateEmail(str) {
    var lastDotPos = str.lastIndexOf('.');
    return (lastAtPos < lastDotPos && lastAtPos > 0 && str.indexOf('@@') == -1 && lastDotPos > 2 && (str.length - lastDotPos) > 2);
 } 
+
+//Get email address, secret phrase, yubikey etc.
+function getAccountInfo() {
+
+	setLoadingText('Getting Wallet Info');
+
+	$.post("/wallet", { guid: guid, sharedKey: sharedKey, method : 'get-info' },  function(data) { 
+				
+		if (data.email != null) {
+			$('#wallet-email').val(data.email);
+			$('.my-email').text(data.email);
+		}
+		
+		if (data.phrase != null) {
+			$('#wallet-phrase').val(data.phrase);
+		}
+		
+		if (data.alias != null) {
+			$('#wallet-alias').val(data.alias);
+			$('.alias').text(data.alias);
+			$('.alias').show(200);
+		}
+		
+		if (data.yubikey != null) {
+			$('#wallet-yubikey').val(data.yubikey);
+		}
+	})
+    .error(function(data) { 
+    	makeNotice('error', 'misc-error', data.responseText); 
+    });
+}
 
 function emailBackup() {
 
@@ -829,6 +859,23 @@ function updateAlias(alias) {
     });
 }
 
+function updatePhrase(phrase) {
+	
+	if (phrase == null || phrase.length == 0 || phrase.length > 255) {
+		makeNotice('error', 'misc-error', 'You must enter a secret phrase', 5000);
+		return;
+	}
+		
+	setLoadingText('Updating Secret Phrase');
+
+	$.post("/wallet", { guid: guid, payload: phrase, sharedKey: sharedKey, length : phrase.length, method : 'update-phrase' },  function(data) { 
+		makeNotice('success', 'phrase-success', data, 5000);
+	})
+    .error(function(data) { 
+    	makeNotice('error', 'misc-error', data.responseText, 5000); 
+    });
+}
+
 function updateEmail(email) {
 	
 	if (email == null || email.length == 0) {
@@ -863,7 +910,6 @@ function backupWallet(method) {
 	
 	var data = makeWalletJSON();
 	
-		
 	//Double check the json is parasable
 	try {
 		var obj = jQuery.parseJSON(data);
@@ -876,6 +922,7 @@ function backupWallet(method) {
 		return;
 	}
 	
+	//Encrypt the JSON output
 	var crypted = Crypto.AES.encrypt(data, password);
 		
 	if (crypted.length == 0) {
@@ -883,19 +930,22 @@ function backupWallet(method) {
 		return;
 	}
 	
+	//SHA256 checksum verified by server in case of curruption during transit
+	var checksum = Crypto.util.bytesToHex(Crypto.SHA256(crypted, {asBytes: true}));
+	
 	setLoadingText('Saving wallet');
 
 	$.ajax({
 		 type: "POST",
 		 url: root + 'wallet',
-		 data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, method : method },
+		 data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: checksum, method : method },
 		 converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
 		 success: function(data) {  
 			makeNotice('success', 'misc-success', data, 5000);
 		},
 			
 		error : function(data) {
-		   makeNotice('error', 'misc-error', 'Error Saving Wallet'); 
+		   makeNotice('error', 'misc-error', data.responseText); 
 		}
 	});
 }
@@ -1748,7 +1798,7 @@ function privateKeyStringToKey(value, format) {
 	} else {
 		throw 'Unsupported key format';
 	}	
-
+	
 	return new Bitcoin.ECKey(key_bytes);
 }
 	
@@ -1778,19 +1828,23 @@ $(document).ready(function() {
 	$('#two-factor-select').change(function() {
 		
 		var val = parseInt($(this).val());
-		
+					
 		updateAuthType(val);
 		
 		if (val == 0) {
 			$('#two-factor-yubikey').hide();
+			$('#two-factor-email').hide();
 			$('#two-factor-none').show(200);
 		} else if (val == 1 || val == 4) {
 			$('#two-factor-none').hide();
+			$('#two-factor-email').hide();
 			$('#two-factor-yubikey').show(200);
-
+		} else if (val == 2) {
+			$('#two-factor-none').hide();
+			$('#two-factor-yubikey').hide();
+			$('#two-factor-email').show(200);
 		}
 	});
-	
 	
 	$("#new-addr").click(function() {
 		  generateNewAddressAndKey();
@@ -1806,13 +1860,16 @@ $(document).ready(function() {
 		updateYubikey($(this).val());
 	});
 	
+	$('#wallet-phrase').change(function(e) {		
+		updatePhrase($(this).val());
+	});
+	
 	$('#wallet-alias').change(function(e) {		
 		$(this).val($(this).val().replace(/[\.,\/ #!$%\^&\*;:{}=`~()]/g,""));
 	
 		if ($(this).val().length > 0) {
 			$('.alias').fadeIn(200);
-	
-			$('.alias span').text($(this).val());
+			$('.alias').text($(this).val());
 		}
 		
 		updateAlias($(this).val());
@@ -2030,6 +2087,8 @@ $(document).ready(function() {
     $("#my-account-btn").click(function() {
 		if (!isInitialized)
 			return;
+		
+		getAccountInfo();
 		
 		changeView($("#my-account"));
 	});
