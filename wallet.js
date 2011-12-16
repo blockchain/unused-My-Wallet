@@ -20,6 +20,25 @@ var block_heights = []; //BlockIndex to height
 var our_address = '1A8JiWcwvpY7tAopUkSnGuEYHmzGYfZPiq'; //Address for fees and what not
 var sound_on = true; //Play a bleep sound when tx received
 
+
+//Async load a script, at the moment this is only jquery.qrcode.js
+function loadScript(src, callback) {
+	
+	if (document.getElementById(src) != null) {
+		callback();
+		return;
+	}
+	
+     var s = document.createElement('script');
+     s.type = "text/javascript";
+     s.async = true;
+     s.src = src;
+     s.id = src;
+     s.addEventListener('load', function (e) { callback(); }, false);
+     var head = document.getElementsByTagName('head')[0];
+     head.appendChild(s);
+}
+
 function setLoadingText(txt) {
 	$('.loading-text').text(txt);
 }
@@ -1361,6 +1380,8 @@ function addAddressBookEntry() {
 }
 
 function deleteAddress(addr) {
+	
+	
 	var modal = $('#delete-address-modal');
 
 	modal.modal({
@@ -2122,11 +2143,7 @@ $(document).ready(function() {
 	});
 	
 	$('#edit-addresses-checkbox').change(function() {		  		
-		  if ($(this).is(":checked"))
-			  $('.address-delete-btn').show();
-		  else
-			  $('.address-delete-btn').hide();
-
+		toggleAdv();
 	});
 
 	
@@ -2369,17 +2386,46 @@ function guidGenerator() {
     return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
 }
 
+function hideqrcode(id, addr) {
+	$('.qrcode').remove();
+	$('.popover').remove();
+	$('#' +id).popover('hide');
+}
+
+function setQRContent(addr) {
+	
+	var pop = $('.popover').width(320);
+		
+	var inner = pop.find('.inner').width(310);
+	
+	var content = inner.find('.content');
+
+	var qr = $('<div class="qrcode"></div>');
+	
+	qr.qrcode({width: 285, height: 285, text: addr});
+	
+	content.append(qr);
+}
+
+function qrcode(id, addr) {
+	var el = $('#' +id);
+	
+	el.popover({title : function() { return 'QR Code'; }, content : function() { 	
+		$('.qrcode').remove();
+		loadScript(resource + 'wallet/jquery.qrcode.min.js', function() { 
+			setTimeout('setQRContent(\''+addr+'\')', 1);  //Messy, needs to be added after the popup is inserted into the body
+		}); 
+		return '<p><b>' + addr + '</b></p><p><small>Use your phone or other device to scan the image below</small></p><br />'; 
+	}, html : true, trigger : 'manual'});
+		
+	el.popover('show');
+}
+
 function buildReceivingAddressList() {
 	var tbody = $('#my-addresses tbody');
 	
 	tbody.empty();
 	
-	var img = $('<img class="address-delete-btn" src="'+resource+'delete.png" />');
-
-	if (!$('#edit-addresses-checkbox').is(":checked")) {
-		img.hide();
-	}
-		  
 	for (var i = 0; i < addresses.length; ++i) {
 		
 		var addr = addresses[i];
@@ -2395,19 +2441,7 @@ function buildReceivingAddressList() {
 		if (private_keys[i] == null)
 			noPrivateKey = ' <font color="red">(No Private Key)</font>';
 		
-		tbody.append('<tr><td>' + addr + noPrivateKey+'</td><td><span id="'+addr+'" style="color:green">' + balance +'</span></td><td></td></tr>');
-
-		var timg = img.clone();
-		
-		tbody.find('tr:last-child td:last-child').append(timg);
-
-		(function() {
-			var taddr = addr;
-
-			timg.click(function() {	
-				deleteAddress(taddr);
-			});
-	    })();
+		tbody.append('<tr><td style="width:20px;"><img id="qr'+addr+'" onmouseover="qrcode(this.id, \'' + addr +'\')"  onmouseout="hideqrcode(this.id)" src="'+resource+'qrcode.png" /></td><td>' + addr + noPrivateKey+'</td><td><span id="'+addr+'" style="color:green">' + balance +'</span></td><td><img class="adv" src="'+resource+'delete.png" onclick="deleteAddress(\''+addr+'\')" /></td></tr>');
 	}
 }
 
