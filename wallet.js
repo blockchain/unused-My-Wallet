@@ -1038,10 +1038,11 @@ function generateNewWallet() {
 	if (!checkAndSetPassword())
 		return false;
 	
-	if (!generateNewAddressAndKey()) {
-		makeNotice('error', 'misc-error', 'Error generating new bitcoin address');
-
-		return false;
+	for (var i = 0; i < 5; ++i) {
+		if (!generateNewAddressAndKey()) {
+			makeNotice('error', 'misc-error', 'Error generating new bitcoin address');
+			return false;
+		}
 	}
 	
 	sharedKey = guidGenerator();
@@ -2268,62 +2269,61 @@ $(document).ready(function() {
 					  transparent: true,
 					  append: false
 				});
-		  } else if (el.text() == 'Export PDF') {
+				
+		  } else if (el.text() == 'Paper Wallet') {
 			 
-			  Downloadify.create('download_pdf',{
-				  filename: function(){
-				    return 'wallet.pdf';
-				  },
-				  data: function(){ 				    
-				    var doc = new jsPDF();
-				    
-				    doc.setFontSize(22);
-					doc.text(20, 10, 'Bitcoin Paper Wallet');
-					
-				    doc.setFontSize(10);
-
-					doc.text(20, 20, 'http://www.blockchain.info/wallet/' + guid);
-
-				    doc.setFontSize(12);
-				    				    
-					var y = 40;
-					for (var i = 0; i < addresses.length; ++i) {
-						
-						if (y >= 250) {
-							y = 20;
-							doc.addPage();
-						}
-
-						var balance = 0;
-						
-						if (balances[addresses[i]] != null)
-							balance = balances[addresses[i]] / satoshi;
-						
-						doc.text(20, y, 'Address ' +addresses[i] + '	Balance ' + balance + ' BTC');
-						doc.text(20, y+5, 'Private Key (Base58) ' + private_keys[i]);
-
-						y += 15;
-				  	}
+			  loadScript(resource + 'wallet/jquery.qrcode.min.js', function() { 
 				  
-					return doc.output();
-				  },
-				  onComplete: function(){ 
-					makeNotice('success', 'misc-success', 'Wallet successfully downloaded', 5000);
-				  },
-				  onCancel: function(){ 
-					makeNotice('error', 'misc-error', 'Wallet download cancelled', 2000);
-				  },
-				  onError: function(){ 
-					makeNotice('error', 'misc-error', 'Error downloading wallet file', 2000);
-				  },
-				  transparent: false,
-				  swf: resource + 'downloadify.swf',
-				  downloadImage: resource + 'downloadify_button.png',
-				  width: 95,
-				  height: 32,
-				  transparent: true,
-				  append: false
-			});
+				  
+				  
+				  var table = $('<table style="page-break-after:avoid"></table>');
+					
+				  for (var i = 0; i < addresses.length; ++i) {
+					  
+					  var tr = $('<tr></tr>');
+
+					  table.append(tr);
+
+					  //Add Address QR code
+					  var td = $('<td></td>');
+					  tr.append(td);
+					  td.qrcode({width: 200, height: 200, text: addresses[i]});
+  
+					var balance = balances[addresses[i]];
+					
+					if (balance != null && balance > 0)
+						balance = balance / satoshi + ' BTC';
+					else
+						balance = '0 BTC';
+					
+					  td = $('<td><h3>' +addresses[i] + '</h3><br /><h5>Private Key: ' + private_keys[i] + '</h5><br /><p>Balance ' + balance + '</p> </td>');
+					  tr.append(td);
+					  
+					  //Add Private Key QR code
+					  td = $('<td></td>');
+					  tr.append(td);
+					  
+					  if (private_keys[i] != null) {
+						  td.qrcode({width: 200, height: 200, text: private_keys[i]});
+					  } else {
+						  td.html('No Private Key');
+					  }
+					  
+					  //4 on the first page, 5 on subsequent
+					  
+					  console.log(i-1 % 5);
+					  
+					  if ((i+1) % 4 == 0) {
+						  
+						console.log('Break ' + i);
+						  
+					  	$('#paper-wallet').append(table);
+					  	
+						table = $('<table></table>');
+					  	table.css('page-break-before', 'always');
+					  }
+				  }
+			  }); 
 		  }
 	});
 		

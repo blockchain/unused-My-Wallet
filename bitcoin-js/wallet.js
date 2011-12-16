@@ -178,7 +178,7 @@ Bitcoin.Wallet = (function () {
 
 	Wallet.prototype.createSend = function (address, sendValue, feeValue) {
 		var selectedOuts = [];
-    var txValue = sendValue.add(feeValue);
+		var txValue = sendValue.add(feeValue);
 		var availableValue = BigInteger.ZERO;
 		for (var i = 0; i < this.unspentOuts.length; i++) {
 			selectedOuts.push(this.unspentOuts[i]);
@@ -186,12 +186,10 @@ Bitcoin.Wallet = (function () {
 
 			if (availableValue.compareTo(txValue) >= 0) break;
 		}
-
-    if (availableValue.compareTo(txValue) < 0) {
-      throw new Error('Insufficient funds.');
-    }
-
-		console.log(selectedOuts);
+	
+	    if (availableValue.compareTo(txValue) < 0) {
+	      throw new Error('Insufficient funds.');
+	    }
 
 		var changeValue = availableValue.subtract(txValue);
 
@@ -220,8 +218,6 @@ Bitcoin.Wallet = (function () {
 		}
 
 		console.log(sendTx);
-
-		console.log("pubkey: "+Crypto.util.bytesToHex(this.getPubKeyFromHash(pubKeyHash)));
 
 		return sendTx;
 	};
