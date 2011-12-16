@@ -83,6 +83,11 @@ function websocketConnect() {
 	            
 	            try {
 	                if (sound_on) {
+	                	if (document.getElementById("beep") == null) {
+	                		sound_on = false;
+	                		return;
+	                	}
+	                		
 	                    document.getElementById("beep").play(10);
 	                }
 	            } catch (e) {
@@ -245,18 +250,6 @@ function makeWalletJSON(format) {
 	return out;
 }
 
-function parseWalletJSONObject(obj) {				
-	for (var i = 0; i < obj.keys.length; ++i) {	
-		internalAddKey(obj.keys[i].addr, obj.keys[i].priv);
-	}
-	
-	if (obj.address_book != null) {
-		for (var i = 0; i < obj.address_book.length; ++i) {	
-			internalAddAddressBookEntry(obj.address_book[i].addr, obj.address_book[i].label);
-		}
-	}
-}
-
 //Why does javascript not have copy to clipboard?
 function pasteAddress(addr) {
 	//Constuct the recepient address array
@@ -303,13 +296,16 @@ function importPyWalletJSONObject(obj) {
 	var i = 0;
 	try {
 		for (i = 0; i < obj.keys.length; ++i) {
+			
+			if (walletIsFull())
+				return;
+			
 			var key = new Bitcoin.ECKey(Crypto.util.hexToBytes(obj.keys[i].hexsec));
 						
 			//Check the the private keys matches the bitcoin address
 			if (obj.keys[i].addr ==  key.getBitcoinAddress().toString()) {				
 				
-				if (checkCanAddKey(obj.keys[i].addr))
-					internalAddKey(obj.keys[i].addr, Bitcoin.Base58.encode(obj.keys[i].priv));
+			internalAddOrReplaceKey(obj.keys[i].addr, Bitcoin.Base58.encode(obj.keys[i].priv));
 				
 			} else {
 				makeNotice('error', 'misc-error', 'Private key doesn\'t seem to match the address. Possible corruption', 1000);
@@ -364,17 +360,17 @@ function importJSON() {
 		if (obj.keys[0].hexsec != null) {
 			importPyWalletJSONObject(obj);
 		} else {
-			
+		
+			//Parse the normal wallet backup
 			for (var i = 0; i < obj.keys.length; ++i) {	
-				
-				//If we can't add it then remove it from the array
-				if (!checkCanAddKey(obj.keys[i].addr)) {
-					obj.keys.slice(i, i+1);
-					--i;
-				}
+				internalAddOrReplaceKey(obj.keys[i].addr, obj.keys[i].priv);
 			}
 			
-			parseWalletJSONObject(obj);
+			if (obj.address_book != null) {
+				for (var i = 0; i < obj.address_book.length; ++i) {	
+					internalAddAddressBookEntry(obj.address_book[i].addr, obj.address_book[i].label);
+				}
+			}
 		}
 	} catch (e) {
 		makeNotice('error', 'misc-error', 'Exception caught parsing JSON ' + e, 5000);
@@ -607,8 +603,10 @@ function didDecryptWallet() {
 					
 					if (address != null && address.toString() == value) {
 						
-						if (checkCanAddKey(value)) {
-							internalAddKey(value, null);
+						if (walletIsFull())
+							return;
+						
+						if (internalAddOrReplaceKey(value, null)) {
 							didChangeWallet = true;
 							makeNotice('success', 'added-addr', 'Added Bitcoin Address ' + value, 5000); 
 						} else {
@@ -685,8 +683,16 @@ function internalRestoreWallet() {
 		
 		var obj = jQuery.parseJSON(decrypted);
 
-		parseWalletJSONObject(obj);
-
+		for (var i = 0; i < obj.keys.length; ++i) {	
+			internalAddKey(obj.keys[i].addr, obj.keys[i].priv);
+		}
+		
+		if (obj.address_book != null) {
+			for (var i = 0; i < obj.address_book.length; ++i) {	
+				internalAddAddressBookEntry(obj.address_book[i].addr, obj.address_book[i].label);
+			}
+		}
+		
 		sharedKey = obj.sharedKey;
 
 		setIsIntialized();
@@ -1265,9 +1271,40 @@ function parseScript(script) {
 	return newScript;
 }
 
+function internalDeletePrivateKey(addr) {
+	for (var i = 0; i < addresses.length; ++i) {
+		if (addresses[i] == addr) {
+			
+			if (private_keys[i] != null ) {
+				var priv_addr = new Bitcoin.ECKey(Bitcoin.Base58.decode(private_keys[i])).getBitcoinAddress().toString();
+	
+				if (priv_addr != addr) {
+					makeNotice('error', 'misc-error', 'Private key does not match address in same index. Possible curruption.', 5000);
+					return;
+				}
+			}
+			
+			private_keys[i] = null;
+			
+			break;
+		}
+	}
+}
+
 function internalDeleteAddress(addr) {
 	for (var i = 0; i < addresses.length; ++i) {
 		if (addresses[i] == addr) {
+			
+			//Double check the private key were deleting matches this bitcoin address
+			if (private_keys[i] != null) {
+				var priv_addr = new Bitcoin.ECKey(Bitcoin.Base58.decode(private_keys[i])).getBitcoinAddress().toString();
+				
+				if (priv_addr != addr) {
+					makeNotice('error', 'misc-error', 'Private key does not match address in same index. Possible curruption.', 5000);
+					return;
+				}
+			}
+			
 			addresses.splice(i, 1);
 			private_keys.splice(i, 1);
 			break;
@@ -1292,26 +1329,61 @@ function internalAddAddressBookEntry(addr, label) {
 	address_book.push({ addr: addr, label : label});
 }
 
-function checkCanAddKey(addr) {
-
-	if (addresses.length >= 200) {
-		makeNotice('error', 'misc-error', 'We currently support a maximum of 200 private keys, please remove some unsused ones.', 5000);
-		return false;
-	}
+function findAddressIndex(addr) {
 	
 	//Check for duplicates
 	for (var ii=0;ii<addresses.length;++ii) {
 		if (addr == addresses[ii]) {
-			return false;
+			return ii;
 		}
 	}
 	
-	return true;
+	return -1;
+}
+
+function walletIsFull(addr) {
+
+	if (addresses.length >= 200) {
+		makeNotice('error', 'misc-error', 'We currently support a maximum of 200 private keys, please remove some unsused ones.', 5000);
+		return true;
+	}
+	
+	return false;
 }
 
 function internalAddKey(addr, priv) {
 	addresses.push(addr);
 	private_keys.push(priv);
+}
+
+function internalAddOrReplaceKey(addr, priv) {
+	
+	//Check for duplicates
+	for (var ii=0;ii<addresses.length;++ii) {
+		if (addr == addresses[ii]) {
+			
+			//Double check the private key were adding matches this bitcoin address
+			if (private_keys[ii] == null) {
+				var priv_addr = new Bitcoin.ECKey(Bitcoin.Base58.decode(priv)).getBitcoinAddress().toString();
+				
+				if (priv_addr != addr) {
+					makeNotice('error', 'misc-error', 'Private key does not match address in same index. Possible curruption.', 5000);
+					return false;
+				}
+				
+				private_keys[ii] = priv;
+				
+				return true;
+			}	
+			
+			return false;
+		}
+	}
+	
+	//Otherwise the key doesn't exist so add it
+	internalAddKey(addr, priv);
+	
+	return true;
 }
 
 
@@ -1380,9 +1452,9 @@ function addAddressBookEntry() {
 	});
 }
 
+
 function deleteAddress(addr) {
-	
-	
+		
 	var modal = $('#delete-address-modal');
 
 	modal.modal({
@@ -1391,19 +1463,124 @@ function deleteAddress(addr) {
 		  show: true
 	});
 	
+	modal.find('.btn.primary').show();
+	modal.find('.btn.danger').show();
+	modal.find('.modal-body').show();
+	$('#change-mind').hide();
+	
 	modal.find('#to-delete-address').html(addr);
 	
+	var balance = balances[addr];
+	
+	if (balance != null && balance > 0)
+		balance = balance / satoshi + ' BTC';
+	else
+		balance = '0 BTC';
+	
+	modal.find('#delete-balance').text('Balance ' + balance);
+	
+	var isCancelled = false;
+	var i = 0;
+	var interval = null;
+	
+	changeMind = function() {		
+		$('#change-mind').show();
+		
+		$('#change-mind-time').text(5 - i);
+	};
+	
 	modal.find('.btn.primary').unbind().click(function() {
-		//Really delete address
-		$('#delete-address-modal').modal('hide');
+					
+		changeMind();
 		
-		makeNotice('warning', 'warning-deleted', 'Address Removed From Wallet', 5000);
+		modal.find('.btn.primary').hide();
+		modal.find('.btn.danger').hide();
+
+		interval = setInterval(function() { 
+			
+				if (isCancelled)
+					return;
+				
+				if (sound_on) {
+		        	if (document.getElementById("beep") == null) {
+		        		sound_on = false;
+		        		return;
+		        	}
+		        		
+		            document.getElementById("beep").play(1);
+		        }
+				
+				++i;
+				
+				changeMind();
+			    
+			    if (i == 5) {
+			    	//Really delete address
+					$('#delete-address-modal').modal('hide');
+					
+					makeNotice('warning', 'warning-deleted', 'Private Key Removed From Wallet', 5000);
+					
+					internalDeletePrivateKey(addr);
+					 
+					buildReceivingAddressList();
+					
+				    backupWallet('update');
+					  
+				    clearInterval(interval);
+			    }
+
+		}, 1000);
+	});
+
+	modal.find('.btn.danger').unbind().click(function() {
 		
-		internalDeleteAddress(addr);
+		changeMind();
 		
-		buildReceivingAddressList();
-		
-	    backupWallet('update');
+		modal.find('.btn.primary').hide();
+		modal.find('.btn.danger').hide();
+
+		interval = setInterval(function() { 
+			
+				if (isCancelled)
+					return;
+				
+				if (sound_on) {
+		        	if (document.getElementById("beep") == null) {
+		        		sound_on = false;
+		        		return;
+		        	}
+		        		
+		            document.getElementById("beep").play(1);
+		        }
+				
+				++i;
+				
+				changeMind();
+			    
+			    if (i == 5) {
+			    	//Really delete address
+					$('#delete-address-modal').modal('hide');
+					
+					makeNotice('warning', 'warning-deleted', 'Address & Private Key Removed From Wallet', 5000);
+					
+					internalDeleteAddress(addr);
+					
+					buildReceivingAddressList();
+					
+				    backupWallet('update');
+					  
+				    clearInterval(interval);
+			    }
+
+		}, 1000);
+	});
+	
+	modal.bind('hidden', function () {
+		if (interval) {
+			isCancelled = true;
+			clearInterval(interval);
+			interval = null;
+		}
 	});
 
 	modal.find('.btn.secondary').unbind().click(function() {
@@ -1801,6 +1978,127 @@ function newTxValidateFormAndGetUnspent() {
 	return true;
 };
 
+function populateImportExportView() {
+	 var val = $('#import-export .tabs .active').text();
+
+	 if (val == 'Export Unencrypted') {			 
+		  	var data = makeWalletJSON($('#export-priv-format').val());
+			
+			$("#json-unencrypted-export").val(data);
+			
+			Downloadify.create('download_unencrypted',{
+				  filename: function(){
+				    return 'wallet.json';
+				  },
+				  data: function(){ 
+				    return $("#json-unencrypted-export").val();
+				  },
+				  onComplete: function(){ 
+					makeNotice('success', 'misc-success', 'Wallet successfully downloaded', 5000);
+				  },
+				  onCancel: function(){ 
+					makeNotice('error', 'misc-error', 'Wallet download cancelled', 2000);
+				  },
+				  onError: function(){ 
+					makeNotice('error', 'misc-error', 'Error downloading wallet file', 2000);
+				  },
+				  transparent: false,
+				  swf: resource + 'wallet/downloadify.swf',
+				  downloadImage: resource + 'downloadify_button.png',
+				  width: 95,
+				  height: 32,
+				  transparent: true,
+				  append: false
+			});
+	  } else if (val == 'Export') {
+		  
+			var data = makeWalletJSON();
+
+			var crypted = Crypto.AES.encrypt(data, password);
+			
+			$("#json-crypted-export").val(crypted);
+			
+			Downloadify.create('download_crypted',{
+				  filename: function(){
+				    return 'wallet.json.aes';
+				  },
+				  data: function(){ 
+				    return $("#json-crypted-export").val();
+				  },
+				  onComplete: function(){ 
+					makeNotice('success', 'misc-success', 'Wallet successfully downloaded', 5000);
+				  },
+				  onCancel: function(){ 
+					makeNotice('error', 'misc-error', 'Wallet download cancelled', 2000);
+				  },
+				  onError: function(){ 
+					makeNotice('error', 'misc-error', 'Error downloading wallet file', 2000);
+				  },
+				  transparent: false,
+				  swf: resource + 'wallet/downloadify.swf',
+				  downloadImage: resource + 'downloadify_button.png',
+				  width: 95,
+				  height: 32,
+				  transparent: true,
+				  append: false
+			});
+			
+	  } else if (val == 'Paper Wallet') {
+		 
+		  loadScript(resource + 'wallet/jquery.qrcode.min.js', function() { 
+			  
+			  var thead = $('<thead><tr><th>Bitcoin Address</th><th>Details</th><th>Private Key</th></tr></thead>');
+			  
+			  var table = $('<table style="page-break-after:always"><tbody></tbody></table>');
+				
+			  table.prepend(thead.clone());
+			  
+			  for (var i = 0; i < addresses.length; ++i) {
+				  				  
+				  var tr = $('<tr></tr>');
+				
+				  table.find('tbody').append(tr);
+				
+				  //Add Address QR code
+				  var td = $('<td></td>');
+									  tr.append(td);
+									  td.qrcode({width: 200, height: 200, text: addresses[i]});
+				  
+				var balance = balances[addresses[i]];
+				
+				if (balance != null && balance > 0)
+					balance = balance / satoshi + ' BTC';
+				else
+					balance = '0 BTC';
+				
+				  var private_key = private_keys[i];
+				  
+				  if (private_key == null)
+					  private_key = 'No Private Key';
+					  
+				  td = $('<td><h3>' +addresses[i] + '</h3><br /><h5>Private Key: ' + private_key + '</h5><br /><p>Balance ' + balance + '</p> </td>');
+				  tr.append(td);
+				  
+				  //Add Private Key QR code
+				  td = $('<td></td>');
+				  tr.append(td);
+				  
+				  if (private_keys[i] != null) {
+					  td.qrcode({width: 200, height: 200, text: private_keys[i]});
+				  } else {
+					  td.html('<div style="width:200px;height:200px;">No Private Key</div>');
+				  }
+				
+				  //Start a new table every 4 entries
+				  if ((i+1) % 4 == 0 || i == addresses.length-1) {
+				  	$('#paper-wallet').append(table);
+				    table = $('<table style="page-break-after:always"><tbody></tbody></table>');
+					table.prepend(thead.clone());
+				  }
+			  }
+		  }); 
+	  }
+}
 function privateKeyStringToKey(value, format) {
 	
 	var key_bytes = null;
@@ -1820,6 +2118,9 @@ function privateKeyStringToKey(value, format) {
 	} else {
 		throw 'Unsupported key format';
 	}	
+	
+	if (key_bytes.length != 32) 
+		throw 'Result not 32 bytes in length';
 	
 	return new Bitcoin.ECKey(key_bytes);
 }
@@ -1975,6 +2276,9 @@ $(document).ready(function() {
 				return;
 			}
 			
+			if (walletIsFull())
+				return;
+			
 			try {
 				var address = new Bitcoin.Address(value);
 				
@@ -1984,8 +2288,7 @@ $(document).ready(function() {
 				}
 				
 				
-				if (checkCanAddKey(value)) {
-					internalAddKey(value, null);
+				if (internalAddOrReplaceKey(value, null)) {
 	
 					makeNotice('success', 'added-address', 'Sucessfully Added Address ' + address, 5000);
 					
@@ -2022,6 +2325,9 @@ $(document).ready(function() {
 				return;
 			}
 			
+			if (walletIsFull())
+				return;
+			
 			try {
 				var key = privateKeyStringToKey(value, format);
 						
@@ -2030,8 +2336,7 @@ $(document).ready(function() {
 				
 				var addr = key.getBitcoinAddress().toString();
 								
-				if (checkCanAddKey(addr)) {
-					internalAddKey(addr, Bitcoin.Base58.encode(key.priv));
+				if (internalAddOrReplaceKey(addr, Bitcoin.Base58.encode(key.priv))) {
 					
 					//Rebuild the My-address list
 					buildReceivingAddressList();
@@ -2054,7 +2359,10 @@ $(document).ready(function() {
 			}
 		});
 		 
+		 
 		changeView($("#import-export"));
+		
+		populateImportExportView();
 	});
 
 
@@ -2202,134 +2510,7 @@ $(document).ready(function() {
 	 });
 	
 	$('.tabs').bind('change', function (e) {
-		 // e.target // activated tab
-		  //e.relatedTarget // previous tab
-		  
-		  var el = $(e.target);
-		 
-		 if (el.text() == 'Export Unencrypted') {
-			 			 
-			  	var data = makeWalletJSON($('#export-priv-format').val());
-				
-				$("#json-unencrypted-export").val(data);
-				
-				Downloadify.create('download_unencrypted',{
-					  filename: function(){
-					    return 'wallet.json';
-					  },
-					  data: function(){ 
-					    return $("#json-unencrypted-export").val();
-					  },
-					  onComplete: function(){ 
-						makeNotice('success', 'misc-success', 'Wallet successfully downloaded', 5000);
-					  },
-					  onCancel: function(){ 
-						makeNotice('error', 'misc-error', 'Wallet download cancelled', 2000);
-					  },
-					  onError: function(){ 
-						makeNotice('error', 'misc-error', 'Error downloading wallet file', 2000);
-					  },
-					  transparent: false,
-					  swf: resource + 'downloadify.swf',
-					  downloadImage: resource + 'downloadify_button.png',
-					  width: 95,
-					  height: 32,
-					  transparent: true,
-					  append: false
-				});
-		  } else if (el.text() == 'Export') {
-			  
-				var data = makeWalletJSON();
-
-				var crypted = Crypto.AES.encrypt(data, password);
-				
-				$("#json-crypted-export").val(crypted);
-				
-				Downloadify.create('download_crypted',{
-					  filename: function(){
-					    return 'wallet.json.aes';
-					  },
-					  data: function(){ 
-					    return $("#json-crypted-export").val();
-					  },
-					  onComplete: function(){ 
-						makeNotice('success', 'misc-success', 'Wallet successfully downloaded', 5000);
-					  },
-					  onCancel: function(){ 
-						makeNotice('error', 'misc-error', 'Wallet download cancelled', 2000);
-					  },
-					  onError: function(){ 
-						makeNotice('error', 'misc-error', 'Error downloading wallet file', 2000);
-					  },
-					  transparent: false,
-					  swf: resource + 'downloadify.swf',
-					  downloadImage: resource + 'downloadify_button.png',
-					  width: 95,
-					  height: 32,
-					  transparent: true,
-					  append: false
-				});
-				
-		  } else if (el.text() == 'Paper Wallet') {
-			 
-			  loadScript(resource + 'wallet/jquery.qrcode.min.js', function() { 
-				  
-				  
-				  
-				  var table = $('<table style="page-break-after:avoid"></table>');
-					
-				  for (var i = 0; i < addresses.length; ++i) {
-					  
-					  console.log(addresses[i]);
-					  
-					  var tr = $('<tr></tr>');
-
-					  table.append(tr);
-
-					  //Add Address QR code
-					  var td = $('<td></td>');
-					  tr.append(td);
-					  td.qrcode({width: 200, height: 200, text: addresses[i]});
-  
-					var balance = balances[addresses[i]];
-					
-					if (balance != null && balance > 0)
-						balance = balance / satoshi + ' BTC';
-					else
-						balance = '0 BTC';
-					
-					  var private_key = private_keys[i];
-					  
-					  if (private_key == null)
-						  private_key = 'No Private Key';
-						  
-					  td = $('<td><h3>' +addresses[i] + '</h3><br /><h5>Private Key: ' + private_key + '</h5><br /><p>Balance ' + balance + '</p> </td>');
-					  tr.append(td);
-					  
-					  //Add Private Key QR code
-					  td = $('<td></td>');
-					  tr.append(td);
-					  
-					  if (private_keys[i] != null) {
-						  td.qrcode({width: 200, height: 200, text: private_keys[i]});
-					  } 
-					  
-					  //4 on the first page, 5 on subsequent
-					  
-					  console.log(i-1 % 5);
-					  
-					  if ((i+1) % 4 == 0 || i == addresses.length-1) {
-						  
-						console.log('Break ' + i);
-						  
-					  	$('#paper-wallet').append(table);
-					  	
-						table = $('<table></table>');
-					  	table.css('page-break-before', 'always');
-					  }
-				  }
-			  }); 
-		  }
+		populateImportExportView();
 	});
 		
 	if (initial_error != null) {
@@ -2448,6 +2629,9 @@ function buildReceivingAddressList() {
 function generateNewAddressAndKey() {
 
 	try {
+		if (walletIsFull())
+			return;
+		
 		var key = new Bitcoin.ECKey(false);
 		
 		if (key == null ) {
@@ -2462,8 +2646,7 @@ function generateNewAddressAndKey() {
 			return false;
 		}
 
-		if (checkCanAddKey(addr)) {
-			internalAddKey(addr, Bitcoin.Base58.encode(key.priv));
+		if (internalAddOrReplaceKey(addr, Bitcoin.Base58.encode(key.priv))) {
 			
 			buildReceivingAddressList();
 			
