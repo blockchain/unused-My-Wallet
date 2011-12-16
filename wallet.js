@@ -2142,11 +2142,6 @@ $(document).ready(function() {
 		changeView($("#send-coins"));
 	});
 	
-	$('#edit-addresses-checkbox').change(function() {		  		
-		toggleAdv();
-	});
-
-	
 	$('#send-form-reset-btn').click(function() {
 		
 		$('input[name="send-to-address"]').val('');
@@ -2392,7 +2387,7 @@ function hideqrcode(id, addr) {
 	$('#' +id).popover('hide');
 }
 
-function setQRContent(addr) {
+function addQRCodeToPopover(data) {
 	
 	var pop = $('.popover').width(320);
 		
@@ -2402,7 +2397,7 @@ function setQRContent(addr) {
 
 	var qr = $('<div class="qrcode"></div>');
 	
-	qr.qrcode({width: 285, height: 285, text: addr});
+	qr.qrcode({width: 285, height: 285, text: data});
 	
 	content.append(qr);
 }
@@ -2410,10 +2405,10 @@ function setQRContent(addr) {
 function qrcode(id, addr) {
 	var el = $('#' +id);
 	
-	el.popover({title : function() { return 'QR Code'; }, content : function() { 	
+	el.popover({title : function() { return 'Address QR Code'; }, content : function() { 	
 		$('.qrcode').remove();
 		loadScript(resource + 'wallet/jquery.qrcode.min.js', function() { 
-			setTimeout('setQRContent(\''+addr+'\')', 1);  //Messy, needs to be added after the popup is inserted into the body
+			setTimeout('addQRCodeToPopover(\''+addr+'\')', 1);  //Messy, needs to be added after the popup is inserted into the body
 		}); 
 		return '<p><b>' + addr + '</b></p><p><small>Use your phone or other device to scan the image below</small></p><br />'; 
 	}, html : true, trigger : 'manual'});
