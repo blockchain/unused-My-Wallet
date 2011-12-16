@@ -2280,6 +2280,8 @@ $(document).ready(function() {
 					
 				  for (var i = 0; i < addresses.length; ++i) {
 					  
+					  console.log(addresses[i]);
+					  
 					  var tr = $('<tr></tr>');
 
 					  table.append(tr);
@@ -2296,7 +2298,12 @@ $(document).ready(function() {
 					else
 						balance = '0 BTC';
 					
-					  td = $('<td><h3>' +addresses[i] + '</h3><br /><h5>Private Key: ' + private_keys[i] + '</h5><br /><p>Balance ' + balance + '</p> </td>');
+					  var private_key = private_keys[i];
+					  
+					  if (private_key == null)
+						  private_key = 'No Private Key';
+						  
+					  td = $('<td><h3>' +addresses[i] + '</h3><br /><h5>Private Key: ' + private_key + '</h5><br /><p>Balance ' + balance + '</p> </td>');
 					  tr.append(td);
 					  
 					  //Add Private Key QR code
@@ -2305,15 +2312,13 @@ $(document).ready(function() {
 					  
 					  if (private_keys[i] != null) {
 						  td.qrcode({width: 200, height: 200, text: private_keys[i]});
-					  } else {
-						  td.html('No Private Key');
-					  }
+					  } 
 					  
 					  //4 on the first page, 5 on subsequent
 					  
 					  console.log(i-1 % 5);
 					  
-					  if ((i+1) % 4 == 0) {
+					  if ((i+1) % 4 == 0 || i == addresses.length-1) {
 						  
 						console.log('Break ' + i);
 						  
