@@ -362,23 +362,23 @@ function importJSON() {
 		return false;	
 	}
 	
-	try {
+	try {		
 		//Pywallet contains hexsec
 		if (obj.keys[0].hexsec != null) {
 			importPyWalletJSONObject(obj);
 		} else {
 		
 			//Parse the normal wallet backup
-			for (var i = 0; i < obj.keys.length; ++i) {	
+			for (var i = 0; i < obj.keys.length; ++i) {					
 				internalAddOrReplaceKey(obj.keys[i].addr, obj.keys[i].priv);
 			}
-			
+		
 			if (obj.address_book != null) {
 				for (var i = 0; i < obj.address_book.length; ++i) {	
 					internalAddAddressBookEntry(obj.address_book[i].addr, obj.address_book[i].label);
 				}
 			}
-		}
+		} 
 	} catch (e) {
 		makeNotice('error', 'misc-error', 'Exception caught parsing JSON ' + e, 5000);
 		return;
@@ -1370,7 +1370,7 @@ function internalAddOrReplaceKey(addr, priv) {
 		if (addr == addresses[ii]) {
 			
 			//Double check the private key were adding matches this bitcoin address
-			if (private_keys[ii] == null) {
+			if (private_keys[ii] == null && priv != null) {
 				var priv_addr = new Bitcoin.ECKey(Bitcoin.Base58.decode(priv)).getBitcoinAddress().toString();
 				
 				if (priv_addr != addr) {
@@ -2636,7 +2636,7 @@ function buildReceivingAddressList() {
 		
 		var noPrivateKey = addr;
 		if (private_keys[i] == null)
-			noPrivateKey = '<font color="red">' + addr +' (No Private Key)</font>';
+			noPrivateKey =  addr +' <font color="red">(No Private Key)</font>';
 		
 		tbody.append('<tr><td style="width:20px;"><img id="qr'+addr+'" onmouseover="qrcode(this.id, \'' + addr +'\')"  onmouseout="hideqrcode(this.id)" src="'+resource+'qrcode.png" /></td><td><div class="my-addr-entry">' + noPrivateKey+'<div></td><td><span id="'+addr+'" style="color:green">' + balance +'</span></td><td><img class="adv" src="'+resource+'delete.png" onclick="deleteAddress(\''+addr+'\')" /></td></tr>');
 	}
