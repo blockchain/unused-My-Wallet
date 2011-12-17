@@ -2636,7 +2636,7 @@ function buildReceivingAddressList() {
 		
 		var noPrivateKey = addr;
 		if (private_keys[i] == null)
-			noPrivateKey = '<font color="red">addr (No Private Key)</font>';
+			noPrivateKey = '<font color="red">' + addr +' (No Private Key)</font>';
 		
 		tbody.append('<tr><td style="width:20px;"><img id="qr'+addr+'" onmouseover="qrcode(this.id, \'' + addr +'\')"  onmouseout="hideqrcode(this.id)" src="'+resource+'qrcode.png" /></td><td><div class="my-addr-entry">' + noPrivateKey+'<div></td><td><span id="'+addr+'" style="color:green">' + balance +'</span></td><td><img class="adv" src="'+resource+'delete.png" onclick="deleteAddress(\''+addr+'\')" /></td></tr>');
 	}
