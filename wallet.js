@@ -85,10 +85,9 @@ function websocketConnect() {
 	                if (sound_on) {
 	                	if (document.getElementById("beep") == null) {
 	                		sound_on = false;
-	                		return;
+	                	} else {
+	                		document.getElementById("beep").play(10);
 	                	}
-	                		
-	                    document.getElementById("beep").play(10);
 	                }
 	            } catch (e) {
 	                console.log(e);
@@ -117,7 +116,15 @@ function websocketConnect() {
 				tx.setConfirmations(0);
 
 			}  else if (obj.op == 'block') {
-
+				
+				if (sound_on) {
+					if (document.getElementById("beep") == null) {
+	            		sound_on = false;
+	            	} else {
+	            		document.getElementById("beep").play(4);
+	            	}			
+				}
+				
 				//Check any transactions included in this block, if the match one our ours then set the block index
 				for (var i = 0; i < obj.x.txIndexes.length; ++i) {
 					for (var ii = 0; ii < transactions.length; ++ii) {
@@ -1504,10 +1511,9 @@ function deleteAddress(addr) {
 				if (sound_on) {
 		        	if (document.getElementById("beep") == null) {
 		        		sound_on = false;
-		        		return;
+		        	} else {
+		        		document.getElementById("beep").play(1);
 		        	}
-		        		
-		            document.getElementById("beep").play(1);
 		        }
 				
 				++i;
@@ -1547,10 +1553,9 @@ function deleteAddress(addr) {
 				if (sound_on) {
 		        	if (document.getElementById("beep") == null) {
 		        		sound_on = false;
-		        		return;
+		        	} else {
+		        		document.getElementById("beep").play(1);
 		        	}
-		        		
-		            document.getElementById("beep").play(1);
 		        }
 				
 				++i;
