@@ -266,7 +266,7 @@ function buildAddressBook() {
 	el.empty();
 	
 	for (var i = 0; i < address_book.length; ++i) {
-		el.append('<tr><td>'+ address_book[i].label + '</td><td>'+ address_book[i].addr + '</td><td><img src="' + resource+ 'paste.png" onclick="pasteAddress(\''+ address_book[i].addr + '\')"></tr>');
+		el.append('<tr><td>'+ address_book[i].label + '</td><td><div class="addr-book-entry">'+ address_book[i].addr + '</div></td><td><img src="' + resource+ 'paste.png" onclick="pasteAddress(\''+ address_book[i].addr + '\')"></tr>');
 	}
 }
 
@@ -667,7 +667,7 @@ function didDecryptWallet() {
 	//Get data on the latest block
 	queryAPILatestBlock();
 	
-	changeView($("#receive-coins"));
+	changeView($("#home-intro"));
 	
 	makeNotice('success', 'misc-success', 'Sucessfully Decrypted Wallet', 5000); 
 }
@@ -2128,6 +2128,9 @@ function privateKeyStringToKey(value, format) {
 
 $(document).ready(function() {	
 	
+	//firefox bug
+	$('button').removeAttr('disabled');
+	  
     //Popovers! 
     $(function () {
      $("a[rel=popover]")
@@ -2499,6 +2502,8 @@ $(document).ready(function() {
 			return;
 		
 		changeView($("#receive-coins"));
+		
+		buildReceivingAddressList();
 	});
 	
 	$('.tabs').tabs();
@@ -2603,6 +2608,12 @@ function qrcode(id, addr) {
 }
 
 function buildReceivingAddressList() {
+	
+	
+	//Only build when visible
+	if ("receive-coins" != cVisible.attr('id'))
+		return;
+	
 	var tbody = $('#my-addresses tbody');
 	
 	tbody.empty();
@@ -2614,15 +2625,15 @@ function buildReceivingAddressList() {
 		var balance = balances[addr];
 		
 		if (balance != null && balance > 0)
-			balance = balance / satoshi + ' BTC';
+			balance = balance / satoshi + ' <span class="can-hide">BTC</span>';
 		else
-			balance = '0 BTC';
+			balance = '0 <span class="can-hide">BTC</span>';
 		
-		var noPrivateKey = '';
+		var noPrivateKey = addr;
 		if (private_keys[i] == null)
-			noPrivateKey = ' <font color="red">(No Private Key)</font>';
+			noPrivateKey = '<font color="red">addr (No Private Key)</font>';
 		
-		tbody.append('<tr><td style="width:20px;"><img id="qr'+addr+'" onmouseover="qrcode(this.id, \'' + addr +'\')"  onmouseout="hideqrcode(this.id)" src="'+resource+'qrcode.png" /></td><td>' + addr + noPrivateKey+'</td><td><span id="'+addr+'" style="color:green">' + balance +'</span></td><td><img class="adv" src="'+resource+'delete.png" onclick="deleteAddress(\''+addr+'\')" /></td></tr>');
+		tbody.append('<tr><td style="width:20px;"><img id="qr'+addr+'" onmouseover="qrcode(this.id, \'' + addr +'\')"  onmouseout="hideqrcode(this.id)" src="'+resource+'qrcode.png" /></td><td><div class="my-addr-entry">' + noPrivateKey+'<div></td><td><span id="'+addr+'" style="color:green">' + balance +'</span></td><td><img class="adv" src="'+resource+'delete.png" onclick="deleteAddress(\''+addr+'\')" /></td></tr>');
 	}
 }
 

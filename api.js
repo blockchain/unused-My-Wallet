@@ -132,8 +132,7 @@ Transaction.prototype.getHTML = function() {
     var total_output = this.getResult();
 
     
-	var html = '<div id="tx-'+this.txIndex+'"><table class="zebra-striped" cellpadding="0" cellspacing="0" style="padding:0px;float:left;margin:0px;margin-top:10px;">\
-	<tr><th colspan="2">';
+	var html = '<div id="tx-'+this.txIndex+'"><table class="zebra-striped" cellpadding="0" cellspacing="0" style="padding:0px;float:left;margin:0px;margin-top:10px;"><tr><th colspan="4" style="font-weight:normal"><div class="hash-link">';
 	
 	if (this.myHashes160 != null) {
 		if (total_output > 0) {
@@ -145,17 +144,19 @@ Transaction.prototype.getHTML = function() {
 		}
 	}
 	
-	html += ' <a style="font-size:12px;font-weight:normal" href="'+root+'tx-index/'+this.txIndex+'/'+this.hash+'">'+this.hash+'</a>';
-			
-	html += '</th><th>';
-	
+	html += ' <a target="new" href="'+root+'tx-index/'+this.txIndex+'/'+this.hash+'">'+this.hash+'</a></div> <span style="float:right"><span class="adv">' + this.size + ' (bytes) ';
+				
 	if (this.time > 0) {
 		var date = new Date(this.time * 1000);
 	
 		html += $.format.date(date, "yyyy-MM-dd HH:mm:ss");
 	}
 	
-	html += '</th><th><span class="adv">' + this.size + ' (bytes)</span></th></tr><tr><td width="55%" style="vertical-align:middle;"><ul class="txul">';
+	var tclass = '';
+	if (total_output < 0)
+		tclass = 'class="can-hide"';
+	
+	html += '</span></th></tr><tr><td width="55%" '+ tclass +' style="vertical-align:middle;"><ul class="txul">';
    
     if (this.inputs.length > 0) {
 		for (var i = 0; i < this.inputs.length; i++) {
@@ -168,7 +169,7 @@ Transaction.prototype.getHTML = function() {
 			} else if (input.prev_out.hash == null || input.prev_out.hash.length == 0) {
 				html += '<li><b>No Input (Newly Generated Coins)</b></li>';
 			} else {
-				html += '<li><a href="'+root+'address/' + input.prev_out.hash +'">'+input.prev_out.addr+'</a></li>';
+				html += '<li><a target="new" href="'+root+'address/' + input.prev_out.hash +'">'+input.prev_out.addr+'</a></li>';
 			}
 		}
     } else {
@@ -176,10 +177,10 @@ Transaction.prototype.getHTML = function() {
     }
 
 
-	html += '</ul></td><td style="padding:0px;width:48px;min-height:48px;vertical-align:middle;">';
+	html += '</ul></td><td class="can-hide" style="padding:0px;width:48px;min-height:48px;vertical-align:middle;">';
 	
 	var button_class;
-	if (total_output > 0) {
+	if (total_output >= 0) {
 		button_class = 'btn success';
 		html += '<img src="'+resource+'arrow_right_green.png" />';
 	} else if (total_output < 0) {
@@ -190,7 +191,11 @@ Transaction.prototype.getHTML = function() {
 		html += '&nbsp;';
 	}
 	
-	html += '</td><td width="30%" style="vertical-align:middle;"><ul class="txul">';
+	var tclass = '';
+	if (total_output > 0)
+		tclass = 'class="can-hide"';
+		
+	html += '</td><td width="30%" '+tclass+' style="vertical-align:middle;"><ul class="txul">';
 	
 	for (var i = 0; i < this.out.length; i++) {
 		output = this.out[i];
@@ -198,7 +203,7 @@ Transaction.prototype.getHTML = function() {
 		//total_fees -= output.value;
 
 		if (this.myHashes160 == null || !this.myHashes160.hasObject(output.hash))
-			html += '<li><a href="'+root+'address/'+output.hash+'">'+output.addr+'</a></li>';
+			html += '<li><a target="new" href="'+root+'address/'+output.hash+'">'+output.addr+'</a></li>';
 		else 
 			html += '<li>'+output.addr+'</li>';
 	}
@@ -210,7 +215,7 @@ Transaction.prototype.getHTML = function() {
 						
 		var value = output.value / 100000000;
 		
-		html += '<li>' + value +' BTC</li>';
+		html += '<li>' + value +' <span class="can-hide">BTC</span></li>';
 	}
 	
 	html += '</ul></td></tr></table><span style="float:right;padding-bottom:30px;clear:both;">';
