@@ -2054,7 +2054,7 @@ function populateImportExportView() {
 			  
 			  var thead = $('<thead><tr><th>Bitcoin Address</th><th>Details</th><th>Private Key</th></tr></thead>');
 			  
-			  var table = $('<table style="page-break-after:always"><tbody></tbody></table>');
+			  var table = $('<table></table>');
 				
 			  table.prepend(thead.clone());
 			  
@@ -2062,12 +2062,12 @@ function populateImportExportView() {
 				  				  
 				  var tr = $('<tr></tr>');
 				
-				  table.find('tbody').append(tr);
+				  table.append(tr);
 				
 				  //Add Address QR code
 				  var td = $('<td></td>');
 									  tr.append(td);
-									  td.qrcode({width: 200, height: 200, text: addresses[i]});
+									  td.qrcode({text: addresses[i]});
 				  
 				var balance = balances[addresses[i]];
 				
@@ -2081,7 +2081,7 @@ function populateImportExportView() {
 				  if (private_key == null)
 					  private_key = 'No Private Key';
 					  
-				  td = $('<td><h3>' +addresses[i] + '</h3><br /><h5>Private Key: ' + private_key + '</h5><br /><p>Balance ' + balance + '</p> </td>');
+				  td = $('<td><h5>' +addresses[i] + '</h5><br /><b>' + private_key + '</b><br /><br /><p>Balance ' + balance + '</p> </td>');
 				  tr.append(td);
 				  
 				  //Add Private Key QR code
@@ -2089,15 +2089,15 @@ function populateImportExportView() {
 				  tr.append(td);
 				  
 				  if (private_keys[i] != null) {
-					  td.qrcode({width: 200, height: 200, text: private_keys[i]});
+					  td.qrcode({text: private_keys[i]});
 				  } else {
-					  td.html('<div style="width:200px;height:200px;">No Private Key</div>');
+					  td.html('<div>No Private Key</div>');
 				  }
 				
 				  //Start a new table every 4 entries
-				  if ((i+1) % 4 == 0 || i == addresses.length-1) {
+				  if ((i+1) % 3 == 0 || i == addresses.length-1) {
 				  	$('#paper-wallet').append(table);
-				    table = $('<table style="page-break-after:always"><tbody></tbody></table>');
+				    table = $('<table></table>');
 					table.prepend(thead.clone());
 				  }
 			  }

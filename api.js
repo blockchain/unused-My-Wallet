@@ -215,7 +215,7 @@ Transaction.prototype.getHTML = function() {
 						
 		var value = output.value / 100000000;
 		
-		html += '<li class="can-hide">' + value +' BTC</li>';
+		html += '<li>' + value +' <span class="can-hide">BTC</span></li>';
 	}
 	
 	html += '</ul></td></tr></table><span style="float:right;padding-bottom:30px;clear:both;">';
