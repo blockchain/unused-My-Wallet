@@ -2050,6 +2050,8 @@ function populateImportExportView() {
 			
 	  } else if (val == 'Paper Wallet') {
 		 
+          $('#paper-wallet').empty();
+         
 		  loadScript(resource + 'wallet/jquery.qrcode.min.js', function() { 
 			  
 			  var thead = $('<thead><tr><th>Bitcoin Address</th><th>Details</th><th>Private Key</th></tr></thead>');
