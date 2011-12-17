@@ -83,11 +83,11 @@ function websocketConnect() {
 	            
 	            try {
 	                if (sound_on) {
-	                	if (document.getElementById("beep") == null) {
-	                		sound_on = false;
-	                	} else {
-	                		document.getElementById("beep").play(10);
-	                	}
+						try {
+		            		document.getElementById("beep").play(10);
+		            	} catch (e) {
+		            		sound_on = false;
+		            	}
 	                }
 	            } catch (e) {
 	                console.log(e);
@@ -118,11 +118,11 @@ function websocketConnect() {
 			}  else if (obj.op == 'block') {
 				
 				if (sound_on) {
-					if (document.getElementById("beep") == null) {
-	            		sound_on = false;
-	            	} else {
+					try {
 	            		document.getElementById("beep").play(4);
-	            	}			
+	            	} catch (e) {
+	            		sound_on = false;
+	            	}	
 				}
 				
 				//Check any transactions included in this block, if the match one our ours then set the block index
@@ -1509,11 +1509,11 @@ function deleteAddress(addr) {
 					return;
 				
 				if (sound_on) {
-		        	if (document.getElementById("beep") == null) {
-		        		sound_on = false;
-		        	} else {
-		        		document.getElementById("beep").play(1);
-		        	}
+					try {
+	            		document.getElementById("beep").play(1);
+	            	} catch (e) {
+	            		sound_on = false;
+	            	}
 		        }
 				
 				++i;
@@ -1551,11 +1551,11 @@ function deleteAddress(addr) {
 					return;
 				
 				if (sound_on) {
-		        	if (document.getElementById("beep") == null) {
-		        		sound_on = false;
-		        	} else {
-		        		document.getElementById("beep").play(1);
-		        	}
+					try {
+	            		document.getElementById("beep").play(1);
+	            	} catch (e) {
+	            		sound_on = false;
+	            	}
 		        }
 				
 				++i;
