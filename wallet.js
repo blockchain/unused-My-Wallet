@@ -609,11 +609,11 @@ function queryAPIMultiAddress() {
 			
 			//Rebuild the my-addresse s list with the new updated balances
 			buildReceivingAddressList();
-			 
-			updateTransactionConfirmations();
-			
+			 			
 			buildTransactionsView();
 			
+			updateTransactionConfirmations();
+
 			if (localStorage) {
 				localStorage.setItem('multiaddr', data);
 			}
