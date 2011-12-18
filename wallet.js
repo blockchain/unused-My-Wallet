@@ -2,7 +2,7 @@ var encrypted_wallet_data = null;
 var guid = null;
 var transactions = []; //List of all transactions
 var addresses = []; //Bitcoin addresses
-var private_keys = []; //Private keys in base58
+var private_keys = []; //Map of bitcoin address to base58 private key
 var cVisible; //currently visible view
 var password; //Password
 var sharedKey; //Shared key used to prove that the wallet has succesfully been decrypted, meaning you can't ovwerwrite a wallet backup even if you have the guid
@@ -120,9 +120,9 @@ function websocketConnect() {
 	
 				transactions.push(tx);
 	
-				$('#transactions').prepend(tx.getHTML()).hide().fadeIn("slow").slideDown('slow');
-	
 				tx.setConfirmations(0);
+				
+				buildTransactionsView();
 
 			}  else if (obj.op == 'block') {
 				
@@ -233,8 +233,8 @@ function makeWalletJSON(format) {
 	for (var i = 0; i < addresses.length; ++i) {
 		out += '	{"addr" : "'+ addresses[i] +'"';
 		
-		if (private_keys[i] != null) {
-			out += ',\n	 "priv" : "'+ encode_func(private_keys[i]) + '"';
+		if (private_keys[addresses[i]] != null) {
+			out += ',\n	 "priv" : "'+ encode_func(private_keys[addresses[i]]) + '"';
 		}
 		
 		out += '}';
@@ -407,36 +407,6 @@ function getMyHash160s() {
 	return array;
 }
 
-function updateTransactionsSummary() {
-	$('#transactions-summary').show();
-	
-	if (final_balance <= 0) {
-
-		$('#balance-btc').html('0');
-		
-		$('#balance-usd').html('0');
-	} else {
-		
-		$('#balance-btc').html(toFixed(final_balance / satoshi, 4));
-	
-		$('#balance-usd').html(toFixed(final_balance / satoshi * market_price, 2));
-	}
-
-	$('#summary-n-tx').html(n_tx);
-
-	$('#summary-received-usd').html(toFixed(total_received / satoshi  * market_price, 2));
-
-	$('#summary-received-btc').html(toFixed(total_received / satoshi, 4));
-
-	$('#summary-sent-usd').html(toFixed(total_sent / satoshi  * market_price, 2));
-
-	$('#summary-sent-btc').html(toFixed(total_sent / satoshi, 4));
-
-	$('#summary-balance-usd').html(toFixed(final_balance / satoshi  * market_price, 2));
-
-	$('#summary-balance-btc').html(toFixed(final_balance / satoshi, 4));
-}
-
 function updateTransactionConfirmations() {
 	
 	if (block_heights == null || block_heights.length == 0)
@@ -525,13 +495,58 @@ function queryAPILatestBlock() {
 	});
 }
 
-function parseMultiAddressJSON(json) {
-	var obj = jQuery.parseJSON(json);
+function buildTransactionsView(json) {
 
+	//Build the large summary
+	//UpdateThe summary
+	$('#transactions-summary').show();
+	
+	if (final_balance <= 0) {
+
+		$('#balance-btc').html('0');
+		
+		$('#balance-usd').html('0');
+	} else {
+		
+		$('#balance-btc').html(toFixed(final_balance / satoshi, 4));
+	
+		$('#balance-usd').html(toFixed(final_balance / satoshi * market_price, 2));
+	}
+
+	
+	//Only build the actualy tx view when visible
+	if ("my-transactions" != cVisible.attr('id'))
+		return;
+
+	$('#summary-n-tx').html(n_tx);
+
+	$('#summary-received-usd').html(toFixed(total_received / satoshi  * market_price, 2));
+
+	$('#summary-received-btc').html(toFixed(total_received / satoshi, 4));
+
+	$('#summary-sent-usd').html(toFixed(total_sent / satoshi  * market_price, 2));
+
+	$('#summary-sent-btc').html(toFixed(total_sent / satoshi, 4));
+
+	$('#summary-balance-usd').html(toFixed(final_balance / satoshi  * market_price, 2));
+
+	$('#summary-balance-btc').html(toFixed(final_balance / satoshi, 4));
+	
 	var hashes = getMyHash160s();
 	
-	//Clear all transactions
-	$('#transactions').html('');
+	var html = '';
+	for (var i = 0; i < transactions.length; ++i) {
+		transactions[i].setMyHashes(hashes);
+
+		html += transactions[i].getHTML(root, resource);
+	}
+	
+	$('#transactions').html(html);
+
+}
+
+function parseMultiAddressJSON(json) {
+	var obj = jQuery.parseJSON(json);
 	
 	total_received = 0;
 	total_sent = 0;
@@ -553,16 +568,8 @@ function parseMultiAddressJSON(json) {
 	}	
 	
 	for (var i = 0; i < obj.txs.length; ++i) {
-		
 		var tx = TransactionFromJSON(obj.txs[i]);
-		
-		tx.setMyHashes(hashes);
-		
 		transactions.push(tx);
-	
-		html = tx.getHTML(root, resource);
-	
-		$('#transactions').append(html);
 	}
 }
 
@@ -587,7 +594,7 @@ function queryAPIMultiAddress() {
 			 
 			updateTransactionConfirmations();
 			
-			updateTransactionsSummary();
+			buildTransactionsView();
 			
 			if (localStorage) {
 				localStorage.setItem('multiaddr', data);
@@ -660,7 +667,7 @@ function didDecryptWallet() {
 			if (multiaddrjson != null) {
 				parseMultiAddressJSON(multiaddrjson);
 						
-				updateTransactionsSummary();
+				buildTransactionsView();
 			}
 			
 			//Restor the cached latest block
@@ -940,55 +947,65 @@ function updateEmail(email) {
 }
 
 function backupWallet(method) {
-	
-	if (!isInitialized && method != 'insert')
-		return;
-		
-	if (guid.length != 36) {
-		makeNotice('error', 'misc-error', 'Invalid wallet identifier');
-		return;
-	}
-	
-	var data = makeWalletJSON();
-	
-	//Double check the json is parasable
 	try {
+		if (!isInitialized && method != 'insert')
+			return;
+			
+		if (guid.length != 36) {
+			throw 'Invalid wallet identifier';
+		}
+		
+		var data = makeWalletJSON();
+	
+		//Double check that every private key matches the bitcoin address
+		for (var i = 0; i < addresses.lenght; ++ i) {
+			var priv = private_keys[addresses[i]];
+			
+			if (priv != null) {
+				var key_addr = new Bitcoin.ECKey(Bitcoin.Base58.decode(priv)).getBitcoinAddress().toString();
+				
+				if (key_addr != addresses[i])
+					throw 'Private key does not match bitcoin address ' + addresses[i];
+			}
+		}
+		
+		//Double check the json is parasable
 		var obj = jQuery.parseJSON(data);
-
+	
 		if (obj == null)
 			throw 'null json error';
 		
-	} catch (e) {
-		makeNotice('error', 'misc-error', 'Exception caught parsing JSON. Not backuping up wallet');
-		return;
-	}
-	
-	//Encrypt the JSON output
-	var crypted = Crypto.AES.encrypt(data, password);
 		
-	if (crypted.length == 0) {
-		makeNotice('error', 'misc-error', 'Error enrypting the JSON output');
+		//Everything looks ok, Encrypt the JSON output
+		var crypted = Crypto.AES.encrypt(data, password);
+			
+		if (crypted.length == 0) {
+			throw 'Error enrypting the JSON output';
+		}
+		
+		//SHA256 checksum verified by server in case of curruption during transit
+		var checksum = Crypto.util.bytesToHex(Crypto.SHA256(crypted, {asBytes: true}));
+		
+		setLoadingText('Saving wallet');
+	
+		$.ajax({
+			 type: "POST",
+			 url: root + 'wallet',
+			 data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: checksum, method : method },
+			 converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
+			 success: function(data) {  
+				makeNotice('success', 'misc-success', data, 5000);
+			},
+				
+			error : function(data) {
+			   makeNotice('error', 'misc-error', data.responseText); 
+			}
+		});
+		
+	} catch (e) {
+		makeNotice('error', 'misc-error', e);
 		return;
 	}
-	
-	//SHA256 checksum verified by server in case of curruption during transit
-	var checksum = Crypto.util.bytesToHex(Crypto.SHA256(crypted, {asBytes: true}));
-	
-	setLoadingText('Saving wallet');
-
-	$.ajax({
-		 type: "POST",
-		 url: root + 'wallet',
-		 data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: checksum, method : method },
-		 converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
-		 success: function(data) {  
-			makeNotice('success', 'misc-success', data, 5000);
-		},
-			
-		error : function(data) {
-		   makeNotice('error', 'misc-error', data.responseText); 
-		}
-	});
 }
 
 function checkAndSetPassword() {
@@ -1085,7 +1102,7 @@ function generateNewWallet() {
 
 function changeView(id) {
 
-	if (id == cVisible)
+	if (id === cVisible)
 		return;
 		
 	if (cVisible != null) {		
@@ -1135,144 +1152,137 @@ function compareArray(a, b) {
    return true;
 }
 
-function signTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOutputs, missingPrivateKeys) {
+
+function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOutputs, selectedOuts) {
 		
-		var selectedOuts = [];
-		
-		var txValue = BigInteger.ZERO;
-		
-		if (feeValue != null)
-			txValue = txValue.add(feeValue);
-        
-		for (var i = 0; i < toAddressesWithValue.length; ++i) {			
-			txValue = txValue.add(toAddressesWithValue[i].value);
-		}
+	var txValue = BigInteger.ZERO;
+	
+	if (feeValue != null)
+		txValue = txValue.add(feeValue);
+    
+	for (var i = 0; i < toAddressesWithValue.length; ++i) {			
+		txValue = txValue.add(toAddressesWithValue[i].value);
+	}
 
 
-        //Add blockchain.info's fees
-        var ouraddr = new Bitcoin.Address(our_address);
+    //Add blockchain.info's fees
+    var ouraddr = new Bitcoin.Address(our_address);
+    
+    var ourFee = txValue.divide(BigInteger.valueOf(100)).multiply(BigInteger.valueOf(1));
+    
+    var opointone = BigInteger.valueOf(1000000); // 0.01 BTC
+    
+    if (ourFee.compareTo(opointone) < 0) {
+        ourFee = opointone;
+    } 
         
-        var ourFee = txValue.divide(BigInteger.valueOf(100)).multiply(BigInteger.valueOf(1));
-        
-        var opointone = BigInteger.valueOf(1000000); // 0.01 BTC
-        
-        if (ourFee.compareTo(opointone) < 0) {
-            ourFee = opointone;
-        } 
-            
-        txValue = txValue.add(ourFee);
+    txValue = txValue.add(ourFee);
 
-		var availableValue = BigInteger.ZERO;
+	var availableValue = BigInteger.ZERO;
+	
+	for (var i = 0; i < unspentOutputs.length; ++i) {
 		
-		for (var i = 0; i < unspentOutputs.length; ++i) {
+			var out = unspentOutputs[i];
+				
+			var hexhash = Crypto.util.hexToBytes(out.tx_hash);
+
+			var b64hash = Crypto.util.bytesToBase64(Crypto.util.hexToBytes(out.tx_hash));
 			
-				var out = unspentOutputs[i];
+			selectedOuts.push(new Bitcoin.TransactionIn({outpoint: {hash: b64hash, hexhash: hexhash, index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295}));
+							
+			availableValue = availableValue.add(out.value);
+			
+			if (availableValue.compareTo(txValue) >= 0) break;
+	}
+	
+    if (availableValue.compareTo(txValue) < 0) {
+		throw 'Insufficient funds. Value Needed ' +  Bitcoin.Util.formatValue(txValue.toString()) + ' BTC. Available amount ' + Bitcoin.Util.formatValue(availableValue.toString()) + ' BTC';
+    }
+
+	var changeValue = availableValue.subtract(txValue);
+
+	var sendTx = new Bitcoin.Transaction();
+
+	for (var i = 0; i < selectedOuts.length; i++) {
+		sendTx.addInput(selectedOuts[i]);
+	}
+
+	for (var i =0; i < toAddressesWithValue.length; ++i) {	
 					
-				var hexhash = Crypto.util.hexToBytes(out.tx_hash);
+		sendTx.addOutput(toAddressesWithValue[i].address, toAddressesWithValue[i].value);
+	}
+    
+   sendTx.addOutput(ouraddr, ourFee);
 
-				var b64hash = Crypto.util.bytesToBase64(Crypto.util.hexToBytes(out.tx_hash));
-				
-				selectedOuts.push(new Bitcoin.TransactionIn({outpoint: {hash: b64hash, hexhash: hexhash, index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295}));
-								
-				availableValue = availableValue.add(out.value);
-				
-				if (availableValue.compareTo(txValue) >= 0) break;
-		}
+	if (changeValue > 0) {
 		
-	    if (availableValue.compareTo(txValue) < 0) {
-			throw 'Insufficient funds. Value Needed ' +  Bitcoin.Util.formatValue(txValue.toString()) + ' BTC. Available amount ' + Bitcoin.Util.formatValue(availableValue.toString()) + ' BTC';
-	    }
-
-		var changeValue = availableValue.subtract(txValue);
-
-		var sendTx = new Bitcoin.Transaction();
-
-		for (var i = 0; i < selectedOuts.length; i++) {
-			sendTx.addInput(selectedOuts[i]);
-		}
-
-		for (var i =0; i < toAddressesWithValue.length; ++i) {	
-						
-			sendTx.addOutput(toAddressesWithValue[i].address, toAddressesWithValue[i].value);
-		}
-        
-       sendTx.addOutput(ouraddr, ourFee);
-
-		if (changeValue > 0) {
+		if (fromAddress == null)
+			sendTx.addOutput(new Bitcoin.Address(addresses[0]), changeValue);
+		else
+			sendTx.addOutput(fromAddress, changeValue);
+	}
 			
-			if (fromAddress == null)
-				sendTx.addOutput(new Bitcoin.Address(addresses[0]), changeValue);
-			else
-				sendTx.addOutput(fromAddress, changeValue);
-		}
-				
+	return sendTx;
+}
+
+function signInput(sendTx, missingPrivateKeys, selectedOuts, i) {
+		
 		var hashType = 1; // SIGHASH_ALL
-
+					
+		var hash = sendTx.hashTransactionForSignature(selectedOuts[i].script, i, hashType);
+		var pubKeyHash = selectedOuts[i].script.simpleOutPubKeyHash();
+		var inputBitcoinAddress = new Bitcoin.Address(pubKeyHash).toString();
+		var privatekey = null;
 		
-		for (var i = 0; i < sendTx.ins.length; i++) {
-			
-			var hash = sendTx.hashTransactionForSignature(selectedOuts[i].script, i, hashType);
-			var pubKeyHash = selectedOuts[i].script.simpleOutPubKeyHash();
-			var inputBitcoinAddress = new Bitcoin.Address(pubKeyHash).toString();
-				
-			//Find the matching private key
-			var privatekey = null;
-			for (var ki = 0; ki < addresses.length; ++ki) {				
-				if (addresses[ki] == inputBitcoinAddress) {	
-					if (private_keys[ki] != null && private_keys[ki].length > 0) {
-						privatekey = new Bitcoin.ECKey(Bitcoin.Base58.decode(private_keys[ki]));
-					}
+		//Find the matching private key
+		if (private_keys[inputBitcoinAddress] != null) {
+			privatekey = new Bitcoin.ECKey(Bitcoin.Base58.decode(private_keys[inputBitcoinAddress]));
+		}
+		
+		//If it is null then it is not in our main key pool, try look in the temporary keys
+		if (privatekey == null) {	
+			for (var ki = 0; ki < missingPrivateKeys.length; ++ki) {				
+				if (missingPrivateKeys[ki].addr == inputBitcoinAddress) {	
+					privatekey = missingPrivateKeys[ki].priv;
 					break;
 				}
 			}
-
-			//If it is null then it is not in our main key pool, try look in the temporary keys
-			if (privatekey == null) {	
-				for (var ki = 0; ki < missingPrivateKeys.length; ++ki) {				
-					if (missingPrivateKeys[ki].addr == inputBitcoinAddress) {	
-						privatekey = missingPrivateKeys[ki].priv;
-						break;
-					}
-				}
-			}
-			 
-			//If it is still null then we need to ask the user for it
-			if (privatekey == null) {	
-				missingPrivateKeys.push({addr : inputBitcoinAddress, priv : null});
-				return null;
-			}
-			
-			if (privatekey.getBitcoinAddress() != inputBitcoinAddress) {
-				throw 'Private key does not match bitcoin address';
-			}
-			
-			var signature = privatekey.sign(hash);
-			
-			if (signature == null) {
-				throw 'Error signing transaction hash';
-			}
-				
-			var pubKey = privatekey.getPub();
-			if (pubKey == null) {
-				throw 'Private key pub key is null';
-			}
-
-			// Append hash type
-			signature.push(parseInt(hashType));
-
-			 var script = Bitcoin.Script.createInputScript(signature, pubKey);
-			 
-			 if (script == null) {
-				throw 'Error creating input script';
-			 }
-			 
-			sendTx.ins[i].script = script;
+		}
+		 
+		//If it is still null then we need to ask the user for it
+		if (privatekey == null) {	
+			missingPrivateKeys.push({addr : inputBitcoinAddress, priv : null});
+			return false;
 		}
 		
-		return sendTx;
+		if (privatekey.getBitcoinAddress() != inputBitcoinAddress) {
+			throw 'Private key does not match bitcoin address';
+		}
+		
+		var signature = privatekey.sign(hash);
+		
+		if (signature == null) {
+			throw 'Error signing transaction hash';
+		}
+			
+		var pubKey = privatekey.getPub();
+		if (pubKey == null) {
+			throw 'Private key pub key is null';
+		}
+
+		// Append hash type
+		signature.push(parseInt(hashType));
+
+		 var script = Bitcoin.Script.createInputScript(signature, pubKey);
+		 
+		 if (script == null) {
+			throw 'Error creating input script';
+		 }
+		 
+		sendTx.ins[i].script = script;
+	
+		return true;
 }
-
-
 
 function parseScript(script) {
 		
@@ -1290,23 +1300,17 @@ function parseScript(script) {
 }
 
 function internalDeletePrivateKey(addr) {
-	for (var i = 0; i < addresses.length; ++i) {
-		if (addresses[i] == addr) {
-			
-			if (private_keys[i] != null ) {
-				var priv_addr = new Bitcoin.ECKey(Bitcoin.Base58.decode(private_keys[i])).getBitcoinAddress().toString();
 	
-				if (priv_addr != addr) {
-					makeNotice('error', 'misc-error', 'Private key does not match address in same index. Possible curruption.', 5000);
-					return;
-				}
-			}
-			
-			private_keys[i] = null;
-			
-			break;
+	if (private_keys[addr] != null ) {
+		var priv_addr = new Bitcoin.ECKey(Bitcoin.Base58.decode(private_keys[addr])).getBitcoinAddress().toString();
+
+		if (priv_addr != addr) {
+			makeNotice('error', 'misc-error', 'Private key does not match address in same index. Possible curruption.', 5000);
+			return;
 		}
 	}
+	
+	private_keys[addr] = null;
 }
 
 function internalDeleteAddress(addr) {
@@ -1314,8 +1318,8 @@ function internalDeleteAddress(addr) {
 		if (addresses[i] == addr) {
 			
 			//Double check the private key were deleting matches this bitcoin address
-			if (private_keys[i] != null) {
-				var priv_addr = new Bitcoin.ECKey(Bitcoin.Base58.decode(private_keys[i])).getBitcoinAddress().toString();
+			if (private_keys[addr] != null) {
+				var priv_addr = new Bitcoin.ECKey(Bitcoin.Base58.decode(private_keys[addr])).getBitcoinAddress().toString();
 				
 				if (priv_addr != addr) {
 					makeNotice('error', 'misc-error', 'Private key does not match address in same index. Possible curruption.', 5000);
@@ -1324,7 +1328,7 @@ function internalDeleteAddress(addr) {
 			}
 			
 			addresses.splice(i, 1);
-			private_keys.splice(i, 1);
+			private_keys[addr] = null;
 			break;
 		}
 	}
@@ -1371,7 +1375,7 @@ function walletIsFull(addr) {
 
 function internalAddKey(addr, priv) {
 	addresses.push(addr);
-	private_keys.push(priv);
+	private_keys[addr] = priv;
 }
 
 function internalAddOrReplaceKey(addr, priv) {
@@ -1381,19 +1385,20 @@ function internalAddOrReplaceKey(addr, priv) {
 		if (addr == addresses[ii]) {
 			
 			//Double check the private key were adding matches this bitcoin address
-			if (private_keys[ii] == null && priv != null) {
+			if (priv != null) {
 				var priv_addr = new Bitcoin.ECKey(Bitcoin.Base58.decode(priv)).getBitcoinAddress().toString();
 				
 				if (priv_addr != addr) {
 					makeNotice('error', 'misc-error', 'Private key does not match address in same index. Possible curruption.', 5000);
 					return false;
 				}
-				
-				private_keys[ii] = priv;
+
+				//If we have a duplicate then we replace the private key
+				private_keys[addr] = priv;
 				
 				return true;
 			}	
-			
+
 			return false;
 		}
 	}
@@ -1611,223 +1616,294 @@ function deleteAddress(addr) {
 
 function setReviewTransactionContent(modal, tx) {
 		
-	$('#rtc-hash').html(Crypto.util.bytesToHex(tx.getHash()));
-	$('#rtc-version').html(tx.version);
-	$('#rtc-from').html('');
-	$('#rtc-to').html('');
-	
-	var total = BigInteger.ZERO;
-	var total_fees =  BigInteger.ZERO;
-	var wallet_effect =  BigInteger.ZERO;
-	var basic_str = 'send ';
-	var all_txs_to_self = true;
-	var amount =  BigInteger.ZERO;
-	
-	for (var i = 0; i < tx.ins.length; ++i) {
-		var input = tx.ins[i];
-					
-		var addr = new Bitcoin.Address(input.script.simpleInPubKeyHash());			
+		$('#rtc-hash').html(Crypto.util.bytesToHex(tx.getHash()));
+		$('#rtc-version').html(tx.version);
+		$('#rtc-from').html('');
+		$('#rtc-to').html('');
 		
-		total_fees = total_fees.add(input.outpoint.value);
+		var total = BigInteger.ZERO;
+		var total_fees =  BigInteger.ZERO;
+		var wallet_effect =  BigInteger.ZERO;
+		var basic_str = 'send ';
+		var all_txs_to_self = true;
+		var amount =  BigInteger.ZERO;
 		
-		$('#rtc-from').append(addr + ' <font color="green">' + Bitcoin.Util.formatValue(input.outpoint.value) + ' BTC <br />');
-	}
-
-	
-	for (var i = 0; i < tx.outs.length; ++i) {
-		var out = tx.outs[i];
+		for (var i = 0; i < tx.ins.length; ++i) {
+			var input = tx.ins[i];
+						
+			var addr = new Bitcoin.Address(input.script.simpleInPubKeyHash());			
 			
-		var array = out.value.slice();
-		
-		array.reverse();
-	
-		var val =  new BigInteger(array);
-
-		var hash = out.script.simpleOutPubKeyHash();
-		var address = new Bitcoin.Address(hash).toString();
-
-		$('#rtc-to').append(address + ' <font color="green">' + Bitcoin.Util.formatValue(val.intValue()) + ' BTC </font><br />');
-	
-		total = total.add(val);
-		
-		total_fees = total_fees.subtract(val);
-		var found = false;
-		for (var ii=0;ii < addresses.length;++ii) {
-			if (address == addresses[ii]) {
-				found = true;
-				break;
-			}
+			total_fees = total_fees.add(input.outpoint.value);
+			
+			$('#rtc-from').append(addr + ' <font color="green">' + Bitcoin.Util.formatValue(input.outpoint.value) + ' BTC <br />');
 		}
+	
 		
-		if (!found) {
-			
-			if (address != our_address) {
-				if (basic_str.length > 0) {
-					basic_str += ' and ';
-				}
-					
-				basic_str += '<b>' + Bitcoin.Util.formatValue(val.intValue())  + ' BTC</b> to bitcoin address ' + address;
+		for (var i = 0; i < tx.outs.length; ++i) {
+			var out = tx.outs[i];
 				
-				all_txs_to_self = false;
+			var array = out.value.slice();
+			
+			array.reverse();
+		
+			var val =  new BigInteger(array);
+	
+			var hash = out.script.simpleOutPubKeyHash();
+			var address = new Bitcoin.Address(hash).toString();
+	
+			$('#rtc-to').append(address + ' <font color="green">' + Bitcoin.Util.formatValue(val.intValue()) + ' BTC </font><br />');
+		
+			total = total.add(val);
+			
+			total_fees = total_fees.subtract(val);
+			var found = false;
+			for (var ii=0;ii < addresses.length;++ii) {
+				if (address == addresses[ii]) {
+					found = true;
+					break;
+				}
 			}
 			
-			wallet_effect = wallet_effect.subtract(val);
-		} else {
-			if (address != our_address) {
-				amount = amount.add(val);
+			if (!found) {
+				
+				if (address != our_address) {
+					if (basic_str.length > 0) {
+						basic_str += ' and ';
+					}
+						
+					basic_str += '<b>' + Bitcoin.Util.formatValue(val.intValue())  + ' BTC</b> to bitcoin address ' + address;
+					
+					all_txs_to_self = false;
+				}
+				
+				wallet_effect = wallet_effect.subtract(val);
+			} else {
+				if (address != our_address) {
+					amount = amount.add(val);
+				}
 			}
 		}
-	}
-	
-	if (total_fees.compareTo(BigInteger.valueOf(1).multiply(BigInteger.valueOf(satoshi))) >= 0) {
-		alert('Warning fees are very high for this transaction. Please double check each output!');
-	}
-	
-	if (all_txs_to_self == true) {
-		basic_str = 'move <b>' + Bitcoin.Util.formatValue(amount) + ' BTC</b> between your own bitcoin addresses';
-	}
-	
-	$('#rtc-basic-summary').html(basic_str);
 		
-	$('#rtc-effect').html(Bitcoin.Util.formatValue(wallet_effect.subtract(total_fees)) + ' BTC');
+		if (total_fees.compareTo(BigInteger.valueOf(1).multiply(BigInteger.valueOf(satoshi))) >= 0) {
+			alert('Warning fees are very high for this transaction. Please double check each output!');
+		}
+		
+		if (all_txs_to_self == true) {
+			basic_str = 'move <b>' + Bitcoin.Util.formatValue(amount) + ' BTC</b> between your own bitcoin addresses';
+		}
+		
+		$('#rtc-basic-summary').html(basic_str);
+			
+		$('#rtc-effect').html(Bitcoin.Util.formatValue(wallet_effect.subtract(total_fees)) + ' BTC');
+	
+		$('#rtc-fees').html(Bitcoin.Util.formatValue(total_fees) + ' BTC');
+	
+		$('#rtc-value').html(Bitcoin.Util.formatValue(total) + ' BTC');
+}
 
-	$('#rtc-fees').html(Bitcoin.Util.formatValue(total_fees) + ' BTC');
 
-	$('#rtc-value').html(Bitcoin.Util.formatValue(total) + ' BTC');
+function txFullySigned(tx) {
+	var modal = $('#new-transaction-modal');
+
+	try {
+	
+		modal.find('.modal-header h3').html('Transaction ready to be sent.');
+		
+		modal.find('#missing-private-key').hide();
+		
+		modal.find('#review-tx').show();
+	
+		setReviewTransactionContent(modal, tx);
+		
+		(function() {
+			var ttx = tx;
+			//We have the transaction ready to send, check if were online or offline
+			
+			var btn = modal.find('.btn.primary');
+	
+			setLoadingText('Checking Connectivity');
+	
+			$.get(root + 'ping').success(function(data) { 
+				
+				btn.attr('disabled', false);
+	
+				btn.text('Send Transaction');
+									
+				btn.unbind().click(function() {
+					
+					btn.attr('disabled', true);
+	
+					pushTx(ttx);
+					
+					modal.modal('hide');
+				});
+				
+			}).error(function(data) {
+				
+				modal.find('.modal-header h3').html('Created Offline Transaction.');
+	
+				btn.attr('disabled', false);
+				
+				btn.text('Show Offline Instructions');
+	
+				btn.unbind().click(function() {
+					
+					btn.attr('disabled', true);
+	
+					modal.find('#missing-private-key').hide();
+					modal.find('#review-tx').hide();
+					modal.find('#offline-transaction').show();
+					
+					var s = ttx.serialize();
+	
+					var hex = Crypto.util.bytesToHex(s);
+					
+					modal.find('#offline-transaction textarea[name="data"]').val(hex);
+				});
+			});
+	    })();
+		
+	} catch (e) {
+		 makeNotice('error', 'misc-error', e, 5000);
+		 modal.modal('hide');
+		 return;
+	}
 }
 
 function createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, missingPrivateKeys) {
 	var modal = $('#new-transaction-modal');
 
 	try {	
-		var tx = signTransaction(toAddressesWithValue, fromAddress, fees, unspent, missingPrivateKeys);
 		
-		if (tx != null) {
-			
-			modal.find('.modal-header h3').html('Transaction ready to be sent.');
-	
-			modal.find('#missing-private-key').hide();
-			
-			modal.find('#review-tx').show();
-	
-			setReviewTransactionContent(modal, tx);
-			
-			(function() {
-				var ttx = tx;
-				//We have the transaction ready to send, check if were online or offline
-				
-				var btn = modal.find('.btn.primary');
+		var selectedOuts = [];
 
-				setLoadingText('Checking Connectivity');
-
-				$.get(root + 'ping').success(function(data) { 
-					
-					btn.attr('disabled', false);
-
-					btn.text('Send Transaction');
-										
-					btn.unbind().click(function() {
-						
-						btn.attr('disabled', true);
-
-						pushTx(ttx);
-						
-						modal.modal('hide');
-					});
-					
-				}).error(function(data) {
-					
-					modal.find('.modal-header h3').html('Created Offline Transaction.');
-
-					btn.attr('disabled', false);
-					
-					btn.text('Show Offline Instructions');
-
-					btn.unbind().click(function() {
-						
-						btn.attr('disabled', true);
-
-						modal.find('#missing-private-key').hide();
-						modal.find('#review-tx').hide();
-						modal.find('#offline-transaction').show();
-						
-						var s = ttx.serialize();
-
-						var hex = Crypto.util.bytesToHex(s);
-						
-						modal.find('#offline-transaction textarea[name="data"]').val(hex);
-					});
-				});
-		    })();
-	
-		} else if (missingPrivateKeys.length > 0) {
+		//First we make the transaction with it's inputs unsigned
+		var tx = makeTransaction(toAddressesWithValue, fromAddress, fees, unspent, selectedOuts);
 		
-			 //find the first missing private key and prompt the user to enter it
-			 var missing = null;
-			 for (var i =0; i < missingPrivateKeys.length; ++i) {
-				 if (missingPrivateKeys[i].priv == null) {
-					 missing = missingPrivateKeys[i];
-					 break;
-				 }
-			 }
-			 
-			 //If we haven't found a missing private key, but we have a null tx then we have a problem.
-			 if (missing == null) {
-				 makeNotice('error', 'misc-error', 'Unknown error signing transaction', 5000);
-				 modal.modal('hide');
-				 return;
-			 }
-			
-			 var form = $('#missing-private-key');
-			
-			 form.find('input[name="key"]').val('');
-			 
-			 form.show();
-			 
-			 //Set the modal title
-			 modal.find('.modal-header h3').html('Private Key Needed.');
-			 form.find('.address').html(missing.addr);
-				
-			(function() {
-				var tmissing = missing;
-				
-				 form.find('button[name="add"]').unbind().click(function() {
-					if (!isInitialized)
-						return;
-					
-					var value = form.find('input[name="key"]').val();
-					var format = form.find('select[name="format"]').val();
-				
-					if (value.length == 0) {
-						makeNotice('error', 'misc-error', 'You must enter a private key to import', 5000);
-						modal.modal('hide');
-						return;
-					}
-					
-					try {
-						var key = privateKeyStringToKey(value, format);
-									
-						if (tmissing.addr != key.getBitcoinAddress()) {
-							makeNotice('error', 'misc-error', 'The private key you entered does not match the bitcoin address', 5000);
-							modal.modal('hide');
-							return;
-						}
-						
-						tmissing.priv = key;
-						
-						//Now try again
-						createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, missingPrivateKeys);
-					} catch(e) {
-						makeNotice('error', 'misc-error', 'Error import private key ' + e, 5000);
-						modal.modal('hide');
-						return;
-					}
-				});		
-		    })();
-	
-		} else {
-			throw 'Unknown signing error';
+		var progress = $('#tx-sign-progress').show(200);
+		
+		if (tx == null) {
+			 makeNotice('error', 'misc-error', 'Error Creating Transaction', 5000);
+			 modal.modal('hide');
+			 return;
 		}
+				
+		var nSigned = 0;
+		var outputN = 0;
+		
+		
+		progress.find('.t').text(tx.ins.length);
+
+		signOne = function() {
+			setTimeout(function() {
+				
+				//If the modal has been hidden the the user has probably cancelled
+				if (!modal.is(":visible"))
+					return;
+				
+				progress.find('.n').text(outputN+1);
+
+				//Try and sign the input
+				if (signInput(tx, missingPrivateKeys, selectedOuts, outputN)) {
+					++outputN;
+										
+					if (outputN == tx.ins.length) {
+						progress.hide();
+						
+						txFullySigned(tx);
+					} else {
+						signOne();
+					}
+					
+				//If the input failed to sign then were probably missing a private key
+				} else if (missingPrivateKeys.length > 0) {
+					
+					progress.hide();
+
+					 //find the first missing private key and prompt the user to enter it
+					 var missing = null;
+					 for (var i =0; i < missingPrivateKeys.length; ++i) {
+						 if (missingPrivateKeys[i].priv == null) {
+							 missing = missingPrivateKeys[i];
+							 break;
+						 }
+					 }
+					 
+					 //If we haven't found a missing private key, but we have a null tx then we have a problem.
+					 if (missing == null) {
+						 makeNotice('error', 'misc-error', 'Unknown error signing transaction', 5000);
+						 modal.modal('hide');
+						 return;
+					 }
+					
+					 var form = $('#missing-private-key');
+					
+					 form.find('input[name="key"]').val('');
+					 
+					 form.show();
+					 
+					 //Set the modal title
+					 modal.find('.modal-header h3').html('Private Key Needed.');
+					 form.find('.address').html(missing.addr);
+						
+					(function() {
+						var tmissing = missing;
+						
+						 form.find('button[name="add"]').unbind().click(function() {
+							if (!isInitialized)
+								return;
+							
+							var value = form.find('input[name="key"]').val();
+							var format = form.find('select[name="format"]').val();
+						
+							if (value.length == 0) {
+								makeNotice('error', 'misc-error', 'You must enter a private key to import', 5000);
+								modal.modal('hide');
+								return;
+							}
+							
+							try {
+								var key = privateKeyStringToKey(value, format);
+											
+								if (key == null) {
+									makeNotice('error', 'misc-error', 'Error decoding private key', 5000);
+									modal.modal('hide');
+									return;
+								}
+								
+								if (tmissing.addr != key.getBitcoinAddress()) {
+									makeNotice('error', 'misc-error', 'The private key you entered does not match the bitcoin address', 5000);
+									modal.modal('hide');
+									return;
+								}
+								
+								tmissing.priv = key;
+								
+								form.hide();
+								
+								progress.show();
+
+								//Now try again
+								signOne();
+							} catch(e) {
+								makeNotice('error', 'misc-error', 'Error import private key ' + e, 5000);
+								modal.modal('hide');
+								return;
+							}
+						});		
+				   })();
+				} else {
+					//If were not missing a private key then somethign went wrong
+					makeNotice('error', 'misc-error', 'Unknown error signing transaction');
+					modal.modal('hide');
+					return;
+				}
+				
+			}, 10);
+		};
+		
+		signOne();
+		
 	} catch (e) {
 		makeNotice('error', 'misc-error', e, 5000);
 		modal.modal('hide');
@@ -1907,7 +1983,6 @@ function newTxValidateFormAndGetUnspent() {
 			return false;
 		};
 	
-		
 		var fromAddresses = null;
 		if (fromAddress == null) {
 			fromAddresses = getMyHash160s();
@@ -1915,7 +1990,6 @@ function newTxValidateFormAndGetUnspent() {
 			fromAddresses = [];
 			fromAddresses.push(Crypto.util.bytesToHex(fromAddress.hash));
 		}	
-		
 		
 		//Show the modal loading unspent dialog
 		modal = $('#new-transaction-modal');
@@ -1926,6 +2000,8 @@ function newTxValidateFormAndGetUnspent() {
 				
 		modal.find('.modal-header h3').html('Creating transaction');
 		
+		modal.find('#tx-sign-progress').hide();
+
 		modal.modal({
 			  keyboard: true,
 			  backdrop: "static",
@@ -2094,20 +2170,22 @@ function populateImportExportView() {
 				else
 					balance = '0 BTC';
 				
-				  var private_key = private_keys[i];
+				  var addr = addresses[i];
+									
+				  var private_key = private_keys[addr];
 				  
 				  if (private_key == null)
 					  private_key = 'No Private Key';
 					  
-				  td = $('<td><h5>' +addresses[i] + '</h5><br /><b>' + private_key + '</b><br /><br /><p>Balance ' + balance + '</p> </td>');
+				  td = $('<td><h5>' + addr + '</h5><br /><b>' + private_key + '</b><br /><br /><p>Balance ' + balance + '</p> </td>');
 				  tr.append(td);
 				  
 				  //Add Private Key QR code
 				  td = $('<td></td>');
 				  tr.append(td);
 				  
-				  if (private_keys[i] != null) {
-					  td.qrcode({width: 200, height : 200, text: private_keys[i]});
+				  if (private_keys[addr] != null) {
+					  td.qrcode({width: 200, height : 200, text: private_keys[addr]});
 				  } else {
 					  td.html('<div>No Private Key</div>');
 				  }
@@ -2462,6 +2540,8 @@ $(document).ready(function() {
 			return;
 		
 		changeView($("#my-transactions"));
+		
+		buildTransactionsView();
 	});
 
 
@@ -2652,11 +2732,11 @@ function buildReceivingAddressList() {
 		else
 			balance = '0 <span class="can-hide">BTC</span>';
 		
-		var noPrivateKey = addr;
-		if (private_keys[i] == null)
-			noPrivateKey =  addr +' <font color="red">(No Private Key)</font>';
+		var noPrivateKey = '';
+		if (private_keys[addr] == null)
+			noPrivateKey = ' <font color="red">(No Private Key)</font>';
 		
-		tbody.append('<tr><td style="width:20px;"><img id="qr'+addr+'" onmouseover="qrcode(this.id, \'' + addr +'\')"  onmouseout="hideqrcode(this.id)" src="'+resource+'qrcode.png" /></td><td><div class="my-addr-entry">' + noPrivateKey+'<div></td><td><span id="'+addr+'" style="color:green">' + balance +'</span></td><td><img class="adv" src="'+resource+'delete.png" onclick="deleteAddress(\''+addr+'\')" /></td></tr>');
+		tbody.append('<tr><td style="width:20px;"><img id="qr'+addr+'" onmouseover="qrcode(this.id, \'' + addr +'\')"  onmouseout="hideqrcode(this.id)" src="'+resource+'qrcode.png" /></td><td><div class="my-addr-entry">' + addr + noPrivateKey +'<div></td><td><span id="'+addr+'" style="color:green">' + balance +'</span></td><td><img class="adv" src="'+resource+'delete.png" onclick="deleteAddress(\''+addr+'\')" /></td></tr>');
 	}
 }
 
