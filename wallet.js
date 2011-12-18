@@ -70,119 +70,123 @@ function doStuffTimer () {
 }
 
 function websocketConnect() {
-	ws = new WebSocket("ws://api.blockchain.info:8335/inv");
-	
-	ws.onmessage = function(e) {
-						
-		try {
-	
-			var obj = jQuery.parseJSON(e.data);
-	
-			if (obj.op == 'status') {
-			
-				$('#status').html(obj.msg);
-			
-			} else if (obj.op == 'utx') {
+	try {
+		ws = new WebSocket("ws://api.blockchain.info:8335/inv");
+		
+		ws.onmessage = function(e) {
+							
+			try {
+		
+				var obj = jQuery.parseJSON(e.data);
+		
+				if (obj.op == 'status') {
 				
-				//Check for duplicates
-				for (var i = 0; i < transactions.length; ++i) {					
-					if (transactions[i].txIndex == obj.x.tx_index)
-						return;
-				}
-	            
-	            try {
-	                if (sound_on) {
+					$('#status').html(obj.msg);
+				
+				} else if (obj.op == 'utx') {
+					
+					//Check for duplicates
+					for (var i = 0; i < transactions.length; ++i) {					
+						if (transactions[i].txIndex == obj.x.tx_index)
+							return;
+					}
+		            
+		            try {
+		                if (sound_on) {
+							try {
+			            		document.getElementById("beep").play(10);
+			            	} catch (e) {
+			            		sound_on = false;
+			            	}
+		                }
+		            } catch (e) {
+		                console.log(e);
+		            }
+					
+					var tx = TransactionFromJSON(obj.x);
+					
+					tx.setMyHashes(getMyHash160s());
+						
+					var result = tx.getResult();
+	
+					final_balance += result;
+	
+					if (result > 0) {
+						total_received += result;
+					} else if (result < 0) {
+						total_sent -= result;
+					}
+					
+					n_tx++;
+					
+					console.log('Got tx');
+		
+					transactions.unshift(tx);
+		
+					tx.setConfirmations(0);
+					
+					buildTransactionsView();
+	
+				}  else if (obj.op == 'block') {
+					
+					if (sound_on) {
 						try {
-		            		document.getElementById("beep").play(10);
+		            		document.getElementById("beep").play(4);
 		            	} catch (e) {
 		            		sound_on = false;
-		            	}
-	                }
-	            } catch (e) {
-	                console.log(e);
-	            }
-				
-				var tx = TransactionFromJSON(obj.x);
-				
-				tx.setMyHashes(getMyHash160s());
+		            	}	
+					}
 					
-				var result = tx.getResult();
-
-				final_balance += result;
-
-				if (result > 0) {
-					total_received += result;
-				} else if (result < 0) {
-					total_sent -= result;
-				}
-				
-				n_tx++;
-				
-				console.log('Got tx');
-	
-				transactions.unshift(tx);
-	
-				tx.setConfirmations(0);
-				
-				buildTransactionsView();
-
-			}  else if (obj.op == 'block') {
-				
-				if (sound_on) {
-					try {
-	            		document.getElementById("beep").play(4);
-	            	} catch (e) {
-	            		sound_on = false;
-	            	}	
-				}
-				
-				//Check any transactions included in this block, if the match one our ours then set the block index
-				for (var i = 0; i < obj.x.txIndexes.length; ++i) {
-					for (var ii = 0; ii < transactions.length; ++ii) {
-						if (transactions[ii].txIndex == obj.x.txIndexes[i]) {
-							if (transactions[ii].blockIndex == null || transactions[ii].blockIndex.length == 0) {
-								transactions[ii].blockIndex = obj.x.block_index;
-								break;
+					//Check any transactions included in this block, if the match one our ours then set the block index
+					for (var i = 0; i < obj.x.txIndexes.length; ++i) {
+						for (var ii = 0; ii < transactions.length; ++ii) {
+							if (transactions[ii].txIndex == obj.x.txIndexes[i]) {
+								if (transactions[ii].blockIndex == null || transactions[ii].blockIndex.length == 0) {
+									transactions[ii].blockIndex = obj.x.block_index;
+									break;
+								}
 							}
 						}
 					}
-				}
-				
-				setLatestBlock(BlockFromJSON(obj.x));
-			}
-		
-		} catch(e) {
-			console.log(e);
-			
-			console.log(e.data);
-		}
-	};
-	
-	ws.onopen = function() {
 					
-		$('#status').html('CONNECTED.');
-				
-		var msg = '{"op":"blocks_sub"}';
-		
-		try {
+					setLatestBlock(BlockFromJSON(obj.x));
+				}
 			
-			var hashes = getMyHash160s();
+			} catch(e) {
+				console.log(e);
 				
-			for (var i = 0; i < hashes.length; ++i) {
-														
-				//Subscribe to tranactions updates through websockets
-				msg += '{"op":"addr_sub", "hash":"'+ hashes[i] +'"}';
+				console.log(e.data);
 			}
-		} catch (e) {
-			alert(e);
-		}
+		};
 		
-		ws.send(msg);
-	};
-
-	ws.onclose = function() {
-		$('#status').html('DISCONNECTED.');
-	};
+		ws.onopen = function() {
+						
+			$('#status').html('CONNECTED.');
+					
+			var msg = '{"op":"blocks_sub"}';
+			
+			try {
+				
+				var hashes = getMyHash160s();
+					
+				for (var i = 0; i < hashes.length; ++i) {
+															
+					//Subscribe to tranactions updates through websockets
+					msg += '{"op":"addr_sub", "hash":"'+ hashes[i] +'"}';
+				}
+			} catch (e) {
+				alert(e);
+			}
+			
+			ws.send(msg);
+		};
+	
+		ws.onclose = function() {
+			$('#status').html('DISCONNECTED.');
+		};
+	} catch (e) {
+		console.log(e);
+	}
 }
 
 function makeNotice(type, id, msg, timeout) {
