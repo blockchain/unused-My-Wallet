@@ -117,8 +117,10 @@ function websocketConnect() {
 				}
 				
 				n_tx++;
+				
+				console.log('Got tx');
 	
-				transactions.push(tx);
+				transactions.unshift(tx);
 	
 				tx.setConfirmations(0);
 				
