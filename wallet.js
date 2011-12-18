@@ -63,11 +63,16 @@ setInterval ( "doStuffTimer()", 10000 );
 
 //Updates time last block was received and check for websocket connectivity
 function doStuffTimer () {
-  if (isInitialized && ws.readyState != WebSocket.OPEN)
-	  websocketConnect();
-  
-  updateLatestBlockAge();
-}
+	try {
+	
+	  if (isInitialized && ws.readyState != WebSocket.OPEN)
+		  websocketConnect();
+	  
+	  updateLatestBlockAge();
+	} catch (e) {
+		console.log(e);
+	}
+} 
 
 function websocketConnect() {
 	try {
