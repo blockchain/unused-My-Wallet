@@ -65,8 +65,10 @@ setInterval ( "doStuffTimer()", 10000 );
 function doStuffTimer () {
 	try {
 	
-	  if (isInitialized && ws.readyState != WebSocket.OPEN)
-		  websocketConnect();
+		if (WebSocket != null) {
+		  if (isInitialized && ws.readyState != WebSocket.OPEN)
+			  websocketConnect();
+		}
 	  
 	  updateLatestBlockAge();
 	} catch (e) {
@@ -75,7 +77,12 @@ function doStuffTimer () {
 } 
 
 function websocketConnect() {
+	
 	try {
+
+		if (WebSocket == null)
+			return;
+		
 		ws = new WebSocket("ws://api.blockchain.info:8335/inv");
 		
 		ws.onmessage = function(e) {
