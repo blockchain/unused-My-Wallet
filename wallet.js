@@ -2069,7 +2069,7 @@ function populateImportExportView() {
 				  //Add Address QR code
 				  var td = $('<td></td>');
 									  tr.append(td);
-									  td.qrcode({text: addresses[i]});
+									  td.qrcode({render : 'table', text: addresses[i]});
 				  
 				var balance = balances[addresses[i]];
 				
@@ -2091,7 +2091,7 @@ function populateImportExportView() {
 				  tr.append(td);
 				  
 				  if (private_keys[i] != null) {
-					  td.qrcode({text: private_keys[i]});
+					  td.qrcode({render : 'table', text: private_keys[i]});
 				  } else {
 					  td.html('<div>No Private Key</div>');
 				  }
