@@ -20,6 +20,15 @@ var block_heights = []; //BlockIndex to height
 var our_address = '1A8JiWcwvpY7tAopUkSnGuEYHmzGYfZPiq'; //Address for fees and what not
 var sound_on = true; //Play a bleep sound when tx received
 
+jQuery.fn.center = function () {
+    this.css("top", ( $(window).height() - this.height() ) / 2+$(window).scrollTop() + "px");
+    this.css("left", ( $(window).width() - this.width() ) / 2+$(window).scrollLeft() + "px");
+    return this;
+};
+
+$(window).resize(function() {
+	$('.modal:visible').center();
+});
 
 //Async load a script, at the moment this is only jquery.qrcode.js
 function loadScript(src, callback) {
@@ -1012,6 +1021,8 @@ function updatePassword() {
 		  backdrop: "static",
 		  show: true
 	});
+	
+	modal.center();
 		
 	modal.find('.btn.primary').unbind().click(function() {
 		modal.modal('hide');
@@ -1403,6 +1414,8 @@ function addAddressBookEntry() {
 		  show: true
 	});
 	
+	modal.center();
+	
 	modal.find('.btn.primary').unbind().click(function() {
 		
 		
@@ -1469,6 +1482,8 @@ function deleteAddress(addr) {
 		  backdrop: "static",
 		  show: true
 	});
+	
+	modal.center();
 	
 	modal.find('.btn.primary').show();
 	modal.find('.btn.danger').show();
@@ -1820,7 +1835,6 @@ function createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, 
 	}
 }
 
-
 //Check for inputs and get unspent for before signinging
 function newTxValidateFormAndGetUnspent() {
 	
@@ -1917,6 +1931,8 @@ function newTxValidateFormAndGetUnspent() {
 			  backdrop: "static",
 			  show: true
 		});
+		
+		modal.center();
 		
 		//disable primary for now
 		modal.find('.btn.primary').attr('disabled', true);
@@ -2069,7 +2085,7 @@ function populateImportExportView() {
 				  //Add Address QR code
 				  var td = $('<td></td>');
 									  tr.append(td);
-									  td.qrcode({render : 'table', text: addresses[i]});
+									  td.qrcode({width: 200, height : 200, text: addresses[i]});
 				  
 				var balance = balances[addresses[i]];
 				
@@ -2091,7 +2107,7 @@ function populateImportExportView() {
 				  tr.append(td);
 				  
 				  if (private_keys[i] != null) {
-					  td.qrcode({render : 'table', text: private_keys[i]});
+					  td.qrcode({width: 200, height : 200, text: private_keys[i]});
 				  } else {
 					  td.html('<div>No Private Key</div>');
 				  }
