@@ -74,9 +74,7 @@ function doStuffTimer () {
 		}
 	  
 	  updateLatestBlockAge();
-	} catch (e) {
-		console.log(e);
-	}
+	} catch (e) {}
 } 
 
 function websocketConnect() {
@@ -85,9 +83,6 @@ function websocketConnect() {
 	
 	try {
 
-		if (WebSocket == null)
-			return;
-		
 		ws = new WebSocket("ws://api.blockchain.info:8335/inv");
 		
 		ws.onmessage = function(e) {
@@ -201,9 +196,7 @@ function websocketConnect() {
 		ws.onclose = function() {
 			$('#status').html('DISCONNECTED.');
 		};
-	} catch (e) {
-		console.log(e);
-	}
+	} catch (e) {}
 }
 
 function makeNotice(type, id, msg, timeout) {
@@ -2048,6 +2041,9 @@ function createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, 
 										return;
 									}
 							 }, resource + 'wallet/');
+							
+							 //Center the modal as the flash moview changes the size
+							modal.center();
 							 
 							modal.bind('hidden', function () {
 								clearInterval(interval);
@@ -2098,9 +2094,7 @@ function createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, 
 							return;
 						}
 					 });
-					 
-					modal.center();
-
+				
 				} else {
 					//If were not missing a private key then somethign went wrong
 					makeNotice('error', 'misc-error', 'Unknown error signing transaction');
