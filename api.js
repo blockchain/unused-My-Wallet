@@ -127,10 +127,13 @@ Transaction.prototype.setConfirmations = function(n_confirmations) {
 	}
 }
 
+function dateToString(d) {
+	  return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate() + ' ' + d.getHours() + ':' + d.getMinutes() + ':' + d.getSeconds();
+}
+
 Transaction.prototype.getHTML = function() {    
 
     var total_output = this.getResult();
-
     
 	var html = '<div id="tx-'+this.txIndex+'"><table class="zebra-striped" cellpadding="0" cellspacing="0" style="padding:0px;float:left;margin:0px;margin-top:10px;"><tr><th colspan="4" style="font-weight:normal"><div class="hash-link">';
 	
@@ -144,12 +147,12 @@ Transaction.prototype.getHTML = function() {
 		}
 	}
 	
-	html += ' <a target="new" href="'+root+'tx-index/'+this.txIndex+'/'+this.hash+'">'+this.hash+'</a></div> <span style="float:right"><span class="adv">' + this.size + ' (bytes) ';
+	html += ' <a target="new" href="'+root+'tx-index/'+this.txIndex+'/'+this.hash+'">'+this.hash+'</a></div> <span style="float:right"><span class="adv can-hide">' + this.size + ' (bytes) </span><span class="can-hide">';
 				
 	if (this.time > 0) {
 		var date = new Date(this.time * 1000);
 	
-		html += $.format.date(date, "yyyy-MM-dd HH:mm:ss");
+		html += dateToString(date);
 	}
 	
 	var tclass = '';
