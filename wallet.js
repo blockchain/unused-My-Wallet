@@ -2163,56 +2163,46 @@ function populateImportExportView() {
           $('#paper-wallet').empty();
          
 		  loadScript(resource + 'wallet/jquery.qrcode.min.js', function() { 
-			  
-			  var thead = $('<thead><tr><th>Bitcoin Address</th><th>Details</th><th>Private Key</th></tr></thead>');
-			  
-			  var table = $('<table></table>');
-				
-			  table.prepend(thead.clone());
+			  			  
+			  var container = $('#paper-wallet');
+			  				
 			  
 			  for (var i = 0; i < addresses.length; ++i) {
-				  				  
-				  var tr = $('<tr></tr>');
-				
-				  table.append(tr);
-				
-				  //Add Address QR code
-				  var td = $('<td></td>');
-									  tr.append(td);
-									  td.qrcode({width: 200, height : 200, text: addresses[i]});
+				  var addr = addresses[i];
+  
 				  
-				var balance = balances[addresses[i]];
+				  if (private_keys[addr] == null) {
+					  continue;
+				  }
+				  
+				  //Add Address QR code
+				  var div = $('<div style="float:left;clear:left;"></div>');
+				 
+				  var qr = makeQRCode(250,250,1,private_keys[addr]);
+
+				  container.append(div);
+				 
+				  div.append(qr);
+				  
+				var balance = balances[addr];
 				
 				if (balance != null && balance > 0)
 					balance = balance / satoshi + ' BTC';
 				else
 					balance = '0 BTC';
-				
-				  var addr = addresses[i];
-									
+													
 				  var private_key = private_keys[addr];
 				  
 				  if (private_key == null)
 					  private_key = 'No Private Key';
 					  
-				  td = $('<td><h5>' + addr + '</h5><br /><b>' + private_key + '</b><br /><br /><p>Balance ' + balance + '</p> </td>');
-				  tr.append(td);
+				  div = $('<div style="float:left;"><h3>' + addr + '</h3><br /><small><b>' + private_key + '</b></small><br /><br /><p>Balance ' + balance + '</p> </tddiv>');
 				  
-				  //Add Private Key QR code
-				  td = $('<td></td>');
-				  tr.append(td);
-				  
-				  if (private_keys[addr] != null) {
-					  td.qrcode({width: 200, height : 200, text: private_keys[addr]});
-				  } else {
-					  td.html('<div>No Private Key</div>');
-				  }
+				  container.append(div);
 				
 				  //Start a new table every 4 entries
 				  if ((i+1) % 3 == 0 || i == addresses.length-1) {
-				  	$('#paper-wallet').append(table);
-				    table = $('<table></table>');
-					table.prepend(thead.clone());
+				  	container.append('<div style="width:100%;clear:both;page-break-after:always>&nbsp;</div>');
 				  }
 			  }
 		  }); 
@@ -2709,7 +2699,9 @@ function addQRCodeToPopover(data) {
 
 	var qr = $('<div class="qrcode"></div>');
 	
-	qr.qrcode({width: 285, height: 285, text: data});
+	var canvas = makeQRCode(300,300,1,data);
+	
+	qr.append(canvas);
 	
 	content.append(qr);
 }
