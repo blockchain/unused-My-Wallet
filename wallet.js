@@ -1347,6 +1347,15 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 	
 	for (var i = 0; i < unspentOutputs.length; ++i) {
 		
+		try {
+			var addr = new Bitcoin.Address(unspentOutputs[i].script.simpleOutPubKeyHash()).toString();
+			
+			if (addr == null) {
+				throw 'Unable to decode out put address from transactino hash ' + out.tx_hash;
+			} else if (!offline && private_keys[addr] == null) {
+				throw 'Unable use bitcoin address ' addr + ' in online mode';
+			}
+		
 			var out = unspentOutputs[i];
 				
 			var hexhash = Crypto.util.hexToBytes(out.tx_hash);
@@ -1358,6 +1367,10 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 			availableValue = availableValue.add(out.value);
 			
 			if (availableValue.compareTo(txValue) >= 0) break;
+		} catch (e) {
+			//An error, but probably recoverable
+			makeNotice('success', 'tx-error', e, 5000);
+		}
 	}
 	
     if (availableValue.compareTo(txValue) < 0) {
@@ -1980,7 +1993,8 @@ function createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, 
 					}
 					
 				//If the input failed to sign then were probably missing a private key
-				} else if (missingPrivateKeys.length > 0) {
+				//Only ask for missing keys in offline mode
+				} else if (offline && missingPrivateKeys.length > 0) {
 					
 					progress.hide();
 
