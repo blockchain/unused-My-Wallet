@@ -1353,7 +1353,7 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 			if (addr == null) {
 				throw 'Unable to decode out put address from transactino hash ' + out.tx_hash;
 			} else if (!offline && private_keys[addr] == null) {
-				throw 'Unable use bitcoin address ' addr + ' in online mode';
+				throw 'Unable use bitcoin address ' + addr + ' in online mode';
 			}
 		
 			var out = unspentOutputs[i];
@@ -1369,7 +1369,7 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 			if (availableValue.compareTo(txValue) >= 0) break;
 		} catch (e) {
 			//An error, but probably recoverable
-			makeNotice('success', 'tx-error', e, 5000);
+			makeNotice('info', 'tx-error', e, 5000);
 		}
 	}
 	
@@ -1815,6 +1815,8 @@ function setReviewTransactionContent(modal, tx) {
 			
 			total_fees = total_fees.add(input.outpoint.value);
 			
+			wallet_effect = wallet_effect.add(input.outpoint.value);
+			
 			$('#rtc-from').append(addr + ' <font color="green">' + Bitcoin.Util.formatValue(input.outpoint.value) + ' BTC <br />');
 		}
 	
@@ -1846,6 +1848,7 @@ function setReviewTransactionContent(modal, tx) {
 			
 			if (!found) {
 				
+				//Our fees
 				if (address != our_address) {
 					if (basic_str.length > 0) {
 						basic_str += ' and ';
@@ -1855,9 +1858,9 @@ function setReviewTransactionContent(modal, tx) {
 					
 					all_txs_to_self = false;
 				}
-				
-				wallet_effect = wallet_effect.subtract(val);
 			} else {
+				wallet_effect = wallet_effect.subtract(val);
+				
 				if (address != our_address) {
 					amount = amount.add(val);
 				}
@@ -1874,11 +1877,16 @@ function setReviewTransactionContent(modal, tx) {
 		
 		$('#rtc-basic-summary').html(basic_str);
 			
-		$('#rtc-effect').html(Bitcoin.Util.formatValue(wallet_effect.subtract(total_fees)) + ' BTC');
+		
+		console.log(wallet_effect);
+		
+		$('#rtc-effect').html("-" + Bitcoin.Util.formatValue(wallet_effect) + ' BTC');
 	
 		$('#rtc-fees').html(Bitcoin.Util.formatValue(total_fees) + ' BTC');
 	
 		$('#rtc-value').html(Bitcoin.Util.formatValue(total) + ' BTC');
+		
+		modal.center();
 }
 
 
@@ -2291,9 +2299,9 @@ function newTxValidateFormAndGetUnspent() {
 			if (offline) {
 				gotunspent(unspent_cache);
 			} else {
+				setLoadingText('Getting Unspent Outputs');
+				
 				$.post(root + 'unspent', {'address[]' : fromAddresses},  function(obj) {  
-					setLoadingText('Getting Unspent Outputs');
-
 					gotunspent(obj);
 				}).error(function(data) {  
 					
@@ -2472,8 +2480,8 @@ function privateKeyStringToKey(value, format) {
 		throw 'Unsupported key format';
 	}	
 	
-	if (key_bytes.length != 32) 
-		throw 'Result not 32 bytes in length';
+	//if (key_bytes.length != 32) 
+		//throw 'Result not 32 bytes in length';
 	
 	return new Bitcoin.ECKey(key_bytes);
 }
