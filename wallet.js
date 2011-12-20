@@ -22,6 +22,8 @@ var sound_on = true; //Play a bleep sound when tx received
 var offline = false;
 var unspent_cache = null;
 var downloadify_initd = false;
+var unsaved_address = []; //Map of addresses which are unsaved
+
 
 jQuery.fn.center = function () {
     this.css("top", ( $(window).height() - this.height() ) / 2+$(window).scrollTop() + "px");
@@ -1167,6 +1169,9 @@ function backupWallet(method) {
 			 data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: checksum, method : method },
 			 converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
 			 success: function(data) {  
+				 
+				unsaved_address = [];
+				 
 				makeNotice('success', 'misc-success', data, 5000);
 			},
 				
@@ -1754,6 +1759,8 @@ function deleteAddress(addr) {
 					
 				    backupWallet('update');
 					  
+					queryAPIMultiAddress();
+
 				    clearInterval(interval);
 			    }
 
@@ -2414,8 +2421,12 @@ function populateImportExportView() {
 				  
 				  if (private_key == null)
 					  private_key = 'No Private Key';
+				 
+				  var mode = 'Online Mode';
+				  if (unsaved_address[addr] == true)
+					  mode = 'Offline Mode';
 					  
-				  div = $('<div style="float:left;"><h3>' + addr + '</h3><br /><small><b>' + private_key + '</b></small><br /><br /><p>Balance ' + balance + '</p> </div>');
+				  div = $('<div style="float:left;"><h3>' + addr + '</h3><br /><small><p><b>' + private_key + '</b></p></small><br /><p>' + mode + '</p><br /><p>Balance ' + balance + '</p> </div>');
 				  
 				  container.append(div);
 				
@@ -2965,7 +2976,9 @@ function buildReceivingAddressList() {
 		var noPrivateKey = '';
 		if (private_keys[addr] == null)
 			noPrivateKey = ' <font color="red">(No Private Key)</font>';
-		
+		else if (unsaved_address[addr] == true)
+			noPrivateKey = ' <font color="red">(Not Synced)</font>';
+
 		tbody.append('<tr><td style="width:20px;"><img id="qr'+addr+'"  onclick="showQRCodeModal(\'' + addr +'\')" src="'+resource+'qrcode.png" /></td><td><div class="my-addr-entry">' + addr + noPrivateKey +'<div></td><td><span id="'+addr+'" style="color:green">' + balance +'</span></td><td><img class="adv" src="'+resource+'delete.png" onclick="deleteAddress(\''+addr+'\')" /></td></tr>');
 	}
 }
@@ -2991,6 +3004,8 @@ function generateNewAddressAndKey() {
 		}
 
 		if (internalAddOrReplaceKey(addr, Bitcoin.Base58.encode(key.priv))) {
+			
+			unsaved_address[addr] = true;
 			
 			buildReceivingAddressList();
 			
