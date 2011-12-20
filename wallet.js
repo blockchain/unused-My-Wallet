@@ -2480,8 +2480,8 @@ function privateKeyStringToKey(value, format) {
 		throw 'Unsupported key format';
 	}	
 	
-	//if (key_bytes.length != 32) 
-		//throw 'Result not 32 bytes in length';
+	if (key_bytes.length != 32) 
+		throw 'Result not 32 bytes in length';
 	
 	return new Bitcoin.ECKey(key_bytes);
 }
