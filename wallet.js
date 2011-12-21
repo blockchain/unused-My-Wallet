@@ -133,14 +133,12 @@ function websocketConnect() {
 					
 					n_tx++;
 					
-					console.log('Got tx');
-		
 					transactions.unshift(tx);
-							
-					buildTransactionsView();
 	
 					tx.setConfirmations(0);
 
+					buildTransactionsView();
+	
 				}  else if (obj.op == 'block') {
 					
 					if (sound_on) {
@@ -153,10 +151,11 @@ function websocketConnect() {
 					
 					//Check any transactions included in this block, if the match one our ours then set the block index
 					for (var i = 0; i < obj.x.txIndexes.length; ++i) {
+						
 						for (var ii = 0; ii < transactions.length; ++ii) {
 							if (transactions[ii].txIndex == obj.x.txIndexes[i]) {
 								if (transactions[ii].blockIndex == null || transactions[ii].blockIndex.length == 0) {
-									transactions[ii].blockIndex = obj.x.block_index;
+									transactions[ii].blockIndex = obj.x.blockIndex;
 									break;
 								}
 							}
@@ -174,7 +173,7 @@ function websocketConnect() {
 		};
 		
 		ws.onopen = function() {
-						
+					
 			$('#status').html('CONNECTED.');
 					
 			var msg = '{"op":"blocks_sub"}';
@@ -425,26 +424,6 @@ function getMyHash160s() {
 	return array;
 }
 
-function updateTransactionConfirmations() {
-	
-	if (block_heights == null || block_heights.length == 0)
-		return;
-	
-	for (var i=0;i<transactions.length;++i) {
-	
-		if (transactions[i].blockIndex == null || transactions[i].blockIndex == 0) {
-			transactions[i].setConfirmations(0);
-		} else {
-			var height = block_heights[transactions[i].blockIndex];
-
-			if (height != null) {
-				var nconfirmations = latest_block.height - height + 1;		
-				transactions[i].setConfirmations(nconfirmations);
-			} 
-		}
-	}
-}
-
 function updateLatestBlockAge() {
 	
 	if (latest_block != null) {
@@ -471,8 +450,8 @@ function setLatestBlock(block) {
 	latest_block = block;
 	
 	updateLatestBlockAge();
-	
-	updateTransactionConfirmations();
+		
+	buildTransactionsView();
 }
 
 function parseLatestBlockJSON(json) {
@@ -558,6 +537,19 @@ function buildTransactionsView() {
 	
 	var html = '';
 	for (var i = 0; i < transactions.length; ++i) {
+		
+		if (transactions[i].blockIndex == null || transactions[i].blockIndex == 0) {
+			transactions[i].setConfirmations(0);
+		} else {
+			var height = block_heights[transactions[i].blockIndex];
+
+			if (height != null) {
+				var nconfirmations = latest_block.height - height + 1;		
+				transactions[i].setConfirmations(nconfirmations);
+			}
+		}
+	
+	
 		transactions[i].setMyHashes(hashes);
 
 		html += transactions[i].getHTML(root, resource);
@@ -614,10 +606,8 @@ function queryAPIMultiAddress() {
 			
 			//Rebuild the my-addresse s list with the new updated balances
 			buildReceivingAddressList();
-			 			
+			 						
 			buildTransactionsView();
-			
-			updateTransactionConfirmations();
 
 			try {
 				localStorage.setItem('multiaddr', data);
@@ -824,8 +814,6 @@ function getReadyForOffline() {
 	});	
 	
 	var isDone = function () {
-		
-		console.log($.active);
 		
 		if (!all_scripts_done || $.active) {
 			setTimeout(isDone, 200);
@@ -1877,9 +1865,6 @@ function setReviewTransactionContent(modal, tx) {
 		
 		$('#rtc-basic-summary').html(basic_str);
 			
-		
-		console.log(wallet_effect);
-		
 		$('#rtc-effect').html("-" + Bitcoin.Util.formatValue(wallet_effect) + ' BTC');
 	
 		$('#rtc-fees').html(Bitcoin.Util.formatValue(total_fees) + ' BTC');
@@ -2294,7 +2279,6 @@ function newTxValidateFormAndGetUnspent() {
 				}
 			};
 
-			console.log('offline ' + offline);
 			
 			if (offline) {
 				gotunspent(unspent_cache);
@@ -2489,6 +2473,7 @@ function privateKeyStringToKey(value, format) {
 
 $(document).ready(function() {	
 	
+		
 	//firefox bug
 	$('button').removeAttr('disabled');
 	  

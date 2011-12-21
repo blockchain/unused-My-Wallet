@@ -106,26 +106,9 @@ Transaction.prototype.setMyHashes = function(myHashes160) {
 	this.myHashes160 = myHashes160;
 };
 
-Transaction.prototype.setConfirmations = function(n_confirmations) {    
-	
-	var confirmations_el = $('#tx-'+this.txIndex+' .confirmations');
-	
-	confirmations_el.hide();
-			
-	if (n_confirmations == 0) {
-		confirmations_el.fadeIn(200);
-
-		confirmations_el.attr('class', 'btn error');
-		confirmations_el.html('Unconfirmed Transaction!');
-	} else if (n_confirmations <= 100) {
-		confirmations_el.fadeIn(200);
-
-		confirmations_el.attr('class', 'btn primary');
-		confirmations_el.html(n_confirmations + ' Confirmations');
-	} else {
-		confirmations_el.fadeOut(200);
-	}
-}
+Transaction.prototype.setConfirmations = function(n_confirmations) {   
+	this.confirmations = n_confirmations;
+};
 
 function dateToString(d) {
 	  return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate() + ' ' + d.getHours() + ':' + d.getMinutes() + ':' + d.getSeconds();
@@ -226,9 +209,15 @@ Transaction.prototype.getHTML = function() {
 	if (this.ip != null && this.ip.length > 0) {
 		html += '<span class="adv"><i>Received from: <a href="'+root+'ip-address/'+this.ip+'">'+this.ip+'</a> <a href="http://www.dnsstuff.com/tools/ipall/?tool_id=67&ip='+this.ip+'" target="new">(whois)</a> - </span>';	
 	}	
-	
-	html += '<button class="confirmations" style="display:hidden"></button> ';
 		
+	if (this.confirmations == null) {
+		html += '<button class="confm" style="display:none"></button> ';
+	} else if (this.confirmations == 0) {
+		html += '<button class="btn error confm">Unconfirmed Transaction!</button> ';
+	} else if (this.confirmations > 0) {
+		html += '<button class="btn primary confm">' + this.confirmations + ' Confirmations</button> ';
+	} 
+	
 	html += '<button class="btn info">'+  toFixed(Math.round(total_output * market_price * 100)/100, 2) + ' USD</button> <button class="'+button_class+'">'+  toFixed(total_output, 4) + ' BTC</button></span></div>';
 	
 	return html;
