@@ -617,7 +617,10 @@ function queryAPIMultiAddress() {
 			
 		},
 			
-		error : function(data) {			
+		error : function(data) {	
+			
+			console.log(data);
+			
 			makeNotice('error', 'misc-error', 'Error getting wallet balance from server', 5000);
 		},
 	});
