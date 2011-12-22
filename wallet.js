@@ -1393,7 +1393,6 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
     if (availableValue.compareTo(txValue) < 0) {
 		throw 'Insufficient funds. Value Needed ' +  Bitcoin.Util.formatValue(txValue.toString()) + ' BTC. Available amount ' + Bitcoin.Util.formatValue(availableValue.toString()) + ' BTC';
     }
-    
 
 	var changeValue = null;
 	
@@ -1401,18 +1400,6 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
     	changeValue = availableValue.subtract(txValue);
     else
     	changeValue = availableValue.add(availableFeeValue).subtract(txValue).subtract(ourFee);
-	
-    
-    console.log(availableValue.toString());
-
-    console.log(availableFeeValue.toString());
-
-    console.log('- ' + txValue.toString());
-    
-    console.log('- ' + ourFee.toString());
-
-
-	console.log(changeValue.toString());
 	
 	var sendTx = new Bitcoin.Transaction();
 
