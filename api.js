@@ -130,7 +130,7 @@ Transaction.prototype.getHTML = function() {
 		}
 	}
 	
-	html += ' <a target="new" href="'+root+'tx-index/'+this.txIndex+'/'+this.hash+'">'+this.hash+'</a></div> <span style="float:right"><span class="adv can-hide">' + this.size + ' (bytes) </span><span class="can-hide"><b>';
+	html += ' <a target="new" href="'+root+'tx-index/'+this.txIndex+'/'+this.hash+'">'+this.hash+'</a></div> <span style="float:right"><span class="can-hide"><b>';
 				
 	if (this.time > 0) {
 		var date = new Date(this.time * 1000);
