@@ -305,7 +305,7 @@ function buildAddressBook() {
 
 function buildFromAddressOptionList() {
 	
-	var el = $('#send-from-address');
+	var el = $('#send-tx-form select');
 	
 	el.empty();
 
@@ -1309,17 +1309,13 @@ function pushTx(tx) {
 	return true;
 }
 
-function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOutputs, selectedOuts) {
+function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOutputs, selectedOuts, changeAddress, feeAddress) {
 		
 	var txValue = BigInteger.ZERO;
-	
-	if (feeValue != null)
-		txValue = txValue.add(feeValue);
     
 	for (var i = 0; i < toAddressesWithValue.length; ++i) {			
 		txValue = txValue.add(toAddressesWithValue[i].value);
 	}
-
 
     //Add blockchain.info's fees
     var ouraddr = new Bitcoin.Address(our_address);
@@ -1331,10 +1327,27 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
     if (ourFee.compareTo(opointone) < 0) {
         ourFee = opointone;
     } 
-        
-    txValue = txValue.add(ourFee);
 
 	var availableValue = BigInteger.ZERO;
+	var availableFeeValue = BigInteger.ZERO;
+	
+	var feeAddr = null;
+	if (feeAddress != null)
+		feeAddr = feeAddress.toString();
+	
+	var fromAddr = null;
+	if (fromAddress != null)
+		fromAddr = fromAddress.toString();
+	
+	//If the user hasn't supplied a fee adress then we take the fee from the general pool
+    if (feeAddr == null)
+    	txValue = txValue.add(ourFee);
+    
+	//Add the miners fees
+	if (feeValue != null)
+		txValue = txValue.add(feeValue);
+	
+	console.log(feeAddr);
 	
 	for (var i = 0; i < unspentOutputs.length; ++i) {
 		
@@ -1346,18 +1359,31 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 			} else if (!offline && private_keys[addr] == null) {
 				throw 'Unable use bitcoin address ' + addr + ' in online mode';
 			}
-		
+			
 			var out = unspentOutputs[i];
+			
+			if (feeAddr != null && addr == feeAddr) {
 				
+				if (availableFeeValue.compareTo(ourFee) < 0)
+					availableFeeValue = availableFeeValue.add(out.value);
+				else
+					continue;
+				
+			} else if (fromAddr != null && addr != fromAddr) {
+				continue;
+			}  else {
+				availableValue = availableValue.add(out.value);
+			}
+			
 			var hexhash = Crypto.util.hexToBytes(out.tx_hash);
 
 			var b64hash = Crypto.util.bytesToBase64(Crypto.util.hexToBytes(out.tx_hash));
 			
 			selectedOuts.push(new Bitcoin.TransactionIn({outpoint: {hash: b64hash, hexhash: hexhash, index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295}));
 							
-			availableValue = availableValue.add(out.value);
+			if (availableValue.compareTo(txValue) >= 0 && (feeAddress == null || availableFeeValue.compareTo(ourFee) >= 0)) 
+				break;
 			
-			if (availableValue.compareTo(txValue) >= 0) break;
 		} catch (e) {
 			//An error, but probably recoverable
 			makeNotice('info', 'tx-error', e, 5000);
@@ -1367,9 +1393,27 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
     if (availableValue.compareTo(txValue) < 0) {
 		throw 'Insufficient funds. Value Needed ' +  Bitcoin.Util.formatValue(txValue.toString()) + ' BTC. Available amount ' + Bitcoin.Util.formatValue(availableValue.toString()) + ' BTC';
     }
+    
 
-	var changeValue = availableValue.subtract(txValue);
+	var changeValue = null;
+	
+    if (feeAddr == null)
+    	changeValue = availableValue.subtract(txValue);
+    else
+    	changeValue = availableValue.add(availableFeeValue).subtract(txValue).subtract(ourFee);
+	
+    
+    console.log(availableValue.toString());
 
+    console.log(availableFeeValue.toString());
+
+    console.log('- ' + txValue.toString());
+    
+    console.log('- ' + ourFee.toString());
+
+
+	console.log(changeValue.toString());
+	
 	var sendTx = new Bitcoin.Transaction();
 
 	for (var i = 0; i < selectedOuts.length; i++) {
@@ -1377,18 +1421,18 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 	}
 
 	for (var i =0; i < toAddressesWithValue.length; ++i) {	
-					
 		sendTx.addOutput(toAddressesWithValue[i].address, toAddressesWithValue[i].value);
 	}
     
    sendTx.addOutput(ouraddr, ourFee);
 
 	if (changeValue > 0) {
-		
-		if (fromAddress == null)
-			sendTx.addOutput(new Bitcoin.Address(addresses[0]), changeValue);
-		else
+		if (changeAddress != null) //If chenge address speicified return to that
+			sendTx.addOutput(changeAddress, changeValue);
+		else if (fromAddress != null) //Else return to the from address if specified
 			sendTx.addOutput(fromAddress, changeValue);
+		else //Otherwise return to random
+			sendTx.addOutput(new Bitcoin.Address(addresses[Math.floor(Math.random()*addresses.length)]), changeValue);
 	}
 			
 	return sendTx;
@@ -1943,15 +1987,16 @@ function txFullySigned(tx) {
 	}
 }
 
-function createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, missingPrivateKeys) {
+function createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, missingPrivateKeys, changeAddress, feeAddress) {
 	var modal = $('#new-transaction-modal');
 
-	try {	
-		
-		var selectedOuts = [];
 
-		//First we make the transaction with it's inputs unsigned
-		var tx = makeTransaction(toAddressesWithValue, fromAddress, fees, unspent, selectedOuts);
+	var selectedOuts = [];
+
+	//First we make the transaction with it's inputs unsigned
+	var tx = makeTransaction(toAddressesWithValue, fromAddress, fees, unspent, selectedOuts, changeAddress, feeAddress);
+	
+	try {	
 		
 		var progress = $('#tx-sign-progress').show(200);
 		
@@ -2016,7 +2061,6 @@ function createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, 
 					 
 					 form.show();
 					 
-
 					 //Set the modal title
 					 modal.find('.modal-header h3').html('Private Key Needed.');
 					
@@ -2119,7 +2163,7 @@ function createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, 
 					return;
 				}
 				
-			}, 10);
+			}, 1);
 		};
 		
 		signOne();
@@ -2186,7 +2230,38 @@ function newTxValidateFormAndGetUnspent() {
 			try {
 				fromAddress = new Bitcoin.Address(components[0]);
 			} catch (e) {
-				makeNotice('error', 'misc-error', 'Invalid from address: ' + e, 5000);
+				makeNotice('error', 'from-error', 'Invalid from address: ' + e, 5000);
+				return false;
+			};
+		} 
+		
+		var feeAddress = null;
+		if (show_adv && $('#fee-addr').val() != 'Any Address') {
+			
+			var components = $('#fee-addr').val().split(' ', 1);
+						
+			try {
+				feeAddress = new Bitcoin.Address(components[0]);
+			} catch (e) {
+				makeNotice('error', 'fee-error', 'Invalid fee address: ' + e, 5000);
+				return false;
+			};
+		} 
+		
+		if (feeAddress != null && fromAddress.toString() == feeAddress.toString()) {
+			makeNotice('error', 'misc-error', 'From address and Fee address cannot be the same', 5000);
+			return false;
+		}
+		
+		var changeAddress = null;
+		if (show_adv && $('#change-addr').val() != 'Any Address') {
+			
+			var components = $('#change-addr').val().split(' ', 1);
+						
+			try {
+				changeAddress = new Bitcoin.Address(components[0]);
+			} catch (e) {
+				makeNotice('error', 'change-error', 'Invalid change address: ' + e, 5000);
 				return false;
 			};
 		} 
@@ -2203,14 +2278,8 @@ function newTxValidateFormAndGetUnspent() {
 			return false;
 		};
 	
-		var fromAddresses = null;
-		if (fromAddress == null) {
-			fromAddresses = getMyHash160s();
-		} else {
-			fromAddresses = [];
-			fromAddresses.push(Crypto.util.bytesToHex(fromAddress.hash));
-		}	
-		
+		fromAddresses = getMyHash160s();
+
 		//Show the modal loading unspent dialog
 		modal = $('#new-transaction-modal');
 
@@ -2273,7 +2342,7 @@ function newTxValidateFormAndGetUnspent() {
 							
 					var missingPrivateKeys = [];
 					
-					createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, missingPrivateKeys);
+					createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, missingPrivateKeys, changeAddress, feeAddress);
 					
 				} catch (e) {
 					makeNotice('error', 'misc-error', 'Error creating transaction: ' + e, 5000);
@@ -2829,9 +2898,7 @@ $(document).ready(function() {
 			return;
 		
 		try {
-			if (!newTxValidateFormAndGetUnspent()) {
-				throw 'Unknown Error creating Transaction';
-			}
+			newTxValidateFormAndGetUnspent();
 		} catch (e) {
 			makeNotice('error', 'misc-error', e, 5000);
 		}
