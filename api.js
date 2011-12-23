@@ -35,6 +35,7 @@ function TransactionFromJSON(json) {
 	tx.inputs = json.inputs;
 	tx.out = json.out;
 	tx.blockIndex = json.block_index;
+	tx.result = json.result;
 
 	try {
 		for (var i = 0; i < tx.inputs.length; i++) {		
@@ -51,59 +52,8 @@ function TransactionFromJSON(json) {
 	return tx;
 }
 
-Array.prototype.hasObject = (
-  !Array.indexOf ? function (o)
-  {
-    var l = this.length + 1;
-    while (l -= 1)
-    {
-        if (this[l - 1] === o)
-        {
-            return true;
-        }
-    }
-    return false;
-  } : function (o)
-  {
-    return (this.indexOf(o) !== -1);
-  }
-);
-
-Transaction.prototype.getResult = function() {    
-		
-	var total_output = 0;
-	
-	for (var i = 0; i < this.out.length; i++) {
-		output = this.out[i];
-		
-		var value = parseInt(output.value) / 100000000;
-		
-		if (this.myHashes160 == null) 
-			total_output += value;
-		else if (this.myHashes160.hasObject(output.hash)) {
-			total_output += value;
-		}
-	}
-	
-	if (this.myHashes160 == null) 
-		return total_output;
-		
-	for (var i = 0; i < this.inputs.length; i++) {
-		input = this.inputs[i];
-		 
-		var value = parseInt(input.prev_out.value) / 100000000;
-
-		if (this.myHashes160.hasObject(input.prev_out.hash)) {
-			total_output -= value; //Should be minus but the number will be negative
-		}
-	}
-
-	
-	return total_output;
-}
-
-Transaction.prototype.setMyHashes = function(myHashes160) {    
-	this.myHashes160 = myHashes160;
+Transaction.prototype.setMyAddresses = function(myAddresses) {    
+	this.myAddresses = myAddresses;
 };
 
 Transaction.prototype.setConfirmations = function(n_confirmations) {   
@@ -116,16 +66,16 @@ function dateToString(d) {
 
 Transaction.prototype.getHTML = function() {    
 
-    var total_output = this.getResult();
+    var result = this.result;
     
 	var html = '<div id="tx-'+this.txIndex+'"><table class="zebra-striped" cellpadding="0" cellspacing="0" style="padding:0px;float:left;margin:0px;margin-top:10px;"><tr><th colspan="4" style="font-weight:normal"><div class="hash-link">';
 	
-	if (this.myHashes160 != null) {
-		if (total_output > 0) {
+	if (result != null) {
+		if (result > 0) {
 			html += '<span class="label success">Payment Received</span>';
-		} else if (total_output < 0) {
+		} else if (result < 0) {
 			html += '<span class="label important">Payment Sent</span>';
-		}	else if (total_output == 0) {
+		}	else if (result == 0) {
 			html += '<span class="label">Funds Moved</span>';
 		}
 	}
@@ -139,7 +89,7 @@ Transaction.prototype.getHTML = function() {
 	}
 	
 	var tclass = '';
-	if (total_output < 0)
+	if (result < 0)
 		tclass = 'class="can-hide"';
 	
 	html += '</b></span></th></tr><tr><td width="55%" '+ tclass +' style="vertical-align:middle;"><ul class="txul">';
@@ -150,7 +100,7 @@ Transaction.prototype.getHTML = function() {
 			 
 			//total_fees += input.prevOutputValue;
 			
-			if (this.myHashes160 != null && this.myHashes160.hasObject(input.prev_out.hash)) {
+			if (this.myAddresses[input.prev_out.addr] != null) {
 				html += '<li>'+input.prev_out.addr+'</li>';
 			} else if (input.prev_out.hash == null || input.prev_out.hash.length == 0) {
 				html += '<li><b>No Input (Newly Generated Coins)</b></li>';
@@ -166,10 +116,10 @@ Transaction.prototype.getHTML = function() {
 	html += '</ul></td><td class="can-hide" style="padding:0px;width:48px;min-height:48px;vertical-align:middle;">';
 	
 	var button_class;
-	if (total_output >= 0) {
+	if (result >= 0) {
 		button_class = 'btn success';
 		html += '<img src="'+resource+'arrow_right_green.png" />';
-	} else if (total_output < 0) {
+	} else if (result < 0) {
 		button_class = 'btn error';
 		html += '<img src="'+resource+'arrow_right_red.png" />';
 	} else  {
@@ -178,7 +128,7 @@ Transaction.prototype.getHTML = function() {
 	}
 	
 	var tclass = '';
-	if (total_output > 0)
+	if (result > 0)
 		tclass = 'class="can-hide"';
 		
 	html += '</td><td width="30%" '+tclass+' style="vertical-align:middle;"><ul class="txul">';
@@ -188,10 +138,10 @@ Transaction.prototype.getHTML = function() {
 						
 		//total_fees -= output.value;
 
-		if (this.myHashes160 == null || !this.myHashes160.hasObject(output.hash))
-			html += '<li><a target="new" href="'+root+'address/'+output.hash+'">'+output.addr+'</a></li>';
-		else 
+		if (this.myAddresses[output.addr] != null)
 			html += '<li>'+output.addr+'</li>';
+		else 
+			html += '<li><a target="new" href="'+root+'address/'+output.hash+'">'+output.addr+'</a></li>';
 	}
 				
 	html += '</ul></td><td width="15%" style="vertical-align:middle;"><ul class="txul">';
@@ -218,7 +168,7 @@ Transaction.prototype.getHTML = function() {
 		html += '<button class="btn primary confm">' + this.confirmations + ' Confirmations</button> ';
 	} 
 	
-	html += '<button class="btn info">'+  toFixed(Math.round(total_output * market_price * 100)/100, 2) + ' USD</button> <button class="'+button_class+'">'+  toFixed(total_output, 4) + ' BTC</button></span></div>';
+	html += '<button class="btn info">'+  toFixed(Math.round((result / satoshi) * market_price * 100)/100, 2) + ' USD</button> <button class="'+button_class+'">'+  toFixed(result / satoshi, 4) + ' BTC</button></span></div>';
 	
 	return html;
 };
