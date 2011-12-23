@@ -556,7 +556,6 @@ function buildTransactionsView() {
 	
 		$('#balance-usd').html(toFixed(final_balance / satoshi * market_price, 2));
 	}
-
 	
 	//Only build the actualy tx view when visible
 	if ("my-transactions" != cVisible.attr('id'))
@@ -590,7 +589,7 @@ function buildTransactionsView() {
 			}
 		}
 	
-		transactions[i].setMyAddresses(address_tags);
+	//	transactions[i].setMyAddresses(address_tags);
 
 		html += transactions[i].getHTML(root, resource);
 	}
