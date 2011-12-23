@@ -124,7 +124,7 @@ Transaction.prototype.getHTML = function(myAddresses) {
 	}
 	
 	var tclass = '';
-	if (result > 0)
+	if (result >= 0)
 		tclass = 'class="can-hide"';
 		
 	html += '</td><td width="30%" '+tclass+' style="vertical-align:middle;"><ul class="txul">';
