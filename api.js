@@ -52,10 +52,6 @@ function TransactionFromJSON(json) {
 	return tx;
 }
 
-Transaction.prototype.setMyAddresses = function(myAddresses) {    
-	this.myAddresses = myAddresses;
-};
-
 Transaction.prototype.setConfirmations = function(n_confirmations) {   
 	this.confirmations = n_confirmations;
 };
@@ -64,7 +60,7 @@ function dateToString(d) {
 	  return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate() + ' ' + d.getHours() + ':' + d.getMinutes() + ':' + d.getSeconds();
 }
 
-Transaction.prototype.getHTML = function() {    
+Transaction.prototype.getHTML = function(myAddresses) {    
 
     var result = this.result;
     
@@ -100,7 +96,7 @@ Transaction.prototype.getHTML = function() {
 			 
 			//total_fees += input.prevOutputValue;
 			
-			if (this.myAddresses != null && this.myAddresses[input.prev_out.addr] != null) {
+			if (myAddresses != null && myAddresses[input.prev_out.addr] != null) {
 				html += '<li>'+input.prev_out.addr+'</li>';
 			} else if (input.prev_out.hash == null || input.prev_out.hash.length == 0) {
 				html += '<li><b>No Input (Newly Generated Coins)</b></li>';
@@ -138,7 +134,7 @@ Transaction.prototype.getHTML = function() {
 						
 		//total_fees -= output.value;
 
-		if (this.myAddresses != null && this.myAddresses[output.addr] != null)
+		if (myAddresses != null && myAddresses[output.addr] != null)
 			html += '<li>'+output.addr+'</li>';
 		else 
 			html += '<li><a target="new" href="'+root+'address/'+output.hash+'">'+output.addr+'</a></li>';

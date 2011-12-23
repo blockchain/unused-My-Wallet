@@ -117,9 +117,7 @@ function websocketConnect() {
 		            }
 					
 					var tx = TransactionFromJSON(obj.x);
-					
-					tx.setMyAddresses(address_tags);
-					
+										
 					/* Calculate the result */
 					var result = 0;
 						
@@ -589,9 +587,7 @@ function buildTransactionsView() {
 			}
 		}
 	
-		transactions[i].setMyAddresses(address_tags);
-
-		html += transactions[i].getHTML(root, resource);
+		html += transactions[i].getHTML(address_tags);
 	}
 	
 	$('#transactions').html(html);
