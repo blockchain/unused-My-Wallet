@@ -574,39 +574,48 @@ function buildTransactionsView() {
 
 	$('#summary-balance-btc').html(toFixed(final_balance / satoshi, 4));
 		
-	var interval = 0;
+	var interval = null;
 	var start = 0;
 
-	if (interval != null) 
+	if (interval != null) {
 		clearInterval(interval);
-
+		interval = null;
+	}
+	
 	$('#transactions').empty();
 
-	interval = setTimeout(function() {		
+	var buildSome = function() {		
 		var html = '';
 
-		for (var i = start; i < transactions.length; ++i) {
+		for (var i = start; i < transactions.length && i < (start+5); ++i) {
+						
+			var tx = transactions[i];
 			
-			if (transactions[i].blockIndex == null || transactions[i].blockIndex == 0) {
-				transactions[i].setConfirmations(0);
+			if (tx.blockIndex == null || tx.blockIndex == 0) {
+				tx.setConfirmations(0);
 			} else {
-				var height = block_heights[transactions[i].blockIndex];
+				var height = block_heights[tx.blockIndex];
 	
 				if (height != null) {
 					var nconfirmations = latest_block.height - height + 1;		
-					transactions[i].setConfirmations(nconfirmations);
+					tx.setConfirmations(nconfirmations);
 				}
 			}
 		
-			html += transactions[i].getHTML(address_tags);
+			html += tx.getHTML(address_tags);
 		}
 		
 
 		$('#transactions').append(html);
 		
-		++start;
+		start += 5;
 		
-	}, 1);
+		if (start < transactions.length) {
+			interval = setTimeout(buildSome, 1);
+		}
+	};
+	
+	buildSome();;
 }
 
 function parseMultiAddressJSON(json) {
