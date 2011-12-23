@@ -589,7 +589,7 @@ function buildTransactionsView() {
 			}
 		}
 	
-	//	transactions[i].setMyAddresses(address_tags);
+		transactions[i].setMyAddresses(address_tags);
 
 		html += transactions[i].getHTML(root, resource);
 	}
