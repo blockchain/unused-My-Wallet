@@ -276,7 +276,7 @@ function makeWalletJSON(format) {
 			out += ',\n	 "priv" : "'+ encode_func(private_keys[addr]) + '"';
 		}
 		
-		if (address_tags[addr] != null && address_tags[addr] != 0) {
+		if (address_tags[addr] == 2) {
 			out += ',\n	 "tag" : '+ address_tags[addr];
 		} 
 		
@@ -376,6 +376,9 @@ function importPyWalletJSONObject(obj) {
 				
 			internalAddOrReplaceKey(obj.keys[i].addr, Bitcoin.Base58.encode(obj.keys[i].priv));
 				
+			address_tags[obj.keys[i].addr] = 0;
+
+			
 			} else {
 				makeNotice('error', 'misc-error', 'Private key doesn\'t seem to match the address. Possible corruption', 1000);
 				return false;
@@ -433,8 +436,14 @@ function importJSON() {
 			//Parse the normal wallet backup
 			for (var i = 0; i < obj.keys.length; ++i) {					
 				internalAddOrReplaceKey(obj.keys[i].addr, obj.keys[i].priv);
+				
+				if (obj.keys[i].tag != null)
+					address_tags[obj.keys[i].addr] = obj.keys[i].tag;
+				else
+					address_tags[obj.keys[i].addr] = 0;
+
 			}
-		
+					
 			if (obj.address_book != null) {
 				for (var i = 0; i < obj.address_book.length; ++i) {	
 					internalAddAddressBookEntry(obj.address_book[i].addr, obj.address_book[i].label);
@@ -444,7 +453,7 @@ function importJSON() {
 	} catch (e) {
 		makeNotice('error', 'misc-error', 'Exception caught parsing JSON ' + e, 5000);
 		return;
-	}
+	} 
 
 	//Clear the old value
 	$('#import-json').val('');
@@ -781,7 +790,7 @@ function internalRestoreWallet() {
 			
 			internalAddKey(addr, obj.keys[i].priv);
 			
-			if (obj.keys[i].tag != null) {
+			if (obj.keys[i].tag != null && obj.keys[i].tag != 1) {
 				address_tags[addr] = obj.keys[i].tag;
 			} else {
 				address_tags[addr] = 0;
@@ -895,11 +904,12 @@ function getReadyForOffline() {
 		modal.find('.btn.primary').removeAttr('disabled');
 
 		modal.find('.btn.primary').unbind().click(function() {		
-			$.get(root + 'ping').success(function(data) { 
+			$.get(root + 'ping?'+new Date().getTime()).success(function(data) { 
 			
 				setLoadingText('Checking connectivity');
 
 				makeNotice('error', 'misc-error', 'You must disconnect your internet before continuing', 5000);
+				
 				return false;
 				
 			}).error(function(data) {
@@ -1061,6 +1071,15 @@ function getAccountInfo() {
 		if (data.yubikey != null) {
 			$('#wallet-yubikey').val(data.yubikey);
 		}
+		
+		if (data.email_verified == 0) {
+			$('#verify-email').show();
+			$('#email-verified').hide();
+		} else {
+			$('#verify-email').hide();
+			$('#email-verified').show();
+		}
+	
 	})
     .error(function(data) { 
     	makeNotice('error', 'misc-error', data.responseText); 
@@ -1154,6 +1173,42 @@ function updatePhrase(phrase) {
     });
 }
 
+function verifyEmail(code) {
+	if (offline) return;
+
+	if (code == null || code.length == 0 || code.length > 255) {
+		makeNotice('error', 'misc-error', 'You must enter a code to verify', 5000);
+		return;
+	}
+		
+	setLoadingText('Verifying Email');
+
+	$.post("/wallet", { guid: guid, payload: code, sharedKey: sharedKey, length : code.length, method : 'verify-email' },  function(data) { 
+		makeNotice('success', 'email-success', data, 5000);
+		
+		$('#verify-email').hide();
+		$('#email-verified').show(200);
+	})
+    .error(function(data) { 
+    	makeNotice('error', 'misc-error', data.responseText, 5000); 
+    	$('#verify-email').show(200);
+		$('#email-verified').hide();
+    });
+}
+
+function updatePubkeys() {
+	if (offline) return;
+		
+	setLoadingText('Updating Public Keys');
+
+	$.post("/wallet", { guid: guid, sharedKey: sharedKey, 'address[]' : getMyHash160s(), method : 'update-pub-keys' },  function(data) { 
+		makeNotice('success', 'pub-success', data, 5000);
+	})
+    .error(function(data) { 
+    	makeNotice('error', 'misc-error', data.responseText, 5000); 
+    });
+}
+
 function updateEmail(email) {
 	if (offline) return;
 
@@ -1171,6 +1226,9 @@ function updateEmail(email) {
 
 	$.post("/wallet", { guid: guid, payload: email, sharedKey: sharedKey, length : email.length, method : 'update-email' },  function(data) { 
 		makeNotice('success', 'email-success', data, 5000);
+		
+    	$('#verify-email').show(200);
+		$('#email-verified').hide();
 	})
     .error(function(data) { 
     	makeNotice('error', 'misc-error', data.responseText, 5000); 
@@ -2721,6 +2779,10 @@ $(document).ready(function() {
 		updateEmail($(this).val());
 	});
 	
+	$('#wallet-email-code').change(function(e) {		
+		verifyEmail($(this).val());
+	});
+	
 	$('#wallet-yubikey').change(function(e) {		
 		updateYubikey($(this).val());
 	});
@@ -3241,6 +3303,8 @@ function buildReceiveCoinsView() {
 			thtml += '<img class="basic" src="'+resource+'unarchive.png" onclick="unArchiveAddr(\''+addr+'\')" />';
 		else if (tag == 0)
 			thtml += '<span id="'+addr+'" style="color:green">' + balance +'</span></td><td><img class="basic" src="'+resource+'archive.png" onclick="archiveAddr(\''+addr+'\')" />';
+		else 
+			thtml += '</td><td>';
 
 		thtml += ('<img class="adv" src="'+resource+'delete.png" onclick="deleteAddress(\''+addr+'\')" /></td></tr>');
 		
