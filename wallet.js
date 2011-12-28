@@ -317,9 +317,6 @@ function pasteAddress(addr) {
 	
 function buildSendTxView() {
 	
-	if (address_book.length == 0)
-		return;
-	
 	//Only build when visible
 	if ("send-coins" != cVisible.attr('id'))
 		return;
