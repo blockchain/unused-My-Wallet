@@ -329,7 +329,9 @@ function buildSendTxView() {
 		el.append('<tr><td>'+ address_book[i].label + '</td><td><div class="addr-book-entry">'+ address_book[i].addr + '</div></td><td><img src="' + resource+ 'paste.png" onclick="pasteAddress(\''+ address_book[i].addr + '\')"></tr>');
 	}
 	
-	var selects = $('#send-tx-form select');
+	var send_tx_form = $('#send-tx-form');
+	
+	var selects = send_tx_form.find('select');
 	
 	selects.empty();
 
@@ -356,6 +358,14 @@ function buildSendTxView() {
 	selects.prepend('<option>Any Address</option>');
 		
 	selects.val($("#target option:first").val());
+	
+	send_tx_form.find('input[name="send-to-address"]').val('');
+	send_tx_form.find('input[name="send-value"]').val('');
+	send_tx_form.find('input[name="send-fees"]').val('0');
+
+	var el = $("#recipient-container div:first-child").clone();
+	
+	$('#recipient-container').empty().append(el);
 }
 
 function importPyWalletJSONObject(obj) {
@@ -1193,7 +1203,7 @@ function verifyEmail(code) {
     });
 }
 
-function updatePubkeys() {
+function updatePubKeys() {
 	if (offline) return;
 		
 	setLoadingText('Updating Public Keys');
@@ -3055,20 +3065,7 @@ $(document).ready(function() {
 	});
 	
 	$('#send-form-reset-btn').click(function() {
-		
-		$('input[name="send-to-address"]').val('');
-		        
-		$('input[name="send-value"]').val('');
-		        
-		var el = $("#recipient-container div:first-child").clone();
-		
-		$('#recipient-container').empty();
-		
-		$('#recipient-container').append(el);
-		
-		$("#send-from-address").val($("#send-from-addres option:first").val());
-	
-		$("#send-fees").val('0');
+		buildSendTxView();
 	});
 	
 	$("#send-tx-btn").click(function() {
@@ -3086,7 +3083,7 @@ $(document).ready(function() {
 		if (!isInitialized)
 			return;
 				
-		var el = $("#recipient-container div:first-child").clone()
+		var el = $("#recipient-container div:first-child").clone();
 		
 		el.appendTo($("#recipient-container"));
 		
@@ -3232,6 +3229,7 @@ function unArchiveAddr(addr) {
 }
 
 
+
 function archiveAddr(addr) {
 	
 	if (getMyHash160s().length <= 1) {
@@ -3264,7 +3262,6 @@ function archiveAddr(addr) {
 }
 
 function buildReceiveCoinsView() {
-	
 	
 	//Only build when visible
 	if ("receive-coins" != cVisible.attr('id'))
