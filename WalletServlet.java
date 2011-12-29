@@ -28,6 +28,7 @@ import com.yubico.client.v2.YubicoResponse;
 import com.yubico.client.v2.YubicoResponseStatus;
 
 import piuk.bitcoin.db.BitcoinDatabaseManager;
+import piuk.bitcoin.website.admin.ApiClient;
 import piuk.bitcoin.website.admin.SendNotificationsOperation;
 
 /**
@@ -198,24 +199,9 @@ public class WalletServlet extends BaseServlet {
 		long lock_time =  System.currentTimeMillis() + (minutes * 60000);
 		
 		if (email != null) {
-			try {
-				Session session = SendNotificationsOperation.getSession();
-				 
-				Transport transport = SendNotificationsOperation.getTransport(session);
-				
-				Message message = new MimeMessage(session);
-				message.setFrom(new InternetAddress("wallet@blockchain.info"));
-				message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(email));
-				message.setSubject("Your My Wallet Account has been locked");
-		
-				message.setContent("<p align=\"center\"><h1>Important.</h1><p>A number of failed attempts have been made to login to to your My Wallet account. For your protection the new login attempts have been disabled until " + new Date(lock_time).toString() + " </p> <p>If these login attempts were not made by you it is recommended you change your password as soon as the account is available again <a href=\"https://blockchain.info/wallet/" + guid + "\">https://blockchain.info/wallet/" + guid + "</a> if you are particularily concerned please contact us and we will extend the lock.</p>", "text/html");
-				
-				transport.sendMessage(message, message.getAllRecipients());
-				
-				transport.close();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+			String message = "<p align=\"center\"><h1>Important.</h1><p>A number of failed attempts have been made to login to to your My Wallet account. For your protection the new login attempts have been disabled until " + new Date(lock_time).toString() + " </p> <p>If these login attempts were not made by you it is recommended you change your password as soon as the account is available again <a href=\"https://blockchain.info/wallet/" + guid + "\">https://blockchain.info/wallet/" + guid + "</a> if you are particularily concerned please contact us and we will extend the lock.</p>";
+			
+			ApiClient.conn().sendMail(email, "Your My Wallet Account has been locked", message);
 		}
 				
 		
@@ -253,52 +239,14 @@ public class WalletServlet extends BaseServlet {
 	}
 	
 	public static boolean sendEmailLink(String email, String guid) {
-		try {
-			Session session = SendNotificationsOperation.getSession();
- 
-			Transport transport = SendNotificationsOperation.getTransport(session);
-			
-			Message message = new MimeMessage(session);
-			message.setFrom(new InternetAddress("wallet@blockchain.info"));
-			message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(email));
-			message.setSubject("Link to your new wallet");
-
-			message.setContent("<p align=\"center\"><h1>Welcome To Your New Wallet.</h1><p>You can login at anytime using the link below. Be sure to keep this safe and stored separately from your password. </p><p><a href=\"https://blockchain.info/wallet/" + guid + "\">https://blockchain.info/wallet/" + guid + "</a></p>", "text/html");
-
-			transport.sendMessage(message, message.getAllRecipients());
-			
-			transport.close();
-			
-			return true;
-		} catch (Exception e) {
-			e.printStackTrace();
-			return false;
-		}
+		return ApiClient.conn().sendMail(email, "Link to your new wallet", "<p align=\"center\"><h1>Welcome To Your New Wallet.</h1><p>You can login at anytime using the link below. Be sure to keep this safe and stored separately from your password. </p><p><a href=\"https://blockchain.info/wallet/" + guid + "\">https://blockchain.info/wallet/" + guid + "</a></p>");
 	}
 	
 	public static boolean makeAndSendTwoFactorEmail(String email, String guid) {
 		
 		String code = UUID.randomUUID().toString().substring(0, EmailCodeLength).toUpperCase();
 		
-		try {
-			Session session = SendNotificationsOperation.getSession();
- 
-			Transport transport = SendNotificationsOperation.getTransport(session);
-			
-			Message message = new MimeMessage(session);
-			message.setFrom(new InternetAddress("wallet@blockchain.info"));
-			message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(email));
-			message.setSubject("My Wallet Confirmation code");
-
-			message.setContent("<h1>Confirmation Required</h1> <p>An attempt has been made to login to your My wallet account. Enter the confirmation code below to access your account. If it was not you who made this login attempt you can ignore this email. </p><h2>" + code +"</h2>", "text/html");
-					
-			transport.sendMessage(message, message.getAllRecipients());
-			
-			transport.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-			return false;
-		}
+		ApiClient.conn().sendMail(email, "My Wallet Login Code", "<h1>Confirmation Required</h1> <p>An attempt has been made to login to your My wallet account. Enter the confirmation code below to access your account. If it was not you who made this login attempt you can ignore this email. </p><h2>" + code +"</h2>");
 		
 		Connection conn = BitcoinDatabaseManager.conn();
 		PreparedStatement smt = null;
@@ -325,28 +273,8 @@ public class WalletServlet extends BaseServlet {
 		return false;
 	}
 
-	public static boolean sendEmailBackup(String guid, String email, String payload) {
-		try {
-			Session session = SendNotificationsOperation.getSession();
- 
-			Transport transport = SendNotificationsOperation.getTransport(session);
-			
-			Message message = new MimeMessage(session);
-			message.setFrom(new InternetAddress("wallet@blockchain.info"));
-			message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(email));
-			message.setSubject("Wallet Backup");
-
-			message.setContent("<h1>Encrypted Wallet Backup</h1> <p>Below is your AES encrypted wallet data. You can use it to restore your wallet at anytime using <a href=\"https://blockchain.info/wallet\">My Wallet</a> or using standard unix tools</p> <p>Your wallet url is <a href=\"https://blockchain.info/wallet/" + guid + "\">https://blockchain.info/wallet/" + guid + "</a></p> <small>" + payload + "</small>", "text/html");
-					
-			transport.sendMessage(message, message.getAllRecipients());
-			
-			transport.close();
-			
-			return true;
-		} catch (Exception e) {
-			e.printStackTrace();
-			return false;
-		}
+	public static boolean sendEmailBackup(String guid, String email, String payload)  {
+		return ApiClient.conn().sendMail(email, "Wallet Backup", "<h1>Encrypted Wallet Backup</h1> <p>Below is your AES encrypted wallet data. You can use it to restore your wallet at anytime using <a href=\"https://blockchain.info/wallet\">My Wallet</a> or using standard unix tools</p> <p>Your wallet url is <a href=\"https://blockchain.info/wallet/" + guid + "\">https://blockchain.info/wallet/" + guid + "</a></p> <small>" + payload + "</small>");
 	}
 	
 	public String addSlashes(String str){
