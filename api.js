@@ -1,3 +1,5 @@
+var satoshi = parseInt(100000000); //One satoshi
+
 function Transaction () { }
 function Block () { }
 

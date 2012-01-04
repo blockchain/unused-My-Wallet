@@ -10,7 +10,6 @@ var final_balance = 0; //Amount available to withdraw
 var total_sent = 0; //Amount available to withdraw
 var total_received = 0; //Amount available to withdraw
 var n_tx = 0; //Amount available to withdraw
-var satoshi = parseInt(100000000); //One satoshi
 var isInitialized = false; //Wallet is loaded and decrypted
 var latest_block = null; //Chain head block
 var balances = []; //Holds balances of addresses
