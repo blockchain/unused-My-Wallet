@@ -5,7 +5,7 @@ var addresses = []; //Bitcoin addresses
 var private_keys = []; //Map of bitcoin address to base58 private key
 var cVisible; //currently visible view
 var password; //Password
-var sharedKey; //Shared key used to prove that the wallet has succesfully been decrypted, meaning you can't ovwerwrite a wallet backup even if you have the guid
+var sharedKey; //Shared key used to prove that the wallet has succesfully been decrypted, meaning you can't overwrite a wallet backup even if you have the guid
 var final_balance = 0; //Amount available to withdraw
 var total_sent = 0; //Amount available to withdraw
 var total_received = 0; //Amount available to withdraw
@@ -2666,7 +2666,7 @@ $(document).ready(function() {
 		
 		updateKV('Updating Notifications Type', 'update-notifications-type', notifications_type);
 		
-		$('#notifications-form div').hide().eq(val).show(200);
+		$('#notifications-form div').hide().eq($(this).val()).show(200);
 	});
 
 	$('#two-factor-select').change(function() {
