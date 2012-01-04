@@ -1065,9 +1065,8 @@ function getAccountInfo() {
 			$('.my-email').text(data.email);
 		}
 		
-		if (data.phrase != null) {
-			$('#wallet-phrase').val(data.phrase);
-		}
+		$('#wallet-phrase').val(data.phrase);
+		
 		
 		if (data.alias != null) {
 			$('#wallet-alias').val(data.alias);
@@ -1075,9 +1074,9 @@ function getAccountInfo() {
 			$('.alias').show(200);
 		}
 		
-		if (data.yubikey != null) {
-			$('#wallet-yubikey').val(data.yubikey);
-		}
+		$('#wallet-http-url').val(data.http_url);
+		$('#wallet-skype').val(data.skype_username);
+		$('#wallet-yubikey').val(data.yubikey);
 		
 		if (data.email_verified == 0) {
 			$('#verify-email').show();
@@ -1106,80 +1105,6 @@ function emailBackup() {
     });
 }
 
-function updateAuthType(authstr) {
-	if (offline) return;
-
-	var auth_type = parseInt(authstr);
-	
-	if (auth_type < 0 || auth_type > 4) {
-		makeNotice('error', 'misc-error', 'Invalid auth type');
-		return;
-	}
-	
-	setLoadingText('Updating Two Factor Authentication');
-	
-	$.post("/wallet", { guid: guid, payload : auth_type, sharedKey: sharedKey, length : auth_type.length, method : 'update-auth-type' },  function(data) { 
-		makeNotice('success', 'auth-type-success', data, 5000);
-	})
-    .error(function(data) { 
-    	makeNotice('error', 'misc-error', data.responseText); 
-    });
-}
-
-function updateYubikey(yubikey) {
-	if (offline) return;
-
-	if (yubikey == null || yubikey.length == 0) {
-		makeNotice('error', 'misc-error', 'You must enter Yubikey');
-		return;
-	}
-	
-	setLoadingText('Updating Yubikey');
-	
-	$.post("/wallet", { guid: guid, payload : yubikey, sharedKey: sharedKey, length : yubikey.length, method : 'update-yubikey' },  function(data) { 
-		makeNotice('success', 'yubikey-success', data, 5000);
-	})
-    .error(function(data) { 
-    	makeNotice('error', 'misc-error', data.responseText); 
-    });
-}
-
-function updateAlias(alias) {
-	if (offline) return;
-
-	if (alias == null || alias.length == 0) {
-		makeNotice('error', 'misc-error', 'You must enter an alias');
-		return;
-	}
-	
-	setLoadingText('Updating Alias');
-	
-	$.post("/wallet", { guid: guid, payload : alias, sharedKey: sharedKey, length : alias.length, method : 'update-alias' },  function(data) { 
-		makeNotice('success', 'alias-success', data, 5000);
-	})
-    .error(function(data) { 
-    	makeNotice('error', 'misc-error', data.responseText); 
-    });
-}
-
-function updatePhrase(phrase) {
-	if (offline) return;
-
-	if (phrase == null || phrase.length == 0 || phrase.length > 255) {
-		makeNotice('error', 'misc-error', 'You must enter a secret phrase', 5000);
-		return;
-	}
-		
-	setLoadingText('Updating Secret Phrase');
-
-	$.post("/wallet", { guid: guid, payload: phrase, sharedKey: sharedKey, length : phrase.length, method : 'update-phrase' },  function(data) { 
-		makeNotice('success', 'phrase-success', data, 5000);
-	})
-    .error(function(data) { 
-    	makeNotice('error', 'misc-error', data.responseText, 5000); 
-    });
-}
-
 function verifyEmail(code) {
 	if (offline) return;
 
@@ -1204,41 +1129,25 @@ function verifyEmail(code) {
 }
 
 function updatePubKeys() {
-	if (offline) return;
-		
-	setLoadingText('Updating Public Keys');
-
-	$.post("/wallet", { guid: guid, sharedKey: sharedKey, 'address[]' : getMyHash160s(), method : 'update-pub-keys' },  function(data) { 
-		makeNotice('success', 'pub-success', data, 5000);
-	})
-    .error(function(data) { 
-    	makeNotice('error', 'misc-error', data.responseText, 5000); 
-    });
+	//Only update public keys when needed for send notifications
+	if (notifications_type != 0) updateKV('Updating Public Keys', 'update-pub-keys', getMyHash160s().join('|'));
 }
 
-function updateEmail(email) {
+function updateKV(txt, method, value) {
 	if (offline) return;
-
-	if (email == null || email.length == 0) {
-		makeNotice('error', 'misc-error', 'You must enter an email', 5000);
+	
+	if (value == null || value.length == 0) {
+		makeNotice('error', 'misc-error', txt + ': Invalid value');
 		return;
 	}
 	
-	if (!validateEmail(email)) {
-		makeNotice('error', 'misc-error', 'Email address is not valid', 5000);
-		return;
-	}
-		
-	setLoadingText('Updating Email');
+	setLoadingText(txt);
 
-	$.post("/wallet", { guid: guid, payload: email, sharedKey: sharedKey, length : email.length, method : 'update-email' },  function(data) { 
-		makeNotice('success', 'email-success', data, 5000);
-		
-    	$('#verify-email').show(200);
-		$('#email-verified').hide();
+	$.post("/wallet", { guid: guid, sharedKey: sharedKey, payload : value, method : method },  function(data) { 
+		makeNotice('success', method + '-success', data, 5000);
 	})
     .error(function(data) { 
-    	makeNotice('error', 'misc-error', data.responseText, 5000); 
+    	makeNotice('error', method + '-error', data.responseText, 5000); 
     });
 }
 
@@ -1302,6 +1211,9 @@ function backupWallet(method, successcallback, errorcallback) {
 				 //Update view remove 'Unsynced' tags
 				 if (change) buildReceiveCoinsView();
 			 }
+			 
+			 if (method == 'update')
+				 updatePubKeys();
 		 
 			makeNotice('success', 'misc-success', data, 5000);
 			
@@ -1401,10 +1313,9 @@ function generateNewWallet() {
 		return false;
 	
 	try {
-		for (var i = 0; i < 5; ++i) {
-			generateNewAddressAndKey();
-		}
-	
+		
+		generateNewAddressAndKey();
+		
 		sharedKey = guidGenerator();
 		
 		guid = guidGenerator();
@@ -1413,7 +1324,7 @@ function generateNewWallet() {
 			makeNotice('error', 'misc-error', 'Error generating wallet identifier');
 			return false;
 		}
-			
+					
 		backupWallet('insert');
 	
 		return true;
@@ -1906,7 +1817,7 @@ function deleteAddress(addr) {
 					 
 					//Update view with remove address
 					buildReceiveCoinsView();
-					
+										
 				    backupWallet('update');
 					  
 				    clearInterval(interval);
@@ -2514,8 +2425,9 @@ function newTxValidateFormAndGetUnspent() {
 			} else if (newAddress) {
 				
 				  var generatedAddr = generateNewAddressAndKey();
-				  
+				  				  
 				  backupWallet('update', function() {
+					  
 					  changeAddress = generatedAddr;
 					  
 					  buildSendTxView();
@@ -2726,7 +2638,6 @@ function privateKeyStringToKey(value, format) {
 	
 
 $(document).ready(function() {	
-	
 		
 	//firefox bug
 	$('button').removeAttr('disabled');
@@ -2738,9 +2649,9 @@ $(document).ready(function() {
          offset: 10
        })
        .click(function(e) {
-         e.preventDefault()
-       })
-   })
+         e.preventDefault();
+       });
+   });
 	
 	$('body').ajaxStart(function() {
 		$('.loading-indicator').fadeIn(200);
@@ -2751,17 +2662,25 @@ $(document).ready(function() {
 	});
 
 	
+	$('#notifications-form select').change(function() {
+		notifications_type = parseInt($(this).val());
+		
+		updateKV('Updating Notifications Type', 'update-notifications-type', notifications_type);
+		
+		$('#notifications-form div').hide().eq(val).show(200);
+	});
+
 	$('#two-factor-select').change(function() {
 		
 		var val = parseInt($(this).val());
-					
-		updateAuthType(val);
+						
+		updateKV('Updating Two Factor Authentication', 'update-auth-type', val);
 		
 		if (val == 0) {
 			$('#two-factor-yubikey').hide();
 			$('#two-factor-email').hide();
 			$('#two-factor-none').show(200);
-		} else if (val == 1 || val == 4) {
+		} else if (val == 1 || val == 3) {
 			$('#two-factor-none').hide();
 			$('#two-factor-email').hide();
 			$('#two-factor-yubikey').show(200);
@@ -2775,27 +2694,54 @@ $(document).ready(function() {
 	$("#new-addr").click(function() {
 		try {
 		  generateNewAddressAndKey();
-		  
+		  		  
 		  backupWallet('update');
 		} catch (e) {
 			makeNotice('error', 'misc-error', e);
 		}
 	});
 	
-	$('#wallet-email').change(function(e) {		
-		updateEmail($(this).val());
+	$('#wallet-email').change(function(e) {	
+		
+		var email = $(this).val();
+	
+		if (!validateEmail(email)) {
+			makeNotice('error', 'misc-error', 'Email address is not valid', 5000);
+			return;
+		}
+				
+		updateKV('Updating Email', 'update-email', email);
+		
+    	$('#verify-email').show(200);
+		$('#email-verified').hide();
 	});
 	
 	$('#wallet-email-code').change(function(e) {		
 		verifyEmail($(this).val());
 	});
 	
-	$('#wallet-yubikey').change(function(e) {		
-		updateYubikey($(this).val());
+	$('#wallet-yubikey').change(function(e) {				
+		updateKV('Updating Yubikey', 'update-yubikey', $(this).val());
 	});
 	
-	$('#wallet-phrase').change(function(e) {		
-		updatePhrase($(this).val());
+	$('#wallet-skype').change(function(e) {				
+		updateKV('Updating Skype Username', 'update-skype', $(this).val());
+	});
+
+	$('#wallet-http-url').change(function(e) {				
+		updateKV('Updating HTTP url', 'update-http-url', $(this).val());
+	});
+	
+	$('#wallet-phrase').change(function(e) {	
+		
+		var phrase = $(this).val();
+		
+		if (phrase == null || phrase.length == 0 || phrase.length > 255) {
+			makeNotice('error', 'misc-error', 'You must enter a secret phrase', 5000);
+			return;
+		}
+		
+		updateKV('Updating Secret Phrase', 'update-phrase', phrase);
 	});
 	
 	$('#wallet-alias').change(function(e) {		
@@ -2805,15 +2751,17 @@ $(document).ready(function() {
 			$('.alias').fadeIn(200);
 			$('.alias').text($(this).val());
 		}
-		
-		updateAlias($(this).val());
+				
+		updateKV('Updating Alias', 'update-alias', $(this).val());
 	});
 	
-	$('#update-password-btn').unbind().click(function() {    			
+	
+	
+	$('#update-password-btn').click(function() {    			
 		updatePassword();
     });
 	
-    $('#email-backup-btn').unbind().click(function() {    			
+    $('#email-backup-btn').click(function() {    			
 		emailBackup();
     });
 	
@@ -3339,7 +3287,7 @@ function generateNewAddressAndKey() {
 		
 		//Subscribe to tranaction updates through websockets
 		try {
-			ws.send('{"op":"addr_sub", "hash":"'+Crypto.util.bytesToHex(key.getPubKeyHash())+'"}');
+			ws.send('{"op":"addr_sub", "hash":"'+Crypto.util.bytesToHex(key.getPubKeyHash())+'"}');			
 		} catch (e) { }
 	} else {
 		throw 'Unable to add generated bitcoin address.';
