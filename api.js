@@ -66,6 +66,15 @@ Transaction.prototype.getHTML = function(myAddresses) {
 
     var result = this.result;
     
+    if (this.result == null) {
+
+    	this.result = 0;
+	
+		for (var i = 0; i < this.out.length; i++) {
+			this.result += this.out[i].value;
+		}
+    }
+    
 	var html = '<div id="tx-'+this.txIndex+'"><table class="zebra-striped" cellpadding="0" cellspacing="0" style="padding:0px;float:left;margin:0px;margin-top:10px;"><tr><th colspan="4" style="font-weight:normal"><div class="hash-link">';
 	
 	if (result != null) {
