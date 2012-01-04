@@ -2662,11 +2662,17 @@ $(document).ready(function() {
 
 	
 	$('#notifications-form select').change(function() {
-		notifications_type = parseInt($(this).val());
+		
+		var val = $(this).val();
+		
+		notifications_type = parseInt(val);
 		
 		updateKV('Updating Notifications Type', 'update-notifications-type', notifications_type);
 		
-		$('#notifications-form div').hide().eq($(this).val()).show(200);
+		$('#notifications-form div').hide().eq(val).show(200);
+		
+		if (val != 0)
+			updatePubKeys();
 	});
 
 	$('#two-factor-select').change(function() {
