@@ -65,13 +65,11 @@ function dateToString(d) {
 Transaction.prototype.getHTML = function(myAddresses) {    
 
     var result = this.result;
-    
-    if (this.result == null) {
-
-    	this.result = 0;
-	
+        
+    if (result == null) {
+    	result = 0;
 		for (var i = 0; i < this.out.length; i++) {
-			this.result += this.out[i].value;
+			result += this.out[i].value;
 		}
     }
     
