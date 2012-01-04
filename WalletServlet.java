@@ -1,6 +1,12 @@
 package piuk.bitcoin.website;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -9,17 +15,15 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.UUID;
 
-import javax.mail.Message;
-import javax.mail.Session;
-import javax.mail.Transport;
+import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeMessage;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import org.apache.commons.io.IOUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.jsoup.Jsoup;
 
@@ -27,9 +31,9 @@ import com.yubico.client.v2.YubicoClient;
 import com.yubico.client.v2.YubicoResponse;
 import com.yubico.client.v2.YubicoResponseStatus;
 
+import piuk.bitcoin.Hash;
 import piuk.bitcoin.db.BitcoinDatabaseManager;
 import piuk.bitcoin.website.admin.ApiClient;
-import piuk.bitcoin.website.admin.SendNotificationsOperation;
 
 /**
  * Servlet implementation class ChartsServlet
@@ -48,11 +52,9 @@ public class WalletServlet extends BaseServlet {
 	protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
 		super.doGet(req, res);
 	
-
 		res.setHeader("Cache-Control", "no-cache");
 		res.setHeader("Pragma", "no-cache");
 		
-		req.setAttribute("resource", BaseServlet.LOCAL_RESOURCE_URL);
 		req.setAttribute("home_active", null);
 		req.setAttribute("wallet_active", " class=\"active\"");
 
@@ -60,7 +62,12 @@ public class WalletServlet extends BaseServlet {
 			getServletContext().getRequestDispatcher("/WEB-INF/"+ BitcoinServlet.ROOT + "bitcoin-wallet-index.jsp").forward(req, res);
 			return;
 		}
+		req.setAttribute("notifications_type", 0);
 
+		if (!devMode) {
+			req.setAttribute("root", "https://blockchain.info" + ROOT);
+		}
+		
 		String pathString = req.getPathInfo().substring(1);
 		String components[] = pathString.split("/", -1);
 		
@@ -91,27 +98,50 @@ public class WalletServlet extends BaseServlet {
 		} else if (guid.equals("security")) {
 			getServletContext().getRequestDispatcher("/WEB-INF/"+ BitcoinServlet.ROOT + "bitcoin-wallet-security.jsp").forward(req, res);
 			return;
+		} else if (guid.equals("devices")) {
+			getServletContext().getRequestDispatcher("/WEB-INF/"+ BitcoinServlet.ROOT + "bitcoin-wallet-devices.jsp").forward(req, res);
+			return;
+		} else if (guid.equals("support-pages")) {
+			getServletContext().getRequestDispatcher("/WEB-INF/"+ BitcoinServlet.ROOT + "bitcoin-wallet-support.jsp").forward(req, res);
+			return;
+		} else if (guid.equals("paper-tutorial")) {
+			getServletContext().getRequestDispatcher("/WEB-INF/"+ BitcoinServlet.ROOT + "bitcoin-wallet-paper-tutorial.jsp").forward(req, res);
+			return;
+		} else if (guid.equals("payment-notifications")) {
+			getServletContext().getRequestDispatcher("/WEB-INF/"+ BitcoinServlet.ROOT + "bitcoin-wallet-notifications.jsp").forward(req, res);
+			return;
+		}
+		
+		if (req.getServerPort() != 443 && !devMode) {
+			req.setAttribute("initial_error", "You must use https:// not http:// please update your link");
+			getServletContext().getRequestDispatcher("/WEB-INF/"+ BitcoinServlet.ROOT + "bitcoin-wallet-index.jsp").forward(req, res);
+			return;
+		}
+		
+		if (!devMode) {
+			req.setAttribute("root", ROOT);
 		}
 		
 		Connection conn = BitcoinDatabaseManager.conn();
 
 		PreparedStatement smt = null;
-		try {
-			smt = conn.prepareStatement("select guid, payload, auth_type, yubikey, email, acount_locked_time, email_code from bitcoin_wallets where guid = ? or alias = ?");
+		try {			 
+			smt = conn.prepareStatement("select guid, payload, auth_type, yubikey, email, acount_locked_time, email_code, notifications_type from bitcoin_wallets where guid = ? or alias = ?");
 
 			smt.setString(1, guid);
-			smt.setString(2, guid);
+			smt.setString(2, guid); //Alias
 
 			ResultSet results = smt.executeQuery();
 
 			if (results.next()) {				
-				String rguid = results.getString(1);
+				final String rguid = results.getString(1);
 				String payload = results.getString(2);
 				int auth_type = results.getInt(3);
 				String yubikey = results.getString(4);
 				final String email = results.getString(5);
 				long account_locked_time = results.getLong(6);
 				String email_code = results.getString(7);
+				int notifications_type = results.getShort(8);
 
 				long now = System.currentTimeMillis();
 				
@@ -133,8 +163,9 @@ public class WalletServlet extends BaseServlet {
 					boolean needs_auth = true;
 					if (session != null) {
 						String saved_guid = (String) session.getAttribute("saved_guid");
-						
-						if (saved_guid != null && saved_guid.equals(guid)) {
+						Integer saved_auth_type = (Integer) session.getAttribute("saved_auth_type");
+
+						if (saved_guid != null && saved_auth_type != null && saved_guid.equals(rguid) && saved_auth_type == auth_type) {
 							req.setAttribute("wallet_data", payload);
 							needs_auth = false;
 						}
@@ -161,7 +192,12 @@ public class WalletServlet extends BaseServlet {
 							if (email_code == null || email_code.length() == 0) {
 								Thread thread = new Thread() { //Do in background thread as it can be slow
 									public void run() {
-										makeAndSendTwoFactorEmail(email, guid);
+										
+										String code = generateAndUpdateEmailCode(rguid);
+										
+										if (code != null) {
+											sendTwoFactorEmail(email, rguid, code);
+										}
 									}
 								};
 								
@@ -171,6 +207,7 @@ public class WalletServlet extends BaseServlet {
 					}
 				}
 				
+				req.setAttribute("notifications_type", notifications_type);
 				req.setAttribute("auth", rguid);
 			
 				getServletContext().getRequestDispatcher("/WEB-INF/" + BitcoinServlet.ROOT + "bitcoin-wallet-app.jsp").forward(req, res);
@@ -180,6 +217,9 @@ public class WalletServlet extends BaseServlet {
 			}
 						
 		} catch (Exception e) {		
+			
+			e.printStackTrace();
+			
 			if (req.getParameter("format") == null) {
 				req.setAttribute("initial_error", e.getLocalizedMessage());
 				getServletContext().getRequestDispatcher("/WEB-INF/"+ BitcoinServlet.ROOT + "bitcoin-wallet-index.jsp").forward(req, res);
@@ -199,14 +239,13 @@ public class WalletServlet extends BaseServlet {
 		long lock_time =  System.currentTimeMillis() + (minutes * 60000);
 		
 		if (email != null) {
-			String message = "<p align=\"center\"><h1>Important.</h1><p>A number of failed attempts have been made to login to to your My Wallet account. For your protection the new login attempts have been disabled until " + new Date(lock_time).toString() + " </p> <p>If these login attempts were not made by you it is recommended you change your password as soon as the account is available again <a href=\"https://blockchain.info/wallet/" + guid + "\">https://blockchain.info/wallet/" + guid + "</a> if you are particularily concerned please contact us and we will extend the lock.</p>";
-			
-			ApiClient.conn().sendMail(email, "Your My Wallet Account has been locked", message);
+			ApiClient api = ApiClient.conn();
+			try {
+				api.sendMail(email, "Your My Wallet Account has been locked", "<p align=\"center\"><h1>Important.</h1><p>A number of failed attempts have been made to login to to your My Wallet account. For your protection the new login attempts have been disabled until " + new Date(lock_time).toString() + " </p> <p>If these login attempts were not made by you it is recommended you change your password as soon as the account is available again <a href=\"https://blockchain.info/wallet/" + guid + "\">https://blockchain.info/wallet/" + guid + "</a> if you are particularily concerned please contact us and we will extend the lock.</p>");
+			} finally {
+				ApiClient.close(api);
+			}
 		}
-				
-		
-		System.out.println(new Date(lock_time).getTime() - System.currentTimeMillis());
-		
 		
 		Connection conn = BitcoinDatabaseManager.conn();
 		PreparedStatement smt = null;
@@ -238,16 +277,49 @@ public class WalletServlet extends BaseServlet {
 
 	}
 	
-	public static boolean sendEmailLink(String email, String guid) {
-		return ApiClient.conn().sendMail(email, "Link to your new wallet", "<p align=\"center\"><h1>Welcome To Your New Wallet.</h1><p>You can login at anytime using the link below. Be sure to keep this safe and stored separately from your password. </p><p><a href=\"https://blockchain.info/wallet/" + guid + "\">https://blockchain.info/wallet/" + guid + "</a></p>");
+	public static boolean sendEmailLink(String guid) {
+		
+		Connection conn = BitcoinDatabaseManager.conn();
+		PreparedStatement smt = null;
+		
+		try {
+			//Reset the email code because it's possible the confirmation email got lost somewhere on the intertubes
+			smt = conn.prepareStatement("select email, email_code, payload from bitcoin_wallets where guid = ?");
+			
+			smt.setString(1, guid);
+			
+			ResultSet results = smt.executeQuery();
+
+			if (results.next()) {
+				
+				String email = results.getString(1);
+				String email_code = results.getString(2);
+			//	String payload = results.getString(3);
+				
+				ApiClient api = ApiClient.conn();
+				try {
+					api.sendMail(email, "Link to your new wallet", "<p align=\"center\"><h1>Welcome To Your New Wallet.</h1><p>You can login at anytime using the link below. Be sure to keep this safe and stored separately from your password. </p><p><a href=\"https://blockchain.info/wallet/" + guid + "\">https://blockchain.info/wallet/" + guid + "</a></p><p>To validate your email address please use the following code when prompted on your My Account page </p> <p> Confirmation Code : <b>" + email_code + "</b></p>");
+				} finally {
+					ApiClient.close(api);
+				}
+				
+				return true;
+			} else {
+				return false;
+			}
+				
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		} finally {
+			BitcoinDatabaseManager.close(smt);
+			BitcoinDatabaseManager.close(conn);
+		}	
 	}
 	
-	public static boolean makeAndSendTwoFactorEmail(String email, String guid) {
-		
+	public static String generateAndUpdateEmailCode(String guid) {
 		String code = UUID.randomUUID().toString().substring(0, EmailCodeLength).toUpperCase();
-		
-		ApiClient.conn().sendMail(email, "My Wallet Login Code", "<h1>Confirmation Required</h1> <p>An attempt has been made to login to your My wallet account. Enter the confirmation code below to access your account. If it was not you who made this login attempt you can ignore this email. </p><h2>" + code +"</h2>");
-		
+
 		Connection conn = BitcoinDatabaseManager.conn();
 		PreparedStatement smt = null;
 		try {
@@ -255,13 +327,12 @@ public class WalletServlet extends BaseServlet {
 			//Reset the email code because it's possible the confirmation email got lost somewhere on the intertubes
 			smt = conn.prepareStatement("update bitcoin_wallets set email_code = ? where guid = ?");
 			
-			System.out.println("Set code" + code);
 			
 			smt.setString(1, code);
 			smt.setString(2, guid);
 
 			if (smt.executeUpdate() == 1)
-				return true;
+				return code;
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -270,24 +341,54 @@ public class WalletServlet extends BaseServlet {
 			BitcoinDatabaseManager.close(smt);
 		}		
 		
-		return false;
-	}
-
-	public static boolean sendEmailBackup(String guid, String email, String payload)  {
-		return ApiClient.conn().sendMail(email, "Wallet Backup", "<h1>Encrypted Wallet Backup</h1> <p>Below is your AES encrypted wallet data. You can use it to restore your wallet at anytime using <a href=\"https://blockchain.info/wallet\">My Wallet</a> or using standard unix tools</p> <p>Your wallet url is <a href=\"https://blockchain.info/wallet/" + guid + "\">https://blockchain.info/wallet/" + guid + "</a></p> <small>" + payload + "</small>");
+		return null;
 	}
 	
-	public String addSlashes(String str){
+	public static boolean sendTwoFactorEmail(String email, String guid, String code) {
+		
+		ApiClient api = ApiClient.conn();
+		try {
+			return api.sendMail(email, "My Wallet Confirmation code", "<h1>Confirmation Required</h1> <p>An attempt has been made to login to your My wallet account. Enter the confirmation code below to access your account. If it was not you who made this login attempt you can ignore this email. </p><h2>" + code +"</h2>");
+		} finally {
+			ApiClient.close(api);
+		}
+	}
+
+	public static boolean sendEmailBackup(String guid, String email, String payload) {
+		
+		ApiClient api = ApiClient.conn();
+		try {
+			return api.sendMail(email, "Wallet Backup", "<h1>Encrypted Wallet Backup</h1> <p>Below is your AES encrypted wallet data. You can use it to restore your wallet at anytime using <a href=\"https://blockchain.info/wallet\">My Wallet</a> or using standard unix tools</p> <p>Your wallet url is <a href=\"https://blockchain.info/wallet/" + guid + "\">https://blockchain.info/wallet/" + guid + "</a></p> <small>" + payload + "</small>");
+		} finally {
+			ApiClient.close(api);
+		}
+	}
+	
+	public String encode(String str){
 		if(str==null) return "";
 
 		StringBuffer s = new StringBuffer ((String) str);
-		for (int i = 0; i < s.length(); i++)
-		if (s.charAt (i) == '\'')
-		s.insert (i++, '\\');
+		
+		for (int i = 0; i < s.length(); i++) {	
+			if (s.charAt (i) == '"')
+				s.insert (i++, '\\');
+		}
+		
 		return s.toString();
-
 	}
 
+	public static boolean isValidEmailAddress(String aEmailAddress){
+	    try {
+	      InternetAddress emailAddr = new InternetAddress(aEmailAddress);
+	     
+	      emailAddr.validate();
+	      
+	      return true;
+	    } catch (Exception ex){
+	       return false;
+	    }
+	}
+	  
 	protected void doPost(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
 
 		res.setContentType("text/plain");
@@ -389,7 +490,7 @@ public class WalletServlet extends BaseServlet {
 					return;
 				}
 				
-				PreparedStatement update_smt = conn.prepareStatement("update bitcoin_wallets set payload = ?, updated = ?, updated_ip = ?, payload_checksum = ? where guid = ? and (shared_key is null or shared_key = ?)");
+				PreparedStatement update_smt = conn.prepareStatement("update bitcoin_wallets set payload = ?, updated = ?, updated_ip = ?, payload_checksum = ? where guid = ? and shared_key = ?");
 
 				try {
 					update_smt.setString(1, payload);
@@ -410,7 +511,7 @@ public class WalletServlet extends BaseServlet {
 				}
 				
 				//Read it back to double check
-				PreparedStatement select_smt = conn.prepareStatement("select payload, payload_checksum from bitcoin_wallets where guid = ? and (shared_key is null or shared_key = ?)");
+				PreparedStatement select_smt = conn.prepareStatement("select payload, payload_checksum from bitcoin_wallets where guid = ? and shared_key = ?");
 				try {
 
 					select_smt.setString(1, guid);
@@ -431,7 +532,7 @@ public class WalletServlet extends BaseServlet {
 						}
 					} else {
 						res.setStatus(500);
-						res.getOutputStream().print("Failed to re-read wallet after save. You wallet may not be saved properly.");	
+						res.getOutputStream().print("Failed to re-read wallet after save. Your wallet may not be saved properly.");	
 						return;
 					}
 
@@ -440,8 +541,27 @@ public class WalletServlet extends BaseServlet {
 				}
 
 				
+			} else if (method.equals("update-notifications-type")) {
+				PreparedStatement update_smt = conn.prepareStatement("update bitcoin_wallets set notifications_type = ? where guid = ? and shared_key = ?");
+
+				try {
+					update_smt.setInt(1, Integer.valueOf(payload).intValue());
+					update_smt.setString(2, guid);
+					update_smt.setString(3, sharedKey);
+
+					if (update_smt.executeUpdate() == 1) {
+						res.getOutputStream().print("Notifications settings updated");
+					} else {
+						res.setStatus(500);
+						res.getOutputStream().print("Error updating notifications type");	
+					}
+
+				} finally {
+					BitcoinDatabaseManager.close(update_smt);
+				}
+				
 			} else if (method.equals("update-auth-type")) {
-				PreparedStatement update_smt = conn.prepareStatement("update bitcoin_wallets set auth_type = ? where guid = ? and (shared_key is null or shared_key = ?)");
+				PreparedStatement update_smt = conn.prepareStatement("update bitcoin_wallets set auth_type = ? where guid = ? and shared_key = ?");
 
 				try {
 					update_smt.setInt(1, Integer.valueOf(payload).intValue());
@@ -459,7 +579,84 @@ public class WalletServlet extends BaseServlet {
 					BitcoinDatabaseManager.close(update_smt);
 				}
 				
-			}else if (method.equals("update-yubikey")) {
+			} else if (method.equals("update-skype")) {
+				PreparedStatement update_smt = conn.prepareStatement("update bitcoin_wallets set skype_username = ? where guid = ? and shared_key = ?");
+
+				try {
+					update_smt.setString(1, payload.trim());
+					update_smt.setString(2, guid);
+					update_smt.setString(3, sharedKey);
+
+					if (update_smt.executeUpdate() == 1) {
+						res.getOutputStream().print("Skype Username updated");
+					} else {
+						res.setStatus(500);
+						res.getOutputStream().print("Error updating Skype username");	
+					}
+
+				} finally {
+					BitcoinDatabaseManager.close(update_smt);
+				}
+				
+			}  else if (method.equals("update-http-url")) {
+				
+			    URL url = new URL(payload.trim());
+
+			    if (!url.getProtocol().equals("http")) {
+			    	res.setStatus(500);
+					res.getOutputStream().print("Must provide a valid HTTP url");
+					return;
+			    }
+			    
+			    if (InetAddress.getByName(url.getHost()).isSiteLocalAddress() || url.getHost().indexOf("blockchain.info") != -1 || url.getHost().equals("localhost")) { 
+			    	res.setStatus(500);
+					res.getOutputStream().print("URL provided seems to be a local address");
+					return;
+			    }
+			    
+			    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+			    
+			    connection.setConnectTimeout(10000);
+			    
+			    connection.setInstanceFollowRedirects(false);
+			    
+			    connection.connect();
+			    
+			    if (connection.getResponseCode() != 200) {
+			    	res.setStatus(500);
+					res.getOutputStream().print("Invalid HTTP Response code " + connection.getResponseCode());
+					return;
+			    }
+			    
+			    String response = IOUtils.toString(connection.getInputStream(), "UTF-8");
+
+			    if (!response.equals(guid)) {
+			    	res.setStatus(500);
+					res.getOutputStream().print("URL must respond with wallet identifier. Please see documentation");
+					return;
+			    }
+			    	
+			    connection.disconnect();
+			    
+				PreparedStatement update_smt = conn.prepareStatement("update bitcoin_wallets set http_url = ? where guid = ? and shared_key = ?");
+
+				try {
+					update_smt.setString(1, url.toExternalForm());
+					update_smt.setString(2, guid);
+					update_smt.setString(3, sharedKey);
+
+					if (update_smt.executeUpdate() == 1) {
+						res.getOutputStream().print("HTTP URL updated");
+					} else {
+						res.setStatus(500);
+						res.getOutputStream().print("Error updating HTTP url");	
+					}
+
+				} finally {
+					BitcoinDatabaseManager.close(update_smt);
+				}
+				
+			} else if (method.equals("update-yubikey")) {
 				
 				//Check payload
 				int length = Integer.valueOf(req.getParameter("length")).intValue();
@@ -475,7 +672,7 @@ public class WalletServlet extends BaseServlet {
 					return;
 				}
 				
-				PreparedStatement update_smt = conn.prepareStatement("update bitcoin_wallets set yubikey = ? where guid = ? and (shared_key is null or shared_key = ?)");
+				PreparedStatement update_smt = conn.prepareStatement("update bitcoin_wallets set yubikey = ? where guid = ? and shared_key = ?");
 
 				try {
 					update_smt.setString(1, YubicoClient.getPublicId(payload));
@@ -493,16 +690,93 @@ public class WalletServlet extends BaseServlet {
 					BitcoinDatabaseManager.close(update_smt);
 				}
 				
+			} else if (method.equals("verify-email")) {
+				
+				PreparedStatement email_confirm_stmt = null;
+				try {
+					email_confirm_stmt = conn.prepareStatement("update bitcoin_wallets set email_verified = 1 where guid = ? and email_code = ?");
+
+					email_confirm_stmt.setString(1, guid);
+					email_confirm_stmt.setString(2, payload.trim());
+					
+					if (email_confirm_stmt.executeUpdate() == 1) {
+						res.getOutputStream().print("Email successfully verified");
+					} else {
+						res.setStatus(500);
+						res.getOutputStream().print("Unable to verify email.");
+					}
+				} finally {
+					BitcoinDatabaseManager.close(email_confirm_stmt);
+				}
+			
+			} else if (method.equals("update-pub-keys")) {
+			
+				//Clear existing
+				PreparedStatement chck_shared = null;
+				try {
+					chck_shared = conn.prepareStatement("delete from bitcoin_wallet_keys where guid = ? and (select count(*) from bitcoin_wallets where guid = ? and shared_key = ?) > 0");
+					chck_shared.setString(1, guid);
+					chck_shared.setString(2, guid);
+					chck_shared.setString(3, sharedKey);
+
+					chck_shared.executeUpdate();
+				} finally {
+					BitcoinDatabaseManager.close(chck_shared);
+				}
+								
+				String[] addresses = payload.split("\\|");
+				
+				if (addresses.length > 200) {
+					res.setStatus(500);
+					res.getOutputStream().print("A Maximum of 200 bitcoin addresses are supported.");
+				}
+				
+				PreparedStatement insert_smt = null;
+				try {
+					insert_smt = conn.prepareStatement("insert into bitcoin_wallet_keys (guid, hash) select guid, ? from bitcoin_wallets where guid = ? and shared_key = ?");
+
+					for (String addr : addresses) {
+						
+						byte[] hash160 = new Hash(addr).getBytes();
+						
+						if (hash160.length != 20) {
+							res.setStatus(500);
+							res.getOutputStream().print("Invalid Hash 160.");
+							return;
+						}
+							
+						insert_smt.setBytes(1, hash160);
+						insert_smt.setString(2, guid);
+						insert_smt.setString(3, sharedKey);
+
+						insert_smt.executeUpdate();
+					}
+					
+				} finally {
+					BitcoinDatabaseManager.close(insert_smt);
+				}
+			
 			} else if (method.equals("update-email")) {
-				PreparedStatement update_smt = conn.prepareStatement("update bitcoin_wallets set email = ? where guid = ? and (shared_key = ? or shared_key is NULL)");
+								
+				if (!isValidEmailAddress(payload.trim())) {
+					res.setStatus(500);
+					res.getOutputStream().print("Invalid Email Address");
+					return;
+				}
+			
+				PreparedStatement update_smt = conn.prepareStatement("update bitcoin_wallets set email = ?, email_verified = 0 where guid = ? and shared_key = ?");
 
 				try {
-					update_smt.setString(1, payload);
+					update_smt.setString(1, payload.trim());
 					update_smt.setString(2, guid);
 					update_smt.setString(3, sharedKey);
 
-					if (update_smt.executeUpdate() == 1) {						
-						if (sendEmailLink(payload, guid)) {
+					if (update_smt.executeUpdate() == 1) {	
+						
+						//Generate a new email code
+						generateAndUpdateEmailCode(guid);
+						
+						if (sendEmailLink(guid)) {
 							res.getOutputStream().print("Email successfully updated. You have been notified");
 						} else {
 							res.setStatus(500);
@@ -516,8 +790,10 @@ public class WalletServlet extends BaseServlet {
 				} finally { //get-info
 					BitcoinDatabaseManager.close(update_smt);
 				}
+				
+				
 			} else if (method.equals("get-info")) {
-				PreparedStatement select_smt = conn.prepareStatement("select email, secret_phrase, alias, yubikey from bitcoin_wallets where guid = ? and (shared_key = ? or shared_key is NULL)");
+				PreparedStatement select_smt = conn.prepareStatement("select email, secret_phrase, alias, yubikey, email_verified, http_url, skype_username from bitcoin_wallets where guid = ? and shared_key = ?");
 
 				try {
 					select_smt.setString(1, guid);
@@ -526,26 +802,17 @@ public class WalletServlet extends BaseServlet {
 					ResultSet results = select_smt.executeQuery();
 					
 					if (results.next()) {
-						String email = results.getString(1);
-						String phrase = addSlashes(results.getString(2));
-						String alias = addSlashes(results.getString(3));
-						String yubikey = addSlashes(results.getString(4));
-
-						if (email == null)
-							email = "";
-						
-						if (phrase == null)
-							phrase = "";
-						
-						if (alias == null)
-							alias = "";
-						
-						if (yubikey == null)
-							yubikey = "";
+						String email = encode(results.getString(1));
+						String phrase = encode(results.getString(2));
+						String alias = encode(results.getString(3));
+						String yubikey = encode(results.getString(4));
+						int email_verified = results.getInt(5);
+						String http_url = encode(results.getString(6));
+						String skype_username = encode(results.getString(7));
 						
 						res.setContentType("text/json");
 						
-						res.getOutputStream().print("{\"email\" : \"" + email + "\", \"phrase\" : \"" + phrase + "\", \"alias\" : \"" + alias + "\", \"yubikey\" : \"" + yubikey + "\"}");
+						res.getOutputStream().print("{\"email\" : \"" + email + "\", \"phrase\" : \"" + phrase + "\", \"alias\" : \"" + alias + "\", \"yubikey\" : \"" + yubikey + "\", \"email_verified\" : \"" + email_verified + "\", \"http_url\" : \"" + http_url + "\", \"skype_username\" : \"" + skype_username + "\"}");
 						
 					} else {
 						res.setStatus(500);
@@ -555,10 +822,10 @@ public class WalletServlet extends BaseServlet {
 					BitcoinDatabaseManager.close(select_smt);
 				}
 			} else if (method.equals("update-phrase")) {
-				PreparedStatement update_smt = conn.prepareStatement("update bitcoin_wallets set secret_phrase = ? where guid = ? and (shared_key = ? or shared_key is NULL)");
+				PreparedStatement update_smt = conn.prepareStatement("update bitcoin_wallets set secret_phrase = ? where guid = ? and shared_key = ?");
 
 				try {
-					update_smt.setString(1, payload);
+					update_smt.setString(1, payload.trim());
 					update_smt.setString(2, guid);
 					update_smt.setString(3, sharedKey);
 
@@ -573,10 +840,10 @@ public class WalletServlet extends BaseServlet {
 					BitcoinDatabaseManager.close(update_smt);
 				}
 			} else if (method.equals("update-alias")) {
-				PreparedStatement update_smt = conn.prepareStatement("update bitcoin_wallets set alias = ? where guid = ? and (shared_key = ? or shared_key is NULL)");
+				PreparedStatement update_smt = conn.prepareStatement("update bitcoin_wallets set alias = ? where guid = ? and shared_key = ?");
 
 				try {
-					update_smt.setString(1, payload);
+					update_smt.setString(1, payload.trim());
 					update_smt.setString(2, guid);
 					update_smt.setString(3, sharedKey);
 
@@ -591,7 +858,7 @@ public class WalletServlet extends BaseServlet {
 					BitcoinDatabaseManager.close(update_smt);
 				}
 			} else if (method.equals("email-backup")) {
-				PreparedStatement select_smt = conn.prepareStatement("select email, payload from bitcoin_wallets where guid = ? and (shared_key = ? or shared_key is NULL)");
+				PreparedStatement select_smt = conn.prepareStatement("select email, payload from bitcoin_wallets where guid = ? and shared_key = ?");
 
 				try {
 					select_smt.setString(1, guid);
@@ -687,6 +954,8 @@ public class WalletServlet extends BaseServlet {
 
 										if (session != null) {
 											session.setAttribute("saved_guid", guid);
+										    session.setAttribute("saved_auth_type", auth_type);
+										    
 											session.setMaxInactiveInterval(240);
 										}
 										
@@ -725,6 +994,7 @@ public class WalletServlet extends BaseServlet {
 
 								if (session != null) {
 									session.setAttribute("saved_guid", guid);
+								    session.setAttribute("saved_auth_type", auth_type);
 									session.setMaxInactiveInterval(1440); //Email expires in 24 hours
 								}
 								
@@ -746,6 +1016,7 @@ public class WalletServlet extends BaseServlet {
 
 								if (session != null) {
 									session.setAttribute("saved_guid", guid);
+								    session.setAttribute("saved_auth_type", auth_type);
 									session.setMaxInactiveInterval(240);
 								}
 								
@@ -805,9 +1076,9 @@ public class WalletServlet extends BaseServlet {
 					} finally {
 						BitcoinDatabaseManager.close(update_succees);
 					}		
-					
-					BitcoinDatabaseManager.close(select_smt);
 				}
+			
+				BitcoinDatabaseManager.close(select_smt);
 			}
 		}
 				
