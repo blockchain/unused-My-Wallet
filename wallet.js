@@ -23,6 +23,8 @@ var unspent_cache = null;
 var downloadify_initd = false;
 var address_tags = []; //Map of address to an option tag (0 == OK 1 == Unsynced, 2 == Archived, 3 == No Private Key)
 
+showInvBtn = true;
+
 // Flash fall back for webscoket compatiability
 WEB_SOCKET_SWF_LOCATION = "/Resources/WebSocketMain.swf";
 
@@ -1692,6 +1694,68 @@ function internalAddOrReplaceKey(addr, priv) {
 }
 
 
+
+function showInventoryModal(hash) {
+	var modal = $('#inv-modal');
+
+	modal.modal({
+		  keyboard: true,
+		  backdrop: "static",
+		  show: true
+	});
+	
+	modal.center();
+
+	setLoadingText('Getting Inventory Data');
+
+	modal.find('.modal-body').hide();
+
+	$.get(root + 'inv/'+hash+'?format=json').success(function(data) { 
+		
+		modal.find('.modal-body').show(200);
+		
+		$('#initial_ip').html('<a href="'+root+'ip-address/'+data.initial_ip+'">'+data.initial_ip+'</a>');
+				
+		$('#initial_time').html(dateToString(new Date(parseInt(data.initial_time))));
+
+		$('#last_seen').html(dateToString(new Date(parseInt(data.last_time))));
+
+		$('#inv_n_connected').html(data.nconnected);
+		
+		$('#total_relayed').html(data.relayed_count);
+
+		$('#p_network').html(data.relayed_percent);
+		
+		var container = $('#inv_mining_nodes');
+		
+		container.empty();
+		
+		var tmp_map = [];
+		
+		for (var i = 0; i < data.mining_nodes.length; ++i) {
+			var node = data.mining_nodes[i];
+			
+			if (tmp_map[node.name] == null) {
+				tmp_map[node.name] = true;
+				container.append('<li><a href="'+node.link+'">'+node.name+'</a></li>');
+			}
+		}
+		
+		if (data.mining_nodes == 0) {
+			container.append('<li>No mining nodes have receivied this transaction. It is unlikely to be included in any blocks and will be clear in approximatly 24 hours.</li>');
+		}
+
+	}).error(function(data) {
+		modal.modal('hide');
+		makeNotice('error', 'misc-error', 'Error getting inventory data.'); 
+	});
+	
+	modal.find('.btn.secondary').unbind().click(function() {
+		modal.modal('hide');
+	});
+}
+
+
 function addAddressBookEntry() {
 	var modal = $('#add-address-book-entry-modal');
 
@@ -3259,7 +3323,7 @@ function buildReceiveCoinsView() {
 			balance = '0 <span class="can-hide">BTC</span>';
 				
 		
-		var thtml = '<tr><td style="width:20px;"><img id="qr'+addr+'"  onclick="showQRCodeModal(\'' + addr +'\')" src="'+resource+'qrcode.png" /></td><td><div class="my-addr-entry">' + addr + noPrivateKey +'<div></td><td>';
+		var thtml = '<tr><td style="width:20px;"><img id="qr'+addr+'"  onclick="showQRCodeModal(\'' + addr +'\')" src="'+resource+'qrcode.png" /></td><td><div class="my-addr-entry"><a href="'+root+'address/'+addr+'" target="new">' + addr + '</a>' + noPrivateKey +'<div></td><td>';
 		
 		if (tag == 2)
 			thtml += '<img class="basic" src="'+resource+'unarchive.png" onclick="unArchiveAddr(\''+addr+'\')" />';

@@ -1,4 +1,5 @@
 var satoshi = parseInt(100000000); //One satoshi
+var showInvBtn = false;
 
 function Transaction () { }
 function Block () { }
@@ -173,7 +174,13 @@ Transaction.prototype.getHTML = function(myAddresses) {
 		html += '<button class="btn primary confm">' + this.confirmations + ' Confirmations</button> ';
 	} 
 	
-	html += '<button class="btn info">'+  toFixed(Math.round((result / satoshi) * market_price * 100)/100, 2) + ' USD</button> <button class="'+button_class+'">'+  toFixed(result / satoshi, 4) + ' BTC</button></span></div>';
+	html += '<button class="btn info">'+  toFixed(Math.round((result / satoshi) * market_price * 100)/100, 2) + ' USD</button> <button class="'+button_class+'">'+  toFixed(result / satoshi, 4) + ' BTC</button>';
+	
+	if (showInvBtn && !offline && this.confirmations == 0) {
+		html += '<button class="btn" style="padding-top:4px;padding-bottom:4px;padding-left:7px;padding-right:7px;" onclick="showInventoryModal(\''+this.hash+'\')"><img src="'+resource+'network.png" /></button> ';
+	}
+	
+	html += '</span></div>';
 	
 	return html;
 };
