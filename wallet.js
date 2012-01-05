@@ -78,6 +78,18 @@ function doStuffTimer () {
 } 
 
 function websocketConnect() {
+	if (window.WebSocket == null) {
+		 loadScript(resource + 'wallet/swfobject.js', function() { 
+			  loadScript(resource + 'wallet/web_socket.js', function() { 
+				  	_websocketConnect();
+			  });
+		 });
+	} else {
+	  	_websocketConnect();
+	}
+}
+	
+function _websocketConnect() {
 	
 	if (offline) return;
 	
