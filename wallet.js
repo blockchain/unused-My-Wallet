@@ -1708,11 +1708,11 @@ function showInventoryModal(hash) {
 
 	setLoadingText('Getting Inventory Data');
 
-	modal.find('.modal-body').hide();
+	$('#inv-data').hide();
 
 	$.get(root + 'inv/'+hash+'?format=json').success(function(data) { 
 		
-		modal.find('.modal-body').show(200);
+		$('#inv-data').show(200);
 		
 		$('#initial_ip').html('<a href="'+root+'ip-address/'+data.initial_ip+'">'+data.initial_ip+'</a>');
 				
