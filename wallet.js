@@ -23,6 +23,9 @@ var unspent_cache = null;
 var downloadify_initd = false;
 var address_tags = []; //Map of address to an option tag (0 == OK 1 == Unsynced, 2 == Archived, 3 == No Private Key)
 
+// Flash fall back for webscoket compatiability
+WEB_SOCKET_SWF_LOCATION = "/Resources/WebSocketMain.swf";
+
 jQuery.fn.center = function () {
     this.css("top", ( $(window).height() - this.height() ) / 2+$(window).scrollTop() + "px");
     this.css("left", ( $(window).width() - this.width() ) / 2+$(window).scrollLeft() + "px");
@@ -59,10 +62,7 @@ function hideNotice(id) {
 	$('#'+id).remove();
 }
 
-// Flash fall back for webscoket compatiability
-WEB_SOCKET_SWF_LOCATION = "/Resources/WebSocketMain.swf";
-
-setInterval ( "doStuffTimer()", 10000 );
+//setInterval ( "doStuffTimer()", 10000 );
 
 //Updates time last block was received and check for websocket connectivity
 function doStuffTimer () {
@@ -78,9 +78,10 @@ function doStuffTimer () {
 } 
 
 function websocketConnect() {
-	if (window.WebSocket == null) {
+	if (!window.WebSocket) {
 		 loadScript(resource + 'wallet/swfobject.js', function() { 
 			  loadScript(resource + 'wallet/web_socket.js', function() { 
+				  	WebSocket.__initialize();
 				  	_websocketConnect();
 			  });
 		 });
@@ -94,6 +95,7 @@ function _websocketConnect() {
 	if (offline) return;
 	
 	try {
+		
 
 		ws = new WebSocket("ws://api.blockchain.info:8335/inv");
 		
@@ -228,7 +230,9 @@ function _websocketConnect() {
 		ws.onclose = function() {
 			$('#status').html('DISCONNECTED.');
 		};
-	} catch (e) {}
+	} catch (e) {
+		console.log('Exception ' + e);
+	}
 }
 
 function makeNotice(type, id, msg, timeout) {
