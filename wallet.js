@@ -62,7 +62,7 @@ function hideNotice(id) {
 	$('#'+id).remove();
 }
 
-//setInterval ( "doStuffTimer()", 10000 );
+setInterval ( "doStuffTimer()", 10000 );
 
 //Updates time last block was received and check for websocket connectivity
 function doStuffTimer () {
@@ -95,8 +95,7 @@ function _websocketConnect() {
 	if (offline) return;
 	
 	try {
-		
-
+	
 		ws = new WebSocket("ws://api.blockchain.info:8335/inv");
 		
 		ws.onmessage = function(e) {

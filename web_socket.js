@@ -4,7 +4,7 @@
 // Reference: http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10
 
 (function() {
-  
+	  
   if (window.WebSocket && !window.WEB_SOCKET_FORCE_FLASH) return;
   
   var logger;
