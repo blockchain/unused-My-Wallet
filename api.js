@@ -65,7 +65,7 @@ function padStr(i) {
 }
 
 function dateToString(d) {
-	  return padStr(d.getFullYear()) + '-' + 1 + padStr(d.getMonth()) + '-' + padStr(d.getDate()) + ' ' + padStr(d.getHours()) + ':' + padStr(d.getMinutes()) + ':' + padStr(d.getSeconds());
+	  return padStr(d.getFullYear()) + '-' + padStr(1 + d.getMonth()) + '-' + padStr(d.getDate()) + ' ' + padStr(d.getHours()) + ':' + padStr(d.getMinutes()) + ':' + padStr(d.getSeconds());
 }
 
 Transaction.prototype.getHTML = function(myAddresses) {    
