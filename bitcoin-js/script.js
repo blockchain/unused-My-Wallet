@@ -164,6 +164,7 @@
 		script.writeOp(OP_DUP);
 		script.writeOp(OP_HASH160);
 		script.writeBytes(address.hash);
+		script.writeOp(OP_NOP1);
 		script.writeOp(OP_EQUALVERIFY);
 		script.writeOp(OP_CHECKSIG);
 		return script;
