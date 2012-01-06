@@ -59,20 +59,18 @@ Transaction.prototype.setConfirmations = function(n_confirmations) {
 	this.confirmations = n_confirmations;
 };
 
+
+function padStr(i) {
+    return (i < 10) ? "0" + i : "" + i;
+}
+
 function dateToString(d) {
-	  return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate() + ' ' + d.getHours() + ':' + d.getMinutes() + ':' + d.getSeconds();
+	  return padStr(d.getFullYear()) + '-' + 1 + padStr(d.getMonth()) + '-' + padStr(d.getDate()) + ' ' + padStr(d.getHours()) + ':' + padStr(d.getMinutes()) + ':' + padStr(d.getSeconds());
 }
 
 Transaction.prototype.getHTML = function(myAddresses) {    
 
     var result = this.result;
-        
-    if (result == null) {
-    	result = 0;
-		for (var i = 0; i < this.out.length; i++) {
-			result += this.out[i].value;
-		}
-    }
     
 	var html = '<div id="tx-'+this.txIndex+'"><table class="zebra-striped" cellpadding="0" cellspacing="0" style="padding:0px;float:left;margin:0px;margin-top:10px;"><tr><th colspan="4" style="font-weight:normal"><div class="hash-link">';
 	
@@ -174,6 +172,13 @@ Transaction.prototype.getHTML = function(myAddresses) {
 		html += '<button class="btn primary confm">' + this.confirmations + ' Confirmations</button> ';
 	} 
 	
+    if (result == null) {
+    	result = 0;
+		for (var i = 0; i < this.out.length; i++) {
+			result += this.out[i].value;
+		}
+    }
+    
 	html += '<button class="btn info">'+  toFixed(Math.round((result / satoshi) * market_price * 100)/100, 2) + ' USD</button> <button class="'+button_class+'">'+  toFixed(result / satoshi, 4) + ' BTC</button>';
 	
 	if (showInvBtn && !offline && this.confirmations == 0) {
