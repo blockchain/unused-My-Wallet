@@ -1567,21 +1567,6 @@ function signInput(sendTx, missingPrivateKeys, selectedOuts, i) {
 		return true;
 }
 
-function parseScript(script) {
-		
-	var newScript = new Bitcoin.Script();
-	var components = script.split(" ");
-	for (var i = 0; i < components.length; ++i) {
-		
-		if (Bitcoin.Opcode.map.hasOwnProperty(components[i])){
-			newScript.writeOp(Bitcoin.Opcode.map[components[i]]);
-		} else {
-			newScript.writeBytes(Crypto.util.hexToBytes(components[i]));
-		}
-	}
-	return newScript;
-}
-
 function internalDeletePrivateKey(addr) {
 	
 	if (private_keys[addr] != null ) {
@@ -2470,7 +2455,7 @@ function newTxValidateFormAndGetUnspent() {
 										
 						var script;
 						try {
-							 script = parseScript(obj.unspent_outputs[i].script);
+							 script = new Bitcoin.Script(Crypto.util.hexToBytes(obj.unspent_outputs[i].script));
 						} catch(e) {
 							makeNotice('error', 'misc-error', 'Error decoding script: ' + e);
 							continue;
