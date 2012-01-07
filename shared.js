@@ -1,8 +1,10 @@
 var satoshi = parseInt(100000000); //One satoshi
 var showInvBtn = false;
-
-function Transaction () { }
-function Block () { }
+var show_adv = false;
+var adv_rule;
+	
+function Transaction () { };
+function Block () { };
 
 function BlockFromJSON(json) {
 	var block = new Block();
@@ -59,14 +61,13 @@ Transaction.prototype.setConfirmations = function(n_confirmations) {
 	this.confirmations = n_confirmations;
 };
 
-
 function padStr(i) {
     return (i < 10) ? "0" + i : "" + i;
-}
+};
 
 function dateToString(d) {
 	  return padStr(d.getFullYear()) + '-' + padStr(1 + d.getMonth()) + '-' + padStr(d.getDate()) + ' ' + padStr(d.getHours()) + ':' + padStr(d.getMinutes()) + ':' + padStr(d.getSeconds());
-}
+};
 
 Transaction.prototype.getHTML = function(myAddresses) {    
 
@@ -189,3 +190,57 @@ Transaction.prototype.getHTML = function(myAddresses) {
 	
 	return html;
 };
+
+function goToWallet(addr) {
+	
+	if (localStorage) {
+		var guid = localStorage.getItem('guid');
+			
+		if (guid != null) {
+			if (addr == null) {
+				window.location='https://blockchain.info/wallet/'+guid;
+			} else {
+				window.location='https://blockchain.info/wallet/'+guid+'#newaddr|${address}';
+			}
+			
+			return;
+		} 
+	}
+	
+	if (addr == null) {
+		window.location='https://blockchain.info/wallet';
+	} else {
+		window.location='https://blockchain.info/wallet/new#newaddr|${address}';
+	}
+}
+
+function toggleAdv() {
+	setAdv(!show_adv);
+}
+
+function setAdv(isOn) {
+	show_adv = isOn;
+
+	if (adv_rule != null) {
+		adv_rule.remove();
+	}
+	
+	if (show_adv) {	
+		adv_rule = $("<style type='text/css'> .adv{display: inherit;} .basic{display: none;} </style>").appendTo("head");
+		
+		$('a[class=show_adv]').text('Show Basic');
+	} else {
+		adv_rule = $("<style type='text/css'> .adv{display: none;} .basic{display: inherit;} </style>").appendTo("head");
+		
+		$('a[class=show_adv]').text('Show Advanced');
+	}
+}
+
+$(document).ready(function() {	
+	
+	$('a[class=show_adv]').click(function() {	
+		toggleAdv();
+	});
+
+	setAdv(show_adv);
+});
