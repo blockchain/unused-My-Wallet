@@ -238,9 +238,11 @@ function setAdv(isOn) {
 
 $(document).ready(function() {	
 	
-	$('a[class=show_adv]').click(function() {	
-		toggleAdv();
-	});
+	try {
+		$('a[class=show_adv]').click(function() {	
+			toggleAdv();
+		});
 
-	setAdv(show_adv);
+		setAdv(show_adv);
+	} catch (e) {}
 });
