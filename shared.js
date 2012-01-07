@@ -120,6 +120,13 @@ Transaction.prototype.getHTML = function(myAddresses) {
 
 	html += '</ul></td><td class="can-hide" style="padding:0px;width:48px;min-height:48px;vertical-align:middle;">';
 	
+    if (result == null) {
+    	result = 0;
+		for (var i = 0; i < this.out.length; i++) {
+			result += this.out[i].value;
+		}
+    }
+    
 	var button_class;
 	if (result >= 0) {
 		button_class = 'btn success';
@@ -173,13 +180,6 @@ Transaction.prototype.getHTML = function(myAddresses) {
 		html += '<button class="btn primary confm">' + this.confirmations + ' Confirmations</button> ';
 	} 
 	
-    if (result == null) {
-    	result = 0;
-		for (var i = 0; i < this.out.length; i++) {
-			result += this.out[i].value;
-		}
-    }
-    
 	html += '<button class="btn info">'+  toFixed(Math.round((result / satoshi) * market_price * 100)/100, 2) + ' USD</button> <button class="'+button_class+'">'+  toFixed(result / satoshi, 4) + ' BTC</button>';
 	
 	if (showInvBtn && !offline && this.confirmations == 0) {
