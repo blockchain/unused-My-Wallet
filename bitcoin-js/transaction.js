@@ -68,7 +68,7 @@
 			}));
 		}
 	};
-
+	
 	Transaction.prototype.serialize = function ()
 	{
 		var buffer = [];

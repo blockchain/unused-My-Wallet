@@ -1401,13 +1401,7 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
     //Add blockchain.info's fees
     var ouraddr = new Bitcoin.Address(our_address);
     
-    var ourFee = txValue.divide(BigInteger.valueOf(100)).multiply(BigInteger.valueOf(1));
-    
-    var opointone = BigInteger.valueOf(1000000); // 0.01 BTC
-    
-    if (ourFee.compareTo(opointone) < 0) {
-        ourFee = opointone;
-    } 
+    var ourFee = BigInteger.valueOf(1000000); // 0.01 BTC
 
 	var availableValue = BigInteger.ZERO;
 	var availableFeeValue = BigInteger.ZERO;
@@ -1427,6 +1421,8 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 	//Add the miners fees
 	if (feeValue != null)
 		txValue = txValue.add(feeValue);
+	
+	var priority = 0;
 	
 	for (var i = 0; i < unspentOutputs.length; ++i) {
 		
@@ -1459,7 +1455,9 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 			var b64hash = Crypto.util.bytesToBase64(Crypto.util.hexToBytes(out.tx_hash));
 			
 			selectedOuts.push(new Bitcoin.TransactionIn({outpoint: {hash: b64hash, hexhash: hexhash, index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295}));
-							
+						
+			priority += out.value * out.confirmations;
+				
 			if (availableValue.compareTo(txValue) >= 0 && (feeAddress == null || availableFeeValue.compareTo(ourFee) >= 0)) 
 				break;
 			
@@ -1489,8 +1487,6 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 	for (var i =0; i < toAddressesWithValue.length; ++i) {	
 		sendTx.addOutput(toAddressesWithValue[i].address, toAddressesWithValue[i].value);
 	}
-    
-   sendTx.addOutput(ouraddr, ourFee);
 
 	if (changeValue > 0) {
 		if (changeAddress != null) //If chenge address speicified return to that
@@ -1503,6 +1499,24 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 			
 			sendTx.addOutput(new Bitcoin.Address(Crypto.util.hexToBytes(hash)), changeValue);
 		}
+	}
+	
+
+	//Get the transaction size
+	sendTx.addOutput(ouraddr, ourFee);
+
+	priority /= sendTx.serialize().length;
+		
+	//Proority under 57 million requires a 0.01 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
+	if (priority < 57600000) {
+		
+		
+		sendTx.outs.splice(sendTx.outs.length-1);
+		
+		sendTx.addOutput(ouraddr, BigInteger.ZERO);
+
+		//Add a ZERO output
+		//Don't actually remove it for analytics purposes
 	}
 			
 	return sendTx;
@@ -2463,7 +2477,8 @@ function newTxValidateFormAndGetUnspent() {
 						var out = {script : script,
 							value : BigInteger.fromByteArrayUnsigned(Crypto.util.hexToBytes(obj.unspent_outputs[i].value_hex)),
 							tx_output_n : obj.unspent_outputs[i].tx_output_n,
-							tx_hash : obj.unspent_outputs[i].tx_hash
+							tx_hash : obj.unspent_outputs[i].tx_hash,
+							confirmations : obj.unspent_outputs[i].confirmations
 						};
 						
 						unspent.push(out);
