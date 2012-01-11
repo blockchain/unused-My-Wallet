@@ -653,22 +653,13 @@ function buildTransactionsView() {
 function parseMultiAddressJSON(json) {
 	var obj = jQuery.parseJSON(json);
 	
-	total_received = 0;
-	total_sent = 0;
-	final_balance = 0;
-	n_tx = 0;
+	total_received = obj.wallet.total_received;
+	total_sent = obj.wallet.total_sent;
+	final_balance = obj.wallet.final_balance;
+	n_tx = obj.wallet.n_tx;
 	transactions = [];
 	
-	for (var i = 0; i < obj.addresses.length; ++i) {
-		
-		final_balance += obj.addresses[i].final_balance;
-		
-		total_sent += obj.addresses[i].total_sent;
-	
-		total_received += obj.addresses[i].total_received;
-	
-		n_tx += obj.addresses[i].n_tx;
-		
+	for (var i = 0; i < obj.addresses.length; ++i) {	
 		balances[obj.addresses[i].address] = obj.addresses[i].final_balance;
 	}	
 	
