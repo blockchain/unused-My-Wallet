@@ -2682,9 +2682,7 @@ function populateImportExportView() {
 
 function bind() {
 	
-$('#notifications-form select').change(function() {
-		console.log('bind start');
-
+	$('#notifications-form select').change(function() {
 		var val = $(this).val();
 		
 		notifications_type = parseInt(val);
@@ -3084,9 +3082,6 @@ $('#notifications-form select').change(function() {
 	$('#export-tabs').bind('change', function (e) {
 		populateImportExportView();
 	});
-		
-	console.log('bind done');
-
 }
 
 function privateKeyStringToKey(value, format) {
@@ -3116,13 +3111,7 @@ function privateKeyStringToKey(value, format) {
 }
 	
 
-$(document).ready(function() {	
-		
-	console.log('$(document).ready start');
-	
-	//firefox bug
-	//$('button').removeAttr('disabled');
-	  
+$(document).ready(function() {	  
     setTimeout(bind, 10);
 	
 	$('body').ajaxStart(function() {
@@ -3163,9 +3152,6 @@ $(document).ready(function() {
 	}
 	
 	cVisible.show();
-	
-	console.log('$(document).reader done');
-
 });
 
 
