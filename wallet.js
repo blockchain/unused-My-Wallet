@@ -2681,7 +2681,9 @@ function populateImportExportView() {
 }
 
 function bind() {
-$('#notifications-form select').change(function() {
+	
+	try {
+	$('#notifications-form select').change(function() {
 		
 		var val = $(this).val();
 		
@@ -3082,7 +3084,9 @@ $('#notifications-form select').change(function() {
 	$('#export-tabs').bind('change', function (e) {
 		populateImportExportView();
 	});
-		
+} catch (e) {
+	console.log('bind caught');
+}
 }
 
 function privateKeyStringToKey(value, format) {
@@ -3114,20 +3118,11 @@ function privateKeyStringToKey(value, format) {
 
 $(document).ready(function() {	
 		
+try {
+	
 	//firefox bug
-	$('button').removeAttr('disabled');
+	//$('button').removeAttr('disabled');
 	  
-    //Popovers! 
-    $(function () {
-     $("a[rel=popover]")
-       .popover({
-         offset: 10
-       })
-       .click(function(e) {
-         e.preventDefault();
-       });
-   });
-    
     setTimeout(bind, 10);
 	
 	$('body').ajaxStart(function() {
@@ -3168,6 +3163,9 @@ $(document).ready(function() {
 	}
 	
 	cVisible.show();
+} catch (e) {
+	console.log('document.ready caught');
+}
 });
 
 
