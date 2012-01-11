@@ -2682,9 +2682,9 @@ function populateImportExportView() {
 
 function bind() {
 	
-	try {
-	$('#notifications-form select').change(function() {
-		
+$('#notifications-form select').change(function() {
+		console.log('bind start');
+
 		var val = $(this).val();
 		
 		notifications_type = parseInt(val);
@@ -3084,9 +3084,9 @@ function bind() {
 	$('#export-tabs').bind('change', function (e) {
 		populateImportExportView();
 	});
-} catch (e) {
-	console.log('bind caught');
-}
+		
+	console.log('bind done');
+
 }
 
 function privateKeyStringToKey(value, format) {
@@ -3118,7 +3118,7 @@ function privateKeyStringToKey(value, format) {
 
 $(document).ready(function() {	
 		
-try {
+	console.log('$(document).ready start');
 	
 	//firefox bug
 	//$('button').removeAttr('disabled');
@@ -3163,9 +3163,9 @@ try {
 	}
 	
 	cVisible.show();
-} catch (e) {
-	console.log('document.ready caught');
-}
+	
+	console.log('$(document).reader done');
+
 });
 
 
