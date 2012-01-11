@@ -2679,59 +2679,9 @@ function populateImportExportView() {
 		  }); 
 	  }
 }
-function privateKeyStringToKey(value, format) {
-	
-	var key_bytes = null;
-	
-	if (format == 'base58') {
-		key_bytes = Bitcoin.Base58.decode(value);
-	} else if (format == 'base64') {
-		key_bytes = Crypto.util.base64ToBytes(value);
-	} else if (format == 'hex') {
-		key_bytes = Crypto.util.hexToBytes(value);			
-	} else if (format == 'mini') {
-		key_bytes = parseMiniKey(value);			
-	} else if (format == 'sipa') {
-		var tbytes = Bitcoin.Base58.decode(value);
-		tbytes.shift();
-		key_bytes = tbytes.slice(0, tbytes.length - 4);
-	} else {
-		throw 'Unsupported key format';
-	}	
-	
-	if (key_bytes.length != 32) 
-		throw 'Result not 32 bytes in length';
-	
-	return new Bitcoin.ECKey(key_bytes);
-}
-	
 
-$(document).ready(function() {	
-		
-	//firefox bug
-	$('button').removeAttr('disabled');
-	  
-    //Popovers! 
-    $(function () {
-     $("a[rel=popover]")
-       .popover({
-         offset: 10
-       })
-       .click(function(e) {
-         e.preventDefault();
-       });
-   });
-	
-	$('body').ajaxStart(function() {
-		$('.loading-indicator').fadeIn(200);
-	});
-	
-	$('body').ajaxStop(function() {
-		$('.loading-indicator').fadeOut(200);
-	});
-
-	
-	$('#notifications-form select').change(function() {
+function bind() {
+$('#notifications-form select').change(function() {
 		
 		var val = $(this).val();
 		
@@ -3007,7 +2957,7 @@ $(document).ready(function() {
 	});
 
 	//Password strength meter
-	$('#password').unbind().bind('change keypress keyup', function() {
+	$('#password').bind('change keypress keyup', function() {
 						
 	    var warnings = document.getElementById('password-warnings');
 	    var result = document.getElementById('password-result');
@@ -3124,8 +3074,6 @@ $(document).ready(function() {
 		buildReceiveCoinsView();
 	});
 	
-	$('.tabs').tabs();
-	
 	 $('#export-priv-format').change(function (e) {
 	  	var data = makeWalletJSON($('#export-priv-format').val());
 		$("#json-unencrypted-export").val(data);
@@ -3135,6 +3083,64 @@ $(document).ready(function() {
 		populateImportExportView();
 	});
 		
+}
+
+function privateKeyStringToKey(value, format) {
+	
+	var key_bytes = null;
+	
+	if (format == 'base58') {
+		key_bytes = Bitcoin.Base58.decode(value);
+	} else if (format == 'base64') {
+		key_bytes = Crypto.util.base64ToBytes(value);
+	} else if (format == 'hex') {
+		key_bytes = Crypto.util.hexToBytes(value);			
+	} else if (format == 'mini') {
+		key_bytes = parseMiniKey(value);			
+	} else if (format == 'sipa') {
+		var tbytes = Bitcoin.Base58.decode(value);
+		tbytes.shift();
+		key_bytes = tbytes.slice(0, tbytes.length - 4);
+	} else {
+		throw 'Unsupported key format';
+	}	
+	
+	if (key_bytes.length != 32) 
+		throw 'Result not 32 bytes in length';
+	
+	return new Bitcoin.ECKey(key_bytes);
+}
+	
+
+$(document).ready(function() {	
+		
+	//firefox bug
+	$('button').removeAttr('disabled');
+	  
+    //Popovers! 
+    $(function () {
+     $("a[rel=popover]")
+       .popover({
+         offset: 10
+       })
+       .click(function(e) {
+         e.preventDefault();
+       });
+   });
+    
+    setTimeout(bind, 10);
+	
+	$('body').ajaxStart(function() {
+		$('.loading-indicator').fadeIn(200);
+	});
+	
+	$('body').ajaxStop(function() {
+		$('.loading-indicator').fadeOut(200);
+	});
+
+	
+	$('.tabs').tabs();
+	
 	if (initial_error != null) {
 		makeNotice('error', 'fatal_error', initial_error);
 	}
