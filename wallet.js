@@ -15,7 +15,6 @@ var latest_block = null; //Chain head block
 var balances = []; //Holds balances of addresses
 var address_book = []; //Holds the address book {addr : label}
 var loading_text = ''; //Loading text for ajax activity 
-var block_heights = []; //BlockIndex to height
 var our_address = '1A8JiWcwvpY7tAopUkSnGuEYHmzGYfZPiq'; //Address for fees and what not
 var sound_on = true; //Play a bleep sound when tx received
 var offline = false;
@@ -188,8 +187,8 @@ function _websocketConnect() {
 					for (var i = 0; i < obj.x.txIndexes.length; ++i) {
 						for (var ii = 0; ii < transactions.length; ++ii) {
 							if (transactions[ii].txIndex == obj.x.txIndexes[i]) {
-								if (transactions[ii].blockIndex == null || transactions[ii].blockIndex.length == 0) {
-									transactions[ii].blockIndex = obj.x.blockIndex;
+								if (transactions[ii].blockHeight == null || transactions[ii].blockHeight == 0) {
+									transactions[ii].blockHeight = obj.x.height;
 									break;
 								}
 							}
@@ -516,59 +515,12 @@ function setLatestBlock(block) {
 		
 	$('#latest-block-time').html(dateToString(date));
 	
-	$('#nodes-connected').html(nconnected);
-	
-	$('#market-price').html(market_price);
-			
 	latest_block = block;
 	
 	updateLatestBlockAge();
 		
 	buildTransactionsView();
 }
-
-function parseLatestBlockJSON(json) {
-	var obj = jQuery.parseJSON(json);
-
-	if (obj == null)
-		return;
-	
-	if (obj.past_blocks != null) {		
-		for (var i=0; i< obj.past_blocks.length; ++i) {
-			block_heights[obj.past_blocks[i].blockIndex] = obj.past_blocks[i].height;
-		}
-	}
-	
-	setLatestBlock(BlockFromJSON(obj));
-}
-
-function queryAPILatestBlock() {
-
-	if (offline) return;
-	
-	setLoadingText('Getting Latest Block');
-
-	$.ajax({
-		  type: "GET",
-		  url: root + 'latestblock',
-		  converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": jQuery.parseXML},
-		  success: function(json) {  
-		
-			parseLatestBlockJSON(json);
-			
-			try {
-				localStorage.setItem('latestblock', json);
-			} catch (e) {
-				console.log(e);
-			}
-		},
-			
-		error : function(data) {			
-			makeNotice('error', 'misc-error', 'Error getting chain head.');
-		},
-	});
-}
-
 
 function buildTransactionsView() {
 
@@ -623,15 +575,13 @@ function buildTransactionsView() {
 						
 			var tx = transactions[i];
 			
-			if (tx.blockIndex == null || tx.blockIndex == 0) {
-				tx.setConfirmations(0);
-			} else {
-				var height = block_heights[tx.blockIndex];
-	
-				if (height != null) {
-					var nconfirmations = latest_block.height - height + 1;		
-					tx.setConfirmations(nconfirmations);
+			if (tx.blockHeight != null && tx.blockHeight > 0) {
+				var confirmations = latest_block.height - tx.blockHeight + 1;
+				if (confirmations <= 100) {
+					tx.setConfirmations(latest_block.height - tx.blockHeight + 1);
 				}
+			} else {
+				tx.setConfirmations(0);
 			}
 		
 			html += tx.getHTML(address_tags);
@@ -647,7 +597,7 @@ function buildTransactionsView() {
 		}
 	};
 	
-	buildSome();;
+	buildSome();
 }
 
 function parseMultiAddressJSON(json) {
@@ -667,6 +617,14 @@ function parseMultiAddressJSON(json) {
 		var tx = TransactionFromJSON(obj.txs[i]);
 		transactions.push(tx);
 	}
+	
+	$('#nodes-connected').html(obj.info.nconnected);
+	
+	$('#market-price').html(obj.info.market_price);
+			
+	console.log(obj.info.latest_block);
+	
+	setLatestBlock(obj.info.latest_block);
 }
 
 //Get the list of transactions from the http API, after that it will update through websocket
@@ -766,22 +724,12 @@ function didDecryptWallet() {
 					
 			buildTransactionsView();
 		}
-		
-		//Restor the cached latest block
-		var latestblockjson = localStorage.getItem('latestblock');
 
-		if (latestblockjson != null) {					
-			parseLatestBlockJSON(latestblockjson);
-		}
-		
 		localStorage.setItem('guid', guid);
 	} catch (e) { } //Don't care - cache is optional
 	
 	///Get the list of transactions from the http API
 	queryAPIMultiAddress();
-	
-	//Get data on the latest block
-	queryAPILatestBlock();
 	
 	changeView($("#home-intro"));
 	
@@ -895,8 +843,6 @@ function getReadyForOffline() {
 	///Get the list of transactions from the http API
 	queryAPIMultiAddress();
 	
-	//Get data on the latest block
-	queryAPILatestBlock();
 	
 	//Get unspent outputs
 	$.post(root + 'unspent', {'address[]' : getMyHash160s()},  function(obj) {  
@@ -973,7 +919,7 @@ function restoreWallet() {
 	        if (localStorage == null) {
 	    		makeNotice('error', 'misc-error', 'Your browser does not support local stoage. Cannot login in offline mode.', 5000);
 	    		return false;
-	        } else if (localStorage.getItem('latestblock') != null) {
+	        } else if (localStorage.getItem('multiaddr') != null) {
 	    		makeNotice('error', 'misc-error', 'Local storage not empty. Have you enabled private browsing?.', 5000);
 	    		return false;	
 	        }
@@ -2845,9 +2791,6 @@ function bind() {
 				
 				//Get the new list of transactions
 				queryAPIMultiAddress();
-				
-				//Get data on the latest block
-				queryAPILatestBlock();
 			}
 			
 			$(this).attr("disabled", false);

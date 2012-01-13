@@ -41,6 +41,8 @@ function TransactionFromJSON(json) {
 	tx.out = json.out;
 	tx.blockIndex = json.block_index;
 	tx.result = json.result;
+	tx.blockHeight = json.block_height;
+
 
 	try {
 		for (var i = 0; i < tx.inputs.length; i++) {		
