@@ -621,9 +621,7 @@ function parseMultiAddressJSON(json) {
 	$('#nodes-connected').html(obj.info.nconnected);
 	
 	$('#market-price').html(obj.info.market_price);
-			
-	console.log(obj.info.latest_block);
-	
+				
 	setLatestBlock(obj.info.latest_block);
 }
 
@@ -1327,6 +1325,7 @@ function pushTx(tx) {
 	return true;
 }
 
+
 function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOutputs, selectedOuts, changeAddress, feeAddress, hash160s) {
 		
 	var txValue = BigInteger.ZERO;
@@ -1438,22 +1437,25 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 		}
 	}
 	
+	//Estimate scripot sig (Cannot use serialized tx size yet becuase we haven't signed the inputs)
+	//18 bytes standard header
+	//standard scriptPubKey 24 bytes
+	//Stanard scriptSig 64 bytes
+	
+	console.log(sendTx.outs.length);
+	console.log(sendTx.ins.length);
 
-	//Get the transaction size
-	sendTx.addOutput(ouraddr, ourFee);
-
-	priority /= sendTx.serialize().length;
-		
+	var estimatedSize = sendTx.serialize(sendTx).length + (114 * sendTx.ins.length);
+	
+	priority /= estimatedSize;
+				
 	//Proority under 57 million requires a 0.01 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
 	if (priority < 57600000) {
-		
-		
-		sendTx.outs.splice(sendTx.outs.length-1);
-		
-		sendTx.addOutput(ouraddr, BigInteger.ZERO);
-
-		//Add a ZERO output
-		//Don't actually remove it for analytics purposes
+		//For low priority transactions we half our fee
+		sendTx.addOutput(ouraddr, ourFee.divide(BigInteger.valueOf(2)));
+	} else {		
+		//Otherwise we take the full fee
+		sendTx.addOutput(ouraddr, ourFee);
 	}
 			
 	return sendTx;
@@ -1903,8 +1905,8 @@ function deleteAddress(addr) {
 
 }
 
-function setReviewTransactionContent(modal, tx) {
-		
+function setReviewTransactionContent(modal, tx) {	
+
 		$('#rtc-hash').html(Crypto.util.bytesToHex(tx.getHash()));
 		$('#rtc-version').html(tx.version);
 		$('#rtc-from').html('');

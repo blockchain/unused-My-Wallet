@@ -79,6 +79,9 @@
 			buffer = buffer.concat(Crypto.util.base64ToBytes(txin.outpoint.hash));
 			buffer = buffer.concat(Crypto.util.wordsToBytes([parseInt(txin.outpoint.index)]).reverse());
 			var scriptBytes = txin.script.buffer;
+			
+			console.log('In ' + scriptBytes.length);
+
 			buffer = buffer.concat(Bitcoin.Util.numToVarInt(scriptBytes.length));
 			buffer = buffer.concat(scriptBytes);
 			buffer = buffer.concat(Crypto.util.wordsToBytes([parseInt(txin.sequence)]).reverse());
@@ -88,6 +91,9 @@
 			var txout = this.outs[i];
 			buffer = buffer.concat(txout.value);
 			var scriptBytes = txout.script.buffer;
+			
+			console.log('Out ' + scriptBytes.length);
+			
 			buffer = buffer.concat(Bitcoin.Util.numToVarInt(scriptBytes.length));
 			buffer = buffer.concat(scriptBytes);
 		}
