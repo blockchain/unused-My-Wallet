@@ -549,17 +549,12 @@ function buildTransactionsView() {
 
 	$('#summary-n-tx').html(n_tx);
 
-	$('#summary-received-usd').html(toFixed(total_received / market_price, 2));
+	$('#summary-received').html(formatMoney(total_received, true));
 
-	$('#summary-received-btc').html(toFixed(total_received / satoshi, 4));
+	$('#summary-sent').html(formatMoney(total_sent, true));
 
-	$('#summary-sent-usd').html(toFixed(total_sent / market_price, 2));
+	$('#summary-balance').html(formatMoney(final_balance, true));
 
-	$('#summary-sent-btc').html(toFixed(total_sent / satoshi, 4));
-
-	$('#summary-balance-usd').html(toFixed(final_balance / market_price, 2));
-
-	$('#summary-balance-btc').html(toFixed(final_balance / satoshi, 4));
 		
 	var interval = null;
 	var start = 0;
@@ -623,7 +618,7 @@ function parseMultiAddressJSON(json) {
 	
 	$('#nodes-connected').html(obj.info.nconnected);
 	
-	$('#market-price').html(obj.info.market_price);
+	$('#market-price').html(formatMoney(obj.info.market_price));
 				
 	setLatestBlock(obj.info.latest_block);
 }

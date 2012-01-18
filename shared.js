@@ -2,7 +2,8 @@ var satoshi = parseInt(100000000); //One satoshi
 var showInvBtn = false;
 var show_adv = false;
 var adv_rule;
-	
+var btc_symbol = 'BTC';
+
 function Transaction () { };
 function Block () { };
 
@@ -71,8 +72,19 @@ function dateToString(d) {
 	  return padStr(d.getFullYear()) + '-' + padStr(1 + d.getMonth()) + '-' + padStr(d.getDate()) + ' ' + padStr(d.getHours()) + ':' + padStr(d.getMinutes()) + ':' + padStr(d.getSeconds());
 };
 
-function formatMoney(x) {
-	return symbol + ' ' + toFixed(x / market_price, 4);
+function formatMoney(x, btcasWell) {
+	var str;
+	if (!symbol_appears_after) {
+		str = symbol + ' ' + toFixed(x / market_price, 2);
+	} else {
+		str = toFixed(x / market_price, 2) + ' ' + symbol;
+	}
+
+	if (btcasWell && symbol != btc_symbol) {
+		str +=  ' (' + toFixed(x / satoshi, 4) + ' ' + btc_symbol + ')';
+	}
+	
+	return str;
 }
 Transaction.prototype.getHTML = function(myAddresses) {    
 
@@ -166,7 +178,7 @@ Transaction.prototype.getHTML = function(myAddresses) {
 	for (var i = 0; i < this.out.length; i++) {
 		output = this.out[i];
 								
-		html += '<li class="can-hide">' + formatMoney(output.value) +'</li>';
+		html += '<li class="can-hide">' + formatMoney(output.value, true) +'</li>';
 	}
 	
 	html += '</ul></td></tr></table><span style="float:right;padding-bottom:30px;clear:both;">';
