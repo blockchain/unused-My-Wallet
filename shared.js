@@ -71,6 +71,9 @@ function dateToString(d) {
 	  return padStr(d.getFullYear()) + '-' + padStr(1 + d.getMonth()) + '-' + padStr(d.getDate()) + ' ' + padStr(d.getHours()) + ':' + padStr(d.getMinutes()) + ':' + padStr(d.getSeconds());
 };
 
+function formatMoney(x) {
+	return symbol + ' ' + toFixed(x / market_price, 4);
+}
 Transaction.prototype.getHTML = function(myAddresses) {    
 
     var result = this.result;
@@ -162,10 +165,8 @@ Transaction.prototype.getHTML = function(myAddresses) {
 	
 	for (var i = 0; i < this.out.length; i++) {
 		output = this.out[i];
-						
-		var value = output.value / 100000000;
-		
-		html += '<li class="can-hide">' + value +' BTC</li>';
+								
+		html += '<li class="can-hide">' + formatMoney(output.value) +'</li>';
 	}
 	
 	html += '</ul></td></tr></table><span style="float:right;padding-bottom:30px;clear:both;">';
@@ -182,7 +183,7 @@ Transaction.prototype.getHTML = function(myAddresses) {
 		html += '<button class="btn primary confm">' + this.confirmations + ' Confirmations</button> ';
 	} 
 	
-	html += '<button class="btn info">'+  toFixed(Math.round((result / satoshi) * market_price * 100)/100, 2) + ' USD</button> <button class="'+button_class+'">'+  toFixed(result / satoshi, 4) + ' BTC</button>';
+	html += '<button class="'+button_class+'">'+ symbol + ' ' + formatMoney(result) + '</button>';
 	
 	if (showInvBtn && !offline && this.confirmations == 0) {
 		html += '<button class="btn" style="padding-top:4px;padding-bottom:4px;padding-left:7px;padding-right:7px;" onclick="showInventoryModal(\''+this.hash+'\')"><img src="'+resource+'network.png" /></button> ';
@@ -241,6 +242,11 @@ function setAdv(isOn) {
 $(document).ready(function() {	
 	
 	try {
+		
+		$('#currencies').change(function() {	
+			$(this).parent().submit();
+		});
+
 		$('a[class=show_adv]').click(function() {	
 			toggleAdv();
 		});

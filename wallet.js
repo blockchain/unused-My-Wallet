@@ -365,7 +365,7 @@ function buildSendTxView() {
 		
 		if (balance > 0) {
 			//On the sent transactions page add the address to the from address options
-			selects.prepend('<option>' + addr + ' - ' + balance / satoshi + ' BTC</option>');
+			selects.prepend('<option>' + addr + ' - ' + formatMoney(balance) + ' </option>');
 		} else {
 			selects.append('<option>' + addr + '</option>');
 		}
@@ -540,7 +540,7 @@ function buildTransactionsView() {
 		
 		$('#balance-btc').html(toFixed(final_balance / satoshi, 4));
 	
-		$('#balance-usd').html(toFixed(final_balance / satoshi * market_price, 2));
+		$('#balance-usd').html(toFixed(final_balance / market_price, 2));
 	}
 	
 	//Only build the actualy tx view when visible
@@ -549,15 +549,15 @@ function buildTransactionsView() {
 
 	$('#summary-n-tx').html(n_tx);
 
-	$('#summary-received-usd').html(toFixed(total_received / satoshi  * market_price, 2));
+	$('#summary-received-usd').html(toFixed(total_received / market_price, 2));
 
 	$('#summary-received-btc').html(toFixed(total_received / satoshi, 4));
 
-	$('#summary-sent-usd').html(toFixed(total_sent / satoshi  * market_price, 2));
+	$('#summary-sent-usd').html(toFixed(total_sent / market_price, 2));
 
 	$('#summary-sent-btc').html(toFixed(total_sent / satoshi, 4));
 
-	$('#summary-balance-usd').html(toFixed(final_balance / satoshi  * market_price, 2));
+	$('#summary-balance-usd').html(toFixed(final_balance / market_price, 2));
 
 	$('#summary-balance-btc').html(toFixed(final_balance / satoshi, 4));
 		
