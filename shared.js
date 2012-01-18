@@ -175,7 +175,7 @@ Transaction.prototype.getHTML = function(myAddresses) {
 	for (var i = 0; i < this.out.length; i++) {
 		output = this.out[i];
 								
-		html += '<li class="can-hide">' + formatMoney(output.value) +'</li>';
+		html += '<li class="can-hide c">' + formatMoney(output.value) +'</li>';
 	}
 	
 	html += '</ul></td></tr></table><span style="float:right;padding-bottom:30px;clear:both;">';
