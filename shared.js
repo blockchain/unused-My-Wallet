@@ -256,7 +256,7 @@ function toggleSymbol() {
 			$(this).text(formatMoney($.trim($(this).text().replace(',','').replace(symbol_btc.symbol, '')) * symbol_btc.conversion));
 		});
 		
-		$.cookie('local', true);
+		$.cookie('local', 'true');
 	} else { 	
 		symbol = symbol_btc;
 
@@ -264,7 +264,9 @@ function toggleSymbol() {
 			$(this).text(formatMoney($.trim($(this).text().replace(',','').replace(symbol_local.symbol, '')) * symbol_local.conversion));
 		});
 	
-		$.cookie('local', false);
+		console.log('set false');
+		
+		$.cookie('local', 'false');
 	}
 }
 
