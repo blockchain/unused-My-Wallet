@@ -183,7 +183,7 @@ Transaction.prototype.getHTML = function(myAddresses) {
 		html += '<button class="btn primary confm">' + this.confirmations + ' Confirmations</button> ';
 	} 
 	
-	html += '<button class="'+button_class+'">'+ symbol + ' ' + formatMoney(result) + '</button>';
+	html += '<button class="'+button_class+'">' + formatMoney(result) + '</button>';
 	
 	if (showInvBtn && !offline && this.confirmations == 0) {
 		html += '<button class="btn" style="padding-top:4px;padding-bottom:4px;padding-left:7px;padding-right:7px;" onclick="showInventoryModal(\''+this.hash+'\')"><img src="'+resource+'network.png" /></button> ';
