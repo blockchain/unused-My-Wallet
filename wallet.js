@@ -531,16 +531,10 @@ function buildTransactionsView() {
 	//UpdateThe summary
 	$('#transactions-summary').show();
 	
-	if (final_balance <= 0) {
-
-		$('#balance-btc').html('0');
-		
-		$('#balance-usd').html('0');
+	if (final_balance == null) {
+		$('#balance').html('Loading...');
 	} else {
-		
-		$('#balance-btc').html(toFixed(final_balance / satoshi, 4));
-	
-		$('#balance-usd').html(toFixed(final_balance / market_price, 2));
+		$('#balance').html(formatMoney(final_balance));
 	}
 	
 	//Only build the actualy tx view when visible
@@ -617,9 +611,7 @@ function parseMultiAddressJSON(json) {
 	}
 	
 	$('#nodes-connected').html(obj.info.nconnected);
-	
-	$('#market-price').html(formatMoney(obj.info.market_price));
-				
+					
 	setLatestBlock(obj.info.latest_block);
 }
 

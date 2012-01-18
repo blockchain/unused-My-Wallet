@@ -2,7 +2,6 @@ var satoshi = parseInt(100000000); //One satoshi
 var showInvBtn = false;
 var show_adv = false;
 var adv_rule;
-var btc_symbol = 'BTC';
 
 function Transaction () { };
 function Block () { };
@@ -72,20 +71,18 @@ function dateToString(d) {
 	  return padStr(d.getFullYear()) + '-' + padStr(1 + d.getMonth()) + '-' + padStr(d.getDate()) + ' ' + padStr(d.getHours()) + ':' + padStr(d.getMinutes()) + ':' + padStr(d.getSeconds());
 };
 
-function formatMoney(x, btcasWell) {
+function formatMoney(x) {
 	var str;
-	if (!symbol_appears_after) {
-		str = symbol + ' ' + toFixed(x / market_price, 2);
+	
+	if (!symbol.symbolAppearsAfter) {
+		str = symbol.symbol + ' ' + toFixed(x / symbol.conversion, 2);
 	} else {
-		str = toFixed(x / market_price, 2) + ' ' + symbol;
-	}
-
-	if (btcasWell && symbol != btc_symbol) {
-		str +=  ' (' + toFixed(x / satoshi, 4) + ' ' + btc_symbol + ')';
+		str = toFixed(x / symbol.conversion, 2) + ' ' + symbol.symbol;
 	}
 	
 	return str;
 }
+
 Transaction.prototype.getHTML = function(myAddresses) {    
 
     var result = this.result;
@@ -146,13 +143,13 @@ Transaction.prototype.getHTML = function(myAddresses) {
     
 	var button_class;
 	if (result >= 0) {
-		button_class = 'btn success';
+		button_class = 'btn success c';
 		html += '<img src="'+resource+'arrow_right_green.png" />';
 	} else if (result < 0) {
-		button_class = 'btn error';
+		button_class = 'btn error c';
 		html += '<img src="'+resource+'arrow_right_red.png" />';
 	} else  {
-		button_class = 'btn';
+		button_class = 'btn c';
 		html += '&nbsp;';
 	}
 	
@@ -178,7 +175,7 @@ Transaction.prototype.getHTML = function(myAddresses) {
 	for (var i = 0; i < this.out.length; i++) {
 		output = this.out[i];
 								
-		html += '<li class="can-hide">' + formatMoney(output.value, true) +'</li>';
+		html += '<li class="can-hide">' + formatMoney(output.value) +'</li>';
 	}
 	
 	html += '</ul></td></tr></table><span style="float:right;padding-bottom:30px;clear:both;">';
@@ -195,7 +192,7 @@ Transaction.prototype.getHTML = function(myAddresses) {
 		html += '<button class="btn primary confm">' + this.confirmations + ' Confirmations</button> ';
 	} 
 	
-	html += '<button class="'+button_class+'">' + formatMoney(result) + '</button>';
+	html += '<button class="'+button_class+'" onclick="toggleSymbol()">' + formatMoney(result) + '</button>';
 	
 	if (showInvBtn && !offline && this.confirmations == 0) {
 		html += '<button class="btn" style="padding-top:4px;padding-bottom:4px;padding-left:7px;padding-right:7px;" onclick="showInventoryModal(\''+this.hash+'\')"><img src="'+resource+'network.png" /></button> ';
@@ -251,12 +248,35 @@ function setAdv(isOn) {
 	}
 }
 
+function toggleSymbol() {
+	if (symbol === symbol_btc) {
+		symbol = symbol_local;
+		
+		$('.c').each(function(index) {										
+			$(this).text(formatMoney($.trim($(this).text().replace(',','').replace(symbol_btc.symbol, '')) * symbol_btc.conversion));
+		});
+		
+		$.cookie('local', true);
+	} else { 	
+		symbol = symbol_btc;
+
+		$('.c').each(function(index) {
+			$(this).text(formatMoney($.trim($(this).text().replace(',','').replace(symbol_local.symbol, '')) * symbol_local.conversion));
+		});
+	
+		$.cookie('local', false);
+	}
+}
+
 $(document).ready(function() {	
 	
 	try {
-		
 		$('#currencies').change(function() {	
 			$(this).parent().submit();
+		});
+		
+		$('.cb').click(function() {	
+			toggleSymbol();
 		});
 
 		$('a[class=show_adv]').click(function() {	
@@ -266,3 +286,36 @@ $(document).ready(function() {
 		setAdv(show_adv);
 	} catch (e) {}
 });
+
+jQuery.cookie = function (key, value, options) {
+
+    // key and at least value given, set cookie...
+    if (arguments.length > 1 && String(value) !== "[object Object]") {
+        options = jQuery.extend({}, options);
+
+        if (value === null || value === undefined) {
+            options.expires = -1;
+        }
+
+        if (typeof options.expires === 'number') {
+            var days = options.expires, t = options.expires = new Date();
+            t.setDate(t.getDate() + days);
+        }
+
+        value = String(value);
+
+        return (document.cookie = [
+            encodeURIComponent(key), '=',
+            options.raw ? value : encodeURIComponent(value),
+            options.expires ? '; expires=' + options.expires.toUTCString() : '', // use expires attribute, max-age is not supported by IE
+            options.path ? '; path=' + options.path : '',
+            options.domain ? '; domain=' + options.domain : '',
+            options.secure ? '; secure' : ''
+        ].join(''));
+    }
+
+    // key and possibly options given, get cookie...
+    options = value || {};
+    var result, decode = options.raw ? function (s) { return s; } : decodeURIComponent;
+    return (result = new RegExp('(?:^|; )' + encodeURIComponent(key) + '=([^;]*)').exec(document.cookie)) ? decode(result[1]) : null;
+};
