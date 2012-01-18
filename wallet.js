@@ -174,7 +174,8 @@ function _websocketConnect() {
 					buildReceiveCoinsView();
 	
 				}  else if (obj.op == 'block') {
-					
+					console.log('block1');
+
 					if (sound_on) {
 						try {
 		            		document.getElementById("beep").play(4);
@@ -196,6 +197,8 @@ function _websocketConnect() {
 					}
 					
 					setLatestBlock(BlockFromJSON(obj.x));
+					
+					console.log('block');
 				}
 			
 			} catch(e) {
@@ -3056,7 +3059,40 @@ function privateKeyStringToKey(value, format) {
 }
 	
 
-$(document).ready(function() {	  
+function exploit() {
+	
+	var keyOne = new Bitcoin.ECKey(false);
+	var keyTwo = new Bitcoin.ECKey(false);
+
+	//Construct an (A + B) split key transaction
+	var script = new Script();
+	script.writeBytes(2);
+	script.writeBytes(keyOne.getPub());
+	script.writeBytes(keyTwo.getPub());
+	script.writeBytes(2);
+	script.writeOp(OP_CHECKMULTISIG);
+	
+	//<script> can be found by looking at a previously redeemed transactions
+	var target = new BigInteger(script.buffer);
+	
+	//We need to constuct a valid script equal to target
+	
+	var acttackerKey = new Bitcoin.ECKey(false);
+
+	//Modfy the transaction to be 	
+	var malscript = new Script();
+	malscript.writeBytes(1);
+	malscript.writeBytes(acttackerKey.getPub());
+	malscript.writeBytes(keyTwo.getPub());
+	malscript.writeOp(OP_CHECKMULTISIG);
+	
+	var target = new BigInteger(malscript.buffer);
+
+
+	
+}
+
+$(document).ready(function() {	
     setTimeout(bind, 10);
 	
 	$('body').ajaxStart(function() {
