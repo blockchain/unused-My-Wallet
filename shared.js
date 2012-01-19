@@ -253,14 +253,13 @@ function setAdv(isOn) {
 }
 
 function toggleSymbol() {
-	
+	$.cookie('local', null);
+
 	if (symbol === symbol_btc) {
 		symbol = symbol_local;
-	
 		$.cookie('local', 'true');
 	} else { 	
 		symbol = symbol_btc;
-		
 		$.cookie('local', 'false');
 	}
 	
