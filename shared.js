@@ -74,10 +74,10 @@ function dateToString(d) {
 function formatMoney(x) {
 	var str;
 	
-	if (!symbol.symbolAppearsAfter) {
+	if (symbol.code != 'BTC') {
 		str = symbol.symbol + ' ' + toFixed(x / symbol.conversion, 2);
 	} else {
-		str = toFixed(x / symbol.conversion, 2) + ' ' + symbol.symbol;
+		str = toFixed(x / symbol.conversion, 8) + ' ' + symbol.symbol;
 	}
 	
 	return str;
@@ -263,9 +263,7 @@ function toggleSymbol() {
 		$('.c').each(function(index) {
 			$(this).text(formatMoney($.trim($(this).text().replace(',','').replace(symbol_local.symbol, '')) * symbol_local.conversion));
 		});
-	
-		console.log('set false');
-		
+			
 		$.cookie('local', 'false');
 	}
 }
