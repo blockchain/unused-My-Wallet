@@ -71,13 +71,17 @@ function dateToString(d) {
 	  return padStr(d.getFullYear()) + '-' + padStr(1 + d.getMonth()) + '-' + padStr(d.getDate()) + ' ' + padStr(d.getHours()) + ':' + padStr(d.getMinutes()) + ':' + padStr(d.getSeconds());
 };
 
-function formatMoney(x) {
+function formatMoney(x, span) {
 	var str;
 	
 	if (symbol.code != 'BTC') {
 		str = symbol.symbol + ' ' + toFixed(x / symbol.conversion, 2);
 	} else {
-		str = toFixed(x / symbol.conversion, 4) + ' ' + symbol.symbol;
+		str = toFixed(x / symbol.conversion, 5) + ' ' + symbol.symbol;
+	}
+	
+	if (span) {
+		str = '<span data-c="'+x+'">'+str+'</span>';
 	}
 	
 	return str;
@@ -143,13 +147,13 @@ Transaction.prototype.getHTML = function(myAddresses) {
     
 	var button_class;
 	if (result >= 0) {
-		button_class = 'btn success c';
+		button_class = 'btn success';
 		html += '<img src="'+resource+'arrow_right_green.png" />';
 	} else if (result < 0) {
-		button_class = 'btn error c';
+		button_class = 'btn error';
 		html += '<img src="'+resource+'arrow_right_red.png" />';
 	} else  {
-		button_class = 'btn c';
+		button_class = 'btn';
 		html += '&nbsp;';
 	}
 	
@@ -175,7 +179,7 @@ Transaction.prototype.getHTML = function(myAddresses) {
 	for (var i = 0; i < this.out.length; i++) {
 		output = this.out[i];
 								
-		html += '<li class="can-hide c">' + formatMoney(output.value) +'</li>';
+		html += '<li class="can-hide">' + formatMoney(output.value, true) +'</li>';
 	}
 	
 	html += '</ul></td></tr></table><span style="float:right;padding-bottom:30px;clear:both;">';
@@ -192,7 +196,7 @@ Transaction.prototype.getHTML = function(myAddresses) {
 		html += '<button class="btn primary confm">' + this.confirmations + ' Confirmations</button> ';
 	} 
 	
-	html += '<button class="'+button_class+'" onclick="toggleSymbol()">' + formatMoney(result) + '</button>';
+	html += '<button class="'+button_class+'" onclick="toggleSymbol()">' + formatMoney(result, true) + '</button>';
 	
 	if (showInvBtn && !offline && this.confirmations == 0) {
 		html += '<button class="btn" style="padding-top:4px;padding-bottom:4px;padding-left:7px;padding-right:7px;" onclick="showInventoryModal(\''+this.hash+'\')"><img src="'+resource+'network.png" /></button> ';
@@ -249,23 +253,20 @@ function setAdv(isOn) {
 }
 
 function toggleSymbol() {
+	
 	if (symbol === symbol_btc) {
 		symbol = symbol_local;
-		
-		$('.c').each(function(index) {										
-			$(this).text(formatMoney($.trim($(this).text().replace(',','').replace(symbol_btc.symbol, '')) * symbol_btc.conversion));
-		});
-		
+	
 		$.cookie('local', 'true');
 	} else { 	
 		symbol = symbol_btc;
-
-		$('.c').each(function(index) {
-			$(this).text(formatMoney($.trim($(this).text().replace(',','').replace(symbol_local.symbol, '')) * symbol_local.conversion));
-		});
-			
+		
 		$.cookie('local', 'false');
 	}
+	
+	$('span[data-c]').each(function(index) {
+		$(this).text(formatMoney($(this).attr('data-c')));
+	});
 }
 
 $(document).ready(function() {	

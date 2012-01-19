@@ -534,7 +534,7 @@ function buildTransactionsView() {
 	if (final_balance == null) {
 		$('#balance').html('Loading...');
 	} else {
-		$('#balance').html(formatMoney(final_balance));
+		$('#balance').html(formatMoney(final_balance, true));
 	}
 	
 	//Only build the actualy tx view when visible
