@@ -77,7 +77,7 @@ function formatMoney(x) {
 	if (symbol.code != 'BTC') {
 		str = symbol.symbol + ' ' + toFixed(x / symbol.conversion, 2);
 	} else {
-		str = toFixed(x / symbol.conversion, 8) + ' ' + symbol.symbol;
+		str = toFixed(x / symbol.conversion, 4) + ' ' + symbol.symbol;
 	}
 	
 	return str;
