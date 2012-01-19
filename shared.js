@@ -71,13 +71,22 @@ function dateToString(d) {
 	  return padStr(d.getFullYear()) + '-' + padStr(1 + d.getMonth()) + '-' + padStr(d.getDate()) + ' ' + padStr(d.getHours()) + ':' + padStr(d.getMinutes()) + ':' + padStr(d.getSeconds());
 };
 
+function formatBTC(value) {
+	var integerPart = value.length > 8 ? value.substr(0, value.length-8) : '0';
+	var decimalPart = value.length > 8 ? value.substr(value.length-8) : value;
+	while (decimalPart.length < 8) decimalPart = "0"+decimalPart;
+	decimalPart = decimalPart.replace(/0*$/, '');
+	while (decimalPart.length < 2) decimalPart += "0";
+	return integerPart+"."+decimalPart;
+}
+
 function formatMoney(x, span) {
 	var str;
 	
 	if (symbol.code != 'BTC') {
 		str = symbol.symbol + ' ' + toFixed(x / symbol.conversion, 2);
 	} else {
-		str = toFixed(x / symbol.conversion, 8) + ' ' + symbol.symbol;
+		str = formatBTC(''+x) + ' ' + symbol.symbol;
 	}
 	
 	if (span) {
@@ -216,7 +225,7 @@ function goToWallet(addr) {
 			if (addr == null) {
 				window.location='https://blockchain.info/wallet/'+guid;
 			} else {
-				window.location='https://blockchain.info/wallet/'+guid+'#newaddr|${address}';
+				window.location='https://blockchain.info/wallet/'+guid+'#newaddr|'+addr;
 			}
 			
 			return;
@@ -226,7 +235,7 @@ function goToWallet(addr) {
 	if (addr == null) {
 		window.location='https://blockchain.info/wallet';
 	} else {
-		window.location='https://blockchain.info/wallet/new#newaddr|${address}';
+		window.location='https://blockchain.info/wallet/new#newaddr|'+addr;
 	}
 }
 
