@@ -72,15 +72,13 @@ function dateToString(d) {
 };
 
 function formatBTC(value) {
-	
-	console.log('Input ' + value);
-	
+		
 	if (value == null)
 		return '';
 	
 	var neg = '';
 	if (value < 0) {
-		value = -value;
+		value = '' + -value;
 		neg = '-';
 	}
 	
