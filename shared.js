@@ -85,8 +85,12 @@ function formatBTC(value) {
 	var integerPart = value.length > 8 ? value.substr(0, value.length-8) : '0';
 	var decimalPart = value.length > 8 ? value.substr(value.length-8) : value;
 	while (decimalPart.length < 8) decimalPart = "0"+decimalPart;
-	decimalPart = decimalPart.replace(/0*$/, '');
-	while (decimalPart.length < 2) decimalPart += "0";
+	
+	if (decimalPart != null) {
+		decimalPart = decimalPart.replace(/0*$/, '');
+		while (decimalPart.length < 2) decimalPart += "0";
+	}
+	
 	return neg + integerPart+"."+decimalPart;
 }
 
