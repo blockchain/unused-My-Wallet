@@ -1394,7 +1394,7 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 	}
 	
     if (availableValue.compareTo(txValue) < 0) {
-		throw 'Insufficient funds. Value Needed ' +  Bitcoin.Util.formatValue(txValue.toString()) + ' BTC. Available amount ' + Bitcoin.Util.formatValue(availableValue.toString()) + ' BTC';
+		throw 'Insufficient funds. Value Needed ' +  formatBTC(txValue.toString()) + ' BTC. Available amount ' + formatBTC(availableValue.toString()) + ' BTC';
     }
 
 	var changeValue = null;
@@ -1918,7 +1918,7 @@ function setReviewTransactionContent(modal, tx) {
 			
 			wallet_effect = wallet_effect.add(input.outpoint.value);
 			
-			$('#rtc-from').append(addr + ' <font color="green">' + Bitcoin.Util.formatValue(input.outpoint.value) + ' BTC <br />');
+			$('#rtc-from').append(addr + ' <font color="green">' + formatBTC(input.outpoint.value.toString()) + ' BTC <br />');
 		}
 	
 		
@@ -1934,7 +1934,7 @@ function setReviewTransactionContent(modal, tx) {
 			var hash = out.script.simpleOutPubKeyHash();
 			var address = new Bitcoin.Address(hash).toString();
 	
-			$('#rtc-to').append(address + ' <font color="green">' + Bitcoin.Util.formatValue(val.intValue()) + ' BTC </font><br />');
+			$('#rtc-to').append(address + ' <font color="green">' + formatBTC(val.toString()) + ' BTC </font><br />');
 		
 			total = total.add(val);
 			
@@ -1955,7 +1955,7 @@ function setReviewTransactionContent(modal, tx) {
 						basic_str += ' and ';
 					}
 						
-					basic_str += '<b>' + Bitcoin.Util.formatValue(val.intValue())  + ' BTC</b> to bitcoin address ' + address;
+					basic_str += '<b>' + formatBTC(val.toString())  + ' BTC</b> to bitcoin address ' + address;
 					
 					all_txs_to_self = false;
 				}
@@ -1973,16 +1973,16 @@ function setReviewTransactionContent(modal, tx) {
 		}
 		
 		if (all_txs_to_self == true) {
-			basic_str = 'move <b>' + Bitcoin.Util.formatValue(amount) + ' BTC</b> between your own bitcoin addresses';
+			basic_str = 'move <b>' + formatBTC(amount.toString()) + ' BTC</b> between your own bitcoin addresses';
 		}
 		
 		$('#rtc-basic-summary').html(basic_str);
 			
-		$('#rtc-effect').html("-" + Bitcoin.Util.formatValue(wallet_effect) + ' BTC');
+		$('#rtc-effect').html("-" + formatBTC(wallet_effect.toString()) + ' BTC');
 	
-		$('#rtc-fees').html(Bitcoin.Util.formatValue(total_fees) + ' BTC');
+		$('#rtc-fees').html(formatBTC(total_fees.toString()) + ' BTC');
 	
-		$('#rtc-value').html(Bitcoin.Util.formatValue(total) + ' BTC');
+		$('#rtc-value').html(formatBTC(total.toString()) + ' BTC');
 		
 		modal.center();
 }
