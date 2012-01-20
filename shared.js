@@ -275,6 +275,11 @@ function setAdv(isOn) {
 	}
 }
 
+function selectOption(select_id, option_val) {
+    $('#'+select_id+' option:selected').removeAttr('selected');
+    $('#'+select_id+' option[value='+option_val+']').attr('selected','selected');       
+}
+
 function toggleSymbol() {
 	if (symbol === symbol_btc) {
 		symbol = symbol_local;
@@ -284,6 +289,8 @@ function toggleSymbol() {
 		SetCookie('local', 'false');
 	}
 	
+	selectOption('currencies', symbol.code);
+	    
 	$('span[data-c]').each(function(index) {
 		$(this).text(formatMoney($(this).attr('data-c')));
 	});
@@ -292,8 +299,19 @@ function toggleSymbol() {
 $(document).ready(function() {	
 	
 	try {
-		$('#currencies').change(function() {	
-			$(this).parent().submit();
+		$('#currencies').change(function() {
+			var val = $(this).val();
+						
+			if (val != symbol.symbol) {
+				
+				if (val == symbol_local.code) {
+					toggleSymbol();
+				} else if (val == symbol_btc.code) {
+					toggleSymbol();
+				} else {
+					$(this).parent().submit();
+				}
+			}
 		});
 		
 		$('.cb').click(function() {	
