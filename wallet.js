@@ -14,6 +14,9 @@ var isInitialized = false; //Wallet is loaded and decrypted
 var latest_block = null; //Chain head block
 var balances = []; //Holds balances of addresses
 var address_book = []; //Holds the address book {addr : label}
+
+//var addresses = []; //{addr : address, priv : private key, tag : tag (mark as archived), label : label, balance : balance}
+
 var loading_text = ''; //Loading text for ajax activity 
 var our_address = '1A8JiWcwvpY7tAopUkSnGuEYHmzGYfZPiq'; //Address for fees and what not
 var sound_on = true; //Play a bleep sound when tx received
