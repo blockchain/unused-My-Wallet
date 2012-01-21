@@ -159,7 +159,7 @@ Transaction.prototype.getHTML = function(myAddresses) {
     }
 
 
-	html += '</ul></td><td class="can-hide" style="padding:0px;width:48px;min-height:48px;vertical-align:middle;">';
+	html += '</ul></td><td class="can-hide" style="padding:4px;width:48px;text-align:center;vertical-align:middle;">';
 	
     if (result == null) {
     	result = 0;
@@ -197,7 +197,7 @@ Transaction.prototype.getHTML = function(myAddresses) {
 			html += '<li><a target="new" href="'+root+'address/'+output.hash+'">'+output.addr+'</a></li>';
 	}
 				
-	html += '</ul></td><td width="15%" style="padding:4px;width:48px;text-align:center;vertical-align:middle;"><ul class="txul">';
+	html += '</ul></td><td width="15%" style="vertical-align:middle;"><ul class="txul">';
 	
 	for (var i = 0; i < this.out.length; i++) {
 		output = this.out[i];
