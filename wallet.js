@@ -1,8 +1,5 @@
 var encrypted_wallet_data = null;
 var guid = null;
-var transactions = []; //List of all transactions
-var addresses = []; //Bitcoin addresses
-var private_keys = []; //Map of bitcoin address to base58 private key
 var cVisible; //currently visible view
 var password; //Password
 var sharedKey; //Shared key used to prove that the wallet has succesfully been decrypted, meaning you can't overwrite a wallet backup even if you have the guid
@@ -12,10 +9,16 @@ var total_received = 0; //Amount available to withdraw
 var n_tx = 0; //Amount available to withdraw
 var isInitialized = false; //Wallet is loaded and decrypted
 var latest_block = null; //Chain head block
-var balances = []; //Holds balances of addresses
 var address_book = []; //Holds the address book {addr : label}
+var transactions = []; //List of all transactions (initially populated from /multiaddr updated through websockets)
 
-//var addresses = []; //{addr : address, priv : private key, tag : tag (mark as archived), label : label, balance : balance}
+//Refactoring
+//var balances = []; //Holds balances of addresses
+//var addresses = []; //Bitcoin addresses
+//var private_keys = []; //Map of bitcoin address to base58 private key
+//var address_tags = []; //Map of address to an option tag (0 == OK 1 == Unsynced, 2 == Archived, 3 == No Private Key)
+
+var addresses = []; //{addr : address, priv : private key, tag : tag (mark as archived), label : label, balance : balance}
 
 var loading_text = ''; //Loading text for ajax activity 
 var our_address = '1A8JiWcwvpY7tAopUkSnGuEYHmzGYfZPiq'; //Address for fees and what not
@@ -23,7 +26,6 @@ var sound_on = true; //Play a bleep sound when tx received
 var offline = false;
 var unspent_cache = null;
 var downloadify_initd = false;
-var address_tags = []; //Map of address to an option tag (0 == OK 1 == Unsynced, 2 == Archived, 3 == No Private Key)
 
 showInvBtn = true;
 
@@ -115,8 +117,9 @@ function _websocketConnect() {
 				} else if (obj.op == 'utx') {
 					
 					//Check for duplicates
-					for (var i = 0; i < transactions.length; ++i) {					
-						if (transactions[i].txIndex == obj.x.tx_index)
+					var l = transactions.length;
+					while (--l) {					
+						if (transactions[l].txIndex == obj.x.tx_index)
 							return;
 					}
 		            
@@ -139,11 +142,13 @@ function _websocketConnect() {
 						
 					for (var i = 0; i < tx.inputs.length; i++) {
 						var input = tx.inputs[i];
-						 						
-						if (address_tags[input.prev_out.addr] != null) {
+						 			
+						//If it is our address then subtract the value
+						var address = addresses[input.prev_out.addr];
+						if (address != null) {
 							var value = parseInt(input.prev_out.value);
 							result -= value;
-							balances[input.prev_out.addr] -= value;
+							address.balance -= value;
 							total_sent += value;
 						}
 					}
@@ -152,10 +157,11 @@ function _websocketConnect() {
 					for (var i = 0; i < tx.out.length; i++) {
 						var output = tx.out[i];
 												
-						if (address_tags[output.addr] != null) {
+						var address = addresses[input.prev_out.addr];
+						if (address != null) {
 							var value = parseInt(output.value);
 							result += value;
-							balances[output.addr] += value;
+							addresses.balance += value;
 							total_received += value;
 						}
 					}
@@ -173,7 +179,7 @@ function _websocketConnect() {
 					//Meed to update transactions list
 					buildTransactionsView();
 					
-					//Also Need to update balances on Received coins view
+					//Also Need to update balance on Received coins view
 					buildReceiveCoinsView();
 	
 				}  else if (obj.op == 'block') {
@@ -288,22 +294,31 @@ function makeWalletJSON(format) {
 	
 	out += '	"keys" : [\n';
 	
-	for (var i = 0; i < addresses.length; ++i) {
-		var addr = addresses[i];
+	var atLeastOne = false;
+	for (var key in addresses) {		
+		var addr = addresses[key];
 		
-		out += '	{"addr" : "'+ addr +'"';
+		out += '	{"addr" : "'+ addr.addr +'"';
 		
-		if (private_keys[addr] != null) {
-			out += ',\n	 "priv" : "'+ encode_func(private_keys[addr]) + '"';
+		if (addr.priv != null) {
+			out += ',\n	 "priv" : "'+ encode_func(addr.priv) + '"';
 		}
 		
-		if (address_tags[addr] == 2) {
-			out += ',\n	 "tag" : '+ address_tags[addr];
+		if (addr.tag == 2) {
+			out += ',\n	 "tag" : '+ addr.tag;
 		} 
 		
-		out += '}';
+		if (addr.label != null) {
+			out += ',\n	 "label" : "'+ addr.label + '"';
+		} 
 		
-		if (i < addresses.length-1) out += ',\n';
+		out += '},\n';
+		
+		atLeastOne = true;
+	}
+	
+	if (atLeastOne) {
+		out = out.substring(0, out.length-2);
 	}
 	
 	out += "\n	]";
@@ -356,21 +371,23 @@ function buildSendTxView() {
 	
 	selects.empty();
 
-	for (var i = 0; i < addresses.length; ++i) {
-
-		var addr = addresses[i];
+	for (var key in addresses) {
+		var addr = addresses[key];
 			
 		//Don't include archived addresses
-		if (address_tags[addr] == 2)
+		if (addr.tag == 2)
 			continue;
+				
+		var label = addr.label;
 		
-		var balance = balances[addr];
+		if (label == null)
+			label = addr.addr;
 		
-		if (balance > 0) {
+		if (addr.balance > 0) {
 			//On the sent transactions page add the address to the from address options
-			selects.prepend('<option>' + addr + ' - ' + formatMoney(balance) + ' </option>');
+			selects.prepend('<option>' + label + ' - ' + formatBTC(addr.balance) + ' BTC </option>');
 		} else {
-			selects.append('<option>' + addr + '</option>');
+			selects.append('<option>' + label + '</option>');
 		}
 	}
 	
@@ -401,12 +418,7 @@ function importPyWalletJSONObject(obj) {
 						
 			//Check the the private keys matches the bitcoin address
 			if (obj.keys[i].addr ==  key.getBitcoinAddress().toString()) {				
-				
-			internalAddOrReplaceKey(obj.keys[i].addr, Bitcoin.Base58.encode(obj.keys[i].priv));
-				
-			address_tags[obj.keys[i].addr] = 0;
-
-			
+				internalAddKey(obj.keys[i].addr, Bitcoin.Base58.encode(obj.keys[i].priv));
 			} else {
 				makeNotice('error', 'misc-error', 'Private key doesn\'t seem to match the address. Possible corruption', 1000);
 				return false;
@@ -462,14 +474,10 @@ function importJSON() {
 		} else {
 		
 			//Parse the normal wallet backup
-			for (var i = 0; i < obj.keys.length; ++i) {					
-				internalAddOrReplaceKey(obj.keys[i].addr, obj.keys[i].priv);
-				
-				if (obj.keys[i].tag != null)
-					address_tags[obj.keys[i].addr] = obj.keys[i].tag;
-				else
-					address_tags[obj.keys[i].addr] = 0;
-
+			for (var i = 0; i < obj.keys.length; ++i) {		
+				if (addressMatchesPrivateKey(obj.keys[i].addr, obj.keys[i].priv)) {
+					internalAddKey(obj.keys[i].addr, obj.keys[i].priv);
+				}
 			}
 					
 			if (obj.address_book != null) {
@@ -491,13 +499,14 @@ function importJSON() {
 
 function getMyHash160s() {
 	var array = [];
-	for (var i = 0; i < addresses.length; ++i) {
+	for (var key in addresses) {
+		var addr = addresses[key];
 		
 		//Don't include archived addresses
-		if (address_tags[addresses[i]] == 2)
+		if (addr.tag == 2)
 			continue;
 		
-		array.push(Crypto.util.bytesToHex(new Bitcoin.Address(addresses[i]).hash));
+		array.push(Crypto.util.bytesToHex(new Bitcoin.Address(addr.addr).hash));
 	}
 	return array;
 }
@@ -579,7 +588,7 @@ function buildTransactionsView() {
 				tx.setConfirmations(0);
 			}
 		
-			html += tx.getHTML(address_tags);
+			html += tx.getHTML(addresses);
 		}
 		
 
@@ -605,7 +614,7 @@ function parseMultiAddressJSON(json) {
 	transactions = [];
 	
 	for (var i = 0; i < obj.addresses.length; ++i) {	
-		balances[obj.addresses[i].address] = obj.addresses[i].final_balance;
+		addresses[obj.addresses[i].address].balance = obj.addresses[i].final_balance;
 	}	
 	
 	for (var i = 0; i < obj.txs.length; ++i) {
@@ -635,9 +644,10 @@ function queryAPIMultiAddress() {
 		
 			parseMultiAddressJSON(data);
 			
-			//Rebuild the my-addresse s list with the new updated balances
+			//Rebuild the my-addresses list with the new updated balances (Only if visible)
 			buildReceiveCoinsView();
-			 						
+			 				
+			//Refresh transactions (Only if visible)
 			buildTransactionsView();
 
 			try {
@@ -679,7 +689,7 @@ function didDecryptWallet() {
 						if (walletIsFull())
 							return;
 						
-						if (internalAddOrReplaceKey(value, null)) {
+						if (internalAddKey(value, null)) {
 							didChangeWallet = true;
 							makeNotice('success', 'added-addr', 'Added Bitcoin Address ' + value, 5000); 
 						} else {
@@ -738,16 +748,12 @@ function internalRestoreWallet() {
 		
 		var obj = jQuery.parseJSON(decrypted);
 
-		for (var i = 0; i < obj.keys.length; ++i) {	
-			var addr = obj.keys[i].addr;
+		for (var i = 0; i < obj.keys.length; ++i) {		
+			internalAddKey(obj.keys[i].addr, obj.keys[i].priv);
 			
-			internalAddKey(addr, obj.keys[i].priv);
-			
-			if (obj.keys[i].tag != null && obj.keys[i].tag != 1) {
-				address_tags[addr] = obj.keys[i].tag;
-			} else {
-				address_tags[addr] = 0;
-			}
+			var addr = addresses[obj.keys[i].addr];
+			addr.tag = obj.keys[i].tag;
+			addr.label = obj.keys[i].label;
 		}
 		
 		if (obj.address_book != null) {
@@ -1108,16 +1114,17 @@ function backupWallet(method, successcallback, errorcallback) {
 	var data = makeWalletJSON();
 
 	//Double check that every private key matches the bitcoin address
-	for (var i = 0; i < addresses.lenght; ++ i) {
-		var priv = private_keys[addresses[i]];
-		
-		if (priv != null) {
-			var key_addr = new Bitcoin.ECKey(Bitcoin.Base58.decode(priv)).getBitcoinAddress().toString();
+	//Becomes unmanagble with too many addresses
+	/*for (var key in addresses) {
+		var addr = addresses[key];
+				
+		if (addr.priv != null) {
+			var key_addr = new Bitcoin.ECKey(Bitcoin.Base58.decode(addr.priv)).getBitcoinAddress().toString();
 			
-			if (key_addr != addresses[i])
-				throw 'Private key does not match bitcoin address ' + addresses[i];
+			if (key_addr != addr.addr)
+				throw 'Private key does not match bitcoin address ' + addr.addr;
 		}
-	}
+	}*/
 	
 	//Double check the json is parasable
 	var obj = jQuery.parseJSON(data);
@@ -1146,9 +1153,10 @@ function backupWallet(method, successcallback, errorcallback) {
 		 success: function(data) {  
 			 
 			 var change = false;
-			 for (var key in address_tags) {
-				 if (address_tags[key] == 1) {
-					 address_tags[key] = 0; //Make any unsaved addresses as saved
+			 for (var key in addresses) {
+				 var addr = addresses[key];
+				 if (addr.tag == 1) {
+					 addr.tag = 0; //Make any unsaved addresses as saved
 					 change = true;
 				 }
 			 
@@ -1238,11 +1246,6 @@ function updatePassword() {
 }
 
 function generateNewWallet() {
-
-	if (addresses.length > 0) {
-		makeNotice('error', 'misc-error', 'You have already generated one or more keys.');
-		return false;
-	}
 
 	if (guid != null) {
 		makeNotice('error', 'misc-error', 'You have already have a vaild wallet identifier.');
@@ -1360,7 +1363,7 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 			
 			if (addr == null) {
 				throw 'Unable to decode out put address from transactino hash ' + out.tx_hash;
-			} else if (!offline && private_keys[addr] == null) {
+			} else if (!offline && addresses[addr].priv == null) {
 				throw 'Unable use bitcoin address ' + addr + ' in online mode';
 			}
 			
@@ -1464,8 +1467,8 @@ function signInput(sendTx, missingPrivateKeys, selectedOuts, i) {
 		var privatekey = null;
 		
 		//Find the matching private key
-		if (private_keys[inputBitcoinAddress] != null) {
-			privatekey = new Bitcoin.ECKey(Bitcoin.Base58.decode(private_keys[inputBitcoinAddress]));
+		if (addresses[inputBitcoinAddress].priv != null) {
+			privatekey = new Bitcoin.ECKey(Bitcoin.Base58.decode(addresses[inputBitcoinAddress].priv));
 		}
 		
 		//If it is null then it is not in our main key pool, try look in the temporary keys
@@ -1513,40 +1516,20 @@ function signInput(sendTx, missingPrivateKeys, selectedOuts, i) {
 		return true;
 }
 
-function internalDeletePrivateKey(addr) {
-	
-	if (private_keys[addr] != null ) {
-		var priv_addr = new Bitcoin.ECKey(Bitcoin.Base58.decode(private_keys[addr])).getBitcoinAddress().toString();
+function nKeys(obj) {
+    var size = 0, key;
+    for (key in obj) {
+        size++;
+    }
+    return size;
+};
 
-		if (priv_addr != addr) {
-			makeNotice('error', 'misc-error', 'Private key does not match address in same index. Possible curruption.', 5000);
-			return;
-		}
-	}
-	
-	private_keys[addr] = null;
+function internalDeletePrivateKey(addr) {
+	addresses[addr].priv = null;
 }
 
-function internalDeleteAddress(addr) {
-	for (var i = 0; i < addresses.length; ++i) {
-		if (addresses[i] == addr) {
-			
-			//Double check the private key were deleting matches this bitcoin address
-			if (private_keys[addr] != null) {
-				var priv_addr = new Bitcoin.ECKey(Bitcoin.Base58.decode(private_keys[addr])).getBitcoinAddress().toString();
-				
-				if (priv_addr != addr) {
-					makeNotice('error', 'misc-error', 'Private key does not match address in same index. Possible curruption.', 5000);
-					return;
-				}
-			}
-			
-			addresses.splice(i, 1);
-			private_keys[addr] = null;
-			address_tags[addr] = null;
-			break;
-		}
-	}
+function internalDeleteAddress(addr) {	
+	delete addresses[addr];
 }
 
 function internalAddAddressBookEntry(addr, label) {
@@ -1566,21 +1549,9 @@ function internalAddAddressBookEntry(addr, label) {
 	address_book.push({ addr: addr, label : label});
 }
 
-function findAddressIndex(addr) {
-	
-	//Check for duplicates
-	for (var ii=0;ii<addresses.length;++ii) {
-		if (addr == addresses[ii]) {
-			return ii;
-		}
-	}
-	
-	return -1;
-}
-
 function walletIsFull(addr) {
 
-	if (addresses.length >= 200) {
+	if (nKeys(addresses) >= 200) {
 		makeNotice('error', 'misc-error', 'We currently support a maximum of 200 private keys, please remove some unsused ones.', 5000);
 		return true;
 	}
@@ -1588,42 +1559,24 @@ function walletIsFull(addr) {
 	return false;
 }
 
-function internalAddKey(addr, priv) {
-	addresses.push(addr);
-	private_keys[addr] = priv;
-}
-
-function internalAddOrReplaceKey(addr, priv) {
+function addressMatchesPrivateKey(addr, priv) {
+	var priv_addr = new Bitcoin.ECKey(Bitcoin.Base58.decode(priv)).getBitcoinAddress().toString();
 	
-	//Check for duplicates
-	for (var ii=0;ii<addresses.length;++ii) {
-		if (addr == addresses[ii]) {
-			
-			//Double check the private key were adding matches this bitcoin address
-			if (priv != null) {
-				var priv_addr = new Bitcoin.ECKey(Bitcoin.Base58.decode(priv)).getBitcoinAddress().toString();
-				
-				if (priv_addr != addr) {
-					makeNotice('error', 'misc-error', 'Private key does not match address in same index. Possible curruption.', 5000);
-					return false;
-				}
-
-				//If we have a duplicate then we replace the private key
-				private_keys[addr] = priv;
-				
-				return true;
-			}	
-
-			return false;
-		}
+	if (priv_addr != addr) {
+		return false;
 	}
-	
-	//Otherwise the key doesn't exist so add it
-	internalAddKey(addr, priv);
-	
+
 	return true;
 }
 
+function internalAddKey(addr, priv) {	
+	if (addresses[addr] == null || addresses[addr].length == 0) {
+		addresses[addr] = {addr : addr, priv : priv, tag : null, label : null, balance : 0};
+		return true;
+	}
+	
+	return false;
+}
 
 
 function showInventoryModal(hash) {
@@ -1756,6 +1709,8 @@ function addAddressBookEntry() {
 
 function deleteAddress(addr) {
 		
+	addr = addresses[addr];
+	
 	var modal = $('#delete-address-modal');
 
 	modal.modal({
@@ -1771,16 +1726,9 @@ function deleteAddress(addr) {
 	modal.find('.modal-body').show();
 	$('#change-mind').hide();
 	
-	modal.find('#to-delete-address').html(addr);
+	modal.find('#to-delete-address').html(addr.addr);
 	
-	var balance = balances[addr];
-	
-	if (balance != null && balance > 0)
-		balance = balance / satoshi + ' BTC';
-	else
-		balance = '0 BTC';
-	
-	modal.find('#delete-balance').text('Balance ' + balance);
+	modal.find('#delete-balance').text('Balance ' + formatBTC(addr.balance) + ' BTC');
 	
 	var isCancelled = false;
 	var i = 0;
@@ -1822,7 +1770,7 @@ function deleteAddress(addr) {
 					
 					makeNotice('warning', 'warning-deleted', 'Private Key Removed From Wallet', 5000);
 					
-					internalDeletePrivateKey(addr);
+					internalDeletePrivateKey(addr.addr);
 					 
 					//Update view with remove address
 					buildReceiveCoinsView();
@@ -1868,7 +1816,7 @@ function deleteAddress(addr) {
 						
 						makeNotice('warning', 'warning-deleted', 'Address & Private Key Removed From Wallet', 5000);
 						
-						internalDeleteAddress(addr);
+						internalDeleteAddress(addr.addr);
 						
 						buildReceiveCoinsView();
 						
@@ -1942,15 +1890,10 @@ function setReviewTransactionContent(modal, tx) {
 			total = total.add(val);
 			
 			total_fees = total_fees.subtract(val);
-			var found = false;
-			for (var ii=0;ii < addresses.length;++ii) {
-				if (address == addresses[ii]) {
-					found = true;
-					break;
-				}
-			}
 			
-			if (!found) {
+			//check if it's an address in our wallet
+			//If it is then we don't need to subtract it from wallet effect
+			if (addresses[address] == null) {
 				
 				//Our fees
 				if (address != our_address) {
@@ -2447,6 +2390,9 @@ function newTxValidateFormAndGetUnspent() {
 					  $.post(root + 'unspent', {'address[]' : fromAddresses},  function(obj) {  			  
 							gotunspent(obj);
 						}).error(function(data) {  
+							
+							console.log(data);
+							
 							modal.modal('hide');
 							makeNotice('error', 'misc-error', 'Error getting unspent outputs. Please check your internet connection.'); 
 						});
@@ -2572,48 +2518,38 @@ function populateImportExportView() {
 			  			  
 			  var container = $('#paper-wallet');
 			  
-			  for (var i = 0; i < addresses.length; ++i) {
-				  var addr = addresses[i];
-  
-				  var tag = 0;
-		
+			  for (var key in addresses) {
+				  var addr = addresses[key];
+  		
 				  var mode = 'Online Mode';
-				  if (tag == 1)
+				
+				  if (addr.tag == 1)
 					  mode = 'Offline Mode';
-				  else if (tag == 0)
 				  
-				  if (private_keys[addr] == null) {
+				  if (addr.priv == null) {
 					  continue;
 				  }
 				  
 				  //Add Address QR code
 				  var div = $('<div style="float:left;clear:left;"></div>');
 				  
-				  var qr = makeQRCode(250,250,1,private_keys[addr]);
+				  var qr = makeQRCode(250,250,1,addr.priv);
 
 				  container.append(div);
 				 
 				  div.append(qr);
-
-				var balance = balances[addr];
-				
-				if (balance != null && balance > 0)
-					balance = balance / satoshi + ' BTC';
-				else
-					balance = '0 BTC';
 													
-				  var private_key = private_keys[addr];
+				  var private_key = addr.priv;
 				  
 				  if (private_key == null)
 					  private_key = 'No Private Key';
 				 
-					  
-				  div = $('<div style="float:left;"><h3>' + addr + '</h3><br /><small><p><b>' + private_key + '</b></p></small><br /><p>' + mode + '</p><br /><p>Balance ' + balance + '</p> </div>');
+				  div = $('<div style="float:left;"><h3>' + addr.addr + '</h3><br /><small><p><b>' + private_key + '</b></p></small><br /><p>' + mode + '</p><br /><p>Balance ' + formatBTC(addr.balance) + ' BTC</p> </div>');
 				  
 				  container.append(div);
 				
 				  //Start a new table every 4 entries
-				  if ((i+1) % 3 == 0 || i == addresses.length-1) {
+				  if ((i+1) % 3 == 0 || i == (nKeys(addresses)-1)) {
 				  	container.append('<div style="width:100%;clear:both;page-break-after:always>&nbsp;</div>');
 				  }
 			  }
@@ -2810,9 +2746,9 @@ function bind() {
 					makeNotice('error', 'misc-error', 'Inconsistency between addresses', 5000);
 					return;
 				}
+								
 				
-				
-				if (internalAddOrReplaceKey(value, null)) {
+				if (internalAddKey(value, null)) {
 	
 					makeNotice('success', 'added-address', 'Sucessfully Added Address ' + address, 5000);
 					
@@ -2860,7 +2796,7 @@ function bind() {
 				
 				var addr = key.getBitcoinAddress().toString();
 								
-				if (internalAddOrReplaceKey(addr, Bitcoin.Base58.encode(key.priv))) {
+				if (internalAddKey(addr, Bitcoin.Base58.encode(key.priv))) {
 					
 					//Rebuild the My-address list
 					buildReceiveCoinsView();
@@ -3188,8 +3124,10 @@ function showQRCodeModal(data) {
 
 var archTimer;
 function unArchiveAddr(addr) {
-	if (address_tags[addr] == 2) {
-		address_tags[addr] = 0;
+	
+	var addr = addresses[addr];
+	if (addr.tag == 2) {
+		addr.tag = 0;
 		
 		buildReceiveCoinsView();
 		
@@ -3215,14 +3153,15 @@ function unArchiveAddr(addr) {
 
 
 function archiveAddr(addr) {
-	
+
 	if (getMyHash160s().length <= 1) {
 		makeNotice('error', 'add-error', 'You must leave at least one active address', 5000);
 		return;
 	}
 	
-	if (address_tags[addr] == 0) {
-		address_tags[addr] = 2;
+	var addr = addresses[addr];
+	if (addr.tag == null || addr.tag == 0) {
+		addr.tag = 2;
 		
 		buildReceiveCoinsView();
 		
@@ -3254,39 +3193,31 @@ function buildReceiveCoinsView() {
 	var html;
 	var arc_html;
 
-	for (var i = 0; i < addresses.length; ++i) {
+	for (var key in addresses) {
 		
-		var addr = addresses[i];
-		
-		var tag = address_tags[addr];
-		
+		var addr = addresses[key];
+				
 		var noPrivateKey = '';
 
-		if (tag == 1)
+		if (addr.tag == 1)
 			noPrivateKey = ' <font color="red">(Not Synced)</font>';
-		else if (private_keys[addr] == null)
+		else if (addr.priv == null)
 			noPrivateKey = ' <font color="red">(No Private Key)</font>';
 		
-		var balance = balances[addr];
+		var balance = formatBTC(addr.balance) + ' <span class="can-hide">BTC</span>';	
 		
-		if (balance != null && balance > 0)
-			balance = balance / satoshi + ' <span class="can-hide">BTC</span>';
-		else
-			balance = '0 <span class="can-hide">BTC</span>';
-				
+		var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'"  onclick="showQRCodeModal(\'' + addr.addr +'\')" src="'+resource+'qrcode.png" /></td><td><div class="my-addr-entry"><a href="'+root+'address/'+addr.addr+'" target="new">' + addr.addr + '</a>' + noPrivateKey +'<div></td><td>';
 		
-		var thtml = '<tr><td style="width:20px;"><img id="qr'+addr+'"  onclick="showQRCodeModal(\'' + addr +'\')" src="'+resource+'qrcode.png" /></td><td><div class="my-addr-entry"><a href="'+root+'address/'+addr+'" target="new">' + addr + '</a>' + noPrivateKey +'<div></td><td>';
-		
-		if (tag == 2)
-			thtml += '<img class="basic" src="'+resource+'unarchive.png" onclick="unArchiveAddr(\''+addr+'\')" />';
-		else if (tag == 0)
-			thtml += '<span id="'+addr+'" style="color:green">' + balance +'</span></td><td><img class="basic" src="'+resource+'archive.png" onclick="archiveAddr(\''+addr+'\')" />';
+		if (addr.tag == 2)
+			thtml += '<img class="basic" src="'+resource+'unarchive.png" onclick="unArchiveAddr(\''+addr.addr+'\')" />';
+		else if (addr.tag == null || addr.tag == 0)
+			thtml += '<span id="'+addr.addr+'" style="color:green">' + balance +'</span></td><td><img class="basic" src="'+resource+'archive.png" onclick="archiveAddr(\''+addr.addr+'\')" />';
 		else 
 			thtml += '</td><td>';
 
-		thtml += ('<img class="adv" src="'+resource+'delete.png" onclick="deleteAddress(\''+addr+'\')" /></td></tr>');
+		thtml += '<img class="adv" src="'+resource+'delete.png" onclick="deleteAddress(\''+addr.addr+'\')" /></td></tr>';
 		
-		if (tag == 2)
+		if (addr.tag == 2)
 			arc_html += thtml;
 		else
 			html += thtml;
@@ -3313,9 +3244,9 @@ function generateNewAddressAndKey() {
 		throw 'Generated invalid bitcoin address.';
 	}
 
-	if (internalAddOrReplaceKey(addr, Bitcoin.Base58.encode(key.priv))) {
+	if (internalAddKey(addr, Bitcoin.Base58.encode(key.priv))) {
 		
-		address_tags[addr] = 1;
+		addresses[addr].tag = 1; //Mark as unsynced
 		
 		buildReceiveCoinsView();
 		

@@ -78,9 +78,11 @@ function formatBTC(value) {
 	
 	var neg = '';
 	if (value < 0) {
-		value = '' + -value;
+		value = -value;
 		neg = '-';
 	}
+	
+	value = ''+value;
 	
 	var integerPart = value.length > 8 ? value.substr(0, value.length-8) : '0';
 	var decimalPart = value.length > 8 ? value.substr(value.length-8) : value;
