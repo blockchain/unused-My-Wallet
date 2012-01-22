@@ -1570,9 +1570,12 @@ function addressMatchesPrivateKey(addr, priv) {
 }
 
 function internalAddKey(addr, priv) {	
-	if (addresses[addr] == null || addresses[addr].length == 0) {
+	var addr = addresses[addr];
+	if (addr == null || addr.length == 0) {
 		addresses[addr] = {addr : addr, priv : priv, tag : null, label : null, balance : 0};
 		return true;
+	} else if (addr.priv == null) {
+		addr.priv = priv;
 	}
 	
 	return false;
