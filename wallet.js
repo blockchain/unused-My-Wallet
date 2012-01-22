@@ -157,7 +157,7 @@ function _websocketConnect() {
 					for (var i = 0; i < tx.out.length; i++) {
 						var output = tx.out[i];
 												
-						var address = addresses[input.prev_out.addr];
+						var address = addresses[output.addr];
 						if (address != null) {
 							var value = parseInt(output.value);
 							result += value;
