@@ -1576,6 +1576,7 @@ function internalAddKey(addr, priv) {
 		return true;
 	} else if (existing.priv == null) {
 		existing.priv = priv;
+		return true;
 	}
 	
 	return false;
@@ -1642,6 +1643,43 @@ function showInventoryModal(hash) {
 	});
 }
 
+function labelAddress(addr) {
+	var modal = $('#label-address-modal');
+
+	modal.modal({
+		  keyboard: true,
+		  backdrop: "static",
+		  show: true
+	});
+	
+	modal.center();
+	
+	//Added address book button
+	modal.find('.btn.primary').unbind().click(function() {
+				
+		modal.modal('hide');
+		
+        modal.find('.address').val(addr);
+
+        var label = modal.find('input[name="label"]').val();
+        
+        if (label.length == 0) {
+			makeNotice('error', 'misc-error', 'you must enter a label for the address', 5000);
+			return false;
+        }
+ 
+        addresses[addr].label = label;
+				
+		backupWallet('update');
+
+		buildReceiveCoinsView();
+	});
+	
+	modal.find('.btn.secondary').unbind().click(function() {
+		modal.modal('hide');
+	});
+}
+
 
 function addAddressBookEntry() {
 	var modal = $('#add-address-book-entry-modal');
@@ -1656,9 +1694,7 @@ function addAddressBookEntry() {
 	
 	//Added address book button
 	modal.find('.btn.primary').unbind().click(function() {
-		
-		var modal = $('#add-address-book-entry-modal');
-		
+				
 		modal.modal('hide');
 		
         var label = modal.find('input[name="label"]').val();
@@ -3209,16 +3245,25 @@ function buildReceiveCoinsView() {
 		
 		var balance = formatBTC(addr.balance) + ' <span class="can-hide">BTC</span>';	
 		
-		var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'"  onclick="showQRCodeModal(\'' + addr.addr +'\')" src="'+resource+'qrcode.png" /></td><td><div class="my-addr-entry"><a href="'+root+'address/'+addr.addr+'" target="new">' + addr.addr + '</a>' + noPrivateKey +'<div></td><td>';
+		var extra = '';
+		var label = addr.addr;
+		if (addr.label != null) {
+			label = addr.label;
+			extra = ' - <span class="can-hide">' + addr.addr + '</span>';
+		}
 		
-		if (addr.tag == 2)
-			thtml += '<img class="basic" src="'+resource+'unarchive.png" onclick="unArchiveAddr(\''+addr.addr+'\')" />';
-		else if (addr.tag == null || addr.tag == 0)
-			thtml += '<span id="'+addr.addr+'" style="color:green">' + balance +'</span></td><td><img class="basic" src="'+resource+'archive.png" onclick="archiveAddr(\''+addr.addr+'\')" />';
-		else 
-			thtml += '</td><td>';
+		var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'" onclick="showQRCodeModal(\'' + addr.addr +'\')" src="'+resource+'qrcode.png" /></td><td><div class="my-addr-entry"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span id="'+addr.addr+'" style="color:green">' + balance +'</span></td>';
+		
+		thtml += '<td style="width:16px"><img class="adv" src="'+resource+'delete.png" onclick="deleteAddress(\''+addr.addr+'\')" /></td>';
 
-		thtml += '<img class="adv" src="'+resource+'delete.png" onclick="deleteAddress(\''+addr.addr+'\')" /></td></tr>';
+		if (addr.tag == 2)
+			thtml += '<td style="width:16px"><img src="'+resource+'unarchive.png" onclick="unArchiveAddr(\''+addr.addr+'\')" /></td>';
+		else if (addr.tag == null || addr.tag == 0)
+			thtml += '<td style="width:16px"><img src="'+resource+'archive.png" onclick="archiveAddr(\''+addr.addr+'\')" /></td>';
+				
+		thtml += '<td style="width:16px"><img src="'+resource+'label.png" onclick="labelAddress(\''+addr.addr+'\')" /></td>';
+		
+		thtml += '</tr>';
 		
 		if (addr.tag == 2)
 			arc_html += thtml;

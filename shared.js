@@ -147,9 +147,13 @@ Transaction.prototype.getHTML = function(myAddresses) {
 			input = this.inputs[i];
 			 
 			//total_fees += input.prevOutputValue;
-			
-			if (myAddresses != null && myAddresses[input.prev_out.addr] != null) {
-				html += '<li>'+input.prev_out.addr+'</li>';
+			var myAddr = myAddresses[input.prev_out.addr];
+			if (myAddresses != null && myAddr != null) {
+				if (myAddr.label != null)
+					html += '<li>'+myAddr.label+'</li>';
+				else
+					html += '<li>'+input.prev_out.addr+'</li>';
+
 			} else if (input.prev_out.hash == null || input.prev_out.hash.length == 0) {
 				html += '<li><b>No Input (Newly Generated Coins)</b></li>';
 			} else {
@@ -159,7 +163,6 @@ Transaction.prototype.getHTML = function(myAddresses) {
     } else {
 		html += '<li>No inputs, transaction probably sent from self.</li>';
     }
-
 
 	html += '</ul></td><td class="can-hide" style="padding:4px;width:48px;text-align:center;vertical-align:middle;">';
 	
@@ -192,11 +195,15 @@ Transaction.prototype.getHTML = function(myAddresses) {
 		output = this.out[i];
 						
 		//total_fees -= output.value;
-
-		if (myAddresses != null && myAddresses[output.addr] != null)
-			html += '<li>'+output.addr+'</li>';
-		else 
+		var myAddr = myAddresses[output.addr];
+		if (myAddresses != null && myAddr != null) {
+			if (myAddr.label != null)
+				html += '<li>'+myAddr.label+'</li>';
+			else
+				html += '<li>'+output.addr+'</li>';
+		} else {
 			html += '<li><a target="new" href="'+root+'address/'+output.hash+'">'+output.addr+'</a></li>';
+		}
 	}
 				
 	html += '</ul></td><td width="15%" style="vertical-align:middle;"><ul class="txul">';
