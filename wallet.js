@@ -351,6 +351,20 @@ function pasteAddress(addr) {
 	$('#recipient-container').find('input[name="send-to-address"]').last().val(addr);
 }
 	
+function deleteAddressBook(addr) {
+	for (var i = 0; i < address_book.length; ++i) {
+		var taddr =  address_book[i].addr;
+		if (taddr == addr) {
+			address_book.splice(i,1);
+			
+			backupWallet('update');
+			
+			buildSendTxView();
+			break;
+		}
+	}
+}
+
 function buildSendTxView() {
 	
 	//Only build when visible
@@ -362,7 +376,8 @@ function buildSendTxView() {
 	el.empty();
 	
 	for (var i = 0; i < address_book.length; ++i) {
-		el.append('<tr><td>'+ address_book[i].label + '</td><td><div class="addr-book-entry">'+ address_book[i].addr + '</div></td><td><img src="' + resource+ 'paste.png" onclick="pasteAddress(\''+ address_book[i].addr + '\')"></tr>');
+		var addr =  address_book[i].addr;
+		el.append('<tr><td>'+ address_book[i].label + '</td><td><div class="addr-book-entry">'+ addr + '</div></td><td style="width:16px"><img src="'+resource+'delete.png" onclick="deleteAddressBook(\''+addr+'\')" /></td><td><img src="' + resource+ 'paste.png" onclick="pasteAddress(\''+ address_book[i].addr + '\')"></tr>');
 	}
 	
 	var send_tx_form = $('#send-tx-form');
