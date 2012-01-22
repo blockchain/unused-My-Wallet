@@ -751,7 +751,7 @@ function internalRestoreWallet() {
 		for (var i = 0; i < obj.keys.length; ++i) {		
 			internalAddKey(obj.keys[i].addr, obj.keys[i].priv);
 			
-			var addr = addresses[obj.keys[i].addr];
+			var addr = addresses[obj.keys[i].addr];			
 			addr.tag = obj.keys[i].tag;
 			addr.label = obj.keys[i].label;
 		}
@@ -1570,12 +1570,12 @@ function addressMatchesPrivateKey(addr, priv) {
 }
 
 function internalAddKey(addr, priv) {	
-	var addr = addresses[addr];
-	if (addr == null || addr.length == 0) {
+	var existing = addresses[addr];
+	if (existing == null || existing.length == 0) {
 		addresses[addr] = {addr : addr, priv : priv, tag : null, label : null, balance : 0};
 		return true;
-	} else if (addr.priv == null) {
-		addr.priv = priv;
+	} else if (existing.priv == null) {
+		existing.priv = priv;
 	}
 	
 	return false;
