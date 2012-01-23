@@ -490,9 +490,10 @@ function importJSON() {
 		
 			//Parse the normal wallet backup
 			for (var i = 0; i < obj.keys.length; ++i) {		
-				if (addressMatchesPrivateKey(obj.keys[i].addr, obj.keys[i].priv)) {
-					internalAddKey(obj.keys[i].addr, obj.keys[i].priv);
-				}
+				internalAddKey(obj.keys[i].addr, obj.keys[i].priv);
+				var addr = obj.keys[i].addr;
+				addr.label = obj.keys[i].label;
+				addr.tag = obj.keys[i].tag;
 			}
 					
 			if (obj.address_book != null) {
@@ -1039,6 +1040,13 @@ function getAccountInfo() {
 			$('.alias').show(200);
 		}
 		
+		if (data.dropbox_enabled == 1)
+			$('#wallet-dropbox-enabled').prop("checked", true);
+		else
+			$('#wallet-dropbox-enabled').prop("checked", false);
+
+		$('#wallet-http-url').val(data.http_url);
+
 		$('#wallet-http-url').val(data.http_url);
 		$('#wallet-skype').val(data.skype_username);
 		$('#wallet-yubikey').val(data.yubikey);
@@ -1167,6 +1175,8 @@ function backupWallet(method, successcallback, errorcallback) {
 		 converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
 		 success: function(data) {  
 			 
+			 console.log(data);
+			 
 			 var change = false;
 			 for (var key in addresses) {
 				 var addr = addresses[key];
@@ -1181,8 +1191,15 @@ function backupWallet(method, successcallback, errorcallback) {
 			 
 			 if (method == 'update')
 				 updatePubKeys();
-		 
-			makeNotice('success', 'misc-success', data, 5000);
+			 
+			 var components = data.split('[---]');
+			 if (components.length > 0) {
+				 if (components[0] == 'dropbox') {
+					 window.open(components[1]);
+				 }
+			 } else {
+				 makeNotice('success', 'misc-success', data, 5000);
+			 }
 			
 			if (successcallback != null)
 				successcallback();
@@ -2700,6 +2717,14 @@ function bind() {
 		updateKV('Updating Secret Phrase', 'update-phrase', phrase);
 	});
 	
+	$('#wallet-dropbox-enabled').change(function(e) {	
+		var val = 'false';
+		if ($(this).is(':checked'))
+			val = 'true';
+		
+		updateKV('Updating Dropbox Settings', 'update-dropbox-enabled', val);
+	});
+
 	$('#wallet-alias').change(function(e) {		
 		$(this).val($(this).val().replace(/[\.,\/ #!$%\^&\*;:{}=`~()]/g,""));
 	
@@ -2737,7 +2762,8 @@ function bind() {
         window.location = root + 'wallet/' + 'login';
     });
 
-	$("#restore-wallet-continue").click(function() {
+	$("#restore-wallet-continue").click(function(e) {
+		e.preventDefault();
 
 		var tguid = $('#restore-guid').val();
         
