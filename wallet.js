@@ -649,6 +649,9 @@ function queryAPIMultiAddress() {
 
 	var hashes = getMyHash160s();
 	
+	if (hashes == null || hashes.length == 0)
+		return;
+	
 	setLoadingText('Loading transactions');
 
 	$.ajax({
@@ -1124,7 +1127,7 @@ function updateKV(txt, method, value) {
     });
 }
 
-function backupWallet(method, successcallback, errorcallback) {
+function backupWallet(method, successcallback, errorcallback, extra) {
 	if (offline) return;
 
 	if (!isInitialized && method != 'insert')
@@ -1168,9 +1171,14 @@ function backupWallet(method, successcallback, errorcallback) {
 	
 	setLoadingText('Saving wallet');
 
+	console.log('Extra ' + extra);
+	
+	if (extra == null)
+		extra = '';
+	
 	$.ajax({
 		 type: "POST",
-		 url: root + 'wallet',
+		 url: root + 'wallet' + extra,
 		 data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: checksum, method : method },
 		 converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
 		 success: function(data) {  
@@ -1275,44 +1283,6 @@ function updatePassword() {
 	modal.find('.btn.secondary').unbind().click(function() {
 		modal.modal('hide');
 	});
-}
-
-function generateNewWallet() {
-
-	if (guid != null) {
-		makeNotice('error', 'misc-error', 'You have already have a vaild wallet identifier.');
-		return false;
-	}
-	
-	if (isInitialized) {
-		return false;
-	}
-	
-	if (!checkAndSetPassword())
-		return false;
-	
-	try {
-		
-		generateNewAddressAndKey();
-		
-		sharedKey = guidGenerator();
-		
-		guid = guidGenerator();
-		
-		if (guid.length != 36) {
-			makeNotice('error', 'misc-error', 'Error generating wallet identifier');
-			return false;
-		}
-					
-		backupWallet('insert');
-	
-		return true;
-
-	} catch (e) {
-		makeNotice('error', 'misc-error', 'Error generating wallet. Your browser maybe incompatible');
-	}
-	
-	return false;
 }
 
 function changeView(id) {
