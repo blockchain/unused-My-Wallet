@@ -1678,7 +1678,7 @@ function labelAddress(addr) {
  
         addresses[addr].label = label;
 				
-		backupWallet('update');
+		backupWallet('update', null, null, '?no-dropbox=true');
 
 		buildReceiveCoinsView();
 	});
@@ -3178,6 +3178,25 @@ function showQRCodeModal(data) {
 	});
 }
 
+
+function internalArchive(addr) {
+	buildReceiveCoinsView();
+	
+	buildSendTxView();
+	
+	buildTransactionsView();
+	
+	if (archTimer != null) {
+		clearInterval(archTimer);
+		archTimer = null;
+	}
+	
+	archTimer = setTimeout(function (){
+		backupWallet('update', null, null, '?no-dropbox=true');
+		queryAPIMultiAddress();
+	}, 3000);
+}
+
 var archTimer;
 function unArchiveAddr(addr) {
 	
@@ -3185,22 +3204,7 @@ function unArchiveAddr(addr) {
 	if (addr.tag == 2) {
 		addr.tag = 0;
 		
-		buildReceiveCoinsView();
-		
-		buildSendTxView();
-		
-		buildTransactionsView();
-		
-		if (archTimer != null) {
-			clearInterval(archTimer);
-			archTimer = null;
-		}
-		
-		archTimer = setTimeout(function (){
-			backupWallet('update');
-			queryAPIMultiAddress();
-		}, 3000);
-		
+		internalArchive();
 	} else {
 		makeNotice('error', 'add-error', 'Cannot unarchive this address', 5000);
 	}
@@ -3219,21 +3223,7 @@ function archiveAddr(addr) {
 	if (addr.tag == null || addr.tag == 0) {
 		addr.tag = 2;
 		
-		buildReceiveCoinsView();
-		
-		buildSendTxView();
-		
-		buildTransactionsView();
-		
-		if (archTimer != null) {
-			clearInterval(archTimer);
-			archTimer = null;
-		}
-		
-		archTimer = setTimeout(function (){
-			backupWallet('update');
-			queryAPIMultiAddress();
-		}, 3000);
+		internalArchive();
 		
 	} else {
 		makeNotice('error', 'add-error', 'Cannot archive this address', 5000);
