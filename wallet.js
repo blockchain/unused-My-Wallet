@@ -1686,14 +1686,20 @@ function labelAddress(addr) {
 	
 	modal.center();
 	
+    modal.find('.address').text(addr);
+
+    var label_input = modal.find('input[name="label"]');
+    
+    modal.find('.address').text(addr);
+
+    label_input.val('');
+    
 	//Added address book button
 	modal.find('.btn.primary').unbind().click(function() {
 				
 		modal.modal('hide');
 		
-        modal.find('.address').val(addr);
-
-        var label = modal.find('input[name="label"]').val();
+        var label = label_input.val();
         
         if (label.length == 0) {
 			makeNotice('error', 'misc-error', 'you must enter a label for the address', 5000);
