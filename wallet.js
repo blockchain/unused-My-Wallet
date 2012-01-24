@@ -522,7 +522,11 @@ function getMyHash160s() {
 		if (addr.tag == 2)
 			continue;
 		
-		array.push(Crypto.util.bytesToHex(new Bitcoin.Address(addr.addr).hash));
+		try {
+			array.push(Crypto.util.bytesToHex(new Bitcoin.Address(addr.addr).hash));
+		} catch (e) {
+			makeNotice('error', 'misc-error', 'Unable to decode address ' + addr.addr, 5000);
+		}
 	}
 	return array;
 }
@@ -1337,7 +1341,7 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 
     //Add blockchain.info's fees
     var ouraddr = new Bitcoin.Address(our_address);
-    
+  
     var ourFee = BigInteger.valueOf(1000000); // 0.01 BTC
 
 	var availableValue = BigInteger.ZERO;
@@ -1913,12 +1917,17 @@ function setReviewTransactionContent(modal, tx) {
 		for (var i = 0; i < tx.ins.length; ++i) {
 			var input = tx.ins[i];
 						
-			var addr = new Bitcoin.Address(input.script.simpleInPubKeyHash());			
-			
 			total_fees = total_fees.add(input.outpoint.value);
 			
 			wallet_effect = wallet_effect.add(input.outpoint.value);
 			
+			var addr = null;	
+			try {
+				address = new Bitcoin.Address(input.script.simpleInPubKeyHash());	
+			} catch(e) {
+				address = 'Unable To Decode Address';
+			}
+	
 			$('#rtc-from').append(addr + ' <font color="green">' + formatBTC(input.outpoint.value.toString()) + ' BTC <br />');
 		}
 	
@@ -1933,8 +1942,14 @@ function setReviewTransactionContent(modal, tx) {
 			var val =  new BigInteger(array);
 	
 			var hash = out.script.simpleOutPubKeyHash();
-			var address = new Bitcoin.Address(hash).toString();
-	
+			var address = null;
+			
+			try {
+				address = new Bitcoin.Address(hash).toString();
+			} catch(e) {
+				address = 'Unable To Decode Address';
+			}
+			
 			$('#rtc-to').append(address + ' <font color="green">' + formatBTC(val.toString()) + ' BTC </font><br />');
 		
 			total = total.add(val);
