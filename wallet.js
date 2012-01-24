@@ -357,7 +357,7 @@ function deleteAddressBook(addr) {
 		if (taddr == addr) {
 			address_book.splice(i,1);
 			
-			backupWallet('update');
+			backupWallet();
 			
 			buildSendTxView();
 			break;
@@ -728,7 +728,7 @@ function didDecryptWallet() {
 			window.location.hash = '';
 			
 			if (didChangeWallet) {
-				backupWallet('update');
+				backupWallet();
 			}
 		}
 	} catch (e) {
@@ -774,16 +774,19 @@ function internalRestoreWallet() {
 		
 		var obj = jQuery.parseJSON(decrypted);
 
+		
 		for (var i = 0; i < obj.keys.length; ++i) {		
 			
-			if (obj.keys[i].addr == null) {
-				makeNotice('error', 'null-error', 'You contains an undefined address. This is a sign of possible curruption, please double check all your BTC is acounted for. Backup your wallet to remove this message (Generate a new address)', 15000);	
+			var addr = obj.keys[i].addr;
+			if (addr == null || addr.length == 0 || addr == 'undefined') {
+				makeNotice('error', 'null-error', 'You contains an undefined address. This is a sign of possible curruption, please double check all your BTC is acounted for.', 15000);	
+				backupWallet();
 				continue;
 			}
 			
-			internalAddKey(obj.keys[i].addr, obj.keys[i].priv);
+			internalAddKey(addr, obj.keys[i].priv);
 			
-			var addr = addresses[obj.keys[i].addr];			
+			var addr = addresses[addr];			
 			addr.tag = obj.keys[i].tag;
 			addr.label = obj.keys[i].label;
 		}
@@ -1142,6 +1145,8 @@ function updateKV(txt, method, value) {
 
 function backupWallet(method, successcallback, errorcallback, extra) {
 	if (offline) return;
+	
+	if (method == null) method = 'update';
 
 	if (!isInitialized && method != 'insert')
 		return false;
@@ -1759,7 +1764,7 @@ function addAddressBookEntry() {
 		
 		internalAddAddressBookEntry(bitcoinAddress, label);
 
-		backupWallet('update');
+		backupWallet();
 
 		buildSendTxView();
 	});
@@ -1838,7 +1843,7 @@ function deleteAddress(addr) {
 					//Update view with remove address
 					buildReceiveCoinsView();
 										
-				    backupWallet('update');
+				    backupWallet();
 					  
 				    clearInterval(interval);
 			    }
@@ -1883,7 +1888,7 @@ function deleteAddress(addr) {
 						
 						buildReceiveCoinsView();
 						
-						backupWallet('update');
+						backupWallet();
 						
 						queryAPIMultiAddress();
 
@@ -2671,7 +2676,7 @@ function bind() {
 		try {
 		  generateNewAddressAndKey();
 		  		  
-		  backupWallet('update');
+		  backupWallet();
 		} catch (e) {
 			makeNotice('error', 'misc-error', e);
 		}
@@ -2801,7 +2806,7 @@ function bind() {
 				buildReceiveCoinsView();
 				
 				//Perform a wallet backup
-				backupWallet('update');
+				backupWallet();
 				
 				//Get the new list of transactions
 				queryAPIMultiAddress();
@@ -2839,7 +2844,7 @@ function bind() {
 					buildReceiveCoinsView();
 	
 					//Backup
-					backupWallet('update');
+					backupWallet();
 					
 					//Update the balance list
 					queryAPIMultiAddress(); 
@@ -2885,7 +2890,7 @@ function bind() {
 					buildReceiveCoinsView();
 					
 					//Perform a wallet backup
-					backupWallet('update');
+					backupWallet();
 					
 					//Get the new list of transactions
 					queryAPIMultiAddress();
