@@ -577,7 +577,10 @@ function buildTransactionsView() {
 
 	$('#summary-balance').html(formatMoney(final_balance, true));
 
-		
+	
+	if (transactions.length == 0)
+		return;
+	
 	var interval = null;
 	var start = 0;
 
