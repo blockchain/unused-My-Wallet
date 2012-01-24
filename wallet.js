@@ -775,6 +775,12 @@ function internalRestoreWallet() {
 		var obj = jQuery.parseJSON(decrypted);
 
 		for (var i = 0; i < obj.keys.length; ++i) {		
+			
+			if (obj.keys[i].addr == null) {
+				makeNotice('error', 'null-error', 'You had an undefined address in your JSON data. This is a sign of possible curruption, please double check all your BTC is acounted for.', 15000);	
+				continue;
+			}
+			
 			internalAddKey(obj.keys[i].addr, obj.keys[i].priv);
 			
 			var addr = addresses[obj.keys[i].addr];			
@@ -1207,14 +1213,17 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 			 if (method == 'update')
 				 updatePubKeys();
 			 
+			 var notice = true;
 			 var components = data.split('[---]');
 			 if (components.length > 0) {
 				 if (components[0] == 'dropbox') {
 					 window.open(components[1]);
+					 notice = false;
 				 }
 			 }
 			
-			 makeNotice('success', 'misc-success', data, 5000);
+			 if (notice)
+				 makeNotice('success', 'misc-success', data, 5000);
 			 
 			if (successcallback != null)
 				successcallback();
