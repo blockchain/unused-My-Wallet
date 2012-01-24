@@ -779,8 +779,7 @@ function internalRestoreWallet() {
 			
 			var addr = obj.keys[i].addr;
 			if (addr == null || addr.length == 0 || addr == 'undefined') {
-				makeNotice('error', 'null-error', 'You contains an undefined address. This is a sign of possible curruption, please double check all your BTC is acounted for.', 15000);	
-				backupWallet();
+				makeNotice('error', 'null-error', 'You contains an undefined address. This is a sign of possible curruption, please double check all your BTC is acounted for. Backup your wallet to remove this error.', 15000);	
 				continue;
 			}
 			
