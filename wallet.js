@@ -1205,10 +1205,10 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 				 if (components[0] == 'dropbox') {
 					 window.open(components[1]);
 				 }
-			 } else {
-				 makeNotice('success', 'misc-success', data, 5000);
 			 }
 			
+			 makeNotice('success', 'misc-success', data, 5000);
+			 
 			if (successcallback != null)
 				successcallback();
 		},
