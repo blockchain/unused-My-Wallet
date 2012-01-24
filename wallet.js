@@ -777,7 +777,7 @@ function internalRestoreWallet() {
 		for (var i = 0; i < obj.keys.length; ++i) {		
 			
 			if (obj.keys[i].addr == null) {
-				makeNotice('error', 'null-error', 'You had an undefined address in your JSON data. This is a sign of possible curruption, please double check all your BTC is acounted for.', 15000);	
+				makeNotice('error', 'null-error', 'You contains an undefined address. This is a sign of possible curruption, please double check all your BTC is acounted for. Backup your wallet to remove this message (Generate a new address)', 15000);	
 				continue;
 			}
 			
@@ -3322,7 +3322,7 @@ function generateNewAddressAndKey() {
 		
 	var addr = key.getBitcoinAddress();
 
-	if (addr == null ) {
+	if (addr == null) {
 		throw 'Generated invalid bitcoin address.';
 	}
 
