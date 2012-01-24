@@ -1923,9 +1923,9 @@ function setReviewTransactionContent(modal, tx) {
 			
 			var addr = null;	
 			try {
-				address = new Bitcoin.Address(input.script.simpleInPubKeyHash());	
+				addr = new Bitcoin.Address(input.script.simpleInPubKeyHash());	
 			} catch(e) {
-				address = 'Unable To Decode Address';
+				addr = 'Unable To Decode Address';
 			}
 	
 			$('#rtc-from').append(addr + ' <font color="green">' + formatBTC(input.outpoint.value.toString()) + ' BTC <br />');
