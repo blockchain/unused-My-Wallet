@@ -19,9 +19,7 @@ var transactions = []; //List of all transactions (initially populated from /mul
 //var address_tags = []; //Map of address to an option tag (0 == OK 1 == Unsynced, 2 == Archived, 3 == No Private Key)
 
 var addresses = []; //{addr : address, priv : private key, tag : tag (mark as archived), label : label, balance : balance}
-
 var loading_text = ''; //Loading text for ajax activity 
-var our_address = '1A8JiWcwvpY7tAopUkSnGuEYHmzGYfZPiq'; //Address for fees and what not
 var sound_on = true; //Play a bleep sound when tx received
 var offline = false;
 var unspent_cache = null;

@@ -2,6 +2,7 @@ var satoshi = parseInt(100000000); //One satoshi
 var showInvBtn = false;
 var show_adv = false;
 var adv_rule;
+var our_address = '1A8JiWcwvpY7tAopUkSnGuEYHmzGYfZPiq'; //Address for fees and what not
 
 function Transaction () { };
 function Block () { };
@@ -202,7 +203,10 @@ Transaction.prototype.getHTML = function(myAddresses) {
 			else
 				html += '<li>'+output.addr+'</li>';
 		} else {
-			html += '<li><a target="new" href="'+root+'address/'+output.hash+'">'+output.addr+'</a></li>';
+			 if (output.addr == our_address)
+				html += '<li>My Wallet Fee</li>';
+			 else
+				html += '<li><a target="new" href="'+root+'address/'+output.hash+'">'+output.addr+'</a></li>';
 		}
 	}
 				
