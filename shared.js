@@ -204,7 +204,7 @@ Transaction.prototype.getHTML = function(myAddresses) {
 				html += '<li>'+output.addr+'</li>';
 		} else {
 			 if (output.addr == our_address)
-				html += '<li>My Wallet Fee</li>';
+				html += '<li>Blockchain.info</li>';
 			 else
 				html += '<li><a target="new" href="'+root+'address/'+output.hash+'">'+output.addr+'</a></li>';
 		}
