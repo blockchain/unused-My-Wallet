@@ -489,9 +489,14 @@ function importJSON() {
 		} else {
 		
 			//Parse the normal wallet backup
-			for (var i = 0; i < obj.keys.length; ++i) {		
-				internalAddKey(obj.keys[i].addr, obj.keys[i].priv);
+			for (var i = 0; i < obj.keys.length; ++i) {	
 				var addr = obj.keys[i].addr;
+				
+				if (addr == null || addr.length == 0 || addr == 'undefined')
+					continue;
+				
+				internalAddKey(addr, obj.keys[i].priv);
+				var addr = addresses[addr];
 				addr.label = obj.keys[i].label;
 				addr.tag = obj.keys[i].tag;
 			}
@@ -779,7 +784,7 @@ function internalRestoreWallet() {
 			
 			var addr = obj.keys[i].addr;
 			if (addr == null || addr.length == 0 || addr == 'undefined') {
-				makeNotice('error', 'null-error', 'You contains an undefined address. This is a sign of possible curruption, please double check all your BTC is acounted for. Backup your wallet to remove this error.', 15000);	
+				makeNotice('error', 'null-error', 'Your wallet contains an undefined address. This is a sign of possible curruption, please double check all your BTC is acounted for. Backup your wallet to remove this error.', 15000);	
 				continue;
 			}
 			
@@ -2885,6 +2890,9 @@ function bind() {
 					throw 'Decode returned null key';
 				
 				var addr = key.getBitcoinAddress().toString();
+				
+				if (addr == null || addr.length == 0 || addr == 'undefined')
+					throw 'Unable to decode bitcoin addresses from private key';
 								
 				if (internalAddKey(addr, Bitcoin.Base58.encode(key.priv))) {
 					
