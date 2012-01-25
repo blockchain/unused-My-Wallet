@@ -464,6 +464,45 @@ function importPyWalletJSONObject(obj) {
 	makeNotice('success', 'misc-success', 'Imported ' + i + ' private keys', 5000);
 }
 
+function parseMultiBit(str) {
+	//Any better way to auto detect?
+	//Multibit Wallets start with a comment #
+	try {
+	
+		var addedOne = false;
+		var lines = str.split('\n');
+		
+		for (var i = 0; i < lines.length; ++i) {
+			var line = lines[i];
+			
+			if (line == null || line.length == 0 | line.charAt(0) == '#')
+				continue;
+			
+			var components = line.split(' ');
+			
+			var sipa = components[0];
+			
+			if (sipa == null)
+				continue;
+			
+			if (walletIsFull())
+				continue;
+			
+			var key = privateKeyStringToKey(sipa, 'sipa');
+							
+			internalAddKey(key.getBitcoinAddress().toString(), Bitcoin.Base58.encode(key.priv));
+
+			addedOne = true;
+		}
+		
+		if (addedOne)
+			return true;
+		
+	} catch (e) {
+		return false;
+	} 	
+}
+
 function importJSON() {
 	
 	var json = $('#import-json').val();
@@ -473,6 +512,13 @@ function importJSON() {
 		return false;
 	}
 
+	//Any better way to auto detect?
+	//Multibit Wallets start with a comment #
+	if (json.charAt(0) == '#') {
+		if (parseMultiBit(json))
+			return true;
+	}
+	
 	var obj;
 
 	try {
@@ -1531,7 +1577,7 @@ function signInput(sendTx, missingPrivateKeys, selectedOuts, i) {
 			return false;
 		}
 		
-		if (privatekey.getBitcoinAddress() != inputBitcoinAddress) {
+		if (privatekey.getBitcoinAddress().toString() != inputBitcoinAddress.toString()) {
 			throw 'Private key does not match bitcoin address';
 		}
 		
@@ -2192,7 +2238,7 @@ function createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, 
 											return;
 										}
 									    
-										if (missing.addr != key.getBitcoinAddress()) {
+										if (missing.addr != key.getBitcoinAddress().toString()) {
 											makeNotice('error', 'misc-error', 'The private key you entered does not match the bitcoin address', 5000);
 											return;
 										}
@@ -2248,7 +2294,7 @@ function createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, 
 								return;
 							}
 							
-							if (missing.addr != key.getBitcoinAddress()) {
+							if (missing.addr != key.getBitcoinAddress().toString()) {
 								makeNotice('error', 'misc-error', 'The private key you entered does not match the bitcoin address', 5000);
 								return;
 							}
