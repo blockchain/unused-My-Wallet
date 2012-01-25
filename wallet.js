@@ -2729,7 +2729,7 @@ function bind() {
 	
 		if ($(this).is(':checked')) {
 			val = 'true';
-			setTimeout(function() { console.log('Do dropbox backup'); backupWallet(); }, 1000); //Delayed backup (let setting be updated first)
+			setTimeout(backupWallet, 1000); //Delayed backup (let setting be updated first)
 		}
 		
 		updateKV('Updating Dropbox Settings', 'update-dropbox-enabled', val);
