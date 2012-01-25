@@ -2726,8 +2726,10 @@ function bind() {
 	
 	$('#wallet-dropbox-enabled').change(function(e) {	
 		var val = 'false';
-		if ($(this).is(':checked'))
+		if ($(this).is(':checked')) {
 			val = 'true';
+			setTimeout(doWalletBackup, 1000); //Delayed backup (let setting be updated first)
+		}
 		
 		updateKV('Updating Dropbox Settings', 'update-dropbox-enabled', val);
 	});
