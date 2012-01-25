@@ -159,7 +159,7 @@ function _websocketConnect() {
 						if (address != null) {
 							var value = parseInt(output.value);
 							result += value;
-							addresses.balance += value;
+							address.balance += value;
 							total_received += value;
 						}
 					}
