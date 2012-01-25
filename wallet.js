@@ -3364,7 +3364,10 @@ function buildReceiveCoinsView() {
 			extra = ' - <span class="can-hide">' + addr.addr + '</span>';
 		}
 		
-		var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'" onclick="showQRCodeModal(\'' + addr.addr +'\')" src="'+resource+'qrcode.png" /></td><td><div class="my-addr-entry"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span id="'+addr.addr+'" style="color:green">' + balance +'</span></td>';
+		var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'" onclick="showQRCodeModal(\'' + addr.addr +'\')" src="'+resource+'qrcode.png" /></td><td><div class="my-addr-entry"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td>';
+		
+		if (addr.tag != 2)
+			thtml += '<td><span id="'+addr.addr+'" style="color:green">' + balance +'</span></td>';
 		
 		thtml += '<td style="width:16px"><img class="adv" src="'+resource+'delete.png" onclick="deleteAddress(\''+addr.addr+'\')" /></td>';
 
