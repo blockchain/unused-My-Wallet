@@ -280,6 +280,21 @@ function makeNotice(type, id, msg, timeout) {
 function base58ToBase58(x) { return x; }
 function base58ToBase64(x) { var bytes = Bitcoin.Base58.decode(x); return Crypto.util.bytesToBase64(bytes); }
 function base58ToHex(x) { var bytes = Bitcoin.Base58.decode(x); return Crypto.util.bytesToHex(bytes); }
+function base58ToSipa(x) { 
+	var bytes = Bitcoin.Base58.decode(x); // zero pad if private key is less than 32 bytes (thanks Casascius)
+	
+	while (bytes.length < 32) bytes.unshift(0x00);
+	
+	bytes.unshift(0x80); // prepend 0x80 byte
+	var checksum = Crypto.SHA256(Crypto.SHA256(bytes, { asBytes: true }), { asBytes: true });
+	bytes = bytes.concat(checksum.slice(0, 4));
+	
+	var privWif = Bitcoin.Base58.encode(bytes);
+	
+	return privWif; 
+}
+
+
 
 function makeWalletJSON(format) {
 	
@@ -289,6 +304,8 @@ function makeWalletJSON(format) {
 		encode_func = base58ToBase64;
 	else if (format == 'hex') 
 		encode_func = base58ToHex;
+	else if (format == 'sipa') 
+		encode_func = base58ToSipa;
 	
 	var out = '{\n	"guid" : "'+guid+'",\n	"sharedKey" : "'+sharedKey+'",\n';
 	
