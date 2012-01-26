@@ -734,17 +734,20 @@ function queryAPIMultiAddress() {
 		  converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": jQuery.parseXML},
 		  success: function(data) {  
 		
-			parseMultiAddressJSON(data);
-			
-			//Rebuild the my-addresses list with the new updated balances (Only if visible)
-			buildReceiveCoinsView();
-			 				
-			//Refresh transactions (Only if visible)
-			buildTransactionsView();
-
 			try {
+	
+				parseMultiAddressJSON(data);
+				
+				//Rebuild the my-addresses list with the new updated balances (Only if visible)
+				buildReceiveCoinsView();
+				 				
+				//Refresh transactions (Only if visible)
+				buildTransactionsView();
+
 				localStorage.setItem('multiaddr', data);
 			} catch (e) {
+				console.log(data);
+
 				console.log(e);
 			}
 			
