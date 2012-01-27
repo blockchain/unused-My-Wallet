@@ -2410,8 +2410,7 @@ function newTxValidateFormAndGetUnspent() {
 				};
 			} 
 			
-			
-			if (feeAddress != null && fromAddress.toString() == feeAddress.toString()) {
+			if (feeAddress != null && fromAddress != null && fromAddress.toString() == feeAddress.toString()) {
 				makeNotice('error', 'misc-error', 'From address and Fee address cannot be the same', 5000);
 				return false;
 			}
