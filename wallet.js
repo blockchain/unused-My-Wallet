@@ -1451,7 +1451,6 @@ function checkAndSetPassword() {
 	if (offline) return;
 
 	var tpassword = $("#password").val();
-	
 	var tpassword2 = $("#password2").val();
 	
 	if (tpassword != tpassword2) {
