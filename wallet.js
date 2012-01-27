@@ -415,9 +415,9 @@ function buildSendTxView() {
 		
 		if (addr.balance > 0) {
 			//On the sent transactions page add the address to the from address options
-			selects.prepend('<option>' + label + ' - ' + formatBTC(addr.balance) + ' BTC </option>');
+			selects.prepend('<option value="'+addr.addr+'">' + label + ' - ' + formatBTC(addr.balance) + ' BTC </option>');
 		} else {
-			selects.append('<option>' + label + '</option>');
+			selects.append('<option value="'+addr.addr+'">' + label + '</option>');
 		}
 	}
 	
@@ -2402,11 +2402,8 @@ function newTxValidateFormAndGetUnspent() {
 			
 			var feeAddrValue = $('#fee-addr').val();
 			if (feeAddrValue != 'Any Address') {
-			
-				var components = feeAddrValue.split(' ', 1);
-							
 				try {
-					feeAddress = new Bitcoin.Address(components[0]);
+					feeAddress = new Bitcoin.Address(feeAddrValue);
 				} catch (e) {
 					makeNotice('error', 'fee-error', 'Invalid fee address: ' + e, 5000);
 					return false;
@@ -2422,10 +2419,8 @@ function newTxValidateFormAndGetUnspent() {
 			if (changeAddressVal == 'New Address') {
 				newAddress = true;
 			} else if (changeAddressVal != 'Any Address') {
-				var components = changeAddressVal.split(' ', 1);
-							
 				try {
-					changeAddress = new Bitcoin.Address(components[0]);
+					changeAddress = new Bitcoin.Address(changeAddressVal);
 				} catch (e) {
 					makeNotice('error', 'change-error', 'Invalid change address: ' + e, 5000);
 					return false;
