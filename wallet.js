@@ -1663,9 +1663,6 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 	//18 bytes standard header
 	//standard scriptPubKey 24 bytes
 	//Stanard scriptSig 64 bytes
-	
-	console.log(sendTx.outs.length);
-	console.log(sendTx.ins.length);
 
 	var estimatedSize = sendTx.serialize(sendTx).length + (114 * sendTx.ins.length);
 	
@@ -1673,12 +1670,8 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 	
 	var kilobytes = estimatedSize / 1024;
 	
-	if (kilobytes > 1) {
-	//	throw 'Due to it\'s size this transaction requires a minimum miners fee of ' + Math.round(kilobytes) * 0.01 +' BTC';
-	}
-	
 	//Proority under 57 million requires a 0.01 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
-	if (priority < 57600000) {
+	if (priority < 57600000 || kilobytes > 1) {
 		//For low priority transactions we half our fee
 		sendTx.addOutput(ouraddr, ourFee.divide(BigInteger.valueOf(2)));
 	} else {		
@@ -2123,8 +2116,8 @@ function deleteAddress(addr) {
 
 }
 
-function setReviewTransactionContent(modal, tx) {	
-
+function setReviewTransactionContent(modal, tx) {
+	
 		$('#rtc-hash').html(Crypto.util.bytesToHex(tx.getHash()));
 		$('#rtc-version').html(tx.version);
 		$('#rtc-from').html('');
