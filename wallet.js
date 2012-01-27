@@ -2469,7 +2469,7 @@ function createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, 
 }
 
 //Check for inputs and get unspent for before signinging
-function newTxValidateFormAndGetUnspent() {
+function newTxValidateFormAndGetUnspent(method) {
 	
 	var modal = null;
 	var fromAddress = null;
