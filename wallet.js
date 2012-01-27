@@ -421,9 +421,9 @@ function buildSendTxView() {
 		}
 	}
 	
-	$('#change-addr').prepend('<option>New Address</option>');
+	$('#change-addr').prepend('<option value="new">New Address</option>');
 
-	selects.prepend('<option>Any Address</option>');
+	selects.prepend('<option value="any">Any Address</option>');
 		
 	selects.val($("#target option:first").val());
 	
@@ -2385,7 +2385,7 @@ function newTxValidateFormAndGetUnspent() {
 		}
 		
 		//Get the from address, if any
-		if ($('#send-from-address').val() != 'Any Address') {
+		if ($('#send-from-address').val() != 'any') {
 			
 			var components = $('#send-from-address').val().split(' ', 1);
 						
@@ -2401,7 +2401,7 @@ function newTxValidateFormAndGetUnspent() {
 		if (show_adv) {
 			
 			var feeAddrValue = $('#fee-addr').val();
-			if (feeAddrValue != 'Any Address') {
+			if (feeAddrValue != 'any') {
 				try {
 					feeAddress = new Bitcoin.Address(feeAddrValue);
 				} catch (e) {
@@ -2410,15 +2410,16 @@ function newTxValidateFormAndGetUnspent() {
 				};
 			} 
 			
+			
 			if (feeAddress != null && fromAddress.toString() == feeAddress.toString()) {
 				makeNotice('error', 'misc-error', 'From address and Fee address cannot be the same', 5000);
 				return false;
 			}
 				
 			var changeAddressVal = $('#change-addr').val();
-			if (changeAddressVal == 'New Address') {
+			if (changeAddressVal == 'new') {
 				newAddress = true;
-			} else if (changeAddressVal != 'Any Address') {
+			} else if (changeAddressVal != 'any') {
 				try {
 					changeAddress = new Bitcoin.Address(changeAddressVal);
 				} catch (e) {
