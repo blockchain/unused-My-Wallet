@@ -1674,7 +1674,7 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 	var kilobytes = estimatedSize / 1024;
 	
 	if (kilobytes > 1) {
-		throw 'Due to it\'s size this transaction requires a minimum miners fee of ' + Math.round(kilobytes) * 0.01 +' BTC';
+	//	throw 'Due to it\'s size this transaction requires a minimum miners fee of ' + Math.round(kilobytes) * 0.01 +' BTC';
 	}
 	
 	//Proority under 57 million requires a 0.01 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
