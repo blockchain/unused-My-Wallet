@@ -1670,7 +1670,13 @@ function makeTransaction(toAddressesWithValue, fromAddress, feeValue, unspentOut
 	var estimatedSize = sendTx.serialize(sendTx).length + (114 * sendTx.ins.length);
 	
 	priority /= estimatedSize;
-				
+	
+	var kilobytes = estimatedSize / 1024;
+	
+	if (kilobytes > 1) {
+		throw 'Due to it\'s size this transaction requires a minimum miners fee of ' + Math.round(kilobytes) * 0.01 +' BTC';
+	}
+	
 	//Proority under 57 million requires a 0.01 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
 	if (priority < 57600000) {
 		//For low priority transactions we half our fee
