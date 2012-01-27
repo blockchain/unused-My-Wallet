@@ -2893,6 +2893,9 @@ function bind() {
 	
 	$("#new-addr").click(function() {
 		try {
+			if (!getSecondPassword()) {
+				return;
+			}
 		  generateNewAddressAndKey();
 		  		  
 		  backupWallet();
