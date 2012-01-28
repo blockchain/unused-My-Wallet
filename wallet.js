@@ -26,7 +26,6 @@ var loading_text = ''; //Loading text for ajax activity
 var sound_on = true; //Play a bleep sound when tx received
 var offline = false;
 var unspent_cache = null;
-var downloadify_initd = false;
 
 showInvBtn = true;
 
@@ -950,12 +949,6 @@ function getReadyForOffline() {
 			initQRFlash('qr-code-reader', resource + 'wallet/');
 
 				loadScript(resource + 'wallet/swfobject.js', function() { 
-				loadScript(resource + 'wallet/downloadify.min.js', function() { 
-					
-					//Load the downloadify buttons
-					initDownloadify();
-						all_scripts_done = true;
-					 });
 				});
 		  	});
 	  	});  
@@ -1292,17 +1285,7 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 			 if (method == 'update')
 				 updatePubKeys();
 			 
-			 var notice = true;
-			 var components = data.split('[---]');
-			 if (components.length > 0) {
-				 if (components[0] == 'dropbox') {
-					 window.open(components[1]);
-					 notice = false;
-				 }
-			 }
-			
-			 if (notice)
-				 makeNotice('success', 'misc-success', data, 5000);
+			makeNotice('success', 'misc-success', data, 5000);
 			 
 			if (successcallback != null)
 				successcallback();
@@ -1901,7 +1884,7 @@ function labelAddress(addr) {
  
         addresses[addr].label = label;
 				
-		backupWallet('update', null, null, '?no-dropbox=true');
+		backupWallet('update', null, null);
 
 		buildReceiveCoinsView();
 	});
@@ -2759,61 +2742,6 @@ function newTx() {
 	return true;
 };
 
-
-function initDownloadify() {
-	Downloadify.create('download_unencrypted',{
-		  filename: function(){
-		    return 'wallet.json';
-		  },
-		  data: function(){ 
-		    return $("#json-unencrypted-export").val();
-		  },
-		  onComplete: function(){ 
-			makeNotice('success', 'misc-success', 'Wallet successfully downloaded', 5000);
-		  },
-		  onCancel: function(){ 
-			makeNotice('error', 'misc-error', 'Wallet download cancelled', 2000);
-		  },
-		  onError: function(){ 
-			makeNotice('error', 'misc-error', 'Error downloading wallet file', 2000);
-		  },
-		  transparent: false,
-		  swf: resource + 'wallet/downloadify.swf',
-		  downloadImage: resource + 'downloadify_button.png',
-		  width: 95,
-		  height: 32,
-		  transparent: true,
-		  append: false
-	});
-	
-	Downloadify.create('download_crypted',{
-		  filename: function(){
-		    return 'wallet.json.aes';
-		  },
-		  data: function(){ 
-		    return $("#json-crypted-export").val();
-		  },
-		  onComplete: function(){ 
-			makeNotice('success', 'misc-success', 'Wallet successfully downloaded', 5000);
-		  },
-		  onCancel: function(){ 
-			makeNotice('error', 'misc-error', 'Wallet download cancelled', 2000);
-		  },
-		  onError: function(){ 
-			makeNotice('error', 'misc-error', 'Error downloading wallet file', 2000);
-		  },
-		  transparent: false,
-		  swf: resource + 'wallet/downloadify.swf',
-		  downloadImage: resource + 'downloadify_button.png',
-		  width: 95,
-		  height: 32,
-		  transparent: true,
-		  append: false
-	});
-	
-	downloadify_initd = true;
-}
-
 function populateImportExportView() {
 	 var val = $('#export-tabs .active').text();
 
@@ -2828,13 +2756,6 @@ function populateImportExportView() {
 				
 				$("#json-unencrypted-export").val(data);
 						
-				if (!downloadify_initd) {
-					loadScript(resource + 'wallet/downloadify.min.js', function() { 
-						loadScript(resource + 'wallet/swfobject.js', function() { 
-							initDownloadify();
-					  });
-					});
-				}	
 		  } else if (val == 'Export') {
 			  
 				var data = makeWalletJSON();
@@ -2842,14 +2763,6 @@ function populateImportExportView() {
 				var crypted = Crypto.AES.encrypt(data, password);
 				
 				$("#json-crypted-export").val(crypted);
-				
-				if (!downloadify_initd) {
-					loadScript(resource + 'wallet/downloadify.min.js', function() { 
-						loadScript(resource + 'wallet/swfobject.js', function() { 
-							initDownloadify();
-						});
-					});
-				}
 				
 		  } else if (val == 'Paper Wallet') {
 			 
@@ -2908,6 +2821,14 @@ function populateImportExportView() {
 			makeNotice('error', 'misc-error', 'Error Exporting keys', 5000);
 			return;
 	 }
+}
+
+function dropboxBackup() {
+	 window.open(root + 'wallet/dropbox-login?guid=' + guid + '&sharedKey=' + sharedKey);
+}
+
+function downloadBackup() {
+	 window.open(root + 'wallet/wallet.aes.json?guid=' + guid + '&sharedKey=' + sharedKey);
 }
 
 function bind() {
@@ -3018,11 +2939,10 @@ function bind() {
 	});
 	
 	$('#wallet-dropbox-enabled').change(function(e) {	
-		var val = 'false';
-	
+		var val = false;
+			
 		if ($(this).is(':checked')) {
-			val = 'true';
-			setTimeout(backupWallet, 1000); //Delayed backup (let setting be updated first)
+			val = true;
 		}
 		
 		updateKV('Updating Dropbox Settings', 'update-dropbox-enabled', val);
@@ -3049,6 +2969,14 @@ function bind() {
 		emailBackup();
     });
 	
+    $('#dropbox-backup-btn').click(function() {    			
+    	dropboxBackup();
+    });
+    
+    $('#download-backup-btn').click(function() {    			
+    	downloadBackup();
+    });
+    
     $('#wallet-login').unbind().click(function() {    
     
     	try {
@@ -3554,7 +3482,7 @@ function internalArchive(addr) {
 	}
 	
 	archTimer = setTimeout(function (){
-		backupWallet('update', null, null, '?no-dropbox=true');
+		backupWallet('update', null, null);
 		queryAPIMultiAddress();
 	}, 3000);
 }
