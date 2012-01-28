@@ -2513,7 +2513,7 @@ function newEscrowTx() {
 				throw 'Invalid to address: ' + e;
 			};
 			
-			toAddressesWithValue.push({type : OUTTYPE_STANDARD, addresses: toAddress, value : value});
+			toAddressesWithValue.push({addresses: toAddress, value : value});
 	});
 	
 	
@@ -2571,7 +2571,7 @@ function newTx() {
 					throw 'Invalid to address: ' + e;
 				};
 				
-				toAddressesWithValue.push({type : OUTTYPE_STANDARD, address: toAddress, value : value});
+				toAddressesWithValue.push({address: toAddress, value : value});
 		});
 		
 		if (toAddressesWithValue.length == 0) {
