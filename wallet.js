@@ -2485,7 +2485,6 @@ function newEscrowTx() {
 	       	        
 	        var send_to_address = $(this).val();
 	        
-	     
 	        if (send_to_address.val().length == 0) {
 	    		throw 'You must enter a bitcoin address for each recipient';
 	        }
@@ -2496,12 +2495,8 @@ function newEscrowTx() {
 				throw 'Invalid to address: ' + e;
 			};
 			
-			toAddressesWithValue.push({addresses: toAddress, value : value});
+			addresses.push({addresses: toAddress, value : value});
 	});
-	
-	
-	
-	
 	
 }
 
