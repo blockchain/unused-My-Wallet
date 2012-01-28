@@ -137,6 +137,13 @@ function _websocketConnect() {
 					
 					var tx = TransactionFromJSON(obj.x);
 										
+					//Check if this is a duplicate
+					//Maybe should have a map_prev to check for possible double spends
+					for (var i = 0; i < transactions.length; ++i) {
+						if (transactions[i].txIndex == tx.txIndex)
+							return;
+					}
+					
 					/* Calculate the result */
 					var result = 0;
 						
@@ -1352,10 +1359,19 @@ function getSecondPassword() {
 		return false;
 	}
 	
-	var thash = Crypto.SHA256(input);
+	var thash = Crypto.SHA256(sharedKey + input);
 	
 	if (thash == dpasswordhash) {
 		dpassword = input;
+		return true;
+	} 
+	
+	//Legacy as I made a bit of a mistke creating a SHA256 hash without the salt included
+	var leghash = Crypto.SHA256(input);
+
+	if (leghash == dpasswordhash) {
+		dpassword = input;
+		dpasswordhash = thash;
 		return true;
 	} 
 	
@@ -1397,7 +1413,7 @@ function setDoubleEncryption(value) {
 				addr.priv = encodePK(Bitcoin.Base58.decode(addr.priv));
 			}
 			
-			dpasswordhash = Crypto.SHA256(tpassword);
+			dpasswordhash = Crypto.SHA256(sharedKey + tpassword);
 			
 			//Clear the password to force the user to login again
 			//Incase they have forgotten their password already
@@ -2451,6 +2467,18 @@ function createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, 
 	}
 }
 
+function getPubKey(addr, success, error) {	
+	$.get(root + 'q/pubkeyaddr/'+addr).success(function(data) { 
+		
+		if (data == null || data.length == 0)
+			error();
+		else
+			success(Crypto.util.hexToBytes(success));
+		
+	}).error(function(data) {
+		error();
+	});
+}
 
 function newEscrowTx() {
 	if (!getSecondPassword()) {
@@ -2465,11 +2493,9 @@ function newEscrowTx() {
 	
 	//Constuct the recepient address array
 	var container = $("#escrow-recipient-container");
-	
-	var addresses = [];
-	
+	var pubkeys = [];
+	var error = fals
     var value_input = container.find('input[name="send-value"]').val();
-
     
 	try {	    		
 		value = Bitcoin.Util.parseValue(value_input.val());
@@ -2483,19 +2509,22 @@ function newEscrowTx() {
 	
 	container.find('input[name="send-to-address"]').each(function() {
 	       	        
-	        var send_to_address = $(this).val();
+	        var addr = $(this).val();
 	        
-	        if (send_to_address.val().length == 0) {
+	        if (addr == 0) {
 	    		throw 'You must enter a bitcoin address for each recipient';
 	        }
-	        
-			try {
-				toAddress = new Bitcoin.Address(send_to_address.val());
-			} catch (e) {
-				throw 'Invalid to address: ' + e;
-			};
-			
-			addresses.push({addresses: toAddress, value : value});
+	      
+	        //If it's one of our adddresses we already have the pub key
+	        if (addresses[addr] != null) {	        	
+	        	pubkeys.push(new Bitcoin.ECKey(decodePK(addresses[addr].priv)).getPub());
+	        } else {
+	        	getPubKey(addr, function(key) {
+		        	pubkeys.push(key);
+	        	}, function() {
+	        		makeNotice('error', 'pub-error', 'Could not get pubkey for address: ' + addr, 5000);
+	        	});
+	        }
 	});
 	
 }
