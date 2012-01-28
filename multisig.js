@@ -1,3 +1,7 @@
+var OUTTYPE_STANDARD = 0; //Standard pay to pub key hash
+var OUTTYPE_P2SH = 1; //Pay to Script Hash
+var OUTTYPE_MULTISIG = 3; //Multi Sig
+
 Script.createMultiSigOutputScript = function (m, pubkeys)
 {
 	var script = new Script();

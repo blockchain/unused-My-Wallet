@@ -2468,8 +2468,11 @@ function createSendGotUnspent(toAddressesWithValue, fromAddress, fees, unspent, 
 	}
 }
 
-//Check for inputs and get unspent for before signinging
-function newTxValidateFormAndGetUnspent(method) {
+
+function newEscrowTx() {
+	if (!getSecondPassword()) {
+		return;
+	}
 	
 	var modal = null;
 	var fromAddress = null;
@@ -2477,9 +2480,62 @@ function newTxValidateFormAndGetUnspent(method) {
 	var feeAddress = null;
 	var newAddress = false;
 	
+	//Constuct the recepient address array
+	var container = $("#escrow-recipient-container");
+	
+	var addresses = [];
+	
+    var value_input = container.find('input[name="send-value"]').val();
+
+    
+	try {	    		
+		value = Bitcoin.Util.parseValue(value_input.val());
+        	 
+		if (value == null || value.compareTo(BigInteger.ZERO) <= 0) 
+			throw 'You must enter a value greater than zero';
+	} catch (e) {
+		throw 'Invalid send amount';
+	};
+	
+	
+	container.find('input[name="send-to-address"]').each(function() {
+	       	        
+	        var send_to_address = $(this).val();
+	        
+	     
+	        if (send_to_address.val().length == 0) {
+	    		throw 'You must enter a bitcoin address for each recipient';
+	        }
+	        
+			try {
+				toAddress = new Bitcoin.Address(send_to_address.val());
+			} catch (e) {
+				throw 'Invalid to address: ' + e;
+			};
+			
+			toAddressesWithValue.push({type : OUTTYPE_STANDARD, addresses: toAddress, value : value});
+	});
+	
+	
+	
+	
+	
+}
+
+
+//Check for inputs and get unspent for before signinging
+function newTx() {
+	
+	//Need to be able to decrypt private keys
 	if (!getSecondPassword()) {
 		return;
 	}
+	
+	var modal = null;
+	var fromAddress = null;
+	var changeAddress = null;
+	var feeAddress = null;
+	var newAddress = false;
 	
 	try {
 		var toAddressesWithValue = [];
@@ -2515,7 +2571,7 @@ function newTxValidateFormAndGetUnspent(method) {
 					throw 'Invalid to address: ' + e;
 				};
 				
-				toAddressesWithValue.push({address: toAddress, value : value});
+				toAddressesWithValue.push({type : OUTTYPE_STANDARD, address: toAddress, value : value});
 		});
 		
 		if (toAddressesWithValue.length == 0) {
@@ -3257,7 +3313,7 @@ function bind() {
 	
 	$("#send-tx-btn").click(function() {
 		try {
-			newTxValidateFormAndGetUnspent();
+			newTx();
 		} catch (e) {
 			makeNotice('error', 'misc-error', e, 5000);
 		}
@@ -3269,7 +3325,7 @@ function bind() {
 	
 	$("#escrow-send-tx-btn").click(function() {
 		try {
-			newTxValidateFormAndGetUnspent('escrow');
+			newEscrowTx('escrow');
 		} catch (e) {
 			makeNotice('error', 'misc-error', e, 5000);
 		}
