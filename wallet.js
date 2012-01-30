@@ -230,7 +230,7 @@ function _websocketConnect() {
 				var addrs = getActiveAddresses();
 				for (var i = 0; i < addrs.length; ++i) {											
 					//Subscribe to tranactions updates through websockets
-					msg += '{"op":"addr_sub", "addr":"'+ addrs[i].addr +'"}';
+					msg += '{"op":"addr_sub", "addr":"'+ addrs[i] +'"}';
 				}
 			} catch (e) {
 				alert(e);
@@ -3677,7 +3677,7 @@ function generateNewAddressAndKey() {
 		
 		//Subscribe to tranaction updates through websockets
 		try {
-			ws.send('{"op":"addr_sub", "hash":"'+Crypto.util.bytesToHex(key.getPubKeyHash())+'"}');			
+			ws.send('{"op":"addr_sub", "addr":"'+addr+'"}');			
 		} catch (e) { }
 	} else {
 		throw 'Unable to add generated bitcoin address.';
