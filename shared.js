@@ -44,19 +44,6 @@ function TransactionFromJSON(json) {
 	tx.result = json.result;
 	tx.blockHeight = json.block_height;
 
-
-	try {
-		for (var i = 0; i < tx.inputs.length; i++) {		
-			tx.inputs[i].prev_out.addr = new Bitcoin.Address(Crypto.util.hexToBytes(tx.inputs[i].prev_out.hash));
-		}
-		
-		for (var i = 0; i < tx.out.length; i++) {		
-			tx.out[i].addr = new Bitcoin.Address(Crypto.util.hexToBytes(tx.out[i].hash));
-		}
-	} catch(e) {
-		
-	}
-	
 	return tx;
 }
 
@@ -155,10 +142,10 @@ Transaction.prototype.getHTML = function(myAddresses) {
 				else
 					html += '<li>'+input.prev_out.addr+'</li>';
 
-			} else if (input.prev_out.hash == null || input.prev_out.hash.length == 0) {
+			} else if (input.prev_out == null || input.prev_out.addr == null) {
 				html += '<li><b>No Input (Newly Generated Coins)</b></li>';
 			} else {
-				html += '<li><a target="new" href="'+root+'address/' + input.prev_out.hash +'">'+input.prev_out.addr+'</a></li>';
+				html += '<li><a target="new" href="'+root+'address/' + input.prev_out.addr +'">'+input.prev_out.addr+'</a></li>';
 			}
 		}
     } else {
@@ -206,7 +193,7 @@ Transaction.prototype.getHTML = function(myAddresses) {
 			 if (output.addr == our_address)
 				html += '<li>Blockchain.info</li>';
 			 else
-				html += '<li><a target="new" href="'+root+'address/'+output.hash+'">'+output.addr+'</a></li>';
+				html += '<li><a target="new" href="'+root+'address/'+output.addr+'">'+output.addr+'</a></li>';
 		}
 	}
 				

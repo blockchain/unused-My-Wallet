@@ -138,6 +138,7 @@
 
 	Script.prototype.writeBytes = function (data)
 	{
+				
 		if (data.length < OP_PUSHDATA1) {
 			this.buffer.push(data.length);
 		} else if (data.length <= 0xff) {
