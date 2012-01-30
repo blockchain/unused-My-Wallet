@@ -2635,7 +2635,7 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 		});
 			
 		var gotunspent = function(obj) {
-			//try {
+			try {
 				var unspent = [];
 				var missingPrivateKeys = [];
 	
@@ -2662,11 +2662,11 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 									
 				txConstructSecondPhase(toAddresses, fromAddress, minersfee, unspent, missingPrivateKeys, changeAddress, feeAddress);
 				
-			//} catch (e) {
-			//	makeNotice('error', 'misc-error', 'Error creating transaction: ' + e, 5000);
-			//	modal.modal('hide');
-			//	return false;
-			//}
+			} catch (e) {
+				makeNotice('error', 'misc-error', 'Error creating transaction: ' + e, 5000);
+				modal.modal('hide');
+				return false;
+			}
 		};
 	
 		
@@ -2701,6 +2701,7 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 			});
 		}
 	} catch (e) {
+		makeNotice('error', 'misc-error', e); 
 		modal.modal('hide');
 	}
 }
