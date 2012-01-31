@@ -5,15 +5,18 @@ var password; //Password
 var dpassword = null; //double encryption Password
 var dpasswordhash; //double encryption Password
 var sharedKey; //Shared key used to prove that the wallet has succesfully been decrypted, meaning you can't overwrite a wallet backup even if you have the guid
-var final_balance = 0; //Amount available to withdraw
-var total_sent = 0; //Amount available to withdraw
-var total_received = 0; //Amount available to withdraw
-var n_tx = 0; //Amount available to withdraw
+var final_balance = 0; //Final Satoshi wallet balance
+var total_sent = 0; //Total Satoshi sent
+var total_received = 0; //Total Satoshi received
+var n_tx = 0; //Number of transactions
+var n_tx_filtered = 0; //Number of transactions after filtering
 var isInitialized = false; //Wallet is loaded and decrypted
 var latest_block = null; //Chain head block
 var address_book = []; //Holds the address book {addr : label}
 var transactions = []; //List of all transactions (initially populated from /multiaddr updated through websockets)
-var double_encryption = false;
+var double_encryption = false; //If wallet has a second password
+var tx_page = 0; //Multi-address page
+var tx_filter = 0; //Transaction filter (e.g. Sent Received etc)
 
 //Refactoring
 //var balances = []; //Holds balances of addresses
@@ -708,26 +711,68 @@ function buildTransactionsView() {
 	};
 	
 	buildSome();
-	
-	var pages = Math.ceil(n_tx / 50);
-    
+	    	
 	var container = $('.pagination ul').empty();
 	
-	container.append('<li class="prev disabled"><a href="#">&larr; Previous</a></li>');
-	for (var i = 0; i < pages; ++i) {
-		container.append('<li><a onclick="setPage('+i+')" class="can-hide">'+i+'</a></li>');
+	if (tx_page == 0 && transactions.length < 50) {
+		container.hide();
+		return;
+	} else {
+		container.show();
 	}
 	
-	container.append('<li class="next"><a href="#">Next &rarr;</a></li>');
+	var pages = Math.ceil(n_tx_filtered / 50);
+	
+	var disabled = ' disabled';
+	if (tx_page > 0)
+		disabled = '';
+	
+	container.append('<li class="prev'+disabled+'"><a href="#">&larr; Previous</a></li>');
+	
+	for (var i = 0; i < pages && i <= 15; ++i) {
+		var active = '';
+		if (tx_page == i)
+			active = ' class="active"';
+		
+		container.append('<li onclick="setPage('+i+')"'+active+'><a class="can-hide">'+i+'</a></li>');
+	}
+
+	var disabled = ' disabled';
+	if (tx_page < pages)
+		disabled = '';
+	
+	container.append('<li class="next'+disabled+'"><a href="#">Next &rarr;</a></li>');
+}
+
+function setFilter(i) {
+	tx_page = 0;
+	tx_filter = i;
+	
+	queryAPIMultiAddress();
+}
+
+function setPage(i) {
+	tx_page = i;
+	
+	scroll(0,0);
+	queryAPIMultiAddress();
 }
 
 function parseMultiAddressJSON(json) {
 	var obj = jQuery.parseJSON(json);
 	
+	$('#nodes-connected').html(obj.info.nconnected);
+	
+	setLatestBlock(obj.info.latest_block);
+	
+	if (obj.wallet == null)
+		return;
+	
 	total_received = obj.wallet.total_received;
 	total_sent = obj.wallet.total_sent;
 	final_balance = obj.wallet.final_balance;
 	n_tx = obj.wallet.n_tx;
+	n_tx_filtered = obj.wallet.n_tx_filtered;
 	transactions = [];
 	
 	for (var i = 0; i < obj.addresses.length; ++i) {	
@@ -738,10 +783,6 @@ function parseMultiAddressJSON(json) {
 		var tx = TransactionFromJSON(obj.txs[i]);
 		transactions.push(tx);
 	}
-	
-	$('#nodes-connected').html(obj.info.nconnected);
-					
-	setLatestBlock(obj.info.latest_block);
 }
 
 //Get the list of transactions from the http API, after that it will update through websocket
@@ -750,20 +791,16 @@ function queryAPIMultiAddress() {
 
 	var addrs = getActiveAddresses();
 	
-	if (addrs == null || addrs.length == 0)
-		return;
-	
 	setLoadingText('Loading transactions');
 
 	$.ajax({
 		  type: "POST",
-		  url: root +'multiaddr',
+		  url: root +'multiaddr?filter='+tx_filter+'&offset='+tx_page*50,
 		  data: {'addr[]' : addrs},
 		  converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": jQuery.parseXML},
 		  success: function(data) {  
 		
 			try {
-	
 				parseMultiAddressJSON(data);
 				
 				//Rebuild the my-addresses list with the new updated balances (Only if visible)
@@ -772,7 +809,9 @@ function queryAPIMultiAddress() {
 				//Refresh transactions (Only if visible)
 				buildTransactionsView();
 
-				localStorage.setItem('multiaddr', data);
+				//Cache results to show next login
+				if (tx_page == 0 && tx_filter == 0)
+					localStorage.setItem('multiaddr', data);
 			} catch (e) {
 				console.log(data);
 
@@ -2005,6 +2044,11 @@ function addAddressBookEntry() {
 
 function deleteAddress(addr) {
 		
+	if (getActiveAddresses().length <= 1) {
+		makeNotice('error', 'add-error', 'You must leave at least one active address', 5000);
+		return;
+	}
+	
 	addr = addresses[addr];
 	
 	var modal = $('#delete-address-modal');
@@ -3050,6 +3094,10 @@ function bind() {
 	});
 	
 	
+
+	$('#filter').change(function(){
+		setFilter($(this).val());
+	});
 	
 	$('#update-password-btn').click(function() {    			
 		updatePassword();
