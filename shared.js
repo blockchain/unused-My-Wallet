@@ -134,18 +134,20 @@ Transaction.prototype.getHTML = function(myAddresses) {
 		for (var i = 0; i < this.inputs.length; i++) {
 			input = this.inputs[i];
 			 
-			//total_fees += input.prevOutputValue;
-			var myAddr = myAddresses[input.prev_out.addr];
-			if (myAddresses != null && myAddr != null) {
-				if (myAddr.label != null)
-					html += '<li>'+myAddr.label+'</li>';
-				else
-					html += '<li>'+input.prev_out.addr+'</li>';
-
-			} else if (input.prev_out == null || input.prev_out.addr == null) {
-				html += '<li><b>No Input (Newly Generated Coins)</b></li>';
+			if (input.prev_out == null || input.prev_out.addr == null) {
+				html += '<li>No Input (Newly Generated Coins)</li>';
 			} else {
-				html += '<li><a target="new" href="'+root+'address/' + input.prev_out.addr +'">'+input.prev_out.addr+'</a></li>';
+				//total_fees += input.prevOutputValue;
+				var myAddr = myAddresses[input.prev_out.addr];
+				if (myAddresses != null && myAddr != null) {
+					if (myAddr.label != null)
+						html += '<li>'+myAddr.label+'</li>';
+					else
+						html += '<li>'+input.prev_out.addr+'</li>';
+	
+				} else {
+					html += '<li><a target="new" href="'+root+'address/' + input.prev_out.addr +'">'+input.prev_out.addr+'</a></li>';
+				}
 			}
 		}
     } else {

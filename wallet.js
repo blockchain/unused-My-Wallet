@@ -211,6 +211,9 @@ function _websocketConnect() {
 					}
 					
 					setLatestBlock(BlockFromJSON(obj.x));
+					
+					//Need to update latest block
+					buildTransactionsView();
 				}
 			
 			} catch(e) {
@@ -615,7 +618,10 @@ function updateLatestBlockAge() {
 	if (latest_block != null) {
 		var age = new Date().getTime() -  new Date(latest_block.time * 1000).getTime();
 
-		$('#latest-block-age').html(Math.round(age / 1000 / 60));
+		if (age <= 1)
+			$('#latest-block-age').html('just now');
+		else
+			$('#latest-block-age').html(Math.round(age / 1000 / 60) + ' minutes ago');
 	}
 }
 
@@ -632,8 +638,6 @@ function setLatestBlock(block) {
 	latest_block = block;
 	
 	updateLatestBlockAge();
-		
-	buildTransactionsView();
 }
 
 function buildTransactionsView() {
@@ -672,7 +676,7 @@ function buildTransactionsView() {
 		interval = null;
 	}
 	
-	$('#transactions').empty();
+	var trans = $('#transactions').empty();
 
 	var buildSome = function() {		
 		var html = '';
@@ -694,7 +698,7 @@ function buildTransactionsView() {
 		}
 		
 
-		$('#transactions').append(html);
+		trans.append(html);
 		
 		start += 5;
 		
@@ -704,6 +708,17 @@ function buildTransactionsView() {
 	};
 	
 	buildSome();
+	
+	var pages = Math.ceil(n_tx / 50);
+    
+	var container = $('.pagination ul').empty();
+	
+	container.append('<li class="prev disabled"><a href="#">&larr; Previous</a></li>');
+	for (var i = 0; i < pages; ++i) {
+		container.append('<li><a onclick="setPage('+i+')" class="can-hide">'+i+'</a></li>');
+	}
+	
+	container.append('<li class="next"><a href="#">Next &rarr;</a></li>');
 }
 
 function parseMultiAddressJSON(json) {
