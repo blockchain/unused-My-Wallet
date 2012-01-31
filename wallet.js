@@ -765,15 +765,22 @@ function parseMultiAddressJSON(json) {
 	
 	setLatestBlock(obj.info.latest_block);
 	
-	if (obj.wallet == null)
+	transactions = [];
+
+	if (obj.wallet == null) {
+		total_received = 0;
+		total_sent = 0;
+		final_balance = 0;
+		n_tx = 0;
+		n_tx_filtered = 0;
 		return;
+	}
 	
 	total_received = obj.wallet.total_received;
 	total_sent = obj.wallet.total_sent;
 	final_balance = obj.wallet.final_balance;
 	n_tx = obj.wallet.n_tx;
 	n_tx_filtered = obj.wallet.n_tx_filtered;
-	transactions = [];
 	
 	for (var i = 0; i < obj.addresses.length; ++i) {	
 		addresses[obj.addresses[i].address].balance = obj.addresses[i].final_balance;
