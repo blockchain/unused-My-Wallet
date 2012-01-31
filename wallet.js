@@ -727,7 +727,7 @@ function buildTransactionsView() {
 	if (tx_page > 0)
 		disabled = '';
 	
-	container.append('<li class="prev'+disabled+'"><a href="#">&larr; Previous</a></li>');
+	container.append('<li onclick="setPage(tx_page+1)" class="prev'+disabled+'"><a>&larr; Previous</a></li>');
 	
 	for (var i = 0; i < pages && i <= 15; ++i) {
 		var active = '';
@@ -741,7 +741,7 @@ function buildTransactionsView() {
 	if (tx_page < pages)
 		disabled = '';
 	
-	container.append('<li class="next'+disabled+'"><a href="#">Next &rarr;</a></li>');
+	container.append('<li onclick="setPage(tx_page+1)" class="next'+disabled+'"><a>Next &rarr;</a></li>');
 }
 
 function setFilter(i) {
