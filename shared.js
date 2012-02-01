@@ -101,8 +101,11 @@ function formatMoney(x, span) {
 }
 
 function formatAddr(addr, myAddresses) {
-	var myAddr = myAddresses[addr];
-	if (myAddresses != null && myAddr != null) {
+	var myAddr = null;
+	if (myAddresses != null)
+		myAddr = myAddresses[addr];
+	
+	if (myAddr != null) {
 		if (myAddr.label != null)
 			return myAddr.label;
 		else
