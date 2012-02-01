@@ -30,8 +30,6 @@ var sound_on = true; //Play a bleep sound when tx received
 var offline = false;
 var unspent_cache = null;
 
-showInvBtn = true;
-
 // Flash fall back for webscoket compatiability
 WEB_SOCKET_SWF_LOCATION = "/Resources/WebSocketMain.swf";
 
@@ -44,6 +42,7 @@ jQuery.fn.center = function () {
 $(window).resize(function() {
 	$('.modal:visible').center();
 });
+
 
 //Async load a script, at the moment this is only jquery.qrcode.js
 function loadScript(src, callback) {
@@ -621,10 +620,12 @@ function updateLatestBlockAge() {
 	if (latest_block != null) {
 		var age = new Date().getTime() -  new Date(latest_block.time * 1000).getTime();
 
-		if (age <= 1)
+		var min = Math.round(age / 1000 / 60);
+		
+		if (min <= 1)
 			$('#latest-block-age').html('just now');
 		else
-			$('#latest-block-age').html(Math.round(age / 1000 / 60) + ' minutes ago');
+			$('#latest-block-age').html(min + ' minutes ago');
 	}
 }
 
@@ -2566,7 +2567,24 @@ function txConstructSecondPhase(toAddresses, fromAddress, fees, unspent, missing
 	signOne();
 }
 
-function getPubKey(addr, success, error) {	
+
+function apiGetEscrow(txIndex) {
+	$.get(root + 'q/pubkeyaddr/'+addr).success(function(data) { 
+		
+		console.log(data);
+		
+		if (data == null || data.length == 0)
+			error();
+		else
+			success(Crypto.util.hexToBytes(data));
+		
+	}).error(function(data) {
+		error();
+	});
+}
+
+
+function apiGetPubKey(addr, success, error) {	
 	$.get(root + 'q/pubkeyaddr/'+addr).success(function(data) { 
 		
 		console.log(data);
@@ -2619,7 +2637,7 @@ function newEscrowTx() {
 	        if (addresses[addr] != null && addresses[addr].priv != null) {	       
 	        	pubkeys.push(new Bitcoin.ECKey(decodePK(addresses[addr].priv)).getPub());
 	        } else {
-	        	getPubKey(addr, function(key) {
+	        	apiGetPubKey(addr, function(key) {
 		        	pubkeys.push(key);
 	        	}, function() {
 	        		makeNotice('error', 'pub-error', 'Could not get pubkey for address: ' + addr, 5000);

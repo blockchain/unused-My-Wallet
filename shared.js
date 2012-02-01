@@ -43,7 +43,7 @@ function TransactionFromJSON(json) {
 	tx.blockIndex = json.block_index;
 	tx.result = json.result;
 	tx.blockHeight = json.block_height;
-
+	
 	return tx;
 }
 
@@ -100,6 +100,48 @@ function formatMoney(x, span) {
 	return str;
 }
 
+function formatAddr(addr, myAddresses) {
+	var myAddr = myAddresses[addr];
+	if (myAddresses != null && myAddr != null) {
+		if (myAddr.label != null)
+			return myAddr.label;
+		else
+			return addr;
+	} else {
+		 if (addr == our_address)
+			 return 'Blockchain.info';
+		 else
+			return '<a target="new" href="'+root+'address/'+addr+'">'+addr+'</a>';
+	}
+}
+
+function formatOutput(output, myAddresses) {
+	
+	//total_fees -= output.value;
+	var str;
+	
+	if (output.type == 0) {
+		str = '<li>';
+	} else if (output.type == 1 || output.type == 2 || output.type == 3) {
+		str = '<li><font color="red">Escrow</font> ' + output.type + ' of ';
+	} else {
+		str = '<font color="red">Strange</font>';
+	}
+	
+	if (output.addr != null)
+		str += formatAddr(output.addr, myAddresses);
+	
+	if (output.addr2 != null)
+		str += ', ' + formatAddr(output.addr2, myAddresses);
+	
+	if (output.addr3 != null)
+		str += ', ' + formatAddr(output.addr3, myAddresses);
+
+	str += '</li>';
+	
+	return str;
+}
+
 Transaction.prototype.getHTML = function(myAddresses) {    
 
     var result = this.result;
@@ -137,17 +179,7 @@ Transaction.prototype.getHTML = function(myAddresses) {
 			if (input.prev_out == null || input.prev_out.addr == null) {
 				html += '<li>No Input (Newly Generated Coins)</li>';
 			} else {
-				//total_fees += input.prevOutputValue;
-				var myAddr = myAddresses[input.prev_out.addr];
-				if (myAddresses != null && myAddr != null) {
-					if (myAddr.label != null)
-						html += '<li>'+myAddr.label+'</li>';
-					else
-						html += '<li>'+input.prev_out.addr+'</li>';
-	
-				} else {
-					html += '<li><a target="new" href="'+root+'address/' + input.prev_out.addr +'">'+input.prev_out.addr+'</a></li>';
-				}
+				html += formatOutput(input.prev_out, myAddresses);
 			}
 		}
     } else {
@@ -181,29 +213,20 @@ Transaction.prototype.getHTML = function(myAddresses) {
 		
 	html += '</td><td width="30%" '+tclass+' style="vertical-align:middle;"><ul class="txul">';
 	
-	for (var i = 0; i < this.out.length; i++) {
-		output = this.out[i];
-						
-		//total_fees -= output.value;
-		var myAddr = myAddresses[output.addr];
-		if (myAddresses != null && myAddr != null) {
-			if (myAddr.label != null)
-				html += '<li>'+myAddr.label+'</li>';
-			else
-				html += '<li>'+output.addr+'</li>';
-		} else {
-			 if (output.addr == our_address)
-				html += '<li>Blockchain.info</li>';
-			 else
-				html += '<li><a target="new" href="'+root+'address/'+output.addr+'">'+output.addr+'</a></li>';
+	var escrow_n = null;
+	for (var i = 0; i < this.out.length; i++) {		
+		var out = this.out[i];
+		if (out.type > 0) {
+			escrow_n = i;
 		}
+		
+		html += formatOutput(out, myAddresses);
 	}
 				
 	html += '</ul></td><td width="15%" style="vertical-align:middle;"><ul class="txul">';
 	
 	for (var i = 0; i < this.out.length; i++) {
 		output = this.out[i];
-								
 		html += '<li class="can-hide">' + formatMoney(output.value, true) +'</li>';
 	}
 	
@@ -223,8 +246,15 @@ Transaction.prototype.getHTML = function(myAddresses) {
 	
 	html += '<button class="'+button_class+'" onclick="toggleSymbol()">' + formatMoney(result, true) + '</button>';
 	
-	if (showInvBtn && !offline && this.confirmations == 0) {
-		html += '<button class="btn" style="padding-top:4px;padding-bottom:4px;padding-left:7px;padding-right:7px;" onclick="showInventoryModal(\''+this.hash+'\')"><img src="'+resource+'network.png" /></button> ';
+	//Only show for My Wallet
+	if (myAddresses != null) {
+		if (escrow_n != null) {
+			html += '<button class="btn info" onclick="apiGetEscrow('+this.txIndex+')">Redeem / Release</button>';
+		}
+		
+		if (!offline && this.confirmations == 0) {
+			html += '<button class="btn" style="padding-top:4px;padding-bottom:4px;padding-left:7px;padding-right:7px;" onclick="showInventoryModal(\''+this.hash+'\')"><img src="'+resource+'network.png" /></button> ';
+		}
 	}
 	
 	html += '</span></div>';
