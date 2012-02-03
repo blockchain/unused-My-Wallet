@@ -464,15 +464,16 @@ function importPyWalletJSONObject(obj) {
 	var i = 0;
 	try {
 		for (i = 0; i < obj.keys.length; ++i) {
-			
+						
 			if (walletIsFull())
 				return;
 			
 			var key = new Bitcoin.ECKey(Crypto.util.hexToBytes(obj.keys[i].hexsec));
-						
+									
+			
 			//Check the the private keys matches the bitcoin address
 			if (obj.keys[i].addr ==  key.getBitcoinAddress().toString()) {				
-				internalAddKey(obj.keys[i].addr, encodePK(obj.keys[i].priv));
+				internalAddKey(obj.keys[i].addr, encodePK(key.priv));
 			} else {
 				makeNotice('error', 'misc-error', 'Private key doesn\'t seem to match the address. Possible corruption', 1000);
 				return false;
@@ -564,14 +565,14 @@ function importJSON() {
 		throw 'No keys imported. Incorrect format?';
 	}
 	
+
+	if (!getSecondPassword())
+		return false;
+	
 	//Pywallet contains hexsec
 	if (obj.keys[0].hexsec != null) {
 		importPyWalletJSONObject(obj);
 	} else {
-	
-		if (!getSecondPassword())
-			return false;
-				
 		if (obj.double_encryption && obj.dpasswordhash != dpasswordhash) {
 			throw 'Wallet backup does not have the same second password';
 		}
