@@ -17,7 +17,6 @@ var transactions = []; //List of all transactions (initially populated from /mul
 var double_encryption = false; //If wallet has a second password
 var tx_page = 0; //Multi-address page
 var tx_filter = 0; //Transaction filter (e.g. Sent Received etc)
-var ourFee = BigInteger.valueOf(1000000); // 0.01 BTC
 
 //Refactoring
 //var balances = []; //Holds balances of addresses
@@ -1667,6 +1666,20 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 	for (var i = 0; i < toAddresses.length; ++i) {			
 		txValue = txValue.add(toAddresses[i].value);
 	}
+	
+	var ourFee = BigInteger.valueOf(1000000); // 0.01 BTC
+	
+	var isEscrow = false;
+	
+	//If we have any escrow outputs we increase the fee to 0.1 BTC
+    for (var i =0; i < toAddresses.length; ++i) {	
+		var addrObj = toAddresses[i];
+		if (addrObj.m != null) {
+			ourFee = BigInteger.valueOf(10000000);
+			isEscrow = true;
+			break;
+		}
+    }
 
     //Add blockchain.info's fees
     var ouraddr = new Bitcoin.Address(our_address);
@@ -1784,8 +1797,8 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 	
 	var kilobytes = estimatedSize / 1024;
 	
-	//Proority under 57 million requires a 0.01 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
-	if (priority < 57600000 || kilobytes > 1) {
+	//Proority under 57 million requires a 0.005 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
+	if (priority < 57600000 || kilobytes > 1 || isEscrow) {
 		//For low priority transactions we half our fee
 		sendTx.addOutput(ouraddr, ourFee.divide(BigInteger.valueOf(2)));
 	} else {		
@@ -2506,7 +2519,7 @@ function txConstructSecondPhase(toAddresses, fromAddress, fees, unspent, missing
 						 //Flash QR Code Reader
 						 var interval = initQRCodeReader('qr-code-reader', function(code){
 								 try {
-								    var key = privateKeyStringToKey(code, 'base58');
+								    var key = privateKeyStringToKey(code, form.find('select[name="format"]').val());
 									
 								    if (key == null) {
 										makeNotice('error', 'misc-error', 'Error decoding private key', 5000);
@@ -2634,6 +2647,7 @@ function apiGetPubKey(addr, success, error) {
 	});
 }
 
+
 //Constuct a transaction suing the Escrow (M-Of-N) form
 function newEscrowTx() {
 	if (!getSecondPassword()) {
@@ -2676,6 +2690,7 @@ function newEscrowTx() {
 	        	pubkeys.push(new Bitcoin.ECKey(decodePK(addresses[addr].priv)).getPub());
 	        } else {
 	        	apiGetPubKey(addr, function(key) {
+	        	
 		        	pubkeys.push(key);
 	        	}, function() {
 	        		makeNotice('error', 'pub-error', 'Could not get pubkey for address: ' + addr, 5000);

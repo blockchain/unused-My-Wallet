@@ -146,9 +146,12 @@ function formatOutput(output, myAddresses) {
 }
 
 function openEscrow(txIndex, escrow_n, priv) {
-	window.open(''+root+'escrow/'+txIndex+'/'+escrow_n+'#encPK|'+priv+'','_top');
+	var w =  window.open(''+root+'escrow/'+txIndex+'/'+escrow_n);
+	
+	if (priv != null) {		
+		w.key = new Bitcoin.ECKey(decodePK(priv));
+	}
 }
-
 
 Transaction.prototype.getHTML = function(myAddresses) {    
 
@@ -226,7 +229,6 @@ Transaction.prototype.getHTML = function(myAddresses) {
 	for (var i = 0; i < this.out.length; i++) {		
 		var out = this.out[i];
 		if (out.type > 0 && !out.spent && escrow_n == null) {
-			
 			var myAddr = myAddresses[out.addr];
 			
 			if (myAddr == null)
@@ -235,9 +237,6 @@ Transaction.prototype.getHTML = function(myAddresses) {
 			if (myAddr == null)
 				myAddr = myAddresses[out.addr3];
 
-			
-			console.log(myAddr);
-			
 			if (myAddr != null && myAddr.priv != null) {
 				escrow_n = i;
 				escrow_addr = myAddr;
@@ -272,8 +271,13 @@ Transaction.prototype.getHTML = function(myAddresses) {
 	
 	//Only show for My Wallet
 	if (myAddresses != null && !offline) {
-		if (escrow_n != null && this.confirmations != 0 && escrow_addr != null) {
-			html += '<button class="btn info" onclick="openEscrow('+this.txIndex+', '+escrow_n+', \''+escrow_addr.priv+'\')">Redeem / Release</button>';
+		if (escrow_n != null && this.confirmations != 0) {
+			
+			var priv = '';
+			if (escrow_addr != null)
+				priv = escrow_addr.priv;
+			
+			html += '<button class="btn info" onclick="openEscrow('+this.txIndex+', '+escrow_n+', \''+priv+'\')">Redeem / Release</button>';
 		}
 		
 		if (this.confirmations == 0) {
