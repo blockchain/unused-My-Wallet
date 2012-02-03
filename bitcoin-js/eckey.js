@@ -13,10 +13,10 @@ Bitcoin.ECKey = (function () {
 			this.priv = input;
 		} else if (Bitcoin.Util.isArray(input)) {
 			// Prepend zero byte to prevent interpretation as negative integer
-			this.priv = BigInteger.fromByteArrayUnsigned(input);
+			this.priv = BigInteger.fromByteArray(input);
 		} else if ("string" == typeof input) {
 			// Prepend zero byte to prevent interpretation as negative integer
-			this.priv = BigInteger.fromByteArrayUnsigned(Crypto.util.base64ToBytes(input));
+			this.priv = BigInteger.fromByteArray(Crypto.util.base64ToBytes(input));
 		}
 	};
 
@@ -44,9 +44,9 @@ Bitcoin.ECKey = (function () {
 
 	ECKey.prototype.toString = function (format) {
 		if (format === "base64") {
-			return Crypto.util.bytesToBase64(this.priv.toByteArrayUnsigned());
+			return Crypto.util.bytesToBase64(this.priv.toByteArray());
 		} else {
-			return Crypto.util.bytesToHex(this.priv.toByteArrayUnsigned());
+			return Crypto.util.bytesToHex(this.priv.toByteArray());
 		}
 	};
 

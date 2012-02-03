@@ -19,15 +19,13 @@ Bitcoin.Transaction.prototype.addOutputScript = function (script, value) {
 Bitcoin.Script.prototype.getOutType = function () {
 
 	if (this.chunks.length > 3 && this.chunks[this.chunks.length-1] == Bitcoin.Opcode.map.OP_CHECKMULTISIG) {
-			// Transfer to Bitcoin address
-			return 'Multisig';
+		// Transfer to M-OF-N
+		return 'Multisig';
 	} else if (this.chunks.length == 5 &&
 		this.chunks[0] == Bitcoin.Opcode.map.OP_DUP &&
 		this.chunks[1] == Bitcoin.Opcode.map.OP_HASH160 &&
 		this.chunks[3] == Bitcoin.Opcode.map.OP_EQUALVERIFY &&
 		this.chunks[4] == Bitcoin.Opcode.map.OP_CHECKSIG) {
-		console.log('Address');
-
 		// Transfer to Bitcoin address
 		return 'Address';
 	} else if (this.chunks.length == 2 &&
@@ -54,7 +52,7 @@ Bitcoin.Script.prototype.extractAddresses = function (addresses)
 		for (var i = 1; i < this.chunks.length-2; ++i) {
 			addresses.push(new Bitcoin.Address(Bitcoin.Util.sha256ripe160(this.chunks[i])));
 		}
-		return this.chunks[0];
+		return this.chunks[0] - Bitcoin.Opcode.map.OP_1 + 1;
 	default:
 		throw new Error("Encountered non-standard scriptPubKey");
 	}

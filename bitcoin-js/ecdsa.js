@@ -1,5 +1,5 @@
 function integerToBytes(i, len) {
-	var bytes = i.toByteArrayUnsigned();
+	var bytes = i.toByteArray();
 
 	if (len < bytes.length) {
 		bytes = bytes.slice(bytes.length-len);
@@ -170,7 +170,7 @@ ECPointFp.prototype.validate = function () {
 
 function dmp(v) {
 	if (!(v instanceof BigInteger)) v = v.toBigInteger();
-	return Crypto.util.bytesToHex(v.toByteArrayUnsigned());
+	return Crypto.util.bytesToHex(v.toByteArray());
 };
 
 Bitcoin.ECDSA = (function () {
@@ -214,7 +214,7 @@ Bitcoin.ECDSA = (function () {
 		sign: function (hash, priv) {
 			var d = priv;
 			var n = ecparams.getN();
-			var e = BigInteger.fromByteArrayUnsigned(hash);
+			var e = BigInteger.fromByteArray(hash);
 
 			do {
 				var k = ECDSA.getBigRandom(n);
@@ -229,8 +229,8 @@ Bitcoin.ECDSA = (function () {
 		},
 
     serializeSig: function (r, s) {
-			var rBa = r.toByteArrayUnsigned();
-			var sBa = s.toByteArrayUnsigned();
+			var rBa = r.toByteArray();
+			var sBa = s.toByteArray();
 
 			var sequence = [];
 			sequence.push(0x02); // INTEGER
@@ -253,7 +253,7 @@ Bitcoin.ECDSA = (function () {
       var s = obj.s;
 
 			var n = ecparams.getN();
-			var e = BigInteger.fromByteArrayUnsigned(hash);
+			var e = BigInteger.fromByteArray(hash);
 
 			if (r.compareTo(BigInteger.ONE) < 0 ||
 				r.compareTo(n) >= 0)
@@ -298,8 +298,8 @@ Bitcoin.ECDSA = (function () {
 			//if (cursor != sig.length)
 			//	throw new Error("Extra bytes in signature");
 
-			var r = BigInteger.fromByteArrayUnsigned(rBa);
-			var s = BigInteger.fromByteArrayUnsigned(sBa);
+			var r = BigInteger.fromByteArray(rBa);
+			var s = BigInteger.fromByteArray(sBa);
 
       return {r: r, s: s};
     }

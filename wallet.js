@@ -17,6 +17,7 @@ var transactions = []; //List of all transactions (initially populated from /mul
 var double_encryption = false; //If wallet has a second password
 var tx_page = 0; //Multi-address page
 var tx_filter = 0; //Transaction filter (e.g. Sent Received etc)
+var ourFee = BigInteger.valueOf(1000000); // 0.01 BTC
 
 //Refactoring
 //var balances = []; //Holds balances of addresses
@@ -394,6 +395,28 @@ function deleteAddressBook(addr) {
 	}
 }
 
+function constructMyAddrSelect(select) {
+	for (var key in addresses) {
+		var addr = addresses[key];
+			
+		//Don't include archived addresses
+		if (addr.tag == 2)
+			continue;
+				
+		var label = addr.label;
+		
+		if (label == null)
+			label = addr.addr;
+		
+		if (addr.balance > 0) {
+			//On the sent transactions page add the address to the from address options
+			select.prepend('<option value="'+addr.addr+'">' + label + ' - ' + formatBTC(addr.balance) + ' BTC </option>');
+		} else {
+			select.append('<option value="'+addr.addr+'">' + label + '</option>');
+		}
+	}
+}
+
 function buildSendTxView() {
 	
 	//Only build when visible
@@ -415,25 +438,7 @@ function buildSendTxView() {
 	
 	selects.empty();
 
-	for (var key in addresses) {
-		var addr = addresses[key];
-			
-		//Don't include archived addresses
-		if (addr.tag == 2)
-			continue;
-				
-		var label = addr.label;
-		
-		if (label == null)
-			label = addr.addr;
-		
-		if (addr.balance > 0) {
-			//On the sent transactions page add the address to the from address options
-			selects.prepend('<option value="'+addr.addr+'">' + label + ' - ' + formatBTC(addr.balance) + ' BTC </option>');
-		} else {
-			selects.append('<option value="'+addr.addr+'">' + label + '</option>');
-		}
-	}
+	constructMyAddrSelect(selects);
 	
 	$('#change-addr').prepend('<option value="new">New Address</option>');
 
@@ -837,44 +842,54 @@ function queryAPIMultiAddress() {
 	});
 }
 
+
+//Extract a set of key = value from the #hash window tag e.g. /wallet#key|value
+function extractKVFromHash() {
+
+	//Check if we have any addresses to add
+	var hash = decodeURI(window.location.hash.replace("#", ""));
+	var map = [];
+	
+	if (hash != null && hash.length > 0) {
+		var didChangeWallet = false;
+		var components = hash.split("|");
+		for (var i = 0; i < components.length; i += 2) {
+			var key = components[i];
+			var value = components[i+1];
+				
+			map[key] = value;
+		}	
+	}
+	
+	return map;
+}
+
 function didDecryptWallet() {
 
+	//Add an addresses from the "Add to My Wallet" link
 	try {
-		//Check if we have any addresses to add
-		var hash = decodeURI(window.location.hash.replace("#", ""));
-
-		if (hash != null && hash.length > 0) {
-		
-			var didChangeWallet = false;
-			var components = hash.split("|");
-			for (var i = 0; i < components.length; i += 2) {
-				var key = components[i];
-				var value = components[i+1];
-										
-				if (key == 'newaddr') {
-					var address = new Bitcoin.Address(value);
-					
-					if (address != null && address.toString() == value) {
-						
-						if (walletIsFull())
-							return;
-						
-						if (internalAddKey(value, null)) {
-							didChangeWallet = true;
-							makeNotice('success', 'added-addr', 'Added Bitcoin Address ' + value, 5000); 
-						} else {
-							makeNotice('error', 'error-addr', 'Error Adding Bitcoin Address ' + value, 5000); 
-						}
-					}
-				}
-			}
+		var map = extractKVFromHash();
+							
+		var newAddrVal = map['newaddr'];
+		if (newAddrVal != null) {
 			
-			window.location.hash = '';
+			if (addresses[newAddrVal] != null)
+				return;
 			
-			if (didChangeWallet) {
+			var address = new Bitcoin.Address(newAddrVal);
+							
+			if (walletIsFull())
+				return;
+			
+			if (internalAddKey(value, null)) {
+				makeNotice('success', 'added-addr', 'Added Bitcoin Address ' + newAddrVal, 5000); 
+				
 				backupWallet();
+			} else {
+				makeNotice('error', 'error-addr', 'Error Adding Bitcoin Address ' + newAddrVal, 5000); 
 			}
 		}
+		
 	} catch (e) {
 		makeNotice('error', 'add-address-error', 'Error adding new address from page link', 5000); 
 	}
@@ -897,6 +912,7 @@ function didDecryptWallet() {
 		}
 
 		localStorage.setItem('guid', guid);
+		
 	} catch (e) { } //Don't care - cache is optional
 	
 	///Get the list of transactions from the http API
@@ -1474,8 +1490,24 @@ function setDoubleEncryption(value) {
 			//Incase they have forgotten their password already
 			dpassword = null;
 			
-			backupWallet();
-			
+			//Ask the use again before we backup
+			if (getSecondPassword()) {
+				
+				//Check the intergreity of one address
+				//Not necessary to do them all
+				var addr = addresses[randomKey(addresses)];
+
+				var privatekey = new Bitcoin.ECKey(decodePK(addr.priv));
+				
+				if (privatekey.getBitcoinAddress().toString() != addr.addr) {
+					throw 'Private key does not match bitcoin address';
+				}
+				
+				backupWallet();
+			} else {
+				throw 'Password not entered correctly';
+			}
+					
 		} else {
 					
 			if (!getSecondPassword()) {
@@ -1489,6 +1521,16 @@ function setDoubleEncryption(value) {
 			
 			double_encryption = false;
 			dpassword = null;
+			
+			//Check the intergreity of one address
+			//Not necessary to do them all
+			var addr = addresses[randomKey(addresses)];
+
+			var privatekey = new Bitcoin.ECKey(decodePK(addr.priv));
+			
+			if (privatekey.getBitcoinAddress().toString() != addr.addr) {
+				throw 'Private key does not match bitcoin address';
+			}
 			
 			backupWallet();
 		}
@@ -1628,8 +1670,6 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
     //Add blockchain.info's fees
     var ouraddr = new Bitcoin.Address(our_address);
   
-    var ourFee = BigInteger.valueOf(1000000); // 0.01 BTC
-
 	var availableValue = BigInteger.ZERO;
 	var availableFeeValue = BigInteger.ZERO;
 	
@@ -1756,10 +1796,7 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 }
 
 function signInput(sendTx, missingPrivateKeys, selectedOuts, i) {
-		
-		var hashType = 1; // SIGHASH_ALL
-					
-		var hash = sendTx.hashTransactionForSignature(selectedOuts[i].script, i, hashType);
+							
 		var pubKeyHash = selectedOuts[i].script.simpleOutPubKeyHash();
 		var inputBitcoinAddress = new Bitcoin.Address(pubKeyHash).toString();
 		var privatekey = null;
@@ -1789,21 +1826,18 @@ function signInput(sendTx, missingPrivateKeys, selectedOuts, i) {
 			throw 'Private key does not match bitcoin address';
 		}
 		
-		var signature = privatekey.sign(hash);
+		var hashType = parseInt(1); // SIGHASH_ALL
+
+		var hash = sendTx.hashTransactionForSignature(selectedOuts[i].script, i, hashType);
+
+		var rs = privatekey.sign(hash);
 		
-		if (signature == null) {
-			throw 'Error signing transaction hash';
-		}
-			
-		var pubKey = privatekey.getPub();
-		if (pubKey == null) {
-			throw 'Private key pub key is null';
-		}
-
+		var signature = Bitcoin.ECDSA.serializeSig(rs.r, rs.s);
+	
 		// Append hash type
-		signature.push(parseInt(hashType));
+		signature.push(hashType);
 
-		 var script = Bitcoin.Script.createInputScript(signature, pubKey);
+		 var script = Bitcoin.Script.createInputScript(signature, privatekey.getPub());
 		 
 		 if (script == null) {
 			throw 'Error creating input script';
@@ -2567,27 +2601,27 @@ function txConstructSecondPhase(toAddresses, fromAddress, fees, unspent, missing
 	signOne();
 }
 
+function apiGetOutScript(txIndex, txOutputN, success, error) {	
+	
+	setLoadingText('Getting Output Script');
 
-function apiGetEscrow(txIndex) {
-	$.get(root + 'q/pubkeyaddr/'+addr).success(function(data) { 
-		
-		console.log(data);
+	$.get(root + 'q/outscript?tx_index='+txIndex+'&tx_output_n='+txOutputN).success(function(data) { 
 		
 		if (data == null || data.length == 0)
 			error();
 		else
-			success(Crypto.util.hexToBytes(data));
+			success(new Bitcoin.Script(Crypto.util.hexToBytes(data)));
 		
 	}).error(function(data) {
 		error();
 	});
 }
 
-
 function apiGetPubKey(addr, success, error) {	
+	
+	setLoadingText('Getting Pub Key');
+
 	$.get(root + 'q/pubkeyaddr/'+addr).success(function(data) { 
-		
-		console.log(data);
 		
 		if (data == null || data.length == 0)
 			error();
@@ -2619,7 +2653,7 @@ function newEscrowTx() {
 	var value = Bitcoin.Util.parseValue(value_input.val());
     	 
 	if (value == null || value.compareTo(BigInteger.ZERO) <= 0) 
-		throw 'You must enter a value greater than zero';
+		throw 'You must enter a send amount greater than zero';
 	
 	var m = parseInt(container.find('select[name="escrow-m"]').val());
 	
@@ -2632,9 +2666,12 @@ function newEscrowTx() {
 	        if (addr == null) {
 	    		throw 'You must enter a bitcoin address for each recipient';
 	        }
-	        
+	        	        
+	        //Public key
+	        if (addr.length == 130) {
+	        	pubkeys.push(Crypto.util.hexToBytes(addr));
 	        //If it's one of our adddresses we already have the pub key
-	        if (addresses[addr] != null && addresses[addr].priv != null) {	       
+	        } else if (addresses[addr] != null && addresses[addr].priv != null) {	       
 	        	pubkeys.push(new Bitcoin.ECKey(decodePK(addresses[addr].priv)).getPub());
 	        } else {
 	        	apiGetPubKey(addr, function(key) {
@@ -2845,11 +2882,9 @@ function newTx() {
 	
 	//Get the from address, if any
 	if ($('#send-from-address').val() != 'any') {
-		
-		var components = $('#send-from-address').val().split(' ', 1);
-					
+							
 		try {
-			fromAddress = new Bitcoin.Address(components[0]);
+			fromAddress = new Bitcoin.Address($('#send-from-address').val());
 		} catch (e) {
 			makeNotice('error', 'from-error', 'Invalid from address: ' + e, 5000);
 			return false;
@@ -3624,6 +3659,16 @@ function showQRCodeModal(data) {
 	   body.find('.data').empty().append(canvas);
     });
   
+    
+    var addr = addresses[data];
+    
+    if (addr != null && addr.priv != null && (!double_encryption || dpassword != null)) {
+    	//Display the users public key if possible withotu asking for password (need priv to determine pub)
+    	body.find('.pubkey').text(Crypto.util.bytesToHex(new Bitcoin.ECKey(decodePK(addr.priv)).getPub()));
+    } else {
+    	body.find('.pubkey').text('Unable to display');
+    }
+
 	body.find('.code').text(data);
 		
 	modal.find('.btn.secondary').unbind().click(function() {
@@ -3701,7 +3746,7 @@ function buildReceiveCoinsView() {
 		if (addr.tag == 1)
 			noPrivateKey = ' <font color="red">(Not Synced)</font>';
 		else if (addr.priv == null)
-			noPrivateKey = ' <font color="red">(No Private Key)</font>';
+			noPrivateKey = ' <font color="red">(Watch Only)</font>';
 		
 		var balance = formatBTC(addr.balance) + ' <span class="can-hide">BTC</span>';	
 		

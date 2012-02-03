@@ -145,6 +145,11 @@ function formatOutput(output, myAddresses) {
 	return str;
 }
 
+function openEscrow(txIndex, escrow_n, priv) {
+	window.open(''+root+'escrow/'+txIndex+'/'+escrow_n+'#encPK|'+priv+'','_top');
+}
+
+
 Transaction.prototype.getHTML = function(myAddresses) {    
 
     var result = this.result;
@@ -217,10 +222,26 @@ Transaction.prototype.getHTML = function(myAddresses) {
 	html += '</td><td width="30%" '+tclass+' style="vertical-align:middle;"><ul class="txul">';
 	
 	var escrow_n = null;
+	var escrow_addr = null;
 	for (var i = 0; i < this.out.length; i++) {		
 		var out = this.out[i];
-		if (out.type > 0) {
-			escrow_n = i;
+		if (out.type > 0 && !out.spent && escrow_n == null) {
+			
+			var myAddr = myAddresses[out.addr];
+			
+			if (myAddr == null)
+				myAddr = myAddresses[out.addr2];
+
+			if (myAddr == null)
+				myAddr = myAddresses[out.addr3];
+
+			
+			console.log(myAddr);
+			
+			if (myAddr != null && myAddr.priv != null) {
+				escrow_n = i;
+				escrow_addr = myAddr;
+			}
 		}
 		
 		html += formatOutput(out, myAddresses);
@@ -250,12 +271,12 @@ Transaction.prototype.getHTML = function(myAddresses) {
 	html += '<button class="'+button_class+'" onclick="toggleSymbol()">' + formatMoney(result, true) + '</button>';
 	
 	//Only show for My Wallet
-	if (myAddresses != null) {
-		if (escrow_n != null) {
-			html += '<button class="btn info" onclick="apiGetEscrow('+this.txIndex+')">Redeem / Release</button>';
+	if (myAddresses != null && !offline) {
+		if (escrow_n != null && this.confirmations != 0 && escrow_addr != null) {
+			html += '<button class="btn info" onclick="openEscrow('+this.txIndex+', '+escrow_n+', \''+escrow_addr.priv+'\')">Redeem / Release</button>';
 		}
 		
-		if (!offline && this.confirmations == 0) {
+		if (this.confirmations == 0) {
 			html += '<button class="btn" style="padding-top:4px;padding-bottom:4px;padding-left:7px;padding-right:7px;" onclick="showInventoryModal(\''+this.hash+'\')"><img src="'+resource+'network.png" /></button> ';
 		}
 	}

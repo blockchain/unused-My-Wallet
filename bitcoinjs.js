@@ -1484,7 +1484,7 @@ ECFieldElementFp.prototype.getByteLength = function () {
                     k = j.getX().toBigInteger().mod(f);
                 while (k.compareTo(BigInteger.ZERO) <= 0);
                 var l = h.modInverse(f).multiply(g.add(e.multiply(k))).mod(f);
-                return d.serializeSig(k, l)
+                return {r: k, s: l}
             },
             serializeSig: function (a, b) {
                 var c = a.toByteArrayUnsigned(),
