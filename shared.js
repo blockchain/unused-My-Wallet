@@ -3,6 +3,7 @@ var showInvBtn = false;
 var show_adv = false;
 var adv_rule;
 var our_address = '1A8JiWcwvpY7tAopUkSnGuEYHmzGYfZPiq'; //Address for fees and what not
+var open_pk;
 
 function Transaction () { };
 function Block () { };
@@ -149,12 +150,17 @@ function formatOutput(output, myAddresses) {
 	return str;
 }
 
-function openEscrow(txIndex, escrow_n, priv) {
-	var w =  window.open(''+root+'escrow/'+txIndex+'/'+escrow_n);
+function openEscrow(txIndex, escrow_n, priv) {	
 	
-	if (priv != null) {		
-		w.key = new Bitcoin.ECKey(decodePK(priv));
+	if (priv != null) {	
+		
+		if (!getSecondPassword())
+			return false;
+		
+		open_pk = new Bitcoin.ECKey(decodePK(priv));
 	}
+	
+	window.open(''+root+'escrow/'+txIndex+'/'+escrow_n);
 }
 
 Transaction.prototype.getHTML = function(myAddresses) {    

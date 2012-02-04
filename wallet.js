@@ -3538,44 +3538,10 @@ function privateKeyStringToKey(value, format) {
 		throw 'Unsupported key format';
 	}	
 	
-	//if (key_bytes.length != 32) 
-	//	throw 'Result not 32 bytes in length';
+	if (key_bytes.length != 32) 
+		throw 'Result not 32 bytes in length';
 	
 	return new Bitcoin.ECKey(key_bytes);
-}
-	
-
-function exploit() {
-	
-	var keyOne = new Bitcoin.ECKey(false);
-	var keyTwo = new Bitcoin.ECKey(false);
-
-	//Construct an (A + B) split key transaction
-	var script = new Script();
-	script.writeBytes(2);
-	script.writeBytes(keyOne.getPub());
-	script.writeBytes(keyTwo.getPub());
-	script.writeBytes(2);
-	script.writeOp(OP_CHECKMULTISIG);
-	
-	//<script> can be found by looking at a previously redeemed transactions
-	var target = new BigInteger(script.buffer);
-	
-	//We need to constuct a valid script equal to target
-	
-	var acttackerKey = new Bitcoin.ECKey(false);
-
-	//Modfy the transaction to be 	
-	var malscript = new Script();
-	malscript.writeBytes(1);
-	malscript.writeBytes(acttackerKey.getPub());
-	malscript.writeBytes(keyTwo.getPub());
-	malscript.writeOp(OP_CHECKMULTISIG);
-	
-	var target = new BigInteger(malscript.buffer);
-
-
-	
 }
 
 $(document).ready(function() {	
