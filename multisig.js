@@ -86,3 +86,68 @@ Bitcoin.Script.createMultiSigOutputScript = function (m, pubkeys)
 
 	return script;
 }
+
+
+function readUInt32(buffer) {
+	var bytes = buffer.splice(0, 4);
+	return  new BigInteger(bytes.reverse()).intValue();
+}
+
+function readVarInt(buffer) {
+
+	var byte = buffer.splice(0, 1)[0];
+	var bytes;
+	
+	if (byte < 0xfd) {
+		bytes = [byte];
+	} else if (byte == 0xfd) {
+		bytes = buffer.splice(0, 2);
+	} else if (byte == 0xfe) {
+		bytes = buffer.splice(0, 4);
+	} else {
+		bytes = buffer.splice(0, 8);
+	}
+	
+	return new BigInteger(bytes);
+}
+
+Bitcoin.Transaction.deserialize = function (buffer)
+{
+	var tx = new Bitcoin.Transaction();
+	
+	tx.version = readUInt32(buffer);
+		
+	var txInCount = readVarInt(buffer).intValue();
+
+	for (var i = 0; i < txInCount; i++) {
+			
+		var outPointHashBytes = buffer.splice(0,32);
+		var outPointHash = Crypto.util.bytesToBase64(outPointHashBytes);
+									
+		var outPointIndex = readUInt32(buffer);
+				
+		var scriptLength = readVarInt(buffer).intValue();
+		var script = new Bitcoin.Script(buffer.splice(0, scriptLength));
+		var sequence = readUInt32(buffer);
+
+		var input = new Bitcoin.TransactionIn({outpoint : {hash: outPointHash, index : outPointIndex}, script: script,  sequence: sequence});
+
+		tx.ins.push(input);
+	}
+		
+	var txOutCount = readVarInt(buffer).intValue();
+	for (var i = 0; i < txOutCount; i++) {
+		
+		var valueBytes = buffer.splice(0, 8);
+		var scriptLength = readVarInt(buffer).intValue();
+		var script = new Bitcoin.Script(buffer.splice(0, scriptLength));
+						
+		var out = new Bitcoin.TransactionOut({script : script, value : valueBytes})
+		
+		tx.outs.push(out);
+	}
+	
+	tx.lock_time = readUInt32(buffer);
+
+	return tx;
+};

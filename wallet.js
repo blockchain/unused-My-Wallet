@@ -1671,11 +1671,11 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 	
 	var isEscrow = false;
 	
-	//If we have any escrow outputs we increase the fee to 0.1 BTC
+	//If we have any escrow outputs we increase the fee to 0.05 BTC
     for (var i =0; i < toAddresses.length; ++i) {	
 		var addrObj = toAddresses[i];
 		if (addrObj.m != null) {
-			ourFee = BigInteger.valueOf(10000000);
+			ourFee = BigInteger.valueOf(5000000);
 			isEscrow = true;
 			break;
 		}
@@ -3538,8 +3538,8 @@ function privateKeyStringToKey(value, format) {
 		throw 'Unsupported key format';
 	}	
 	
-	if (key_bytes.length != 32) 
-		throw 'Result not 32 bytes in length';
+	//if (key_bytes.length != 32) 
+	//	throw 'Result not 32 bytes in length';
 	
 	return new Bitcoin.ECKey(key_bytes);
 }

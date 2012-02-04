@@ -126,7 +126,7 @@ function formatOutput(output, myAddresses) {
 	if (output.type == 0) {
 		str = '<li>';
 	} else if (output.type == 1 || output.type == 2 || output.type == 3) {
-		str = '<li><font color="red">Escrow</font> ' + output.type + ' of ';
+		str = '<li>(<font color="red">Escrow</font> ' + output.type + ' of ';
 	} else {
 		str = '<font color="red">Strange</font>';
 	}
@@ -140,8 +140,12 @@ function formatOutput(output, myAddresses) {
 	if (output.addr3 != null)
 		str += ', ' + formatAddr(output.addr3, myAddresses);
 
+	if (output.type == 1 || output.type == 2 || output.type == 3) {
+		str += ')';
+	}
+
 	str += '</li>';
-	
+
 	return str;
 }
 

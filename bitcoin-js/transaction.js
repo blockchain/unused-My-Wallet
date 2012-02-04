@@ -35,6 +35,7 @@
 		}
 		return objs;
 	};
+	
 
 	Transaction.prototype.addInput = function (tx, outIndex) {
 		if (arguments[0] instanceof TransactionIn) {
