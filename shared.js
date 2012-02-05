@@ -101,7 +101,7 @@ function formatMoney(x, span) {
 	return str;
 }
 
-function formatAddr(addr, myAddresses) {
+function formatAddr(addr, myAddresses, addresses_book) {
 	var myAddr = null;
 	if (myAddresses != null)
 		myAddr = myAddresses[addr];
@@ -114,12 +114,14 @@ function formatAddr(addr, myAddresses) {
 	} else {
 		 if (addr == our_address)
 			 return 'Blockchain.info';
+		 else if (addresses_book != null && addresses_book[addr] != null)
+			return '<a target="new" href="'+root+'address/'+addr+'">'+addresses_book[addr]+'</a>';
 		 else
 			return '<a target="new" href="'+root+'address/'+addr+'">'+addr+'</a>';
 	}
 }
 
-function formatOutput(output, myAddresses) {
+function formatOutput(output, myAddresses, addresses_book) {
 	
 	//total_fees -= output.value;
 	var str;
@@ -133,13 +135,13 @@ function formatOutput(output, myAddresses) {
 	}
 	
 	if (output.addr != null)
-		str += formatAddr(output.addr, myAddresses);
+		str += formatAddr(output.addr, myAddresses, addresses_book);
 	
 	if (output.addr2 != null)
-		str += ', ' + formatAddr(output.addr2, myAddresses);
+		str += ', ' + formatAddr(output.addr2, myAddresses, addresses_book);
 	
 	if (output.addr3 != null)
-		str += ', ' + formatAddr(output.addr3, myAddresses);
+		str += ', ' + formatAddr(output.addr3, myAddresses, addresses_book);
 
 	if (output.type == 1 || output.type == 2 || output.type == 3) {
 		str += ')';
@@ -163,7 +165,7 @@ function openEscrow(txIndex, escrow_n, priv) {
 	window.open(''+root+'escrow/'+txIndex+'/'+escrow_n);
 }
 
-Transaction.prototype.getHTML = function(myAddresses) {    
+Transaction.prototype.getHTML = function(myAddresses, addresses_book) {    
 
     var result = this.result;
     
@@ -200,7 +202,7 @@ Transaction.prototype.getHTML = function(myAddresses) {
 			if (input.prev_out == null || input.prev_out.addr == null) {
 				html += '<li>No Input (Newly Generated Coins)</li>';
 			} else {
-				html += formatOutput(input.prev_out, myAddresses);
+				html += formatOutput(input.prev_out, myAddresses, addresses_book);
 			}
 		}
     } else {
@@ -253,7 +255,7 @@ Transaction.prototype.getHTML = function(myAddresses) {
 			}
 		}
 		
-		html += formatOutput(out, myAddresses);
+		html += formatOutput(out, myAddresses, addresses_book);
 	}
 				
 	html += '</ul></td><td width="15%" style="vertical-align:middle;"><ul class="txul">';

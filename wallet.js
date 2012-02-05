@@ -12,7 +12,7 @@ var n_tx = 0; //Number of transactions
 var n_tx_filtered = 0; //Number of transactions after filtering
 var isInitialized = false; //Wallet is loaded and decrypted
 var latest_block = null; //Chain head block
-var address_book = []; //Holds the address book {addr : label}
+var address_book = []; //Holds the address book addr = label
 var transactions = []; //List of all transactions (initially populated from /multiaddr updated through websockets)
 var double_encryption = false; //If wallet has a second password
 var tx_page = 0; //Multi-address page
@@ -351,19 +351,18 @@ function makeWalletJSON(format) {
 	}
 	
 	out += "\n	]";
-	
-	if (address_book.length > 0) {
-		out += ',\n';
+	 
+	if (nKeys(address_book) > 0) {		
+		out += ',\n	"address_book" : [\n';
 		
-		out += '	"address_book" : [\n';
-		
-		for (var i = 0; i < address_book.length; ++i) {
-			out += '	{"addr" : "'+ address_book[i].addr +'",\n';
-			out += '	 "label" : "'+ address_book[i].label+ '"}';
-			
-			if (i < address_book.length-1) out += ',\n';
+		for (var key in address_book) {
+			out += '	{"addr" : "'+ key +'",\n';
+			out += '	 "label" : "'+ address_book[key] + '"},\n';
 		}
 		
+		//Remove the extra comma
+		out = out.substring(0, out.length-2);
+
 		out += "\n	]";
 	}
 	
@@ -381,18 +380,13 @@ function pasteAddress(addr) {
 }
 	
 function deleteAddressBook(addr) {
-	for (var i = 0; i < address_book.length; ++i) {
-		var taddr =  address_book[i].addr;
-		if (taddr == addr) {
-			address_book.splice(i,1);
-			
-			backupWallet();
-			
-			buildSendTxView();
-			break;
-		}
-	}
+	delete address_book[addr];
+
+	backupWallet();
+	
+	buildSendTxView();
 }
+
 
 function constructMyAddrSelect(select) {
 	for (var key in addresses) {
@@ -426,9 +420,8 @@ function buildSendTxView() {
 
 	el.empty();
 	
-	for (var i = 0; i < address_book.length; ++i) {
-		var addr =  address_book[i].addr;
-		el.append('<tr><td>'+ address_book[i].label + '</td><td><div class="addr-book-entry">'+ addr + '</div></td><td style="width:16px"><img src="'+resource+'delete.png" onclick="deleteAddressBook(\''+addr+'\')" /></td><td><img src="' + resource+ 'paste.png" onclick="pasteAddress(\''+ address_book[i].addr + '\')"></tr>');
+	for (var key in address_book) {
+		el.append('<tr><td>'+ address_book[key] + '</td><td><div class="addr-book-entry">'+ key + '</div></td><td style="width:16px" class="can-hide"><img src="'+resource+'delete.png" onclick="deleteAddressBook(\''+key+'\')" /></td><td><img src="' + resource+ 'paste.png" onclick="pasteAddress(\''+ key + '\')"></tr>');
 	}
 	
 	var send_tx_form = $('#send-tx-form');
@@ -703,7 +696,7 @@ function buildTransactionsView() {
 				tx.setConfirmations(0);
 			}
 		
-			html += tx.getHTML(addresses);
+			html += tx.getHTML(addresses, address_book);
 		}
 		
 
@@ -1306,76 +1299,81 @@ function updateKV(txt, method, value) {
 function backupWallet(method, successcallback, errorcallback, extra) {
 	if (offline) return;
 	
-	if (method == null) method = 'update';
-
-	if (!isInitialized && method != 'insert')
-		return false;
-		
-	if (guid.length != 36) {
-		throw 'Invalid wallet identifier';
-	}
+	try {
+		if (method == null) method = 'update';
 	
-	var data = makeWalletJSON();
-	
-	//Double check the json is parasable
-	var obj = jQuery.parseJSON(data);
-
-	if (obj == null)
-		throw 'null json error';
-	
-	if (obj.keys.length == 0)
-		throw 'Cannot backup wallet with no keys';
-	
-	//Everything looks ok, Encrypt the JSON output
-	var crypted = Crypto.AES.encrypt(data, password);
-		
-	if (crypted.length == 0) {
-		throw 'Error enrypting the JSON output';
-	}
-	
-	//SHA256 checksum verified by server in case of curruption during transit
-	var checksum = Crypto.util.bytesToHex(Crypto.SHA256(crypted, {asBytes: true}));
-	
-	setLoadingText('Saving wallet');
-	
-	if (extra == null)
-		extra = '';
-	
-	$.ajax({
-		 type: "POST",
-		 url: root + 'wallet' + extra,
-		 data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: checksum, method : method },
-		 converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
-		 success: function(data) {  
-			 			 
-			 var change = false;
-			 for (var key in addresses) {
-				 var addr = addresses[key];
-				 if (addr.tag == 1) {
-					 addr.tag = 0; //Make any unsaved addresses as saved
-					 change = true;
-				 }
-			 
-				 //Update view remove 'Unsynced' tags
-				 if (change) buildReceiveCoinsView();
-			 }
-			 
-			 if (method == 'update')
-				 updatePubKeys();
-			 
-			makeNotice('success', 'misc-success', data, 5000);
-			 
-			if (successcallback != null)
-				successcallback();
-		},
+		if (!isInitialized && method != 'insert')
+			return false;
 			
-		error : function(data) {
-		   makeNotice('error', 'misc-error', data.responseText, 10000); 
-		   
-			if (errorcallback != null)
-				errorcallback();
+		if (guid.length != 36) {
+			throw 'Invalid wallet identifier';
 		}
-	});
+		
+		var data = makeWalletJSON();
+		
+		//Double check the json is parasable
+		var obj = jQuery.parseJSON(data);
+	
+		if (obj == null)
+			throw 'null json error';
+		
+		if (obj.keys.length == 0)
+			throw 'Cannot backup wallet with no keys';
+		
+		//Everything looks ok, Encrypt the JSON output
+		var crypted = Crypto.AES.encrypt(data, password);
+			
+		if (crypted.length == 0) {
+			throw 'Error enrypting the JSON output';
+		}
+		
+		//SHA256 checksum verified by server in case of curruption during transit
+		var checksum = Crypto.util.bytesToHex(Crypto.SHA256(crypted, {asBytes: true}));
+		
+		setLoadingText('Saving wallet');
+		
+		if (extra == null)
+			extra = '';
+		
+		$.ajax({
+			 type: "POST",
+			 url: root + 'wallet' + extra,
+			 data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: checksum, method : method },
+			 converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
+			 success: function(data) {  
+				 			 
+				 var change = false;
+				 for (var key in addresses) {
+					 var addr = addresses[key];
+					 if (addr.tag == 1) {
+						 addr.tag = 0; //Make any unsaved addresses as saved
+						 change = true;
+					 }
+				 
+					 //Update view remove 'Unsynced' tags
+					 if (change) buildReceiveCoinsView();
+				 }
+				 
+				 if (method == 'update')
+					 updatePubKeys();
+				 
+				makeNotice('success', 'misc-success', data, 5000);
+				 
+				if (successcallback != null)
+					successcallback();
+			},
+				
+			error : function(data) {
+			   makeNotice('error', 'misc-error', data.responseText, 10000); 
+			   
+				if (errorcallback != null)
+					errorcallback();
+			}
+		});
+	} catch (e) {
+	   makeNotice('error', 'misc-error', e, 10000); 
+	   throw e;
+	}
 }
 
 
@@ -1879,20 +1877,7 @@ function internalDeleteAddress(addr) {
 }
 
 function internalAddAddressBookEntry(addr, label) {
-
-	if (address_book.length >= 200) {
-		makeNotice('error', 'misc-error', 'We currently support a maximum of 200 address book entries, please remove some unsused ones.', 5000);
-		return;
-	}
-	
-	//Check for duplicates
-	for (var ii=0;ii<address_book.length;++ii) {
-		if (addr == address_book[ii].addr) {
-			return;
-		}
-	}
-	
-	address_book.push({ addr: addr, label : label});
+	address_book[addr] = label;
 }
 
 function walletIsFull(addr) {
@@ -2044,14 +2029,23 @@ function addAddressBookEntry() {
 	
 	modal.center();
 	
+	
+	
+    var labelField = modal.find('input[name="label"]');
+    
+    var addrField = modal.find('input[name="address"]');
+
+    labelField.val('');
+    addrField.val('');
+    
 	//Added address book button
 	modal.find('.btn.primary').unbind().click(function() {
 				
 		modal.modal('hide');
 		
-        var label = modal.find('input[name="label"]').val();
+        var label = labelField.val();
         
-        var bitcoinAddress = modal.find('input[name="address"]').val();
+        var bitcoinAddress = addrField.val();
 
         if (label.length == 0) {
 			makeNotice('error', 'misc-error', 'you must enter a label for the address book entry', 5000);
@@ -2076,11 +2070,9 @@ function addAddressBookEntry() {
 			return false;
 		}
 		
-		 for (var i = 0; i < address_book.length; ++i) {			 
-        	if (address_book[i].addr == bitcoinAddress) {
-    			makeNotice('error', 'misc-error', 'Bitcoin address already exists', 5000);
-    			return false;
-        	}
+		 if (address_book[bitcoinAddress] != null) {			 
+			makeNotice('error', 'misc-error', 'Bitcoin address already exists', 5000);
+			return false;
          }
 	        
 		makeNotice('success', 'misc-success', 'Added Address book entry', 5000);
@@ -2978,6 +2970,7 @@ function populateImportExportView() {
 			 
 	          $('#paper-wallet').empty();
 	         
+	          
 			  loadScript(resource + 'wallet/jquery.qrcode.min.js', function() { 
 				  			  
 				  var container = $('#paper-wallet');
@@ -2985,6 +2978,8 @@ function populateImportExportView() {
 				  if (!getSecondPassword()) {
 						return;
 				  }
+				  
+				  
 				  
 				  for (var key in addresses) {
 					  var addr = addresses[key];
@@ -3003,27 +2998,29 @@ function populateImportExportView() {
 					  if (pk == null)
 						  continue;
 					  
-					  var subcontainer = $('<div style="width:100%;float:left;clear:both"></div>');
+					  var subcontainer = $('<tr></tr>');
 	
 					  //Add Address QR code
-					  var qrspan = $('<div style="float:left"></div>');
+					  var qrspan = $('<td></td>');
 					  				  
 					  var qr = makeQRCode(250, 250, 1 , pk);
 					  			
 					  qrspan.append(qr);
 					  
 					  subcontainer.append(qrspan);
-					 
-					  var body = $('<div style="float:left"><h3>' + addr.addr + '</h3><br /><small><p><b>' + pk + '</b></p></small><br /><p>' + mode + '</p><br /><p>Balance ' + formatBTC(addr.balance) + ' BTC</p> </div>');
+					  
+					  var label = '';
+					  if (addr.label != null)
+						  label = addr.label + ' - ';
+						  
+					  var body = $('<td style="padding-top:25px;"><h3>' + addr.addr + '</h3><br /><small><p><b>' + pk + '</b></p></small><br /><p>' + mode + '</p><br /><p>'+label+'Balance ' + formatBTC(addr.balance) + ' BTC</p> </td>');
 					  
 					  subcontainer.append(body);
-					  
-					  container.append(subcontainer);
-					
-					  //Start a new table every 4 entries
-					  if ((i+1) % 3 == 0 || i == (nKeys(addresses)-1)) {
-					  	container.append('<div style="width:100%;clear:both;page-break-after:always>&nbsp;</div>');
-					  }
+
+					  if (addr.balance > 0)
+						  container.prepend(subcontainer);
+					  else 
+						  container.append(subcontainer);
 				  }
 			  }); 
 		  }
@@ -3736,7 +3733,7 @@ function buildReceiveCoinsView() {
 		var label = addr.addr;
 		if (addr.label != null) {
 			label = addr.label;
-			extra = ' - <span class="can-hide">' + addr.addr + '</span>';
+			extra = '<span class="can-hide"> - ' + addr.addr + '</span>';
 		}
 		
 		var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'" onclick="showQRCodeModal(\'' + addr.addr +'\')" src="'+resource+'qrcode.png" /></td><td><div class="my-addr-entry"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td>';
