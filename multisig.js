@@ -63,25 +63,15 @@ Bitcoin.Script.createMultiSigOutputScript = function (m, pubkeys)
 {
 	var script = new Bitcoin.Script();
 	
-	if (m == 1) 
-		script.writeOp([Bitcoin.Opcode.map.OP_1]);
-	else if (m == 2) 
-		script.writeOp([Bitcoin.Opcode.map.OP_2]);
-	else if (m == 3) 
-		script.writeOp([Bitcoin.Opcode.map.OP_3]);
+    script.writeOp(Bitcoin.Opcode.map.OP_1 + m - 1);
 	
 	for (var i = 0; i < pubkeys.length; ++i) {
 		var pubkey = pubkeys[i];
 		script.writeBytes(pubkey);
 	}
 	
-	if (pubkeys.length == 1) 
-		script.writeOp([Bitcoin.Opcode.map.OP_1]);
-	else if (pubkeys.length == 2) 
-		script.writeOp([Bitcoin.Opcode.map.OP_2]);
-	else if (pubkeys.length == 3) 
-		script.writeOp([Bitcoin.Opcode.map.OP_3]);
-	
+    script.writeOp(Bitcoin.Opcode.map.OP_1 + pubkeys.length - 1);
+
 	script.writeOp(Bitcoin.Opcode.map.OP_CHECKMULTISIG);
 
 	return script;
@@ -89,12 +79,11 @@ Bitcoin.Script.createMultiSigOutputScript = function (m, pubkeys)
 
 
 function readUInt32(buffer) {
-	var bytes = buffer.splice(0, 4);
-	return  new BigInteger(bytes.reverse()).intValue();
+	return new BigInteger(buffer.splice(0, 4).reverse()).intValue();
 }
 
 function readVarInt(buffer) {
-
+	//Untested - Maybe need to reverse the bytes...
 	var byte = buffer.splice(0, 1)[0];
 	var bytes;
 	

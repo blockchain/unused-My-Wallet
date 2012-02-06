@@ -44,7 +44,8 @@ function TransactionFromJSON(json) {
 	tx.blockIndex = json.block_index;
 	tx.result = json.result;
 	tx.blockHeight = json.block_height;
-	
+	tx.balance = json.balance;
+
 	return tx;
 }
 

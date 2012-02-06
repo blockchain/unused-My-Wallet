@@ -17,6 +17,7 @@ var transactions = []; //List of all transactions (initially populated from /mul
 var double_encryption = false; //If wallet has a second password
 var tx_page = 0; //Multi-address page
 var tx_filter = 0; //Transaction filter (e.g. Sent Received etc)
+var maxAddr = 200;
 
 //Refactoring
 //var balances = []; //Holds balances of addresses
@@ -180,17 +181,20 @@ function _websocketConnect() {
 					final_balance += result;
 	
 					n_tx++;
-					
-					transactions.unshift(tx);
 	
 					tx.setConfirmations(0);
 
-					//Meed to update transactions list
-					buildTransactionsView();
-					
-					//Also Need to update balance on Received coins view
-					buildReceiveCoinsView();
+					if (tx_filter == 0 && tx_page == 0) {
 	
+						transactions.unshift(tx);
+		
+						//Meed to update transactions list
+						buildTransactionsView();
+						
+						//Also Need to update balance on Received coins view
+						buildReceiveCoinsView();
+					}
+					
 				}  else if (obj.op == 'block') {
 					if (sound_on) {
 						try {
@@ -642,8 +646,88 @@ function setLatestBlock(block) {
 	updateLatestBlockAge();
 }
 
+Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {    
+
+    var result = this.result;
+    
+	var html = '<tr><td>';
+	
+	if (result != null) {
+		if (result > 0) {
+			html += '<span class="label success">Received</span>';
+		} else if (result < 0) {
+			html += '<span class="label important">Sent</span>';
+		}	else if (result == 0) {
+			html += '<span class="label">Moved</span>';
+		}
+	}
+	
+	html += '</td><td><ul class="txul short-addr">';
+   
+	if (result >= 0) {
+	    if (this.inputs.length > 0) {
+			for (var i = 0; i < this.inputs.length; i++) {
+				input = this.inputs[i];
+				 				
+				if (input.prev_out == null || input.prev_out.addr == null) {
+					html += '<li>No Input (Newly Generated Coins)</li>';
+				} else {
+
+					//Don't Show sent from
+					if (myAddresses[input.prev_out.addr] != null) continue;
+					
+					html += formatOutput(input.prev_out, myAddresses, addresses_book);
+				}
+			}
+	    } else {
+			html += '<li>No inputs, transaction probably sent from self.</li>';
+	    }
+	 	} else {
+		for (var i = 0; i < this.out.length; i++) {		
+			
+			//Don't Show sent to self
+			if (this.out.length > 1 && this.out[i].type == 0 && myAddresses[this.out[i].addr] != null) continue;
+			
+			html += formatOutput(this.out[i], myAddresses, addresses_book);
+		}
+	}
+	
+	html += '</ul></td>';
+	
+	if (this.time > 0) {
+		var date = new Date(this.time * 1000);
+		html += '<td class="can-hide">' + dateToString(date) + '</td>';
+	} else {
+		html += '<td class="can-hide"></td>';
+	}
+	
+	if (result >= 0)
+		html += '<td style="color:green">' + formatMoney(result, true) + '</td>';
+	else
+		html += '<td style="color:red">' + formatMoney(result, true) + '</td>';
+
+	if (this.balance == null)
+		html += '<td class="can-hide"></td>';
+	else
+		html += '<td class="can-hide">' + formatMoney(this.balance) + '</td>';
+		
+	html += '</tr>';
+	
+	return html;
+};
+
+
 function buildTransactionsView() {
 
+	var tx_display = $('#tx_display').val();
+
+	var addr_filter = $('#addr_filter').val().toLowerCase();
+	
+	if (addr_filter.length == 0)
+		addr_filter = null;
+	
+	console.log(addr_filter);
+	
 	//Build the large summary
 	//UpdateThe summary
 	$('#transactions-summary').show();
@@ -666,7 +750,6 @@ function buildTransactionsView() {
 
 	$('#summary-balance').html(formatMoney(final_balance, true));
 
-	
 	if (transactions.length == 0)
 		return;
 	
@@ -678,11 +761,18 @@ function buildTransactionsView() {
 		interval = null;
 	}
 	
-	var trans = $('#transactions').empty();
+	var txcontainer = $('#transactions').empty();
+		
+	if (tx_display == 1) {
+		var table = $('<table class="zebra-striped"><tr><th style="width:100px">Type</th><th>To / From</th><th class="can-hide">Date</th><th>Amount</th><th class="can-hide">Balance</th></tr></table>');
+		
+		txcontainer.append(table);
+		txcontainer = table;
+	}
 
 	var buildSome = function() {		
 		var html = '';
-
+		
 		for (var i = start; i < transactions.length && i < (start+5); ++i) {
 						
 			var tx = transactions[i];
@@ -695,19 +785,48 @@ function buildTransactionsView() {
 			} else {
 				tx.setConfirmations(0);
 			}
-		
-			html += tx.getHTML(addresses, address_book);
-		}
-		
+			
+			var found = true;
+			if (addr_filter != null) {
+				found = false;
 
-		trans.append(html);
+				//Search input addresses
+				for (var ii = 0; ii < tx.inputs.length; ii++) {							
+					if (tx.inputs[ii].prev_out != null && tx.inputs[ii].prev_out.addr.toLowerCase().indexOf(addr_filter) >= 0) {
+						found = true;
+						break;
+					}
+				}
+				
+				//Search output addresses
+				if (!found) {
+					for (var ii = 0; ii < tx.out.length; ii++) {		
+						if (tx.out[ii].addr.toLowerCase().indexOf(addr_filter) >= 0 || formatBTC(tx.out[ii].value) == addr_filter) {
+							found = true;
+							break;
+						}
+					}
+				}
+			}
+									
+			if (found) {
+				if (tx_display == 1) {
+					html += tx.getCompactHTML(addresses, address_book);
+				} else {
+					html += tx.getHTML(addresses, address_book);
+				}
+			}
+		}
+				
+		txcontainer.append(html);
 		
 		start += 5;
-		
+
 		if (start < transactions.length) {
 			interval = setTimeout(buildSome, 1);
 		}
 	};
+	
 	
 	buildSome();
 	    	
@@ -1882,8 +2001,8 @@ function internalAddAddressBookEntry(addr, label) {
 
 function walletIsFull(addr) {
 
-	if (nKeys(addresses) >= 200) {
-		makeNotice('error', 'misc-error', 'We currently support a maximum of 200 private keys, please remove some unsused ones.', 5000);
+	if (nKeys(addresses) >= maxAddr) {
+		makeNotice('error', 'misc-error', 'We currently support a maximum of '+maxAddr+' private keys, please remove some unsused ones.', 5000);
 		return true;
 	}
 	
@@ -3171,7 +3290,17 @@ function bind() {
 	$('#filter').change(function(){
 		setFilter($(this).val());
 	});
+		
+	$('#tx_display').change(function(){
+		SetCookie("tx_display", $(this).val());
+		
+		buildTransactionsView()
+	});
 	
+	$('#addr_filter').keyup(function(){		
+		buildTransactionsView()
+	});
+
 	$('#update-password-btn').click(function() {    			
 		updatePassword();
     });
@@ -3365,50 +3494,6 @@ function bind() {
 		addAddressBookEntry();
 	});
 
-	//Password strength meter
-	$('#password').bind('change keypress keyup', function() {
-						
-	    var warnings = document.getElementById('password-warnings');
-	    var result = document.getElementById('password-result');
-	    var password = $(this).val();
-	    
-	        var cps = HSIMP.convertToNumber('250000000'),
-	            time, i, checks;
-	            
-	        warnings.innerHTML = '';
-	        if(password) {   
-	            time = HSIMP.time(password, cps.numeric);
-	            time = HSIMP.timeInPeriods(time);
-	            
-	           	$('#password-result').fadeIn(200);
-	
-	            if (time.period === 'seconds') {
-	                if (time.time < 0.000001) {
-	                    result.innerHTML = 'Your password would be hacked <span>Instantly</span>';
-	                } else if (time.time < 1) {
-	                    result.innerHTML = 'It would take a desktop PC <span>' + time.time+' '+time.period+ '</span> to hack your password';
-	                } else {
-	                    result.innerHTML = 'It would take a desktop PC <span>About ' + time.time+' '+time.period+ '</span> to hack your password';
-	                }
-	            } else {
-	            
-	                result.innerHTML = 'It would take a desktop PC <span>About ' + time.time+' '+time.period+ '</span> to hack your password';
-	            }
-	            
-	            checks = HSIMP.check(password);
-	            HSIMP.formatChecks(checks.results, warnings);
-	            
-	            if (checks.insecure) {
-	                result.innerHTML = '';
-	               	$('#password-result').fadeOut(200);
-	            }
-	            
-	        } else {
-	            result.innerHTML = '';
-	           	$('#password-result').fadeOut(200);
-	        }
-	});
-	
     $("#my-account-btn").click(function() {
 		if (!isInitialized)
 			return;
@@ -3707,6 +3792,8 @@ function archiveAddr(addr) {
 	}
 }
 
+
+
 function buildReceiveCoinsView() {
 	
 	//Only build when visible
@@ -3736,7 +3823,7 @@ function buildReceiveCoinsView() {
 			extra = '<span class="can-hide"> - ' + addr.addr + '</span>';
 		}
 		
-		var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'" onclick="showQRCodeModal(\'' + addr.addr +'\')" src="'+resource+'qrcode.png" /></td><td><div class="my-addr-entry"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td>';
+		var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'" onclick="showQRCodeModal(\'' + addr.addr +'\')" src="'+resource+'qrcode.png" /></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td>';
 		
 		if (addr.tag != 2)
 			thtml += '<td><span id="'+addr.addr+'" style="color:green">' + balance +'</span></td>';
