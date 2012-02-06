@@ -174,11 +174,11 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 	
 	if (result != null) {
 		if (result > 0) {
-			html += '<span class="label success">Payment Received</span>';
+			html += '<span class="label success">Received</span>';
 		} else if (result < 0) {
-			html += '<span class="label important">Payment Sent</span>';
+			html += '<span class="label important">Sent</span>';
 		}	else if (result == 0) {
-			html += '<span class="label">Funds Moved</span>';
+			html += '<span class="label">Moved</span>';
 		}
 	}
 	
