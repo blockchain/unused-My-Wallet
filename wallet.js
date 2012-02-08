@@ -3158,6 +3158,18 @@ function downloadBackup() {
 }
 
 function bind() {
+
+	$('#summary-n-tx-chart').click(function() {
+		 window.open(root + 'charts/n-transactions?show_header=false&address='+getActiveAddresses().join('|'), null, "scroll=0,status=0,location=0,toolbar=0,width=1000,height=700");
+	});
+	
+	$('#summary-received-chart').click(function() {
+		 window.open(root + 'charts/received-per-day?show_header=false&address='+getActiveAddresses().join('|'), null, "scroll=0,status=0,location=0,toolbar=0,width=1000,height=700");
+	});
+
+	$('#summary-balance-chart').click(function() {
+		 window.open(root + 'charts/balance?show_header=false&address='+getActiveAddresses().join('|'), null, "scroll=0,status=0,location=0,toolbar=0,width=1000,height=700");
+	});
 	
 	$('#notifications-form select').change(function() {
 		var val = $(this).val();
