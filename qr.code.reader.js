@@ -56,14 +56,25 @@ function passLine(stringPixels) {
 } 
 
 function captureToCanvas() {
-    flash = document.getElementById("embedflash");
-   
-    if(!flash)
-        return;
-        
-    flash.ccCapture();
+	try {
+		
+		console.log($("#embedflash"));
+		
+	    flash = document.getElementById("embedflash");
+	   
+	    if(!flash)
+	        return;
+	        
+	    flash.ccCapture();
+	} catch (e) {
+		console.log(e);
+		
+		if ($("#embedflash").is(':visible')) {
+			setTimeout(captureToCanvas, 1000);
+		}
+	}
 }
-
+ 
 
 function isCanvasSupported(){
   var elem = document.createElement('canvas');
@@ -71,29 +82,28 @@ function isCanvasSupported(){
 }
 
 function initQRFlash(el, path) {    
-    $('body').append(makeFlash(path));
+    $('#'+el).append(makeFlash(path));
+
+    $("#embedflash").width(320).height(240);
+    
+    $('#'+el).append(makeCanvas());
+	
+    initCanvas(800,600);
 }
 
 function initQRCodeReader(el, callback, path)
 {
 	if(isCanvasSupported()) {
-       if ($("#embedflash").length == 0) {
-    	   initQRFlash(el, path);
-        }
-       
-       $("#embedflash").width(320).height(240).appendTo($('#'+el));
-
-       if ($("#qr-canvas").length == 0) {
-    	   $('body').append(makeCanvas());
-    	   initCanvas(800,600);
-       }
-
+		
+	   $("#embedflash").remove();
+	   $("#qr-canvas").remove();
+		 
+       initQRFlash(el, path);
         
-		qrcode.callback = callback;
+       qrcode.callback = callback;
         
        return setTimeout(captureToCanvas, 1000);
-	} else
-	{
+	} else {
 		documentel.innerHTML='<p id="mp1">QR code scanner for HTML5 capable browsers</p><br>'+
         '<br><p id="mp2">sorry your browser is not supported</p><br><br>'+
         '<p id="mp1">try <a href="http://www.mozilla.com/firefox"><img src="${resource}promo/firefox.png"/></a> or <a href="http://chrome.google.com"><img src="${resource}promo/chrome.png"/></a></p>';

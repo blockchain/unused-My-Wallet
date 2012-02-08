@@ -451,7 +451,6 @@ function buildSendTxView() {
 	
 	
 	//Escrow
-	
 	var el = $("#escrow-recipient-container div:first-child").clone();
 	$('#escrow-recipient-container').empty().append(el);
 }
@@ -726,8 +725,6 @@ function buildTransactionsView() {
 	if (addr_filter.length == 0)
 		addr_filter = null;
 	
-	console.log(addr_filter);
-	
 	//Build the large summary
 	//UpdateThe summary
 	$('#transactions-summary').show();
@@ -934,15 +931,17 @@ function queryAPIMultiAddress() {
 				//Refresh transactions (Only if visible)
 				buildTransactionsView();
 
-				//Cache results to show next login
-				if (tx_page == 0 && tx_filter == 0)
-					localStorage.setItem('multiaddr', data);
 			} catch (e) {
 				console.log(data);
 
 				console.log(e);
 			}
-			
+
+			try {
+				//Cache results to show next login
+				if (tx_page == 0 && tx_filter == 0)
+					localStorage.setItem('multiaddr', data);
+			} catch (e) { }
 		},
 			
 		error : function(data) {	
@@ -1071,6 +1070,9 @@ function internalRestoreWallet() {
 		
 		if (obj.address_book != null) {
 			for (var i = 0; i < obj.address_book.length; ++i) {	
+				
+				console.log('Adding ' + obj.address_book[i].addr);
+				
 				internalAddAddressBookEntry(obj.address_book[i].addr, obj.address_book[i].label);
 			}
 		}
@@ -1091,6 +1093,94 @@ function internalRestoreWallet() {
 	return false;
 }
 
+function showPrivateKeyModal(success, error, addr) {
+
+	var modal = $('#private-key-modal');
+
+	modal.modal({
+		  keyboard: true,
+		  backdrop: "static",
+		  show: true
+	});
+	
+	modal.find('.address').text(addr);
+		
+	//WebCam
+	try {
+		 loadScript(resource + 'wallet/qr.code.reader.js', function() { 
+			  loadScript(resource + 'wallet/llqrcode.js', function() { 
+		
+				 //Flash QR Code Reader
+				 var interval = initQRCodeReader('qr-code-reader', function(code){
+						 try {
+							 											 							 
+						    var key = privateKeyStringToKey(code, 'base58');
+							
+						    if (key == null) {
+								error('Error decoding private key');
+								modal.modal('hide');
+								return;
+							}
+				
+							clearInterval(interval);
+								
+							try {
+								success(key);
+							} catch (e) {}
+							
+						} catch(e) {
+							error('Error decoding private key ' + e);
+						}
+						
+						modal.modal('hide');
+						
+				 }, resource + 'wallet/');
+				 
+				modal.center();
+
+				modal.bind('hidden', function () {
+					clearInterval(interval);
+				});
+		   });
+		});
+	} catch (e) {
+		console.log(e);
+	}
+	 
+	modal.find('.btn.primary').unbind().click(function() {
+		var value = modal.find('input[name="key"]').val();
+		var format = modal.find('select[name="format"]').val();
+	
+		if (value.length == 0) {
+			error('You must enter a private key to import');
+			modal.modal('hide');
+			return;
+		}
+		
+		try {
+			var key = privateKeyStringToKey(value, format);
+						
+			if (key == null) {
+				error('Error decoding private key');
+				modal.modal('hide');
+				return;
+			}
+			
+			success(key);
+		} catch(e) {
+			error('Error importing private key ' + e);
+		}
+		
+		modal.modal('hide');
+	 });
+	 
+	modal.center();
+
+	modal.find('.btn.secondary').unbind().click(function() {
+		error('User Cancelled');
+		modal.modal('hide');
+	});
+}
 
 function getReadyForOffline() {
 	var modal = $('#offline-mode-modal');
@@ -1122,6 +1212,8 @@ function getReadyForOffline() {
 
 	//Preload some images
 	new Image().src = resource + 'qrcode.png';
+	new Image().src = resource + 'archive.png';
+	new Image().src = resource + 'label.png';
 	new Image().src = resource + 'paste.png';
 	new Image().src = resource + 'delete.png';
 	new Image().src = resource + 'arrow_right_green.png';
@@ -1131,22 +1223,17 @@ function getReadyForOffline() {
 	
 	setLoadingText('Loading QR Code generator');
 	
-	 loadScript(resource + 'wallet/jquery.qrcode.min.js', function() { 
 	  loadScript(resource + 'wallet/llqrcode.js', function() { 
 		  loadScript(resource + 'wallet/qr.code.reader.js', function() { 
-
+	
 			//Prepload the flash Object	
 			initQRFlash('qr-code-reader', resource + 'wallet/');
-
-				loadScript(resource + 'wallet/swfobject.js', function() { 
-				});
+				all_scripts_done = true;
 		  	});
 	  	});  
-	});
 
 	///Get the list of transactions from the http API
 	queryAPIMultiAddress();
-	
 	
 	//Get unspent outputs
 	$.post(root + 'unspent', {'addr[]' : getActiveAddresses()},  function(obj) {  
@@ -1159,7 +1246,7 @@ function getReadyForOffline() {
 	var isDone = function () {
 		
 		if (!all_scripts_done || $.active) {
-			setTimeout(isDone, 200);
+			setTimeout(isDone, 100);
 			return;
 		}
 	
@@ -1185,10 +1272,13 @@ function getReadyForOffline() {
 				
 				$('#email-backup-btn').attr('disabled', true);
 				$('#my-account-btn').attr('disabled', true);
+				$('#dropbox-backup-btn').attr('disabled', true);
 
 				modal.modal('hide');										
 				
 				didDecryptWallet();
+				
+				console.log('Addr boook' + address_book);
 			});
 	  });
 	};
@@ -1829,9 +1919,7 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 			
 			if (addr == null) {
 				throw 'Unable to decode output address from transaction hash ' + out.tx_hash;
-			} else if (!offline && addresses[addr].priv == null) {
-				throw 'Unable use bitcoin address ' + addr + ' in online mode';
-			}
+			} 
 			
 			var out = unspentOutputs[i];
 			
@@ -2592,11 +2680,11 @@ function txConstructSecondPhase(toAddresses, fromAddress, fees, unspent, missing
 				
 			//If the input failed to sign then were probably missing a private key
 			//Only ask for missing keys in offline mode
-			} else if (offline && missingPrivateKeys.length > 0) {
+			} else if (missingPrivateKeys.length > 0) {
 				
 				progress.hide();
 
-				 //find the first missing private key and prompt the user to enter it
+				 //find the first a missing addresses and prompt the user to enter the private key
 				 var missing = null;
 				 for (var i =0; i < missingPrivateKeys.length; ++i) {
 					 if (missingPrivateKeys[i].priv == null) {
@@ -2611,108 +2699,23 @@ function txConstructSecondPhase(toAddresses, fromAddress, fees, unspent, missing
 					 modal.modal('hide');
 					 return;
 				 }
-				
-				 var form = $('#missing-private-key');
-				
-				 form.find('input[name="key"]').val('');
 				 
-				 form.show();
-				 
-				 //Set the modal title
-				 modal.find('.modal-header h3').html('Private Key Needed.');
-				
-				 form.find('.address').html(missing.addr);
-					
-				 try {
-					  loadScript(resource + 'wallet/qr.code.reader.js', function() { 
-						  loadScript(resource + 'wallet/llqrcode.js', function() { 
-
-						 //Flash QR Code Reader
-						 var interval = initQRCodeReader('qr-code-reader', function(code){
-								 try {
-								    var key = privateKeyStringToKey(code, form.find('select[name="format"]').val());
-									
-								    if (key == null) {
-										makeNotice('error', 'misc-error', 'Error decoding private key', 5000);
-										return;
-									}
-								    
-									if (missing.addr != key.getBitcoinAddress().toString()) {
-										makeNotice('error', 'misc-error', 'The private key you entered does not match the bitcoin address', 5000);
-										return;
-									}
-									
-									clearInterval(interval);
-									
-									$('#qr-code-reader').remove();
-									
-									missing.priv = key;
-									
-									form.hide();
-									
-									progress.show();
-									
-									//Now try again
-									signOne();
-								} catch(e) {
-									makeNotice('error', 'misc-error', 'Error decoding private key ' + e, 5000);
-									return;
-								}
-						 }, resource + 'wallet/');
-						
-						 //Center the modal as the flash moview changes the size
-						modal.center();
-						 
-						modal.bind('hidden', function () {
-							clearInterval(interval);
-						});
-					   });
-					  });
-
-				 } catch(e) {
-					 console.log(e);
-				 }
-				
-				 form.find('button[name="add"]').unbind().click(function() {
-					if (!isInitialized)
-						return;
-					
-					var value = form.find('input[name="key"]').val();
-					var format = form.find('select[name="format"]').val();
-				
-					if (value.length == 0) {
-						makeNotice('error', 'misc-error', 'You must enter a private key to import', 5000);
-						return;
-					}
-					
-					try {
-						var key = privateKeyStringToKey(value, format);
-									
-						if (key == null) {
-							makeNotice('error', 'misc-error', 'Error decoding private key', 5000);
-							return;
-						}
-						
-						if (missing.addr != key.getBitcoinAddress().toString()) {
+				 showPrivateKeyModal(function (key) {
+					 	if (missing.addr != key.getBitcoinAddress().toString()) {
 							makeNotice('error', 'misc-error', 'The private key you entered does not match the bitcoin address', 5000);
 							return;
 						}
-						
-						
-						missing.priv = key;
-						
-						form.hide();
+					 
+					 	missing.priv = key;
 						
 						progress.show();
 
 						//Now try again
 						signOne();
-					} catch(e) {
-						makeNotice('error', 'misc-error', 'Error importing private key ' + e, 5000);
-						return;
-					}
-				 });
-			
+				 }, function(e) {
+					makeNotice('error', 'misc-error', e, 5000);
+					return; 
+				 }, missing.addr);
 			} else {
 				//If were not missing a private key then somethign went wrong
 				makeNotice('error', 'misc-error', 'Unknown error signing transaction');
@@ -3426,8 +3429,46 @@ function bind() {
 			
 		});
 		
+		 $('#import-private-scan').unbind().click(function() {
+			 if (!isInitialized)
+				return;
+			 
+			 if (!getSecondPassword()) {
+				return;
+			 }
+				
+			if (walletIsFull())
+				return;			
+				
+			 showPrivateKeyModal(function (key) {
+				 
+					var addr = key.getBitcoinAddress().toString();
+
+				 	if (internalAddKey(addr, encodePK(key.priv))) {
+						
+						//Rebuild the My-address list
+						buildReceiveCoinsView();
+						
+						//Perform a wallet backup
+						backupWallet();
+						
+						//Get the new list of transactions
+						queryAPIMultiAddress();
+						
+						makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr, 5000);
+					} else {
+						makeNotice('error', 'misc-error', 'Unable to add private key for bitcoin address ' + addr);
+					}
+			 	
+			 }, function(e) {
+				makeNotice('error', 'misc-error', e, 5000);
+				return;
+			 }, 'Any Private Key');
+		 });
+		 
+		 
 		 var form = $('#import-private-key');
-			
+		
 		 form.find('button[name="add"]').unbind().click(function() {
 			if (!isInitialized)
 				return;
