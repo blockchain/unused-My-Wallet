@@ -1414,7 +1414,7 @@ function getAccountInfo() {
 		
 		if (data.alias != null) {
 			$('#wallet-alias').val(data.alias);
-			$('.alias').text(data.alias);
+			$('.alias').text('https://blockchain.info/wallet/'+data.alias);
 			$('.alias').show(200);
 		}
 		
@@ -3291,7 +3291,7 @@ function bind() {
 	
 		if ($(this).val().length > 0) {
 			$('.alias').fadeIn(200);
-			$('.alias').text($(this).val());
+			$('.alias').text('https://blockchain.info/wallet/'+$(this).val());
 		}
 				
 		updateKV('Updating Alias', 'update-alias', $(this).val());
@@ -3306,11 +3306,11 @@ function bind() {
 	$('#tx_display').change(function(){
 		SetCookie("tx_display", $(this).val());
 		
-		buildTransactionsView()
+		buildTransactionsView();
 	});
 	
 	$('#addr_filter').keyup(function(){		
-		buildTransactionsView()
+		buildTransactionsView();
 	});
 
 	$('#update-password-btn').click(function() {    			
