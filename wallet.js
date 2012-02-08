@@ -3090,7 +3090,7 @@ function populateImportExportView() {
 	          $('#paper-wallet').empty();
 	         
 	          
-			  loadScript(resource + 'wallet/jquery.qrcode.min.js', function() { 
+			  loadScript(resource + 'wallet/qr.code.creator.js', function() { 
 				  			  
 				  var container = $('#paper-wallet');
 				  
@@ -3755,7 +3755,7 @@ function showQRCodeModal(data) {
 
 	var body = modal.find('.modal-body');
 	
-    loadScript(resource + 'wallet/jquery.qrcode.min.js', function() { 
+    loadScript(resource + 'wallet/qr.code.creator.js', function() { 
 	   var canvas = makeQRCode(300,300,1,data);
 	 
 	   body.find('.data').empty().append(canvas);
