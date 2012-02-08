@@ -1069,10 +1069,7 @@ function internalRestoreWallet() {
 		}
 		
 		if (obj.address_book != null) {
-			for (var i = 0; i < obj.address_book.length; ++i) {	
-				
-				console.log('Adding ' + obj.address_book[i].addr);
-				
+			for (var i = 0; i < obj.address_book.length; ++i) {					
 				internalAddAddressBookEntry(obj.address_book[i].addr, obj.address_book[i].label);
 			}
 		}
