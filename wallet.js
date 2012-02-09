@@ -17,7 +17,7 @@ var transactions = []; //List of all transactions (initially populated from /mul
 var double_encryption = false; //If wallet has a second password
 var tx_page = 0; //Multi-address page
 var tx_filter = 0; //Transaction filter (e.g. Sent Received etc)
-var maxAddr = 200;
+var maxAddr = 400;
 
 //Refactoring
 //var balances = []; //Holds balances of addresses
