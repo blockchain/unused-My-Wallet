@@ -3093,13 +3093,18 @@ function populateImportExportView() {
 			  loadScript(resource + 'wallet/qr.code.creator.js', function() { 
 				  			  
 				  var container = $('#paper-wallet');
-				  
+				
 				  if (!getSecondPassword()) {
 						return;
 				  }
 				  
+				  container.empty();
 				  
+				  var table = $('<table class="trbreak"></table>');
+
+				  container.append(table);
 				  
+				  var ii = 1;
 				  for (var key in addresses) {
 					  var addr = addresses[key];
 	  		
@@ -3117,16 +3122,16 @@ function populateImportExportView() {
 					  if (pk == null)
 						  continue;
 					  
-					  var subcontainer = $('<tr></tr>');
+					  var row = $('<tr></tr>');
 	
 					  //Add Address QR code
-					  var qrspan = $('<td></td>');
+					  var qrspan = $('<td><div style="height:225px;overflow:hidden"></div></td>');
 					  				  
 					  var qr = makeQRCode(250, 250, 1 , pk);
 					  			
-					  qrspan.append(qr);
+					  qrspan.children(":first").append(qr);
 					  
-					  subcontainer.append(qrspan);
+					  row.append(qrspan);
 					  
 					  var label = '';
 					  if (addr.label != null)
@@ -3134,12 +3139,19 @@ function populateImportExportView() {
 						  
 					  var body = $('<td style="padding-top:25px;"><h3>' + addr.addr + '</h3><br /><small><p><b>' + pk + '</b></p></small><br /><p>' + mode + '</p><br /><p>'+label+'Balance ' + formatBTC(addr.balance) + ' BTC</p> </td>');
 					  
-					  subcontainer.append(body);
+					  row.append(body);
 
 					  if (addr.balance > 0)
-						  container.prepend(subcontainer);
+						  table.prepend(row);
 					  else 
-						  container.append(subcontainer);
+						  table.append(row);
+					  					  
+					  if (ii % 3 == 0) {
+						  table = $('<table class="trbreak"></table>');
+						  container.append(table);
+					  }
+					  
+					  ii++;
 				  }
 			  }); 
 		  }
