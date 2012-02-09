@@ -1195,11 +1195,8 @@ function getReadyForOffline() {
 	modal.find('.btn.secondary').unbind().click(function() {
 		modal.modal('hide');
 	});
-	
-	modal.find('.notices').append($('#notices'));
-	
+		
 	modal.bind('hidden', function () {
-		$('#main-notices-container').append($('#notices'));
 		$("#restore-wallet-continue").removeAttr('disabled');
 	});
 			
@@ -2875,12 +2872,6 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 		modal.find('.btn.secondary').unbind().click(function() {
 			modal.modal('hide');
 		});
-		
-		modal.find('.notices').append($('#notices'));
-		
-		modal.bind('hidden', function () {
-			$('#main-notices-container').append($('#notices'));
-		});
 			
 		var gotunspent = function(obj) {
 			try {
@@ -3689,7 +3680,7 @@ function privateKeyStringToKey(value, format) {
 }
 
 $(document).ready(function() {	
-    setTimeout(bind, 10);
+    setTimeout(bind, 100);
 	
 	$('body').ajaxStart(function() {
 		$('.loading-indicator').fadeIn(200);
