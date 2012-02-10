@@ -2878,6 +2878,11 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 				var unspent = [];
 				var missingPrivateKeys = [];
 	
+				
+				if (obj.notice != null) {
+					makeNotice('info', 'notice', obj.notice, 5000);
+				}
+				
 				for (var i = 0; i < obj.unspent_outputs.length; ++i) {
 									
 					var script;
