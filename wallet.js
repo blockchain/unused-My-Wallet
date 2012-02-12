@@ -118,14 +118,16 @@ function _websocketConnect() {
 					$('#status').html(obj.msg);
 				
 				} else if (obj.op == 'utx') {
+				
+					var tx = TransactionFromJSON(obj.x);
 					
-					//Check for duplicates
-					var l = transactions.length;
-					while (--l) {					
-						if (transactions[l].txIndex == obj.x.tx_index)
+					//Check if this is a duplicate
+					//Maybe should have a map_prev to check for possible double spends
+					for (var i = 0; i < transactions.length; ++i) {
+						if (transactions[i].txIndex == tx.txIndex)
 							return;
 					}
-		            
+					
 		            try {
 		                if (sound_on) {
 							try {								
@@ -138,15 +140,7 @@ function _websocketConnect() {
 		                console.log(e);
 		            }
 					
-					var tx = TransactionFromJSON(obj.x);
-										
-					//Check if this is a duplicate
-					//Maybe should have a map_prev to check for possible double spends
-					for (var i = 0; i < transactions.length; ++i) {
-						if (transactions[i].txIndex == tx.txIndex)
-							return;
-					}
-					
+			
 					/* Calculate the result */
 					var result = 0;
 						
