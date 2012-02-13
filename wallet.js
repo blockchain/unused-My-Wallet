@@ -255,6 +255,9 @@ function makeNotice(type, id, msg, timeout) {
 	if (msg == null || msg.length == 0)
 		return;
 	
+	if (timeout == null)
+		timeout = 5000;
+	
 	var contents = '<div class="alert-message '+type+'" data-alert="alert"><a class="close">×</a><p>'+msg+'</p></div>';
 	
 	if ($('#'+id).length > 0) {
@@ -469,11 +472,11 @@ function importPyWalletJSONObject(obj) {
 			}
 		}
 	} catch (e) {
-		makeNotice('error', 'misc-error', 'Exception caught parsing importing JSON. Incorrect format?', 5000);
+		makeNotice('error', 'misc-error', 'Exception caught parsing importing JSON. Incorrect format?');
 		return false;	
 	}
 	
-	makeNotice('success', 'misc-success', 'Imported ' + i + ' private keys', 5000);
+	makeNotice('success', 'misc-success', 'Imported ' + i + ' private keys');
 }
 
 function parseMultiBit(str) {
@@ -950,7 +953,7 @@ function queryAPIMultiAddress() {
 			
 			console.log(data);
 			
-			makeNotice('error', 'misc-error', 'Error getting wallet balance from server', 5000);
+			makeNotice('error', 'misc-error', 'Error getting wallet balance from server');
 		},
 	});
 }
@@ -995,16 +998,16 @@ function didDecryptWallet() {
 				return;
 			
 			if (internalAddKey(value, null)) {
-				makeNotice('success', 'added-addr', 'Added Bitcoin Address ' + newAddrVal, 5000); 
+				makeNotice('success', 'added-addr', 'Added Bitcoin Address ' + newAddrVal); 
 				
 				backupWallet();
 			} else {
-				makeNotice('error', 'error-addr', 'Error Adding Bitcoin Address ' + newAddrVal, 5000); 
+				makeNotice('error', 'error-addr', 'Error Adding Bitcoin Address ' + newAddrVal); 
 			}
 		}
 		
 	} catch (e) {
-		makeNotice('error', 'add-address-error', 'Error adding new address from page link', 5000); 
+		makeNotice('error', 'add-address-error', 'Error adding new address from page link'); 
 	}
 	
 	try {
@@ -1033,7 +1036,7 @@ function didDecryptWallet() {
 	
 	changeView($("#home-intro"));
 	
-	makeNotice('success', 'misc-success', 'Sucessfully Decrypted Wallet', 5000); 
+	makeNotice('success', 'misc-success', 'Sucessfully Decrypted Wallet'); 
 }
 
 function internalRestoreWallet() {
@@ -1041,7 +1044,7 @@ function internalRestoreWallet() {
 		var decrypted = Crypto.AES.decrypt(encrypted_wallet_data, password);
 		
 		if (decrypted.length == 0) {
-			makeNotice('error', 'misc-error', 'Error Decrypting Wallet', 5000);	
+			makeNotice('error', 'misc-error', 'Error Decrypting Wallet');	
 			return false;
 		}
 		
@@ -1086,7 +1089,7 @@ function internalRestoreWallet() {
 		
 		console.log(e);
 		
-		makeNotice('error', 'misc-error', 'Error decrypting wallet. Please check you entered your password correctly.', 5000);
+		makeNotice('error', 'misc-error', 'Error decrypting wallet. Please check you entered your password correctly.');
 	}
 
 	return false;
@@ -1117,17 +1120,19 @@ function getSecondPassword(success, error) {
 		var password = input.val();
 		
 		if (vaidateDPassword(password)) {
-			success();
+			try { success(); } catch (e) { console.log(e); }
 		} else {
-			makeNotice('error', 'misc-error', 'Password incorrect.', 5000);
-			if (error != null) error();
+			makeNotice('error', 'misc-error', 'Password incorrect.');
+			if (error != null) {
+				try { error(); } catch (e) { console.log(e); }
+			}
 		}
 		
 		modal.modal('hide');
 	});
 	
 	modal.find('.btn.secondary').unbind().click(function() {
-		makeNotice('error', 'misc-error', 'User cancelled, password needed to continue.', 5000);
+		makeNotice('error', 'misc-error', 'User cancelled, password needed to continue.');
 		modal.modal('hide');
 	});
 	
@@ -1297,7 +1302,7 @@ function getReadyForOffline() {
 			
 				setLoadingText('Checking connectivity');
 
-				makeNotice('error', 'misc-error', 'You must disconnect your internet before continuing', 5000);
+				makeNotice('error', 'misc-error', 'You must disconnect your internet before continuing');
 				
 				return false;
 				
@@ -1329,7 +1334,7 @@ function restoreWallet() {
 	guid = $("#restore-guid").val();
 
 	if (guid == null || guid.length != 36) {
-		makeNotice('error', 'misc-error', 'Invalid wallet identifier', 5000);
+		makeNotice('error', 'misc-error', 'Invalid wallet identifier');
 		return false;
 	} else {
 		hideNotice('guid-error');
@@ -1338,7 +1343,7 @@ function restoreWallet() {
 	password = $("#restore-password").val();
 
 	if (password.length == 0 || password.length < 8 || password.length > 255) {
-		makeNotice('error', 'misc-error', 'Password length must at least 10 characters', 5000);
+		makeNotice('error', 'misc-error', 'Password length must at least 10 characters');
 		return false;
 	} else {
 		hideNotice('password-error');
@@ -1349,10 +1354,10 @@ function restoreWallet() {
 	if (toffline) {
 		try {
 	        if (localStorage == null) {
-	    		makeNotice('error', 'misc-error', 'Your browser does not support local stoage. Cannot login in offline mode.', 5000);
+	    		makeNotice('error', 'misc-error', 'Your browser does not support local stoage. Cannot login in offline mode.');
 	    		return false;
 	        } else if (localStorage.getItem('multiaddr') != null) {
-	    		makeNotice('error', 'misc-error', 'Local storage not empty. Have you enabled private browsing?.', 5000);
+	    		makeNotice('error', 'misc-error', 'Local storage not empty. Have you enabled private browsing?.');
 	    		return false;	
 	        }
 		} catch (e) {
@@ -1368,7 +1373,7 @@ function restoreWallet() {
 		var auth_key = $('#restore-auth-key').val();
 		
 		if (auth_key == null || auth_key.length == 0 || auth_key.length > 255) {
-			makeNotice('error', 'misc-error', 'You must enter a Yubikey or Email confirmation code', 5000);
+			makeNotice('error', 'misc-error', 'You must enter a Yubikey or Email confirmation code');
 			return false;
 		}
 		
@@ -1393,7 +1398,7 @@ function restoreWallet() {
 	    	
 	    	$("#restore-wallet-continue").removeAttr('disabled');
 	    	
-	    	makeNotice('error', 'misc-error', data.responseText, 5000); 
+	    	makeNotice('error', 'misc-error', data.responseText); 
 	    });
 	} else {
 		
@@ -1490,7 +1495,7 @@ function emailBackup() {
 	setLoadingText('Sending email backup');
 
 	$.post("/wallet", { guid: guid, sharedKey: sharedKey, method : 'email-backup' },  function(data) { 
-		makeNotice('success', 'backup-success', data, 5000);
+		makeNotice('success', 'backup-success', data);
 	})
     .error(function(data) { 
     	makeNotice('error', 'misc-error', data.responseText); 
@@ -1501,20 +1506,20 @@ function verifyEmail(code) {
 	if (offline) return;
 
 	if (code == null || code.length == 0 || code.length > 255) {
-		makeNotice('error', 'misc-error', 'You must enter a code to verify', 5000);
+		makeNotice('error', 'misc-error', 'You must enter a code to verify');
 		return;
 	}
 		
 	setLoadingText('Verifying Email');
 
 	$.post("/wallet", { guid: guid, payload: code, sharedKey: sharedKey, length : code.length, method : 'verify-email' },  function(data) { 
-		makeNotice('success', 'email-success', data, 5000);
+		makeNotice('success', 'email-success', data);
 		
 		$('#verify-email').hide();
 		$('#email-verified').show(200);
 	})
     .error(function(data) { 
-    	makeNotice('error', 'misc-error', data.responseText, 5000); 
+    	makeNotice('error', 'misc-error', data.responseText); 
     	$('#verify-email').show(200);
 		$('#email-verified').hide();
     });
@@ -1536,12 +1541,12 @@ function updateKV(txt, method, value, success, error) {
 	setLoadingText(txt);
 
 	$.post("/wallet", { guid: guid, sharedKey: sharedKey, length : (value+'').length, payload : value+'', method : method },  function(data) { 
-		makeNotice('success', method + '-success', data, 5000);
+		makeNotice('success', method + '-success', data);
 	
 		if (success != null) success();
 	})
     .error(function(data) { 
-    	makeNotice('error', method + '-error', data.responseText, 5000); 
+    	makeNotice('error', method + '-error', data.responseText); 
     	
 		if (error != null) error();
     });
@@ -1608,7 +1613,7 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 				 if (method == 'update')
 					 updatePubKeys();
 				 
-				makeNotice('success', 'misc-success', data, 5000);
+				makeNotice('success', 'misc-success', data);
 				 
 				if (successcallback != null)
 					successcallback();
@@ -1698,17 +1703,17 @@ function setDoubleEncryption(value) {
 			var tpassword2 = $('#double-password2').val();
 				
 			if (tpassword == null || tpassword.length == 0 || tpassword.length < 4 || tpassword.length > 255) {
-				makeNotice('error', 'misc-error', 'Password must be 4 characters or more in length', 5000);
+				makeNotice('error', 'misc-error', 'Password must be 4 characters or more in length');
 				return;
 			} 
 			
 			if (tpassword != tpassword2) {
-				makeNotice('error', 'misc-error', 'Passwords do not match.', 5000);
+				makeNotice('error', 'misc-error', 'Passwords do not match.');
 				return;
 			}
 						
 			if (tpassword == password) {
-				makeNotice('error', 'misc-error', 'Second password should not be the same as your main password.', 5000);
+				makeNotice('error', 'misc-error', 'Second password should not be the same as your main password.');
 				return;
 			}
 					
@@ -1784,12 +1789,12 @@ function checkAndSetPassword() {
 	var tpassword2 = $("#password2").val();
 	
 	if (tpassword != tpassword2) {
-		makeNotice('error', 'misc-error', 'Passwords do not match.', 5000);
+		makeNotice('error', 'misc-error', 'Passwords do not match.');
 		return false;
 	}
 	
 	if (tpassword.length == 0 || tpassword.length < 10 || tpassword.length > 255) {
-		makeNotice('error', 'misc-error', 'Password must be 10 characters or more in length', 5000);
+		makeNotice('error', 'misc-error', 'Password must be 10 characters or more in length');
 		return false;
 	} 
 	
@@ -1824,12 +1829,12 @@ function updatePassword() {
 			backupWallet('update', function() {
 				window.location = root + 'wallet/' + guid + window.location.hash;
 			}, function() {
-				makeNotice('error', 'misc-error', 'Error syncing wallet. Password Not changed', 5000);
+				makeNotice('error', 'misc-error', 'Error syncing wallet. Password Not changed');
 				password = oldPassword;
 			});
 				
 		} catch (e) {
-			makeNotice('error', 'misc-error', 'Error syncing wallet. Password Not changed', 5000);
+			makeNotice('error', 'misc-error', 'Error syncing wallet. Password Not changed');
 			password = oldPassword;
 		}
 	});
@@ -1870,7 +1875,7 @@ function pushTx(tx) {
 	setLoadingText('Sending Transaction');
 
 	$.post("/pushtx", { tx: hex },  function(data) {  })
-	.success(function(data) { makeNotice('success', 'misc-success', data, 5000); 
+	.success(function(data) { makeNotice('success', 'misc-success', data); 
 	}).error(function(data) { makeNotice('error', 'misc-error', data.responseText); 
     });
 		
@@ -1976,7 +1981,7 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 			
 		} catch (e) {
 			//An error, but probably recoverable
-			makeNotice('info', 'tx-error', e, 5000);
+			makeNotice('info', 'tx-error', e);
 		}
 	}
 	
@@ -2117,7 +2122,7 @@ function internalAddAddressBookEntry(addr, label) {
 function walletIsFull(addr) {
 
 	if (nKeys(addresses) >= maxAddr) {
-		makeNotice('error', 'misc-error', 'We currently support a maximum of '+maxAddr+' private keys, please remove some unsused ones.', 5000);
+		makeNotice('error', 'misc-error', 'We currently support a maximum of '+maxAddr+' private keys, please remove some unsused ones.');
 		return true;
 	}
 	
@@ -2235,7 +2240,7 @@ function labelAddress(addr) {
         var label = label_input.val();
         
         if (label.length == 0) {
-			makeNotice('error', 'misc-error', 'you must enter a label for the address', 5000);
+			makeNotice('error', 'misc-error', 'you must enter a label for the address');
 			return false;
         }
  
@@ -2282,12 +2287,12 @@ function addAddressBookEntry() {
         var bitcoinAddress = addrField.val();
 
         if (label.length == 0) {
-			makeNotice('error', 'misc-error', 'you must enter a label for the address book entry', 5000);
+			makeNotice('error', 'misc-error', 'you must enter a label for the address book entry');
 			return false;
         }
         
         if (bitcoinAddress.length == 0) {
-			makeNotice('error', 'misc-error', 'you must enter a bitcoin address for the address book entry', 5000);
+			makeNotice('error', 'misc-error', 'you must enter a bitcoin address for the address book entry');
 			return false;
         }
         
@@ -2300,16 +2305,16 @@ function addAddressBookEntry() {
 				throw 'Null address';
 			
 		} catch (e) {
-			makeNotice('error', 'misc-error', 'Bitcoin address invalid, please make sure you entered it correctly', 5000);
+			makeNotice('error', 'misc-error', 'Bitcoin address invalid, please make sure you entered it correctly');
 			return false;
 		}
 		
 		 if (address_book[bitcoinAddress] != null) {			 
-			makeNotice('error', 'misc-error', 'Bitcoin address already exists', 5000);
+			makeNotice('error', 'misc-error', 'Bitcoin address already exists');
 			return false;
          }
 	        
-		makeNotice('success', 'misc-success', 'Added Address book entry', 5000);
+		makeNotice('success', 'misc-success', 'Added Address book entry');
 		
 		internalAddAddressBookEntry(bitcoinAddress, label);
 
@@ -2327,7 +2332,7 @@ function addAddressBookEntry() {
 function deleteAddress(addr) {
 		
 	if (getActiveAddresses().length <= 1) {
-		makeNotice('error', 'add-error', 'You must leave at least one active address', 5000);
+		makeNotice('error', 'add-error', 'You must leave at least one active address');
 		return;
 	}
 	
@@ -2390,7 +2395,7 @@ function deleteAddress(addr) {
 			    	//Really delete address
 					$('#delete-address-modal').modal('hide');
 					
-					makeNotice('warning', 'warning-deleted', 'Private Key Removed From Wallet', 5000);
+					makeNotice('warning', 'warning-deleted', 'Private Key Removed From Wallet');
 					
 					internalDeletePrivateKey(addr.addr);
 					 
@@ -2436,7 +2441,7 @@ function deleteAddress(addr) {
 						//Really delete address
 						$('#delete-address-modal').modal('hide');
 						
-						makeNotice('warning', 'warning-deleted', 'Address & Private Key Removed From Wallet', 5000);
+						makeNotice('warning', 'warning-deleted', 'Address & Private Key Removed From Wallet');
 						
 						internalDeleteAddress(addr.addr);
 						
@@ -2655,7 +2660,7 @@ function txFullySigned(tx) {
 		}
 	
 	} catch (e) {
-		 makeNotice('error', 'misc-error', e, 5000);
+		 makeNotice('error', 'misc-error', e);
 		 modal.modal('hide');
 		 throw e;
 	}
@@ -2673,7 +2678,7 @@ function txConstructSecondPhase(toAddresses, fromAddress, fees, unspent, missing
 	var progress = $('#tx-sign-progress').show(200);
 	
 	if (tx == null) {
-		 makeNotice('error', 'misc-error', 'Error Creating Transaction', 5000);
+		 makeNotice('error', 'misc-error', 'Error Creating Transaction');
 		 modal.modal('hide');
 		 return;
 	}
@@ -2722,14 +2727,14 @@ function txConstructSecondPhase(toAddresses, fromAddress, fees, unspent, missing
 				 
 				 //If we haven't found a missing private key, but we have a null tx then we have a problem.
 				 if (missing == null) {
-					 makeNotice('error', 'misc-error', 'Unknown error signing transaction', 5000);
+					 makeNotice('error', 'misc-error', 'Unknown error signing transaction');
 					 modal.modal('hide');
 					 return;
 				 }
 				 
 				 showPrivateKeyModal(function (key) {
 					 	if (missing.addr != key.getBitcoinAddress().toString()) {
-							makeNotice('error', 'misc-error', 'The private key you entered does not match the bitcoin address', 5000);
+							makeNotice('error', 'misc-error', 'The private key you entered does not match the bitcoin address');
 							return;
 						}
 					 
@@ -2740,7 +2745,7 @@ function txConstructSecondPhase(toAddresses, fromAddress, fees, unspent, missing
 						//Now try again
 						signOne();
 				 }, function(e) {
-					makeNotice('error', 'misc-error', e, 5000);
+					makeNotice('error', 'misc-error', e);
 					return; 
 				 }, missing.addr);
 			} else {
@@ -2789,6 +2794,22 @@ function apiGetPubKey(addr, success, error) {
 }
 
 
+function apiResolveFirstbits(addr, success, error) {	
+	
+	setLoadingText('Getting Firstbits');
+
+	$.get(root + 'q/resolvefirstbits/'+addr).success(function(data) { 
+		
+		if (data == null || data.length == 0)
+			error();
+		else
+			success(data);
+		
+	}).error(function(data) {
+		error();
+	});
+}
+
 //Constuct a transaction suing the Escrow (M-Of-N) form
 function newEscrowTx() {
 	getSecondPassword(function() {
@@ -2831,7 +2852,7 @@ function newEscrowTx() {
 		        	
 			        	pubkeys.push(key);
 		        	}, function() {
-		        		makeNotice('error', 'pub-error', 'Could not get pubkey for address: ' + addr, 5000);
+		        		makeNotice('error', 'pub-error', 'Could not get pubkey for address: ' + addr);
 		        		error = true;
 		        	});
 		        }
@@ -2910,7 +2931,7 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 	
 				
 				if (obj.notice != null) {
-					makeNotice('info', 'notice', obj.notice, 5000);
+					makeNotice('info', 'notice', obj.notice);
 				}
 				
 				for (var i = 0; i < obj.unspent_outputs.length; ++i) {
@@ -2937,7 +2958,7 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 				txConstructSecondPhase(toAddresses, fromAddress, minersfee, unspent, missingPrivateKeys, changeAddress, feeAddress);
 				
 			} catch (e) {
-				makeNotice('error', 'misc-error', 'Error creating transaction: ' + e, 5000);
+				makeNotice('error', 'misc-error', 'Error creating transaction: ' + e);
 				modal.modal('hide');
 				return false;
 			}
@@ -2989,8 +3010,9 @@ function newTx() {
 	var changeAddress = null;
 	var feeAddress = null;
 	var fromAddress = null;
-
 	var toAddresses = [];
+	var slientReturn = false;
+	var called = false;
 	
 	//Constuct the recepient address array
 	$("#recipient-container").children().each(function() {
@@ -3015,16 +3037,34 @@ function newTx() {
 			
 	        if (send_to_address.val().length == 0) {
 	    		throw 'You must enter a bitcoin address for each recipient';
-	        }
+	        } else if (send_to_address.val().length < 30) { //don't think bitcoin addresses can be less than 30 either way  	
+	        	var func = function(send_to_address) {
+	        		apiResolveFirstbits(send_to_address.val(), function(data) {			        		
+		        		send_to_address.val(data);
+		        		if (!called) { 
+		        			newTx();
+		        			called = true;
+		        		}
+		        	}, function() {
+		        		makeNotice('error', 'from-error', 'Invalid to address: ' + send_to_address.val());
+		        	});
+	        	}(send_to_address);
+
+	        	slientReturn = true;
+	        } else {
 	        
-			try {
-				toAddress = new Bitcoin.Address(send_to_address.val());
-			} catch (e) {
-				throw 'Invalid to address: ' + e;
-			};
-			
-			toAddresses.push({address: toAddress, value : value});
+				try {
+					toAddress = new Bitcoin.Address(send_to_address.val());
+				} catch (e) {
+					throw 'Invalid to address: ' + e;
+				};
+				
+				toAddresses.push({address: toAddress, value : value});
+	        }
 	});
+	
+	if (slientReturn)
+		return;
 	
 	if (toAddresses.length == 0) {
 		throw 'A transaction must have at least one recipient';
@@ -3036,7 +3076,7 @@ function newTx() {
 		try {
 			fromAddress = new Bitcoin.Address($('#send-from-address').val());
 		} catch (e) {
-			makeNotice('error', 'from-error', 'Invalid from address: ' + e, 5000);
+			makeNotice('error', 'from-error', 'Invalid from address: ' + e);
 			return false;
 		};
 	} 
@@ -3048,13 +3088,13 @@ function newTx() {
 			try {
 				feeAddress = new Bitcoin.Address(feeAddrValue);
 			} catch (e) {
-				makeNotice('error', 'fee-error', 'Invalid fee address: ' + e, 5000);
+				makeNotice('error', 'fee-error', 'Invalid fee address: ' + e);
 				return false;
 			};
 		} 
 		
 		if (feeAddress != null && fromAddress != null && fromAddress.toString() == feeAddress.toString()) {
-			makeNotice('error', 'misc-error', 'From address and Fee address cannot be the same', 5000);
+			makeNotice('error', 'misc-error', 'From address and Fee address cannot be the same');
 			return false;
 		}
 			
@@ -3063,7 +3103,7 @@ function newTx() {
 			try {
 				changeAddress = new Bitcoin.Address(changeAddressVal);
 			} catch (e) {
-				makeNotice('error', 'change-error', 'Invalid change address: ' + e, 5000);
+				makeNotice('error', 'change-error', 'Invalid change address: ' + e);
 				return false;
 			};
 		} 
@@ -3077,7 +3117,7 @@ function newTx() {
 			throw 'Fees cannot be negative';
 		
 	} catch (e) {			
-		makeNotice('error', 'misc-error', 'Invalid fee value', 5000);
+		makeNotice('error', 'misc-error', 'Invalid fee value');
 		return false;
 	};
 
@@ -3176,7 +3216,7 @@ function populateImportExportView() {
 			  }); 
 		  }
 	 } catch (e) {
-			makeNotice('error', 'misc-error', 'Error Exporting keys', 5000);
+			makeNotice('error', 'misc-error', 'Error Exporting keys');
 			return;
 	 }
 }
@@ -3310,7 +3350,7 @@ function bind() {
 		var email = $(this).val();
 	
 		if (!validateEmail(email)) {
-			makeNotice('error', 'misc-error', 'Email address is not valid', 5000);
+			makeNotice('error', 'misc-error', 'Email address is not valid');
 			return;
 		}
 				
@@ -3356,7 +3396,7 @@ function bind() {
 		var phrase = $(this).val();
 		
 		if (phrase == null || phrase.length == 0 || phrase.length > 255) {
-			makeNotice('error', 'misc-error', 'You must enter a secret phrase', 5000);
+			makeNotice('error', 'misc-error', 'You must enter a secret phrase');
 			return;
 		}
 		
@@ -3461,7 +3501,7 @@ function bind() {
 			try {
 				importJSON();
 			} catch (e) {
-				makeNotice('error', 'misc-error', e, 5000);
+				makeNotice('error', 'misc-error', e);
 			}
 			
 			$(this).attr("disabled", false);
@@ -3472,7 +3512,7 @@ function bind() {
 			var value = $.trim($('#import-address-address').val());
 			
 			if (value.length = 0) {
-				makeNotice('error', 'misc-error', 'You must enter an address to import', 5000);
+				makeNotice('error', 'misc-error', 'You must enter an address to import');
 				return;
 			}
 			
@@ -3483,14 +3523,14 @@ function bind() {
 				var address = new Bitcoin.Address(value);
 				
 				if (address.toString() != value) {
-					makeNotice('error', 'misc-error', 'Inconsistency between addresses', 5000);
+					makeNotice('error', 'misc-error', 'Inconsistency between addresses');
 					return;
 				}
 								
 				
 				if (internalAddKey(value, null)) {
 	
-					makeNotice('success', 'added-address', 'Sucessfully Added Address ' + address, 5000);
+					makeNotice('success', 'added-address', 'Sucessfully Added Address ' + address);
 					
 					//Rebuild the list
 					buildReceiveCoinsView();
@@ -3501,11 +3541,11 @@ function bind() {
 					//Update the balance list
 					queryAPIMultiAddress(); 
 				} else {
-					makeNotice('error', 'add-error', 'Error Adding Address ' + address, 5000);
+					makeNotice('error', 'add-error', 'Error Adding Address ' + address);
 				}
 
 			} catch (e) {
-				makeNotice('error', 'misc-error', 'Error importing address: ' + e, 5000);
+				makeNotice('error', 'misc-error', 'Error importing address: ' + e);
 				return;
 			}
 			
@@ -3534,13 +3574,13 @@ function bind() {
 							//Get the new list of transactions
 							queryAPIMultiAddress();
 							
-							makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr, 5000);
+							makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr);
 						} else {
 							makeNotice('error', 'misc-error', 'Unable to add private key for bitcoin address ' + addr);
 						}
 				 	
 				 }, function(e) {
-					makeNotice('error', 'misc-error', e, 5000);
+					makeNotice('error', 'misc-error', e);
 					return;
 				 }, 'Any Private Key');
 			});
@@ -3587,7 +3627,7 @@ function bind() {
 						//Get the new list of transactions
 						queryAPIMultiAddress();
 						
-						makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr, 5000);
+						makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr);
 					} else {
 						throw 'Unable to add private key for bitcoin address ' + addr;
 					}	
@@ -3595,7 +3635,7 @@ function bind() {
 						
 			} catch(e) {
 				console.log(e);
-				makeNotice('error', 'misc-error', 'Error importing private key: ' + e, 5000);
+				makeNotice('error', 'misc-error', 'Error importing private key: ' + e);
 				return;
 			}
 			
@@ -3658,7 +3698,7 @@ function bind() {
 		try {
 			newTx();
 		} catch (e) {
-			makeNotice('error', 'misc-error', e, 5000);
+			makeNotice('error', 'misc-error', e);
 		}
 	});
 	
@@ -3670,7 +3710,7 @@ function bind() {
 		try {
 			newEscrowTx();
 		} catch (e) {
-			makeNotice('error', 'misc-error', e, 5000);
+			makeNotice('error', 'misc-error', e);
 		}
 	});
 	
@@ -3880,7 +3920,7 @@ function unArchiveAddr(addr) {
 		
 		internalArchive();
 	} else {
-		makeNotice('error', 'add-error', 'Cannot unarchive this address', 5000);
+		makeNotice('error', 'add-error', 'Cannot unarchive this address');
 	}
 }
 
@@ -3889,7 +3929,7 @@ function unArchiveAddr(addr) {
 function archiveAddr(addr) {
 
 	if (getActiveAddresses().length <= 1) {
-		makeNotice('error', 'add-error', 'You must leave at least one active address', 5000);
+		makeNotice('error', 'add-error', 'You must leave at least one active address');
 		return;
 	}
 	
@@ -3900,7 +3940,7 @@ function archiveAddr(addr) {
 		internalArchive();
 		
 	} else {
-		makeNotice('error', 'add-error', 'Cannot archive this address', 5000);
+		makeNotice('error', 'add-error', 'Cannot archive this address');
 	}
 }
 
@@ -3984,7 +4024,7 @@ function generateNewAddressAndKey() {
 		
 		buildReceiveCoinsView();
 		
-		makeNotice('info', 'new-address', 'Generated new bitcoin address ' + addr, 5000);
+		makeNotice('info', 'new-address', 'Generated new bitcoin address ' + addr);
 		
 		//Subscribe to tranaction updates through websockets
 		try {
