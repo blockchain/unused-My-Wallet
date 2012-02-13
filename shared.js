@@ -156,14 +156,14 @@ function formatOutput(output, myAddresses, addresses_book) {
 function openEscrow(txIndex, escrow_n, priv) {	
 	
 	if (priv != null) {	
-		
-		if (!getSecondPassword())
-			return false;
-		
-		open_pk = new Bitcoin.ECKey(decodePK(priv));
+		getSecondPassword(function() {
+			open_pk = new Bitcoin.ECKey(decodePK(priv));
+			
+			window.open(''+root+'escrow/'+txIndex+'/'+escrow_n);
+		});
+	} else {
+		window.open(''+root+'escrow/'+txIndex+'/'+escrow_n);
 	}
-	
-	window.open(''+root+'escrow/'+txIndex+'/'+escrow_n);
 }
 
 Transaction.prototype.getHTML = function(myAddresses, addresses_book) {    
