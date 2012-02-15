@@ -1472,7 +1472,7 @@ function getAccountInfo() {
 			  
 			 var qr = makeQRCode(300, 300, 1 , data.google_secret_url);
 
-		 	 $('#wallet-google-qr').append(qr);
+		 	 $('#wallet-google-qr').empty().append(qr);
 		  });
 		}
 		
