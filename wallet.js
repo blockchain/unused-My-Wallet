@@ -2936,12 +2936,14 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 			modal.modal('hide');
 		});
 			
-		var gotunspent = function(obj) {
+		var gotunspent = function(obj) {			
+			if (obj == null || obj.unspent_outputs.length == 0)
+				return false;
+			
 			try {
 				var unspent = [];
 				var missingPrivateKeys = [];
 	
-				
 				if (obj.notice != null) {
 					makeNotice('info', 'notice', obj.notice);
 				}
