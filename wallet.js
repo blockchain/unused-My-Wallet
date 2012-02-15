@@ -1458,10 +1458,22 @@ function getAccountInfo() {
 		$('#wallet-phrase').val(data.phrase);
 		
 		
-		if (data.alias != null) {
+		if (data.alias != null && data.alias.length > 0) {
 			$('#wallet-alias').val(data.alias);
 			$('.alias').text('https://blockchain.info/wallet/'+data.alias);
 			$('.alias').show(200);
+		}
+		
+		
+		if (data.google_secret_url != null && data.google_secret_url.length > 0) {
+		  loadScript(resource + 'wallet/qr.code.creator.js', function() { 	  	
+			  
+			 console.log(data.google_secret_url);
+			  
+			 var qr = makeQRCode(300, 300, 1 , data.google_secret_url);
+
+		 	 $('#wallet-google-qr').append(qr);
+		  });
 		}
 		
 		if (data.dropbox_enabled == 1)
@@ -3316,20 +3328,24 @@ function bind() {
 		
 		var val = parseInt($(this).val());
 						
-		updateKV('Updating Two Factor Authentication', 'update-auth-type', val);
+		updateKV('Updating Two Factor Authentication', 'update-auth-type', val, function() {
+			
+			//For Google Authenticator we need to refetch the account info to fetch the QR Code
+			if (val == 4) {
+				getAccountInfo();
+			}
+		});
+		
+		$('.two-factor').hide(200);
 		
 		if (val == 0) {
-			$('#two-factor-yubikey').hide();
-			$('#two-factor-email').hide();
 			$('#two-factor-none').show(200);
 		} else if (val == 1 || val == 3) {
-			$('#two-factor-none').hide();
-			$('#two-factor-email').hide();
 			$('#two-factor-yubikey').show(200);
 		} else if (val == 2) {
-			$('#two-factor-none').hide();
-			$('#two-factor-yubikey').hide();
 			$('#two-factor-email').show(200);
+		} else if (val == 4) {
+			$('#two-factor-google').show(200);
 		}
 	});
 	
