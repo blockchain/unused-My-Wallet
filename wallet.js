@@ -268,19 +268,16 @@ function makeNotice(type, id, msg, timeout) {
 	var el = $('<div id='+id+'>' + contents + '</div>');
 	
 	$("#notices").append(el).hide().fadeIn(200);
-	
-	if (timeout != null && timeout > 0) {
-		(function() {
-	
-			var tel = el;
-			
-		    setTimeout(function() {
-		    	tel.fadeOut(200, function() {
-		            $(this).remove();
-		        });
-			}, timeout);  
-	    })();
-	}
+
+	(function() {
+		var tel = el;
+		
+	    setTimeout(function() {
+	    	tel.fadeOut(200, function() {
+	            $(this).remove();
+	        });
+		}, timeout);  
+    })();
 }
 
 function noConvert(x) { return x; }
@@ -510,12 +507,22 @@ function parseMultiBit(str) {
 			addedOne = true;
 		}
 		
-		if (addedOne)
+		if (addedOne) {
+			
+			//Perform a wallet backup
+			backupWallet();
+			
+			//Get the new list of transactions
+			queryAPIMultiAddress();
+			
 			return true;
+		}
 		
 	} catch (e) {
-		return false;
+		console.log(e);
 	} 	
+	
+	return false;
 }
 
 function importJSON() {
@@ -529,8 +536,9 @@ function importJSON() {
 	//Any better way to auto detect?
 	//Multibit Wallets start with a comment #
 	if (json.charAt(0) == '#') {
-		if (parseMultiBit(json))
+		if (parseMultiBit(json)) {
 			return true;
+		}
 	}
 	
 	var obj;
@@ -592,12 +600,6 @@ function importJSON() {
 
 		//Clear the old value
 		$('#import-json').val('');
-		
-		
-		changeView($("#receive-coins"));
-		
-		//Rebuild the My-address list
-		buildReceiveCoinsView();
 		
 		//Perform a wallet backup
 		backupWallet();
@@ -3814,34 +3816,23 @@ $(document).ready(function() {
 		$('.loading-indicator').fadeOut(200);
 	});
 
-	
 	$('.tabs').tabs();
 	
-	if (initial_error != null) {
-		makeNotice('error', 'fatal_error', initial_error);
-	}
-	
-	if (guid == null) {
-		cVisible = $("#getting-started");
-    } else {
-    
-        if (guid.length == 0) {
-          
-        	try {
-               //Make sure the last guid the user logged in the ame as this one, if not clear cache
-               var tguid = localStorage.getItem('guid');
-            
-               if (guid != tguid && tguid != null) {
-                window.location = root + 'wallet/' + tguid;
-                return;
-               }
-            } catch (e) {
-				console.log(e);
-			}
-        }
+    if (guid.length == 0) {
+    	try {
+           //Make sure the last guid the user logged in the ame as this one, if not clear cache
+           var tguid = localStorage.getItem('guid');
         
-        cVisible = $("#restore-wallet");
-	}
+           if (guid != tguid && tguid != null) {
+        	   window.location = root + 'wallet/' + tguid;
+        	   return;
+           }
+        } catch (e) {
+			console.log(e);
+		}
+    }
+    
+    cVisible = $("#restore-wallet");
 	
 	cVisible.show();
 });
