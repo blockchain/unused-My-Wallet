@@ -45,6 +45,7 @@ function TransactionFromJSON(json) {
 	tx.result = json.result;
 	tx.blockHeight = json.block_height;
 	tx.balance = json.balance;
+	tx.double_spend = json.double_spend;
 
 	return tx;
 }
@@ -281,6 +282,10 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 	} 
 	
 	html += '<button class="'+button_class+'" onclick="toggleSymbol()">' + formatMoney(result, true) + '</button>';
+	
+	if (this.double_spend == true) {
+		html += '<button class="btn error">Double Spend</button> ';
+	}
 	
 	//Only show for My Wallet
 	if (myAddresses != null && !offline) {
