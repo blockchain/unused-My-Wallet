@@ -3818,6 +3818,7 @@ $(document).ready(function() {
 
 	$('.tabs').tabs();
 	
+	try {
     if (guid.length == 0) {
     	try {
            //Make sure the last guid the user logged in the ame as this one, if not clear cache
@@ -3831,6 +3832,7 @@ $(document).ready(function() {
 			console.log(e);
 		}
     }
+	} catch (e) { }
     
     cVisible = $("#restore-wallet");
 	
