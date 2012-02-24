@@ -1,4 +1,4 @@
-package piuk.bitcoin.website;
+package piuk.website;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -42,12 +42,12 @@ import com.yubico.client.v2.YubicoClient;
 import com.yubico.client.v2.YubicoResponse;
 import com.yubico.client.v2.YubicoResponseStatus;
 
-import piuk.bitcoin.Hash;
-import piuk.bitcoin.beans.BitcoinAddress;
-import piuk.bitcoin.db.BitcoinDatabaseManager;
-import piuk.bitcoin.website.admin.AdminServlet;
-import piuk.bitcoin.website.admin.ApiClient;
-import piuk.db.Cache;
+import piuk.beans.Hash;
+import piuk.beans.BitcoinAddress;
+import piuk.db.BitcoinDatabaseManager;
+import piuk.website.admin.AdminServlet;
+import piuk.website.admin.ApiClient;
+import piuk.common.Cache;
 
 /**
  * Servlet implementation class ChartsServlet
