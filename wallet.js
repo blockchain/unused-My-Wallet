@@ -1936,7 +1936,7 @@ function randomKey(obj) {
 //fromAddress specific address to take payment from, otherwise null
 //list of unspentOutputs this transaction is able to redeem {script, value, tx_output_n, tx_hash, confirmations}
 //changeAddress  = address to reutn change (Bitcoin.Address)
-function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, selectedOuts, changeAddress, success) {
+function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, selectedOuts, changeAddress, success, error) {
 		
 	var txValue = BigInteger.ZERO;
     
@@ -2002,7 +2002,7 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 	}
 	
     if (availableValue.compareTo(txValue) < 0) {
-		throw 'Insufficient funds. Value Needed ' +  formatBTC(txValue.toString()) + ' BTC. Available amount ' + formatBTC(availableValue.toString()) + ' BTC';
+    	error('Insufficient funds. Value Needed ' +  formatBTC(txValue.toString()) + ' BTC. Available amount ' + formatBTC(availableValue.toString()) + ' BTC');
     }
 
 	var	changeValue = availableValue.subtract(txValue);
@@ -2680,19 +2680,12 @@ function txFullySigned(tx) {
 function txConstructSecondPhase(toAddresses, fromAddress, fees, unspent, missingPrivateKeys, changeAddress) {
 	var modal = $('#new-transaction-modal');
 
-
 	var selectedOuts = [];
 
 	//First we make the transaction with it's inputs unsigned
 	makeTransaction(toAddresses, fromAddress, fees, unspent, selectedOuts, changeAddress, function(tx) {
 		var progress = $('#tx-sign-progress').show(200);
 		
-		if (tx == null) {
-			 makeNotice('error', 'misc-error', 'Error Creating Transaction');
-			 modal.modal('hide');
-			 return;
-		}
-				
 		var outputN = 0;
 				
 		progress.find('.t').text(tx.ins.length);
@@ -2767,6 +2760,10 @@ function txConstructSecondPhase(toAddresses, fromAddress, fees, unspent, missing
 		};
 		
 		signOne();
+	}, function(error) {
+			 makeNotice('error', 'misc-error', error);
+			 modal.modal('hide');
+			 return;	
 	});
 	
 }
@@ -2934,8 +2931,11 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 		});
 			
 		var gotunspent = function(obj) {			
-			if (obj == null || obj.unspent_outputs.length == 0)
-				return false;
+			if (obj == null || obj.unspent_outputs.length == 0) {
+				modal.modal('hide');
+				makeNotice('error', 'misc-error', 'No Free Outputs To Spend');
+				return;
+			}
 			
 			try {
 				var unspent = [];
@@ -2999,7 +2999,7 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 		} else {
 			setLoadingText('Getting Unspent Outputs');
 			
-			$.post(root + 'unspent', {'addr[]' : getActiveAddresses()},  function(obj) {  
+			$.post(root + 'unspent', {'addr[]' : getActiveAddresses()},  function(obj) {  				
 				gotunspent(obj);
 			}).error(function(data) {  
 				modal.modal('hide');
