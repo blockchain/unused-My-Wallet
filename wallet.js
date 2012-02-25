@@ -885,6 +885,7 @@ function parseMultiAddressJSON(json) {
 	
 	$('#nodes-connected').html(obj.info.nconnected);
 	
+	if (obj.info.latest_block != null)
 	setLatestBlock(obj.info.latest_block);
 	
 	transactions = [];
@@ -1097,6 +1098,30 @@ function internalRestoreWallet() {
 	return false;
 }
 
+function askToIncludeFee(success, error) {
+	
+	var modal = $('#ask-for-fee');
+	
+	modal.modal({
+		  keyboard: true,
+		  backdrop: "static",
+		  show: true
+	});
+
+	modal.find('.btn.primary').unbind().click(function() {
+		success();
+		
+		modal.modal('hide');
+	});
+	
+	modal.find('.btn.secondary').unbind().click(function() {
+		error();
+		
+		modal.modal('hide');
+	});
+	
+	modal.center();
+}
 
 function getSecondPassword(success, error) {
 
@@ -1911,47 +1936,31 @@ function randomKey(obj) {
 //fromAddress specific address to take payment from, otherwise null
 //list of unspentOutputs this transaction is able to redeem {script, value, tx_output_n, tx_hash, confirmations}
 //changeAddress  = address to reutn change (Bitcoin.Address)
-//feeAddress = additional address to take fee from
-function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, selectedOuts, changeAddress, feeAddress) {
+function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, selectedOuts, changeAddress, success) {
 		
 	var txValue = BigInteger.ZERO;
     
 	for (var i = 0; i < toAddresses.length; ++i) {			
 		txValue = txValue.add(toAddresses[i].value);
 	}
-	
-	var ourFee = BigInteger.valueOf(1000000); // 0.01 BTC
-	
+		
 	var isEscrow = false;
 	
 	//If we have any escrow outputs we increase the fee to 0.05 BTC
     for (var i =0; i < toAddresses.length; ++i) {	
 		var addrObj = toAddresses[i];
 		if (addrObj.m != null) {
-			ourFee = BigInteger.valueOf(5000000);
 			isEscrow = true;
 			break;
 		}
     }
-
-    //Add blockchain.info's fees
-    var ouraddr = new Bitcoin.Address(our_address);
   
 	var availableValue = BigInteger.ZERO;
-	var availableFeeValue = BigInteger.ZERO;
-	
-	var feeAddr = null;
-	if (feeAddress != null)
-		feeAddr = feeAddress.toString();
 	
 	var fromAddr = null;
 	if (fromAddress != null)
 		fromAddr = fromAddress.toString();
 	
-	//If the user hasn't supplied a fee adress then we take the fee from the general pool
-    if (feeAddr == null)
-    	txValue = txValue.add(ourFee);
-    
 	//Add the miners fees
 	if (minersfee != null)
 		txValue = txValue.add(minersfee);
@@ -1969,14 +1978,7 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 			
 			var out = unspentOutputs[i];
 			
-			if (feeAddr != null && addr == feeAddr) {
-				
-				if (availableFeeValue.compareTo(ourFee) < 0)
-					availableFeeValue = availableFeeValue.add(out.value);
-				else
-					continue;
-				
-			} else if (fromAddr != null && addr != fromAddr) {
+			if (fromAddr != null && addr != fromAddr) {
 				continue;
 			}  else {
 				availableValue = availableValue.add(out.value);
@@ -1990,7 +1992,7 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 						
 			priority += out.value * out.confirmations;
 				
-			if (availableValue.compareTo(txValue) >= 0 && (feeAddress == null || availableFeeValue.compareTo(ourFee) >= 0)) 
+			if (availableValue.compareTo(txValue) >= 0) 
 				break;
 			
 		} catch (e) {
@@ -2003,12 +2005,7 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 		throw 'Insufficient funds. Value Needed ' +  formatBTC(txValue.toString()) + ' BTC. Available amount ' + formatBTC(availableValue.toString()) + ' BTC';
     }
 
-	var changeValue = null;
-	
-    if (feeAddr == null)
-    	changeValue = availableValue.subtract(txValue);
-    else
-    	changeValue = availableValue.add(availableFeeValue).subtract(txValue).subtract(ourFee);
+	var	changeValue = availableValue.subtract(txValue);
 	
 	var sendTx = new Bitcoin.Transaction();
 
@@ -2048,16 +2045,16 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 	
 	var kilobytes = estimatedSize / 1024;
 	
-	//Proority under 57 million requires a 0.005 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
-	if (priority < 57600000 || kilobytes > 1 || isEscrow) {
-		//For low priority transactions we half our fee
-		sendTx.addOutput(ouraddr, ourFee.divide(BigInteger.valueOf(2)));
+	//Proority under 57 million requires a 0.0005 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
+	if ((priority < 57600000 || kilobytes > 1 || isEscrow) && minersfee == null) {
+		askToIncludeFee(function() {
+			makeTransaction(toAddresses, fromAddress, BigInteger.valueOf(50000), unspentOutputs, selectedOuts, changeAddress, success);
+		}, function() {
+			success(sendTx);
+		});
 	} else {		
-		//Otherwise we take the full fee
-		sendTx.addOutput(ouraddr, ourFee);
+		success(sendTx);
 	}
-			
-	return sendTx;
 }
 
 function signInput(sendTx, missingPrivateKeys, selectedOuts, i) {
@@ -2680,99 +2677,98 @@ function txFullySigned(tx) {
 	}
 }
 
-function txConstructSecondPhase(toAddresses, fromAddress, fees, unspent, missingPrivateKeys, changeAddress, feeAddress) {
+function txConstructSecondPhase(toAddresses, fromAddress, fees, unspent, missingPrivateKeys, changeAddress) {
 	var modal = $('#new-transaction-modal');
 
 
 	var selectedOuts = [];
 
 	//First we make the transaction with it's inputs unsigned
-	var tx = makeTransaction(toAddresses, fromAddress, fees, unspent, selectedOuts, changeAddress, feeAddress);
-	
-	var progress = $('#tx-sign-progress').show(200);
-	
-	if (tx == null) {
-		 makeNotice('error', 'misc-error', 'Error Creating Transaction');
-		 modal.modal('hide');
-		 return;
-	}
-			
-	var nSigned = 0;
-	var outputN = 0;
-	
-	
-	progress.find('.t').text(tx.ins.length);
+	makeTransaction(toAddresses, fromAddress, fees, unspent, selectedOuts, changeAddress, function(tx) {
+		var progress = $('#tx-sign-progress').show(200);
+		
+		if (tx == null) {
+			 makeNotice('error', 'misc-error', 'Error Creating Transaction');
+			 modal.modal('hide');
+			 return;
+		}
+				
+		var outputN = 0;
+				
+		progress.find('.t').text(tx.ins.length);
 
-	signOne = function() {
-		setTimeout(function() {
-			
-			//If the modal has been hidden the the user has probably cancelled
-			if (!modal.is(":visible"))
-				return;
-			
-			progress.find('.n').text(outputN+1);
+		signOne = function() {
+			setTimeout(function() {
+				
+				//If the modal has been hidden the the user has probably cancelled
+				if (!modal.is(":visible"))
+					return;
+				
+				progress.find('.n').text(outputN+1);
 
-			//Try and sign the input
-			if (signInput(tx, missingPrivateKeys, selectedOuts, outputN)) {
-				++outputN;
-									
-				if (outputN == tx.ins.length) {
-					progress.hide();
+				//Try and sign the input
+				if (signInput(tx, missingPrivateKeys, selectedOuts, outputN)) {
+					++outputN;
+										
+					if (outputN == tx.ins.length) {
+						progress.hide();
+						
+						txFullySigned(tx);
+					} else {
+						signOne();
+					}
 					
-					txFullySigned(tx);
+				//If the input failed to sign then were probably missing a private key
+				//Only ask for missing keys in offline mode
+				} else if (missingPrivateKeys.length > 0) {
+					
+					progress.hide();
+
+					 //find the first a missing addresses and prompt the user to enter the private key
+					 var missing = null;
+					 for (var i =0; i < missingPrivateKeys.length; ++i) {
+						 if (missingPrivateKeys[i].priv == null) {
+							 missing = missingPrivateKeys[i];
+							 break;
+						 }
+					 }
+					 
+					 //If we haven't found a missing private key, but we have a null tx then we have a problem.
+					 if (missing == null) {
+						 makeNotice('error', 'misc-error', 'Unknown error signing transaction');
+						 modal.modal('hide');
+						 return;
+					 }
+					 
+					 showPrivateKeyModal(function (key) {
+						 	if (missing.addr != key.getBitcoinAddress().toString()) {
+								makeNotice('error', 'misc-error', 'The private key you entered does not match the bitcoin address');
+								return;
+							}
+						 
+						 	missing.priv = key;
+							
+							progress.show();
+
+							//Now try again
+							signOne();
+					 }, function(e) {
+						makeNotice('error', 'misc-error', e);
+						return; 
+					 }, missing.addr);
 				} else {
-					signOne();
+					//If were not missing a private key then somethign went wrong
+					makeNotice('error', 'misc-error', 'Unknown error signing transaction');
+					modal.modal('hide');
+					return;
 				}
 				
-			//If the input failed to sign then were probably missing a private key
-			//Only ask for missing keys in offline mode
-			} else if (missingPrivateKeys.length > 0) {
-				
-				progress.hide();
-
-				 //find the first a missing addresses and prompt the user to enter the private key
-				 var missing = null;
-				 for (var i =0; i < missingPrivateKeys.length; ++i) {
-					 if (missingPrivateKeys[i].priv == null) {
-						 missing = missingPrivateKeys[i];
-						 break;
-					 }
-				 }
-				 
-				 //If we haven't found a missing private key, but we have a null tx then we have a problem.
-				 if (missing == null) {
-					 makeNotice('error', 'misc-error', 'Unknown error signing transaction');
-					 modal.modal('hide');
-					 return;
-				 }
-				 
-				 showPrivateKeyModal(function (key) {
-					 	if (missing.addr != key.getBitcoinAddress().toString()) {
-							makeNotice('error', 'misc-error', 'The private key you entered does not match the bitcoin address');
-							return;
-						}
-					 
-					 	missing.priv = key;
-						
-						progress.show();
-
-						//Now try again
-						signOne();
-				 }, function(e) {
-					makeNotice('error', 'misc-error', e);
-					return; 
-				 }, missing.addr);
-			} else {
-				//If were not missing a private key then somethign went wrong
-				makeNotice('error', 'misc-error', 'Unknown error signing transaction');
-				modal.modal('hide');
-				return;
-			}
-			
-		}, 1);
-	};
+			}, 1);
+		};
+		
+		signOne();
+	});
 	
-	signOne();
 }
 
 function apiGetOutScript(txIndex, txOutputN, success, error) {	
@@ -2896,9 +2892,8 @@ function newEscrowTx() {
 				var fromAddress = null;
 				var minersfee = null;
 				var changeAddress = null;
-				var feeAddress = null;
 				
-				txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddress, feeAddress);
+				txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddress);
 			}
 			
 		}, 1000);
@@ -2908,7 +2903,7 @@ function newEscrowTx() {
 //show the progress modal
 //Get unspent outputs
 //Forward to second phase
-function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddress, feeAddress) {		
+function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddress) {		
 	
 	var modal = $('#new-transaction-modal');
 	
@@ -2971,7 +2966,7 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 				
 				modal.find('.modal-header h3').html('Signing Transaction');
 									
-				txConstructSecondPhase(toAddresses, fromAddress, minersfee, unspent, missingPrivateKeys, changeAddress, feeAddress);
+				txConstructSecondPhase(toAddresses, fromAddress, minersfee, unspent, missingPrivateKeys, changeAddress);
 				
 			} catch (e) {
 				makeNotice('error', 'misc-error', 'Error creating transaction: ' + e);
@@ -2994,7 +2989,7 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 				  buildSendTxView();
 	
 				  //Call again with the new change address
-				  getUnspentAndProceed(toAddresses, fromAddress, minersfee, changeAddress, feeAddress);
+				  getUnspentAndProceed(toAddresses, fromAddress, minersfee, changeAddress);
 				  
 			  }, function() {
 					makeNotice('error', 'misc-error', 'Error syncing wallet. Transaction cancelled'); 
@@ -3024,7 +3019,6 @@ function newTx() {
 	
 	var modal = null;
 	var changeAddress = null;
-	var feeAddress = null;
 	var fromAddress = null;
 	var toAddresses = [];
 	var slientReturn = false;
@@ -3099,21 +3093,6 @@ function newTx() {
 
 	
 	if (show_adv) {
-		var feeAddrValue = $('#fee-addr').val();
-		if (feeAddrValue != 'any') {
-			try {
-				feeAddress = new Bitcoin.Address(feeAddrValue);
-			} catch (e) {
-				makeNotice('error', 'fee-error', 'Invalid fee address: ' + e);
-				return false;
-			};
-		} 
-		
-		if (feeAddress != null && fromAddress != null && fromAddress.toString() == feeAddress.toString()) {
-			makeNotice('error', 'misc-error', 'From address and Fee address cannot be the same');
-			return false;
-		}
-			
 		var changeAddressVal = $('#change-addr').val();
 		if (changeAddressVal != 'any' && changeAddress != 'new') {
 			try {
@@ -3137,7 +3116,7 @@ function newTx() {
 		return false;
 	};
 
-	txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddress, feeAddress);
+	txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddress);
 
 	return true;
 	
