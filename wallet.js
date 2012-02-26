@@ -1937,10 +1937,15 @@ function randomKey(obj) {
 //list of unspentOutputs this transaction is able to redeem {script, value, tx_output_n, tx_hash, confirmations}
 //changeAddress  = address to reutn change (Bitcoin.Address)
 function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, selectedOuts, changeAddress, success, error) {
+	
+	selectedOuts.length = 0;
 		
 	var txValue = BigInteger.ZERO;
     
-	for (var i = 0; i < toAddresses.length; ++i) {			
+	for (var i = 0; i < toAddresses.length; ++i) {	
+		
+		console.log(toAddresses[i].value.toString());
+		
 		txValue = txValue.add(toAddresses[i].value);
 	}
 		
@@ -1964,6 +1969,8 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 	//Add the miners fees
 	if (minersfee != null)
 		txValue = txValue.add(minersfee);
+	
+	console.log(minersfee.intValue());
 	
 	var priority = 0;
 	
@@ -2005,6 +2012,9 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
     	error('Insufficient funds. Value Needed ' +  formatBTC(txValue.toString()) + ' BTC. Available amount ' + formatBTC(availableValue.toString()) + ' BTC');
     }
 
+    
+    console.log('availableValue ' + availableValue + ' txValue ' + txValue + ' minersFee ' +minersfee );
+    
 	var	changeValue = availableValue.subtract(txValue);
 	
 	var sendTx = new Bitcoin.Transaction();
@@ -2045,8 +2055,10 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 	
 	var kilobytes = estimatedSize / 1024;
 	
+	console.log(priority);
+	
 	//Proority under 57 million requires a 0.0005 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
-	if ((priority < 57600000 || kilobytes > 1 || isEscrow) && minersfee == null) {
+	if ((priority < 57600000 || kilobytes > 1 || isEscrow) && (minersfee == null || minersfee.intValue() == 0)) {		
 		askToIncludeFee(function() {
 			makeTransaction(toAddresses, fromAddress, BigInteger.valueOf(50000), unspentOutputs, selectedOuts, changeAddress, success);
 		}, function() {
