@@ -781,7 +781,7 @@ function buildTransactionsView() {
 						
 			var tx = transactions[i];
 			
-			if (tx.blockHeight != null && tx.blockHeight > 0) {
+			if (tx.blockHeight != null && tx.blockHeight > 0 && latest_block != null) {
 				var confirmations = latest_block.height - tx.blockHeight + 1;
 				if (confirmations <= 100) {
 					tx.setConfirmations(latest_block.height - tx.blockHeight + 1);
@@ -886,7 +886,7 @@ function parseMultiAddressJSON(json) {
 	$('#nodes-connected').html(obj.info.nconnected);
 	
 	if (obj.info.latest_block != null)
-	setLatestBlock(obj.info.latest_block);
+		setLatestBlock(obj.info.latest_block);
 	
 	transactions = [];
 
