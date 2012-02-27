@@ -1913,11 +1913,16 @@ function pushTx(tx) {
 	
 	setLoadingText('Sending Transaction');
 
-	$.post("/pushtx", { tx: hex },  function(data) {  })
-	.success(function(data) { makeNotice('success', 'misc-success', data); 
-	}).error(function(data) { makeNotice('error', 'misc-error', data.responseText); 
-    });
+	$.post("/pushtx", { tx: hex },  function(data) {  }).success(function(data) { makeNotice('success', 'misc-success', data);  }).error(function(data) { makeNotice('error', 'misc-error', data.responseText); });
 		
+	//If websockets disconnected query maunually
+	try {
+		if (ws.readyState != WebSocket.OPEN)
+			queryAPIMultiAddress();
+	} catch (e) {
+		queryAPIMultiAddress();
+	}
+	
 	return true;
 }
 
