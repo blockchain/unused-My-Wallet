@@ -2015,6 +2015,7 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 	
     if (availableValue.compareTo(txValue) < 0) {
     	error('Insufficient funds. Value Needed ' +  formatBTC(txValue.toString()) + ' BTC. Available amount ' + formatBTC(availableValue.toString()) + ' BTC');
+    	return;
     }
 
     
