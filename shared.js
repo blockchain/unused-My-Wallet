@@ -126,14 +126,13 @@ function formatAddr(addr, myAddresses, addresses_book) {
 function formatOutput(output, myAddresses, addresses_book) {
 	
 	//total_fees -= output.value;
-	var str;
+	var str = '';
 	
 	if (output.type == 0) {
-		str = '<li>';
 	} else if (output.type == 1 || output.type == 2 || output.type == 3) {
-		str = '<li>(<font color="red">Escrow</font> ' + output.type + ' of ';
+		str = '(<font color="red">Escrow</font> ' + output.type + ' of ';
 	} else {
-		str = '<font color="red">Strange</font>';
+		str = '<font color="red">Strange</font> ';
 	}
 	
 	if (output.addr != null)
@@ -149,7 +148,7 @@ function formatOutput(output, myAddresses, addresses_book) {
 		str += ')';
 	}
 
-	str += '</li>';
+	str += '<br />';
 
 	return str;
 }
@@ -193,25 +192,27 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 	
 	var tclass = '';
 	if (result < 0)
-		tclass = 'class="can-hide"';
+		tclass = 'class="txtd can-hide"';
+	else
+		tclass = 'class="txtd"';
 	
-	html += '</b></span></th></tr><tr><td width="55%" '+ tclass +' style="vertical-align:middle;"><ul class="txul">';
+	html += '</b></span></th></tr><tr><td width="55%" '+ tclass +'>';
    
     if (this.inputs.length > 0) {
 		for (var i = 0; i < this.inputs.length; i++) {
 			input = this.inputs[i];
 			 
 			if (input.prev_out == null || input.prev_out.addr == null) {
-				html += '<li>No Input (Newly Generated Coins)</li>';
+				html += 'No Input (Newly Generated Coins)<br />';
 			} else {
 				html += formatOutput(input.prev_out, myAddresses, addresses_book);
 			}
 		}
     } else {
-		html += '<li>No inputs, transaction probably sent from self.</li>';
+		html += 'No inputs, transaction probably sent from self.<br />';
     }
 
-	html += '</ul></td><td class="can-hide" style="padding:4px;width:48px;text-align:center;vertical-align:middle;">';
+	html += '</td><td class="can-hide" style="padding:4px;width:48px;text-align:center;vertical-align:middle;">';
 	
     if (result == null) {
     	result = 0;
@@ -234,9 +235,11 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 	
 	var tclass = '';
 	if (result >= 0)
-		tclass = 'class="can-hide"';
-		
-	html += '</td><td width="30%" '+tclass+' style="vertical-align:middle;"><ul class="txul">';
+		tclass = 'class="txtd can-hide"';
+	else
+		tclass = 'class="txtd"';
+
+	html += '</td><td width="30%" '+tclass+'>';
 	
 	var escrow_n = null;
 	var escrow_addr = null;
@@ -260,14 +263,14 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 		html += formatOutput(out, myAddresses, addresses_book);
 	}
 				
-	html += '</ul></td><td width="15%" style="vertical-align:middle;"><ul class="txul">';
+	html += '</td><td width="15%"class="txtd">';
 	
 	for (var i = 0; i < this.out.length; i++) {
 		output = this.out[i];
-		html += '<li class="can-hide">' + formatMoney(output.value, true) +'</li>';
+		html += '<span class="can-hide">' + formatMoney(output.value, true) +'</span><br />';
 	}
 	
-	html += '</ul></td></tr></table><span style="float:right;padding-bottom:30px;clear:both;">';
+	html += '</td></tr></table><span style="float:right;padding-bottom:30px;clear:both;">';
 	
 	if (this.ip != null && this.ip.length > 0) {
 		html += '<span class="adv"><i>Received from: <a href="'+root+'ip-address/'+this.ip+'">'+this.ip+'</a> <a href="http://www.dnsstuff.com/tools/ipall/?tool_id=67&ip='+this.ip+'" target="new">(whois)</a> - </span>';	

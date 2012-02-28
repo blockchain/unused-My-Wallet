@@ -929,7 +929,11 @@ function queryAPIMultiAddress() {
 		  data: {'addr[]' : addrs},
 		  converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": jQuery.parseXML},
 		  success: function(data) {  
-		
+	
+			if (data.error != null) {
+			  makeNotice('error', 'misc-error', data.error);  
+			}
+			  
 			try {
 				parseMultiAddressJSON(data);
 				
@@ -1908,6 +1912,11 @@ function pushTx(tx) {
 	if (offline) return;
 
 	var s = tx.serialize();
+	
+	if (s.length >= 16384) {
+		makeNotice('success', 'misc-error', 'My wallet cannot handle transactions over 16kb in size. Please try splitting your transaction,');
+		return;
+	}
 
 	var hex = Crypto.util.bytesToHex(s);
 	
