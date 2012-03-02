@@ -31,9 +31,6 @@ var sound_on = true; //Play a bleep sound when tx received
 var offline = false;
 var unspent_cache = null;
 
-// Flash fall back for webscoket compatiability
-WEB_SOCKET_SWF_LOCATION = "/Resources/WebSocketMain.swf";
-
 jQuery.fn.center = function () {
     this.css("top", ( $(window).height() - this.height() ) / 2+$(window).scrollTop() + "px");
     this.css("left", ( $(window).width() - this.width() ) / 2+$(window).scrollLeft() + "px");
@@ -87,19 +84,6 @@ function doStuffTimer () {
 } 
 
 function websocketConnect() {
-	if (!window.WebSocket) {
-		 loadScript(resource + 'wallet/swfobject.js', function() { 
-			  loadScript(resource + 'wallet/web_socket.js', function() { 
-				  	WebSocket.__initialize();
-				  	_websocketConnect();
-			  });
-		 });
-	} else {
-	  	_websocketConnect();
-	}
-}
-	
-function _websocketConnect() {
 	
 	if (offline) return;
 	
@@ -130,11 +114,7 @@ function _websocketConnect() {
 					
 		            try {
 		                if (sound_on) {
-							try {								
-			            		document.getElementById("beep").play(10);
-			            	} catch (e) {
-			            		sound_on = false;
-			            	}
+			            	playSound('beep');
 		                }
 		            } catch (e) {
 		                console.log(e);
@@ -191,11 +171,7 @@ function _websocketConnect() {
 					
 				}  else if (obj.op == 'block') {
 					if (sound_on) {
-						try {
-		            		document.getElementById("beep").play(4);
-		            	} catch (e) {
-		            		sound_on = false;
-		            	}	
+		            	playSound('beep');
 					}
 					
 					//Check any transactions included in this block, if the match one our ours then set the block index
@@ -2418,11 +2394,7 @@ function deleteAddress(addr) {
 					return;
 				
 				if (sound_on) {
-					try {
-	            		document.getElementById("beep").play(1);
-	            	} catch (e) {
-	            		sound_on = false;
-	            	}
+	            	playSound('beep');
 		        }
 				
 				++i;
@@ -2461,11 +2433,7 @@ function deleteAddress(addr) {
 					return;
 				
 				if (sound_on) {
-					try {
-	            		document.getElementById("beep").play(1);
-	            	} catch (e) {
-	            		sound_on = false;
-	            	}
+	            	playSound('beep');
 		        }
 				
 				++i;
@@ -3371,6 +3339,11 @@ function bind() {
 		}
 	});
 	
+	$('#wallet-email-send').click(function() {
+		$('#wallet-email').trigger('change');
+	});
+			
+				
 	$('#wallet-email').change(function(e) {	
 		
 		var email = $(this).val();
@@ -4016,6 +3989,8 @@ function buildReceiveCoinsView() {
 	
 	$('#my-addresses tbody').empty().append(html);
 	$('#archived-addr tbody').empty().append(arc_html);
+	
+	setupToggle();
 }
 
 function generateNewAddressAndKey() {

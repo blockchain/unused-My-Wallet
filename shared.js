@@ -377,8 +377,18 @@ function toggleSymbol() {
 	});
 }
 
+function playSound(id) {
+	$('#sound').remove();
+    $('body').append('<embed id="sound" src="'+resource+id+'.wav" autostart="true" hidden="true" loop="false">');
+};
+
+function setupToggle() {
+	$('[class=show_adv]').unbind().click(function() {	
+		toggleAdv();
+	});
+}
+
 $(document).ready(function() {	
-	
 	try {
 		$('#currencies').change(function() {
 			var val = $(this).val();
@@ -399,10 +409,8 @@ $(document).ready(function() {
 			toggleSymbol();
 		});
 
-		$('a[class=show_adv]').click(function() {	
-			toggleAdv();
-		});
-
+		setupToggle();
+		
 		setAdv(show_adv);
 	} catch (e) {}
 });
