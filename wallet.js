@@ -3220,6 +3220,18 @@ function downloadBackup() {
 }
 
 function bind() {
+	
+	$('body').click(function() {
+		 rng_seed_time();
+	});
+	
+	$('body').keypress(function() {
+		 rng_seed_time();
+	});
+	
+	$('#login-form').submit(function() {
+		 $('#restore-wallet-continue').click();
+	});
 
 	$('#summary-n-tx-chart').click(function() {
 		 window.open(root + 'charts/n-transactions?show_header=false&address='+getActiveAddresses().join('|'), null, "scroll=0,status=0,location=0,toolbar=0,width=1000,height=700");
