@@ -1,5 +1,5 @@
-var encrypted_wallet_data = null;
-var guid = null;
+var encrypted_wallet_data = null; //Encrypted wallet data (Base64, AES 256)
+var guid = null; //Wallet identifier
 var cVisible; //currently visible view
 var password; //Password
 var dpassword = null; //double encryption Password
@@ -17,19 +17,14 @@ var transactions = []; //List of all transactions (initially populated from /mul
 var double_encryption = false; //If wallet has a second password
 var tx_page = 0; //Multi-address page
 var tx_filter = 0; //Transaction filter (e.g. Sent Received etc)
-var maxAddr = 400;
-
-//Refactoring
-//var balances = []; //Holds balances of addresses
-//var addresses = []; //Bitcoin addresses
-//var private_keys = []; //Map of bitcoin address to base58 private key
-//var address_tags = []; //Map of address to an option tag (0 == OK 1 == Unsynced, 2 == Archived, 3 == No Private Key)
-
+var maxAddr = 400; //Maximum number of addresses
+var notifications_type; //Type of payment notifications enabled
+var nconnected; //Number of nodes blockchain.info is connected to
 var addresses = []; //{addr : address, priv : private key, tag : tag (mark as archived), label : label, balance : balance}
 var loading_text = ''; //Loading text for ajax activity 
 var sound_on = true; //Play a bleep sound when tx received
-var offline = false;
-var unspent_cache = null;
+var offline = false; //If on offline or online mode
+var unspent_cache = null; //Before entering offline mode unspent outputs are downloaded and cached here
 
 jQuery.fn.center = function () {
     this.css("top", ( $(window).height() - this.height() ) / 2+$(window).scrollTop() + "px");
@@ -3799,6 +3794,11 @@ function privateKeyStringToKey(value, format) {
 $(document).ready(function() {	
     setTimeout(bind, 100);
 	
+    //Load data attributes from html
+    encrypted_wallet_data = $('#data-encrypted').text();
+    guid = $('#data-guid').text();
+    notifications_type = $('#data-notifications-type').text();
+    
 	$('body').ajaxStart(function() {
 		$('.loading-indicator').fadeIn(200);
 	});

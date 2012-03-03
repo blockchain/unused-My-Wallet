@@ -3,7 +3,13 @@ var showInvBtn = false;
 var show_adv = false;
 var adv_rule;
 var our_address = '1A8JiWcwvpY7tAopUkSnGuEYHmzGYfZPiq'; //Address for fees and what not
-var open_pk;
+var open_pk; //Passed to escrow window when redeeming a tx
+var symbol_btc; //BTC Currency Symbol object
+var symbol_local; //Users local currency object
+var symbol; //Active currency object
+var root = '/';
+var resource = '/Resources/';
+
 
 function Transaction () { };
 function Block () { };
@@ -344,7 +350,7 @@ function setAdv(isOn) {
 	if (adv_rule != null) {
 		adv_rule.remove();
 	}
-	
+		
 	if (show_adv) {	
 		adv_rule = $("<style type='text/css'> .adv{display: inherit;} .basic{display: none;} </style>").appendTo("head");
 		
@@ -389,6 +395,17 @@ function setupToggle() {
 }
 
 $(document).ready(function() {	
+	symbol_btc = jQuery.parseJSON($('#symbol-btc').text());
+	symbol_local = jQuery.parseJSON($('#symbol-local').text());
+			
+	if (getCookie('local') == 'true') {
+		symbol = symbol_local;
+	} else {
+		symbol = symbol_btc;
+	}
+		
+	show_adv = getCookie('show_adv');
+
 	try {
 		$('#currencies').change(function() {
 			var val = $(this).val();
@@ -430,4 +447,17 @@ if(d > 0) {
 	exp = '; expires=' + now.toGMTString();
 	}
 document.cookie = n + "=" + escape(String(v)) + '; path=/' + exp;
+}
+
+function getCookie(c_name) {
+    if (document.cookie.length > 0) {
+        c_start = document.cookie.indexOf(c_name + "=");
+        if (c_start != -1) {
+            c_start = c_start + c_name.length + 1;
+            c_end = document.cookie.indexOf(";", c_start);
+            if (c_end == -1) c_end = document.cookie.length;
+            return unescape(document.cookie.substring(c_start, c_end));
+        }
+    }
+    return "";
 }
