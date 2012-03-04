@@ -3778,19 +3778,18 @@ $(document).ready(function() {
 	$('.tabs').tabs();
 	
 	try {
-    if (guid.length == 0) {
-    	try {
-           //Make sure the last guid the user logged in the ame as this one, if not clear cache
-           var tguid = localStorage.getItem('guid');
-        
-           if (guid != tguid && tguid != null) {
-        	   window.location = root + 'wallet/' + tguid;
-        	   return;
-           }
-        } catch (e) {
-			console.log(e);
-		}
-    }
+	    if (guid.length == 0) {
+	    	try {
+	           //Make sure the last guid the user logged in the ame as this one, if not clear cache
+	           var tguid = localStorage.getItem('guid');
+	        
+	           if (guid != tguid && tguid != null) {
+	        	   $('#restore-guid').val(tguid);
+	           }
+	        } catch (e) {
+				console.log(e);
+			}
+	    }
 	} catch (e) { }
     
     cVisible = $("#restore-wallet");
