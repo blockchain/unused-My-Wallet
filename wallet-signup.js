@@ -37,9 +37,9 @@ function generateNewWallet() {
 			
 			isInitialized = true;
 		}, function() {
-			Recaptcha.reload();
+			$("#captcha").attr("src", $("#captcha").attr("src")+"?timestamp=" + new Date().getTime());
 			
-		}, '?recaptcha_response_field='+$('#recaptcha_response_field').val()+'&recaptcha_challenge_field='+$('#recaptcha_challenge_field').val());
+		}, '?kaptcha='+$('#captcha-value').val());
 	
 		return true;
 
