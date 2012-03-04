@@ -36,25 +36,6 @@ $(window).resize(function() {
 	$('.modal:visible').center();
 });
 
-
-//Async load a script, at the moment this is only jquery.qrcode.js
-function loadScript(src, callback) {
-	
-	if (document.getElementById(src) != null) {
-		callback();
-		return;
-	}
-	
-     var s = document.createElement('script');
-     s.type = "text/javascript";
-     s.async = true;
-     s.src = src;
-     s.id = src;
-     s.addEventListener('load', function (e) { callback(); }, false);
-     var head = document.getElementsByTagName('head')[0];
-     head.appendChild(s);
-}
-
 function setLoadingText(txt) {
 	$('.loading-text').text(txt);
 }
@@ -1155,41 +1136,37 @@ function showPrivateKeyModal(success, error, addr) {
 		
 	//WebCam
 	try {
-		 loadScript(resource + 'wallet/qr.code.reader.js', function() { 
-			  loadScript(resource + 'wallet/llqrcode.js', function() { 
 		
-				 //Flash QR Code Reader
-				 var interval = initQRCodeReader('qr-code-reader', function(code){
-						 try {
-							 											 							 
-						    var key = privateKeyStringToKey(code, 'base58');
-							
-						    if (key == null) {
-								error('Error decoding private key');
-								modal.modal('hide');
-								return;
-							}
-				
-							clearInterval(interval);
-								
-							try {
-								success(key);
-							} catch (e) {}
-							
-						} catch(e) {
-							error('Error decoding private key ' + e);
-						}
-						
+		 //Flash QR Code Reader
+		 var interval = initQRCodeReader('qr-code-reader', function(code){
+				 try {
+					 											 							 
+				    var key = privateKeyStringToKey(code, 'base58');
+					
+				    if (key == null) {
+						error('Error decoding private key');
 						modal.modal('hide');
-						
-				 }, resource + 'wallet/');
-				 
-				modal.center();
-
-				modal.bind('hidden', function () {
+						return;
+					}
+		
 					clearInterval(interval);
-				});
-		   });
+						
+					try {
+						success(key);
+					} catch (e) {}
+					
+				} catch(e) {
+					error('Error decoding private key ' + e);
+				}
+				
+				modal.modal('hide');
+				
+		 }, resource + 'wallet/');
+		 
+		modal.center();
+
+		modal.bind('hidden', function () {
+			clearInterval(interval);
 		});
 	} catch (e) {
 		console.log(e);
@@ -1268,14 +1245,11 @@ function getReadyForOffline() {
 	
 	setLoadingText('Loading QR Code generator');
 	
-	  loadScript(resource + 'wallet/llqrcode.js', function() { 
-		  loadScript(resource + 'wallet/qr.code.reader.js', function() { 
+
+	//Prepload the flash Object	
+	initQRFlash('qr-code-reader', resource + 'wallet/');
 	
-			//Prepload the flash Object	
-			initQRFlash('qr-code-reader', resource + 'wallet/');
-				all_scripts_done = true;
-		  	});
-	  	});  
+	all_scripts_done = true;
 
 	///Get the list of transactions from the http API
 	queryAPIMultiAddress();
@@ -1468,14 +1442,11 @@ function getAccountInfo() {
 		
 		
 		if (data.google_secret_url != null && data.google_secret_url.length > 0) {
-		  loadScript(resource + 'wallet/qr.code.creator.js', function() { 	  	
-			  
 			 console.log(data.google_secret_url);
 			  
 			 var qr = makeQRCode(300, 300, 1 , data.google_secret_url);
 
 		 	 $('#wallet-google-qr').empty().append(qr);
-		  });
 		}
 		
 		if (data.dropbox_enabled == 1)
@@ -3136,9 +3107,7 @@ function populateImportExportView() {
 			 
 	          $('#paper-wallet').empty();
 	         
-	          
-			  loadScript(resource + 'wallet/qr.code.creator.js', function() { 	  				
-					getSecondPassword(function() {
+     				  getSecondPassword(function() {
 					
 					  var container = $('#paper-wallet');
 
@@ -3197,7 +3166,6 @@ function populateImportExportView() {
 						  
 						  ii++;
 					  }
-					});
 			  }); 
 		  }
 	 } catch (e) {
@@ -3871,13 +3839,10 @@ function showQRCodeModal(data) {
 
 	var body = modal.find('.modal-body');
 	
-    loadScript(resource + 'wallet/qr.code.creator.js', function() { 
-	   var canvas = makeQRCode(300,300,1,data);
-	 
-	   body.find('.data').empty().append(canvas);
-    });
-  
-    
+	var canvas = makeQRCode(300,300,1,data);
+		 
+	$('#qr-data').empty().append(canvas);
+ 
     var addr = addresses[data];
     
     if (addr != null && addr.priv != null && (!double_encryption || dpassword != null)) {
