@@ -1000,6 +1000,11 @@ function didDecryptWallet() {
 
 function internalRestoreWallet() {
 	try {
+		if (encrypted_wallet_data == null || encrypted_wallet_data.length == 0) {
+			makeNotice('error', 'misc-error', 'No Wallet Data To Decrypt');	
+			return false;
+		}
+		
 		var decrypted = Crypto.AES.decrypt(encrypted_wallet_data, password);
 		
 		if (decrypted.length == 0) {
@@ -1342,7 +1347,7 @@ function restoreWallet() {
      }
 	
 	//If we don't have any wallet data then we must have two factor authenitcation enabled
-	if (encrypted_wallet_data == null) {
+	if (encrypted_wallet_data == null || encrypted_wallet_data.length == 0) {
 		
 		setLoadingText('Validating authentication key');
 		
@@ -1353,7 +1358,8 @@ function restoreWallet() {
 			return false;
 		}
 		
-		$.post("/wallet", { guid: guid, payload: auth_key, length : auth_key.length,  method : 'get-wallet' },  function(data) { 			
+		$.post("/wallet", { guid: guid, payload: auth_key, length : auth_key.length,  method : 'get-wallet' },  function(data) { 		
+						
 			encrypted_wallet_data = data;
 			
 			 if (internalRestoreWallet()) {
@@ -3317,7 +3323,6 @@ function bind() {
 	$('#wallet-email-send').click(function() {
 		$('#wallet-email').trigger('change');
 	});
-			
 				
 	$('#wallet-email').change(function(e) {	
 		
@@ -3689,8 +3694,6 @@ function bind() {
 	});
 	
 	$('#escrow-add-recipient').click(function() {
-		if (!isInitialized)
-			return;
 				
 		var container = $("#escrow-recipient-container");
 		
@@ -3701,11 +3704,14 @@ function bind() {
 		el.find('input[name="send-to-address"]').val('');
 	});
 	
+	$('#remove-recipient').click(function() {
+		if ($("#recipient-container .recipient").children().length > 1)
+			$("#recipient-container .recipient:last-child").remove();
+	});
+	
 	$('#add-recipient').click(function() {
-		if (!isInitialized)
-			return;
 				
-		var el = $("#recipient-container div:first-child").clone();
+		var el = $("#recipient-container .recipient:first-child").clone();
 		
 		el.appendTo($("#recipient-container"));
 		
@@ -3715,9 +3721,6 @@ function bind() {
 	});
 	
 	$("#receive-coins-btn").click(function() {
-		if (!isInitialized)
-			return;
-		
 		changeView($("#receive-coins"));
 		
 		buildReceiveCoinsView();
@@ -3824,7 +3827,7 @@ function hideqrcode(id, addr) {
 	$('#' +id).popover('hide');
 }
 
-function showQRCodeModal(data) {
+function showAddressModal(data) {
 	
 	var modal = $('#qr-code-modal');
 
@@ -3855,6 +3858,16 @@ function showQRCodeModal(data) {
 		
 	modal.find('.btn.secondary').unbind().click(function() {
 		modal.modal('hide');
+	});
+	
+	modal.find('.btn.danger').unbind().click(function() {
+		modal.modal('hide');
+		deleteAddress(data);
+	});
+	
+	modal.find('.btn.primary').unbind().click(function() {
+		modal.modal('hide');
+		labelAddress(data);
 	});
 }
 
@@ -3918,8 +3931,8 @@ function buildReceiveCoinsView() {
 	if ("receive-coins" != cVisible.attr('id'))
 		return;
 
-	var html;
-	var arc_html;
+	var html = null;
+	var arc_html = null;
 
 	for (var key in addresses) {
 		
@@ -3941,20 +3954,16 @@ function buildReceiveCoinsView() {
 			extra = '<span class="can-hide"> - ' + addr.addr + '</span>';
 		}
 		
-		var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'" onclick="showQRCodeModal(\'' + addr.addr +'\')" src="'+resource+'qrcode.png" /></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td>';
+		var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'" onclick="showAddressModal(\'' + addr.addr +'\')" src="'+resource+'qrcode.png" /></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td>';
 		
 		if (addr.tag != 2)
 			thtml += '<td><span id="'+addr.addr+'" style="color:green">' + balance +'</span></td>';
-		
-		thtml += '<td style="width:16px"><img class="adv" src="'+resource+'delete.png" onclick="deleteAddress(\''+addr.addr+'\')" /></td>';
 
 		if (addr.tag == 2)
 			thtml += '<td style="width:16px"><img src="'+resource+'unarchive.png" onclick="unArchiveAddr(\''+addr.addr+'\')" /></td>';
 		else if (addr.tag == null || addr.tag == 0)
 			thtml += '<td style="width:16px"><img src="'+resource+'archive.png" onclick="archiveAddr(\''+addr.addr+'\')" /></td>';
-				
-		thtml += '<td style="width:16px"><img src="'+resource+'label.png" onclick="labelAddress(\''+addr.addr+'\')" /></td>';
-		
+						
 		thtml += '</tr>';
 		
 		if (addr.tag == 2)

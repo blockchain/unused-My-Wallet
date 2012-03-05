@@ -16,5 +16,7 @@ $(document).ready(function() {
 	} catch(err) {}
 	
 	//Uservoice
-	$('head').append('<script type="text/javascript" src="https://widget.uservoice.com/4wr7K1dKGPbvxshWQTrTg.js"></script>');
+	setTimeout(function() {
+		$('head').append('<script type="text/javascript" src="https://widget.uservoice.com/4wr7K1dKGPbvxshWQTrTg.js"></script>');		
+	}, 10);
 });
