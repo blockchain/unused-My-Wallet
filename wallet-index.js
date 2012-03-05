@@ -1,15 +1,20 @@
 $(document).ready(function() {	
 	
-	$('.slidedeck').slidedeck();
-
-	//Popovers! 
-	$(function () {
-	 $("a[rel=popover]")
-	   .popover({
-	     offset: 10
-	   })
-	   .click(function(e) {
-	     e.preventDefault()
-	   });
-	});
+	try {
+		$('.slidedeck').slidedeck();
+	
+		//Popovers! 
+		$(function () {
+		 $("a[rel=popover]")
+		   .popover({
+		     offset: 10
+		   })
+		   .click(function(e) {
+		     e.preventDefault()
+		   });
+		});
+	} catch(err) {}
+	
+	//Uservoice
+	$('head').append('<script type="text/javascript" src="https://widget.uservoice.com/4wr7K1dKGPbvxshWQTrTg.js"></script>');
 });
