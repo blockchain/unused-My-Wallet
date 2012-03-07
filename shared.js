@@ -277,10 +277,6 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 	}
 	
 	html += '</td></tr></table><span style="float:right;padding-bottom:30px;clear:both;">';
-	
-	if (this.ip != null && this.ip.length > 0) {
-		html += '<span class="adv"><i>Received from: <a href="'+root+'ip-address/'+this.ip+'">'+this.ip+'</a> <a href="http://www.dnsstuff.com/tools/ipall/?tool_id=67&ip='+this.ip+'" target="new">(whois)</a> - </span>';	
-	}	
 		
 	if (this.confirmations == null) {
 		html += '<button class="confm" style="display:none"></button> ';

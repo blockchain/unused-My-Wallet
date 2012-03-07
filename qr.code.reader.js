@@ -104,8 +104,6 @@ function initQRCodeReader(el, callback, path)
         
        return setTimeout(captureToCanvas, 1000);
 	} else {
-		documentel.innerHTML='<p id="mp1">QR code scanner for HTML5 capable browsers</p><br>'+
-        '<br><p id="mp2">sorry your browser is not supported</p><br><br>'+
-        '<p id="mp1">try <a href="http://www.mozilla.com/firefox"><img src="${resource}promo/firefox.png"/></a> or <a href="http://chrome.google.com"><img src="${resource}promo/chrome.png"/></a></p>';
+	    $('#'+el).append('<p id="qr-canvas">Sorry your browser is not supported. Please try Firefox, Chrome or safari.</p>');
 	}
 }

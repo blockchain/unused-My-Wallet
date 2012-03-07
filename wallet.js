@@ -1861,25 +1861,32 @@ function pushTx(tx) {
 
 	var s = tx.serialize();
 	
-	if (s.length >= 16384) {
+	var hex = Crypto.util.bytesToHex(s);
+	
+	if (hex.length >= 16384) {
 		makeNotice('success', 'misc-error', 'My wallet cannot handle transactions over 16kb in size. Please try splitting your transaction,');
 		return;
 	}
 
-	var hex = Crypto.util.bytesToHex(s);
-	
 	setLoadingText('Sending Transaction');
 
-	$.post("/pushtx", { tx: hex },  function(data) {  }).success(function(data) { makeNotice('success', 'misc-success', data);  }).error(function(data) { makeNotice('error', 'misc-error', data.responseText); });
+	var size = transactions.length;
+
+	$.post("/pushtx", { tx: hex }).success(function(data) { 
 		
-	//If websockets disconnected query maunually
-	try {
-		if (ws.readyState != WebSocket.OPEN)
-			queryAPIMultiAddress();
-	} catch (e) {
-		queryAPIMultiAddress();
-	}
+		//Wait 1/2 second if we haven't received a new transaction
+		//Call a manual update
+		setTimeout(function() { 
+			if (transactions.length == size)
+				queryAPIMultiAddress(); 
+		}, 1000);
+
+		makeNotice('success', 'misc-success', data);  
 	
+	}).error(function(data) { 
+		makeNotice('error', 'misc-error', data.responseText); 
+	});
+		
 	return true;
 }
 
@@ -1892,7 +1899,6 @@ function randomKey(obj) {
            ret = key;
     return ret;
 }
-
 
 //toAddresses receipients list e.g. {value, address} for simple pay to pub key hash {value, m, pubkeys} for multi sig
 //fromAddress specific address to take payment from, otherwise null
@@ -3671,6 +3677,10 @@ function bind() {
 	
 	$('#send-form-reset-btn').click(function() {
 		buildSendTxView();
+	});
+	
+	$('#send-adv').click(function() {		
+		$('#send-tx-extra').slideToggle();
 	});
 	
 	$("#send-tx-btn").click(function() {
