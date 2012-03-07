@@ -18,7 +18,7 @@ var double_encryption = false; //If wallet has a second password
 var tx_page = 0; //Multi-address page
 var tx_filter = 0; //Transaction filter (e.g. Sent Received etc)
 var maxAddr = 400; //Maximum number of addresses
-var notifications_type; //Type of payment notifications enabled
+var sync_pubkeys; //Whether to extract the public keys from the wallet
 var nconnected; //Number of nodes blockchain.info is connected to
 var addresses = []; //{addr : address, priv : private key, tag : tag (mark as archived), label : label, balance : balance}
 var loading_text = ''; //Loading text for ajax activity 
@@ -1439,6 +1439,13 @@ function getAccountInfo() {
 		
 		$('#wallet-phrase').val(data.phrase);
 		
+		$('#two-factor-select').val(data.auth_type);
+		$('.two-factor').hide();
+		$('.two-factor.t'+data.auth_type).show(200);
+
+		$('#notifications-type').val(data.notifications_type);
+		$('.notifications-type').hide(200);		
+		$('.notifications-type.t'+data.notifications_type).show(200);
 		
 		if (data.alias != null && data.alias.length > 0) {
 			$('#wallet-alias').val(data.alias);
@@ -1518,7 +1525,7 @@ function verifyEmail(code) {
 
 function updatePubKeys() {
 	//Only update public keys when needed for send notifications
-	if (notifications_type != 0) updateKV('Updating Public Keys', 'update-pub-keys', getActiveAddresses().join('|'));
+	if (sync_pubkeys) updateKV('Updating Public Keys', 'update-pub-keys', getActiveAddresses().join('|'));
 }
 
 function updateKV(txt, method, value, success, error) {
@@ -3220,19 +3227,25 @@ function bind() {
 		 window.open(root + 'charts/balance?show_header=false&address='+getActiveAddresses().join('|'), null, "scroll=0,status=0,location=0,toolbar=0,width=1000,height=700");
 	});
 	
-	$('#notifications-form select').change(function() {
-		var val = $(this).val();
+	$('#notifications-type').change(function() {
+		var val = parseInt($(this).val());
+				
+		updateKV('Updating Notifications Type', 'update-notifications-type', val);
 		
-		notifications_type = parseInt(val);
-		
-		updateKV('Updating Notifications Type', 'update-notifications-type', notifications_type);
-		
-		$('#notifications-form div').hide().eq(val).show(200);
+		$('.notifications-type').hide(200);
+		$('.notifications-type.t'+val).show(200);
 		
 		if (val != 0)
 			updatePubKeys();
 	});
 	
+	$('#notifications-on').change(function() {
+		updateKV('Updating Notifications Settings', 'update-notifications-on', $(this).val());
+	});
+	
+	$('#notifications-confirmations').change(function() {
+		updateKV('Updating Notifications Settings', 'update-notifications-confirmations', $(this).val());
+	});
 	
 	var $write = $('#second-password'),
 	shift = false,
@@ -3302,16 +3315,7 @@ function bind() {
 		});
 		
 		$('.two-factor').hide(200);
-		
-		if (val == 0) {
-			$('#two-factor-none').show(200);
-		} else if (val == 1 || val == 3) {
-			$('#two-factor-yubikey').show(200);
-		} else if (val == 2) {
-			$('#two-factor-email').show(200);
-		} else if (val == 4) {
-			$('#two-factor-google').show(200);
-		}
+		$('.two-factor.t'+val).show(200);
 	});
 	
 	$("#new-addr").click(function() {
@@ -3778,7 +3782,7 @@ $(document).ready(function() {
     //Load data attributes from html
     encrypted_wallet_data = $('#data-encrypted').text();
     guid = $('#data-guid').text();
-    notifications_type = $('#data-notifications-type').text();
+    sync_pubkeys = $('#sync-pubkeys').text();
     
 	$('body').ajaxStart(function() {
 		$('.loading-indicator').fadeIn(200);
