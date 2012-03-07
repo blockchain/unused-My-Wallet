@@ -1447,6 +1447,9 @@ function getAccountInfo() {
 		$('.notifications-type').hide(200);		
 		$('.notifications-type.t'+data.notifications_type).show(200);
 		
+		$('#notifications-confirmations').val(data.notifications_confirmations);
+		$('#notifications-on').val(data.notifications_on);
+		
 		if (data.alias != null && data.alias.length > 0) {
 			$('#wallet-alias').val(data.alias);
 			$('.alias').text('https://blockchain.info/wallet/'+data.alias);
