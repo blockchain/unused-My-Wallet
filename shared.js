@@ -202,7 +202,7 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 	else
 		tclass = 'class="txtd"';
 	
-	html += '</b></span></th></tr><tr><td width="55%" '+ tclass +'>';
+	html += '</b></span></th></tr><tr><td '+ tclass +'>';
    
     if (this.inputs.length > 0) {
 		for (var i = 0; i < this.inputs.length; i++) {
@@ -218,7 +218,7 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 		html += 'No inputs, transaction probably sent from self.<br />';
     }
 
-	html += '</td><td class="can-hide" style="padding:4px;width:48px;text-align:center;vertical-align:middle;">';
+	html += '</td><td width="48px" class="can-hide" style="padding:4px;text-align:center;vertical-align:middle;">';
 	
     if (result == null) {
     	result = 0;
@@ -245,7 +245,7 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 	else
 		tclass = 'class="txtd"';
 
-	html += '</td><td width="30%" '+tclass+'>';
+	html += '</td><td width="360px" '+tclass+'>';
 	
 	var escrow_n = null;
 	var escrow_addr = null;
@@ -269,7 +269,7 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 		html += formatOutput(out, myAddresses, addresses_book);
 	}
 				
-	html += '</td><td width="15%"class="txtd">';
+	html += '</td><td width="140px" style="text-align:right" class="txtd">';
 	
 	for (var i = 0; i < this.out.length; i++) {
 		output = this.out[i];
@@ -363,6 +363,12 @@ function selectOption(select_id, option_val) {
     $('#'+select_id+' option[value='+option_val+']').attr('selected','selected');       
 }
 
+function calcMoney() {
+	$('span[data-c]').each(function(index) {
+		$(this).text(formatMoney($(this).attr('data-c')));
+	});
+}
+
 function toggleSymbol() {
 	if (symbol === symbol_btc) {
 		symbol = symbol_local;
@@ -373,15 +379,15 @@ function toggleSymbol() {
 	}
 	
 	selectOption('currencies', symbol.code);
-	    
-	$('span[data-c]').each(function(index) {
-		$(this).text(formatMoney($(this).attr('data-c')));
-	});
+	
+	calcMoney();
 }
 
 function playSound(id) {
-	$('#sound').remove();
-    $('body').append('<embed id="sound" src="'+resource+id+'.wav" autostart="true" hidden="true" loop="false">');
+	try {
+		$('#sound').remove();
+    	$('body').append('<embed id="sound" src="'+resource+id+'.wav" autostart="true" hidden="true" loop="false">');
+	} catch (e) { }
 };
 
 function setupToggle() {
@@ -391,8 +397,8 @@ function setupToggle() {
 }
 
 $(document).ready(function() {	
-	symbol_btc = jQuery.parseJSON($('#symbol-btc').text());
-	symbol_local = jQuery.parseJSON($('#symbol-local').text());
+	symbol_btc = $.parseJSON($('#symbol-btc').text());
+	symbol_local = $.parseJSON($('#symbol-local').text());
 			
 	if (getCookie('local') == 'true') {
 		symbol = symbol_local;
@@ -428,6 +434,35 @@ $(document).ready(function() {
 	} catch (e) {}
 });
 
+var titleInterval = null;
+var titleStart;
+var titleOldTitle;
+
+function flashTitle(msg, til) { 
+	if (til == null) til = 10000;
+	
+	function stop() {
+		clearInterval(titleInterval);
+		document.title = titleOldTitle; 
+		titleInterval = null;
+	}
+	
+	if (titleInterval != null) 
+		stop();
+
+	titleOldTitle = document.title;
+	titleStart = new Date().getTime();
+	
+	titleInterval = setInterval(function(){		
+	        if (document.title == titleOldTitle)
+	        	document.title = msg;
+	        else 
+	        	document.title = titleOldTitle;
+	        
+	        if (new Date().getTime() - titleStart > til) 
+	        	 stop();
+	}, 750);
+}
 
 function SetCookie() {
 if(arguments.length < 2) { return; }

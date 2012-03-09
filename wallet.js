@@ -22,11 +22,10 @@ var sync_pubkeys; //Whether to extract the public keys from the wallet
 var nconnected; //Number of nodes blockchain.info is connected to
 var addresses = []; //{addr : address, priv : private key, tag : tag (mark as archived), label : label, balance : balance}
 var loading_text = ''; //Loading text for ajax activity 
-var sound_on = true; //Play a bleep sound when tx received
 var offline = false; //If on offline or online mode
 var unspent_cache = null; //Before entering offline mode unspent outputs are downloaded and cached here
 
-jQuery.fn.center = function () {
+$.fn.center = function () {
     this.css("top", ( $(window).height() - this.height() ) / 2+$(window).scrollTop() + "px");
     this.css("left", ( $(window).width() - this.width() ) / 2+$(window).scrollLeft() + "px");
     return this;
@@ -64,14 +63,13 @@ function websocketConnect() {
 	if (offline) return;
 	
 	try {
-	
 		ws = new WebSocket("ws://api.blockchain.info:8335/inv");
 		
 		ws.onmessage = function(e) {
 							
 			try {
 		
-				var obj = jQuery.parseJSON(e.data);
+				var obj = $.parseJSON(e.data);
 		
 				if (obj.op == 'status') {
 				
@@ -88,14 +86,8 @@ function websocketConnect() {
 							return;
 					}
 					
-		            try {
-		                if (sound_on) {
-			            	playSound('beep');
-		                }
-		            } catch (e) {
-		                console.log(e);
-		            }
-					
+			        playSound('beep');
+		            
 			
 					/* Calculate the result */
 					var result = 0;
@@ -126,6 +118,9 @@ function websocketConnect() {
 						}
 					}
 					
+					
+					flashTitle('New Transaction');
+					
 					tx.result = result;
 					
 					final_balance += result;
@@ -146,9 +141,10 @@ function websocketConnect() {
 					}
 					
 				}  else if (obj.op == 'block') {
-					if (sound_on) {
-		            	playSound('beep');
-					}
+					flashTitle('New Block');
+		            
+					playSound('ding');
+					
 					
 					//Check any transactions included in this block, if the match one our ours then set the block index
 					for (var i = 0; i < obj.x.txIndexes.length; ++i) {
@@ -498,14 +494,14 @@ function importJSON() {
 	try {
 		try {
 			//First try a simple decode
-			obj = jQuery.parseJSON(json);
+			obj = $.parseJSON(json);
 			
 			if (obj == null) throw 'null json';
 		} catch(e) {
 			//Maybe it's encrypted?
 			var decrypted = Crypto.AES.decrypt(json, password);
 				
-			obj = jQuery.parseJSON(decrypted);
+			obj = $.parseJSON(decrypted);
 	
 			if (obj == null) throw 'null json';
 		}
@@ -833,7 +829,7 @@ function setPage(i) {
 }
 
 function parseMultiAddressJSON(json) {
-	var obj = jQuery.parseJSON(json);
+	var obj = $.parseJSON(json);
 	
 	$('#nodes-connected').html(obj.info.nconnected);
 	
@@ -879,7 +875,7 @@ function queryAPIMultiAddress() {
 		  type: "POST",
 		  url: root +'multiaddr?filter='+tx_filter+'&offset='+tx_page*50,
 		  data: {'addr[]' : addrs},
-		  converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": jQuery.parseXML},
+		  converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": $.parseXML},
 		  success: function(data) {  
 	
 			if (data.error != null) {
@@ -1012,7 +1008,7 @@ function internalRestoreWallet() {
 			return false;
 		}
 		
-		var obj = jQuery.parseJSON(decrypted);
+		var obj = $.parseJSON(decrypted);
 
 		if (obj.double_encryption != null && obj.dpasswordhash != null) {
 			double_encryption = obj.double_encryption;
@@ -1569,7 +1565,7 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 		var data = makeWalletJSON();
 		
 		//Double check the json is parasable
-		var obj = jQuery.parseJSON(data);
+		var obj = $.parseJSON(data);
 	
 		if (obj == null)
 			throw 'null json error';
@@ -1947,9 +1943,7 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 	//Add the miners fees
 	if (minersfee != null)
 		txValue = txValue.add(minersfee);
-	
-	console.log(minersfee.intValue());
-	
+		
 	var priority = 0;
 	
 	for (var i = 0; i < unspentOutputs.length; ++i) {
@@ -2381,9 +2375,7 @@ function deleteAddress(addr) {
 				if (isCancelled)
 					return;
 				
-				if (sound_on) {
-	            	playSound('beep');
-		        }
+	            playSound('beep');
 				
 				++i;
 				
@@ -2420,9 +2412,7 @@ function deleteAddress(addr) {
 				if (isCancelled)
 					return;
 				
-				if (sound_on) {
-	            	playSound('beep');
-		        }
+	            playSound('beep');
 				
 				++i;
 				
