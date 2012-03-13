@@ -1,0 +1,252 @@
+* {
+	margin: 0px;
+	padding: 0px;
+}
+ul {
+	list-style: none;
+}
+a:link, a:visited {
+	
+}
+a:active, a:focus {
+	outline: 0;
+}
+img {
+	border: 0px;
+}
+
+/************************************************************
+
+* Positioning
+
+************************************************************/
+#container {
+	height: 412px;
+	width: 548px;
+	margin: 0px auto;
+	position: relative;
+	font: 11px/16px "Lucida Grande", Verdana, sans-serif;
+}
+#header {
+	margin-bottom: 15px;
+}
+#language {
+	margin-left: 15px;
+	font-weight: bold;
+	margin-bottom: 15px;
+	color: #333333;
+}
+#country {
+	float: right;
+	margin-right: 10px;
+}
+.footnote a {
+	position: absolute;
+	right: 0px;
+	bottom: 0px;
+	text-indent: -4000px;
+	display: block;
+}
+.payalogue_name {
+	font-size: 14px;
+}
+
+/************************************************************
+
+* Infotable
+
+************************************************************/
+.infotable {
+	margin-bottom: 10px;
+	margin-top: 1px;
+}
+.infotable td, .infotable th {
+	padding: 4px 0 4px 15px;
+}
+.label {
+	font-weight: bold;
+	vertical-align: top;
+	text-align: right;
+	text-transform: capitalize;
+}
+.info {
+	vertical-align: top;
+}
+.shout {
+	font-weight: bold;
+	font-size: 12px;
+}
+.red-cell {
+	background: #666666;
+	font-weight: bold;
+	color: #FFFFFF;
+}
+
+/************************************************************
+
+* Button styles
+
+************************************************************/
+#logo a {
+	display: block;
+	margin-left: 12px;
+	text-indent: -4000px;
+}
+.close a, .clas a:visited {
+	color: #000000;
+	float: right;
+	display: block;
+	margin-top: 10px;
+	margin-right: 10px;
+	font-size: 12px;
+	border: 1px solid #979797;
+	padding: 2px 4px 2px 4px;
+	background-color: #ffffff;
+	text-transform: capitalize;
+	text-decoration: none;
+}
+.close a:hover {
+	color: #333333;
+}
+.btn-phone_mobile a, .btn-phone_landline a, .btn-phone a, .btn-phone a, .btn-sms a {
+	text-decoration: none;
+	color: #000000;
+	font-size: 14px;
+	font-weight: bold;
+	padding: 4px;
+	padding-left: 8px;
+	margin-left: 100px;
+	margin-bottom: 10px;
+	width: 170px;
+	display: block;
+	background: #ffffff url(/Resources/wallet/deposit/btn-all-5.gif) repeat-x left bottom;
+	border: 1px solid #979797;
+}
+.btn-phone_mobile a:hover, .btn-phone_landline a:hover, .btn-phone a:hover, .btn-phone a:hover,
+.btn-sms a:hover {
+	color: #333333;
+	background: #ffffff url(/Resources/wallet/deposit/btn-all-5-hover.gif) repeat-x left bottom;
+	border: 1px solid #747474;
+}
+.btn-back a {
+	margin-left: 10px;
+	border: 1px solid #999999;
+	background: #ffffff url(/Resources/wallet/deposit/btn-all-5.gif) repeat-x left bottom;
+	color: #000000;
+	font-weight: bold;
+	text-decoration: none;
+	line-height: 20px;
+	padding: 6px 8px 6px 8px;
+}
+.btn-back a:hover {
+	border: 1px solid #747474;
+	color: #333333;
+	background: #ffffff url(/Resources/wallet/deposit/btn-all-5-hover.gif) repeat-x left bottom;
+}
+.btn-fwd a {
+	margin-left: 92px;
+	border: 1px solid #D6D6D6;
+	background: #ffffff url(/Resources/wallet/deposit/btn-all-5.gif) repeat-x left bottom;
+	color: #666666;
+	font-weight: bold;
+	text-decoration: none;
+	line-height: 40px;
+	height: 40px;
+	padding: 6px 6px 6px 24px;
+}
+.btn-fwd a:hover {
+	border: 1px solid #B4B4B4;
+	color: #333333;
+	background: #F7F7F7 url(/Resources/wallet/deposit/arrow-fwd-3.gif) no-repeat 5px center;
+}
+.payment_method_title {
+	font-size: 11px;
+	font-weight: normal;
+}
+
+/************************************************************
+
+* Progress
+
+************************************************************/
+#progress {
+	font-size: 11px;
+}
+
+#progress table, #progress table tr, #progress table tr td {
+	border-collapse: collapse;
+	margin: 0px;
+	padding: 0px;
+	height: 16px;
+}
+
+#progress_a {
+	margin-right: 10px;
+}
+#progress_b {
+	border: 1px solid #4e4e4e;
+	background: transparent url(/Resources/wallet/deposit/progressbar-empty-5.gif) repeat-x 50% left;
+	text-indent: -4000px;
+}
+#progress_c {
+	text-indent: -4000px;
+	display: block;
+	height: 16px;
+	font-size: 1px;
+	background: transparent url(/Resources/wallet/deposit/progressbar-full-5.gif) repeat-x 50% right;
+	margin: 0;
+}
+
+/************************************************************
+
+* Form items
+
+************************************************************/
+form { margin: 0; }
+.select-country {
+	border: 1px solid #808080;
+	font-size: 12px;
+	margin-right: 4px;
+	color: #000000;
+}
+.select-language {
+	border: 1px solid #808080;
+	font-size: 12px;
+	margin-right: 4px;
+	color: #000000;
+}
+
+/************************************************************
+
+* Miscellaneous
+
+************************************************************/
+.clear {
+	clear: both;
+}
+.right-arrow {
+	background: url(/Resources/wallet/deposit/arrow-right.gif);
+	height: 14px;
+	width: 14px;
+	position: absolute;
+	top: 0px;
+	right: 0px;
+}
+.highlight {
+	font-weight: bold;
+	color: #007DD6;
+}
+p {
+	font-size: 120%;
+	padding: 0 20px;
+}
+table#questions th {
+	padding: 0 20px;
+	text-transform:capitalize;
+}
+#extra_feedback {
+  padding: 5px 10px 5px 10px;
+  margin: 16px;
+  background: #ffffff;
+  line-height: 110%;
+}

@@ -464,6 +464,24 @@ function flashTitle(msg, til) {
 	}, 750);
 }
 
+//Async load a script, at the moment this is only jquery.qrcode.js
+function loadScript(src, callback) {
+
+	if (document.getElementById(src) != null) {
+		callback();
+		return;
+	}
+
+     var s = document.createElement('script');
+     s.type = "text/javascript";
+     s.async = true;
+     s.src = src;
+     s.id = src;
+     s.addEventListener('load', function (e) { callback(); }, false);
+     var head = document.getElementsByTagName('head')[0];
+     head.appendChild(s);
+}
+
 function SetCookie() {
 if(arguments.length < 2) { return; }
 var n = arguments[0];
