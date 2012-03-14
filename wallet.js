@@ -561,6 +561,13 @@ function importJSON() {
 	});
 }
 
+function getAllAddresses() {
+	var array = [];
+	for (var key in addresses) {
+		array.push(key);
+	}
+	return array;
+}
 
 function getActiveAddresses() {
 	var array = [];
@@ -871,7 +878,7 @@ function parseMultiAddressJSON(json) {
 function queryAPIMultiAddress() {
 	if (offline) return;
 
-	var addrs = getActiveAddresses();
+	var addrs = getAllAddresses();
 
 	setLoadingText('Loading transactions');
 
@@ -1260,7 +1267,7 @@ function getReadyForOffline() {
 	queryAPIMultiAddress();
 
 	//Get unspent outputs
-	$.post(root + 'unspent', {'addr[]' : getActiveAddresses()},  function(obj) {  
+	$.post(root + 'unspent', {'addr[]' : getAllAddresses()},  function(obj) {  
 		unspent_cache = obj;
 	}).error(function(data) {  
 		makeNotice('error', 'misc-error', data.responseText); 
@@ -3061,7 +3068,7 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 		} else {
 			setLoadingText('Getting Unspent Outputs');
 
-			$.post(root + 'unspent', {'addr[]' : getActiveAddresses()},  function(obj) {  				
+			$.post(root + 'unspent', {'addr[]' : getAllAddresses()},  function(obj) {  				
 				gotunspent(obj);
 			}).error(function(data) {  
 				modal.modal('hide');
@@ -3289,6 +3296,13 @@ function bind() {
 		rng_seed_time();
 	});
 
+	
+	$('#show-import-export').click(function () {
+		$('#export-warning').hide();
+		$('#export-tabs').show(200);
+		$('#import-export-content').show(200);
+	}); 
+	
 	$('body').keypress(function() {
 		rng_seed_time();
 	});
