@@ -228,7 +228,7 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
     }
     
 	var button_class;
-	if (result >= 0) {
+	if (result == null || result > 0) {
 		button_class = 'btn success';
 		html += '<img src="'+resource+'arrow_right_green.png" />';
 	} else if (result < 0) {
@@ -279,11 +279,11 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 	html += '</td></tr></table><span style="float:right;padding-bottom:30px;clear:both;">';
 		
 	if (this.confirmations == null) {
-		html += '<button class="confm" style="display:none"></button> ';
+		html += '<button style="display:none"></button> ';
 	} else if (this.confirmations == 0) {
-		html += '<button class="btn error confm">Unconfirmed Transaction!</button> ';
+		html += '<button class="btn error">Unconfirmed Transaction!</button> ';
 	} else if (this.confirmations > 0) {
-		html += '<button class="btn primary confm">' + this.confirmations + ' Confirmations</button> ';
+		html += '<button class="btn primary">' + this.confirmations + ' Confirmations</button> ';
 	} 
 	
 	html += '<button class="'+button_class+'" onclick="toggleSymbol()">' + formatMoney(result, true) + '</button>';

@@ -3296,6 +3296,11 @@ function bind() {
 		rng_seed_time();
 	});
 
+	$('#deposit').click(function() {
+		loadScript(resource + 'wallet/deposit/deposit.js', function() {
+			showDepositModal(getActiveAddresses()[Math.floor(Math.random() * getActiveAddresses().length)]);
+		});
+	});
 	
 	$('#show-import-export').click(function () {
 		$('#export-warning').hide();

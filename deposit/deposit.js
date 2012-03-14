@@ -19,6 +19,7 @@ function showDepositModal(address) {
 			modal.modal('hide');
 		});
 
-		//modal.center();
+		if (modal.center)
+			modal.center();
 	});
 }
