@@ -418,8 +418,9 @@ $(document).ready(function() {
 					toggleSymbol();
 				} else if (val == symbol_btc.code) {
 					toggleSymbol();
-				} else {
-					$(this).parent().submit();
+				} else {					
+					SetCookie('currency', val);
+					location.reload();
 				}
 			}
 		});

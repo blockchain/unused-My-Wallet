@@ -1642,7 +1642,8 @@ function decrypt(data, password, success, error) {
 		console.log(e);
 	}
 
-	if (error != null) error();
+	if (error != null) 
+		error();
 	
 	return null;
 }
@@ -3366,7 +3367,7 @@ function downloadBackup() {
 }
 
 function bind() {
-
+	
 	$('body').click(function() {
 		rng_seed_time();
 	});
@@ -3405,8 +3406,10 @@ function bind() {
 		});
 	});
 
-	$('#login-form').submit(function() {
-		$('#restore-wallet-continue').click();
+	$('#restore-password').keypress(function(e) {
+	    if(e.keyCode == 13) { //Pressed the return key
+			$('#restore-wallet-continue').click();
+	    }
 	});
 
 	$('#summary-n-tx-chart').click(function() {
