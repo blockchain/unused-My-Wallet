@@ -490,23 +490,28 @@ function importJSON() {
 		}
 	}
 
-	var obj;
+	var obj = null;
 
 	try {
-		try {
-			//First try a simple decode
-			obj = $.parseJSON(json);
+		//First try a simple decode
+		obj = $.parseJSON(json);
 
-			if (obj == null) throw 'null json';
-		} catch(e) {
-			//Maybe it's encrypted?
-			var decrypted = decrypt(json, password);
-
-			obj = $.parseJSON(decrypted);
-
-			if (obj == null) throw 'null json';
-		}
-	} catch(e) {		
+		if (obj == null) 
+			throw 'null json';
+	} catch(e) {
+		//Maybe it's encrypted?
+		 decrypt(json, password, function(decrypted) {
+			try {
+				obj = $.parseJSON(decrypted);
+				
+				return (obj != null);
+			} catch (e) {
+				return false;
+			}
+		});
+	}
+		
+	if (obj == null) {
 		throw 'Could not decode import data';
 	}
 
@@ -515,49 +520,67 @@ function importJSON() {
 	}
 
 	getSecondPassword(function() {
-		//Pywallet contains hexsec
-		if (obj.keys[0].hexsec != null) {
-			importPyWalletJSONObject(obj);
-		} else {
-			if (obj.double_encryption && obj.dpasswordhash != dpasswordhash) {
-				throw 'Wallet backup does not have the same second password';
-			}
-
-			//Parse the normal wallet backup
-			for (var i = 0; i < obj.keys.length; ++i) {	
-				var addr = obj.keys[i].addr;
-
-				if (addr == null || addr.length == 0 || addr == 'undefined')
-					continue;
-
-				if (double_encryption && !obj.double_encryption)
-					internalAddKey(addr, encodePK(Bitcoin.Base58.decode(obj.keys[i].priv)));
-				else
-					internalAddKey(addr, obj.keys[i].priv);
-
-				var addr = addresses[addr];
-				addr.label = obj.keys[i].label;
-				addr.tag = obj.keys[i].tag;
-			}
-
-			if (obj.address_book != null) {
-				for (var i = 0; i < obj.address_book.length; ++i) {	
-					internalAddAddressBookEntry(obj.address_book[i].addr, obj.address_book[i].label);
+		try {
+			//Pywallet contains hexsec
+			if (obj.keys[0].hexsec != null) {
+				importPyWalletJSONObject(obj);
+			} else {
+				//Parse the normal wallet backup
+				for (var i = 0; i < obj.keys.length; ++i) {	
+					var addr = obj.keys[i].addr;
+	
+					if (addr == null || addr.length == 0 || addr == 'undefined')
+						continue;
+					
+					if (obj.keys[i].priv != null) {
+						
+						if (obj.double_encryption) {
+								var decrypted = decrypt(obj.keys[i].priv, obj.sharedKey + dpassword, function(decrypted) {
+									return isBase58(decrypted);
+								});
+							
+								if (decrypted == null) 
+									throw 'Error decrypting private key for address ' + addr;
+								
+								obj.keys[i].priv = decrypted;
+						}
+							
+						//If our wallet is double encrypted and the old wallet isn't the rencode the key
+						if (double_encryption)
+							internalAddKey(addr, encodePK(Bitcoin.Base58.decode(obj.keys[i].priv)));
+						else
+							internalAddKey(addr, obj.keys[i].priv); //Both not double encrypted, just copy the priv
+					} else {
+						internalAddKey(addr, null); //Both not double encrypted, just copy the priv
+					}
+					
+					//Copy over the tag and label
+					var added_addr = addresses[addr];
+					added_addr.label = obj.keys[i].label;
+					added_addr.tag = obj.keys[i].tag;
 				}
-			}
-		} 
-
-		//Check the integrity of all keys
-		checkAllKeys();
-		
-		//Clear the old value
-		$('#import-json').val('');
-
-		//Perform a wallet backup
-		backupWallet();
-
-		//Get the new list of transactions
-		queryAPIMultiAddress();
+	
+				if (obj.address_book != null) {
+					for (var i = 0; i < obj.address_book.length; ++i) {	
+						internalAddAddressBookEntry(obj.address_book[i].addr, obj.address_book[i].label);
+					}
+				}
+			} 
+	
+			//Check the integrity of all keys
+			checkAllKeys();
+			
+			//Clear the old value
+			$('#import-json').val('');
+	
+			//Perform a wallet backup
+			backupWallet();
+	
+			//Get the new list of transactions
+			queryAPIMultiAddress();
+		} catch (e) {
+			makeNotice('error', 'misc-error', e);  
+		}
 	});
 }
 
@@ -1011,15 +1034,24 @@ function internalRestoreWallet() {
 			makeNotice('error', 'misc-error', 'No Wallet Data To Decrypt');	
 			return false;
 		}
+		
+		
+		var obj = null;
+		decrypt(encrypted_wallet_data, password, function(decrypted) {	
+			try {
+				obj = $.parseJSON(decrypted);
+				
+				return (obj != null);
+			} catch (e) {
+				console.log(e);
+				return false;
+			};
+		});
 
-		var decrypted = decrypt(encrypted_wallet_data, password);
-
-		if (decrypted == null || decrypted.length == 0) {
+		if (obj == null) {
 			makeNotice('error', 'misc-error', 'Error Decrypting Wallet');	
 			return false;
 		}
-
-		var obj = $.parseJSON(decrypted);
 
 		if (obj.double_encryption != null && obj.dpasswordhash != null) {
 			double_encryption = obj.double_encryption;
@@ -1565,22 +1597,37 @@ function encrypt(data, password) {
 	return Crypto.AES.encrypt(data, password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : pbkdf2_iterations });
 }
 
-function decrypt(data, password) {
+//When the ecryption format changes it can produce data which appears to decrypt fine but actually didn't
+//So we call success(data) and if it returns true the data was formatted correctly
+function decrypt(data, password, success, error) {
 	try {
 		var decoded = Crypto.AES.decrypt(data, password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : pbkdf2_iterations });
 
-		if (decoded != null && decoded.length > 10) {			
-			return decoded;
-		}
-	} catch (e) { }
+		if (decoded != null && decoded.length > 0) {			
+			if (success(decoded)) {
+				return decoded;
+			};
+		};
+	} catch (e) { 
+		console.log(e);
+	}
 	
-	//Othwise try the old default settings
-	var decoded = Crypto.AES.decrypt(data, password);
-
-	if (decoded == null || decoded.length == 0)
-		throw 'Error decrypting data';
-
-	return decoded;
+	try {
+		//Othwise try the old default settings
+		var decoded = Crypto.AES.decrypt(data, password);
+	
+		if (decoded != null && decoded.length > 0) {			
+			if (success(decoded)) {
+				return decoded;
+			};
+		}; 
+	} catch (e) { 
+		console.log(e);
+	}
+	
+	if (error != null) error();
+	
+	return null;
 }
 
 function backupWallet(method, successcallback, errorcallback, extra) {
@@ -1682,12 +1729,23 @@ function encodePK(priv) {
 	return encryptPK(base58);
 }
 
+function isBase58(str) {
+	for (var i = 0; i < str.length; ++i) {
+		if (str[i] < 0 || str[i] > 58) {
+			return false;
+		}
+	}
+	return true;
+}
+
 function decryptPK(priv) {
 	if (double_encryption) {
 		if (dpassword == null)
 			throw 'Cannot decrypt private key without a password';
 
-		return decrypt(priv, sharedKey + dpassword);
+		return decrypt(priv, sharedKey + dpassword, function(decrypted) {
+			return isBase58(decrypted);
+		});
 	} else {
 		return priv;
 	}
