@@ -1037,7 +1037,6 @@ function internalRestoreWallet() {
 			return false;
 		}
 		
-		
 		var obj = null;
 		decrypt(encrypted_wallet_data, password, function(decrypted) {	
 			try {
@@ -1051,7 +1050,7 @@ function internalRestoreWallet() {
 		});
 
 		if (obj == null) {
-			makeNotice('error', 'misc-error', 'Error Decrypting Wallet');	
+			makeNotice('error', 'misc-error', 'Error Decrypting Wallet. Please check your password is correct.');	
 			return false;
 		}
 
@@ -1594,7 +1593,7 @@ function updateKV(txt, method, value, success, error) {
 	});
 }
 
-//Changed padding to CBC iso10126 9th March 2012 & iterations to 1000
+//Changed padding to CBC iso10126 9th March 2012 & iterations to pbkdf2_iterations
 function encrypt(data, password) {
 	return Crypto.AES.encrypt(data, password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : pbkdf2_iterations });
 }
@@ -1602,6 +1601,8 @@ function encrypt(data, password) {
 //When the ecryption format changes it can produce data which appears to decrypt fine but actually didn't
 //So we call success(data) and if it returns true the data was formatted correctly
 function decrypt(data, password, success, error) {
+
+	//iso10126 with 10 iterations
 	try {
 		var decoded = Crypto.AES.decrypt(data, password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : pbkdf2_iterations });
 
@@ -1613,10 +1614,11 @@ function decrypt(data, password, success, error) {
 	} catch (e) { 
 		console.log(e);
 	}
-	
+
+	//OBC iso7816 padding with one iteration
 	try {
 		//Othwise try the old default settings
-		var decoded = Crypto.AES.decrypt(data, password);
+		var decoded = Crypto.AES.decrypt(data, password, {iterations : 1});
 	
 		if (decoded != null && decoded.length > 0) {			
 			if (success(decoded)) {
@@ -1627,6 +1629,19 @@ function decrypt(data, password, success, error) {
 		console.log(e);
 	}
 	
+	//iso10126 padding with one iteration
+	try {
+		var decoded = Crypto.AES.decrypt(data, password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : 1 });
+
+		if (decoded != null && decoded.length > 0) {			
+			if (success(decoded)) {
+				return decoded;
+			};
+		};
+	} catch (e) { 
+		console.log(e);
+	}
+
 	if (error != null) error();
 	
 	return null;
@@ -3358,6 +3373,12 @@ function bind() {
 
 	$('#deposit').click(function() {
 		loadScript(resource + 'wallet/deposit/deposit.js', function() {
+			showDepositModal(getActiveAddresses()[Math.floor(Math.random() * getActiveAddresses().length)]);
+		});
+	});
+	
+	$('#deposit-bank').click(function() {
+		loadScript(resource + 'wallet/deposit/deposit-bank.js', function() {
 			showDepositModal(getActiveAddresses()[Math.floor(Math.random() * getActiveAddresses().length)]);
 		});
 	});

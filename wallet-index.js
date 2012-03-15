@@ -15,6 +15,12 @@ $(document).ready(function() {
 		});
 	} catch(err) {}
 	
+	$('#youtube-preview').click(function() {
+		$('#youtube-preview').empty();
+		
+		$('#youtube-preview').append('<iframe width="100%" height="256" src="https://www.youtube.com/embed/Um63OQz3bjo?autohide=1&controls=0&showinfo=0&autoplay=1" frameborder="0" allowfullscreen></iframe>');
+	});
+	
 	//Uservoice
 	setTimeout(function() {
 		$('head').append('<script type="text/javascript" src="https://widget.uservoice.com/4wr7K1dKGPbvxshWQTrTg.js"></script>');		
