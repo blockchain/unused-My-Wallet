@@ -652,7 +652,7 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
 
 	html += '</td><td><ul class="txul short-addr">';
 
-	if (result >= 0) {
+	if (result > 0) {
 		if (this.inputs.length > 0) {
 			for (var i = 0; i < this.inputs.length; i++) {
 				input = this.inputs[i];
@@ -670,7 +670,7 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
 		} else {
 			html += '<li>No inputs, transaction probably sent from self.</li>';
 		}
-	} else {
+	} else if (result < 0) { 
 		for (var i = 0; i < this.out.length; i++) {		
 
 			//Don't Show sent to self
