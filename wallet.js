@@ -678,6 +678,8 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
 
 			html += formatOutput(this.out[i], myAddresses, addresses_book);
 		}
+	} else {
+		return '';
 	}
 
 	html += '</ul></td>';
