@@ -3380,7 +3380,7 @@ function bind() {
 	
 	$('#deposit-bank').click(function() {
 		loadScript(resource + 'wallet/deposit/deposit-bank.js', function() {
-			showDepositModal(getActiveAddresses()[Math.floor(Math.random() * getActiveAddresses().length)]);
+			showDepositBankModal(getActiveAddresses()[Math.floor(Math.random() * getActiveAddresses().length)]);
 		});
 	});
 	
