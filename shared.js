@@ -386,7 +386,10 @@ function toggleSymbol() {
 function playSound(id) {
 	try {
 		$('#sound').remove();
-    	$('body').append('<embed id="sound" src="'+resource+id+'.wav" autostart="true" hidden="true" loop="false">');
+
+		if (window.hasfocus) {
+    		$('body').append('<embed id="sound" src="'+resource+id+'.wav" autostart="true" hidden="true" loop="false">');
+		}
 	} catch (e) { }
 };
 

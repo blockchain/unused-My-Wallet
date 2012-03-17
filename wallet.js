@@ -958,12 +958,10 @@ function extractKVFromHash() {
 	var map = [];
 
 	if (hash != null && hash.length > 0) {
-		var didChangeWallet = false;
 		var components = hash.split("|");
 		for (var i = 0; i < components.length; i += 2) {
 			var key = components[i];
 			var value = components[i+1];
-
 			map[key] = value;
 		}	
 	}
@@ -983,7 +981,8 @@ function didDecryptWallet() {
 			if (addresses[newAddrVal] != null)
 				return;
 
-			var address = new Bitcoin.Address(newAddrVal);
+			//Will through format exception if invalid
+			new Bitcoin.Address(newAddrVal);
 
 			if (walletIsFull())
 				return;
