@@ -3974,6 +3974,7 @@ $(document).ready(function() {
 	//Load data attributes from html
 	encrypted_wallet_data = $('#data-encrypted').text();
 	guid = $('#data-guid').text();
+	sharedKey = $('#data-sharedkey').text();
 	sync_pubkeys = $('#sync-pubkeys').text();
 
 	$('body').ajaxStart(function() {
@@ -3984,8 +3985,12 @@ $(document).ready(function() {
 		$('.loading-indicator').fadeOut(200);
 	});
 
-	$('.tabs').tabs();
-
+	try {
+		$('.tabs').tabs();
+	} catch (e) {
+		console.log(e);
+	}
+	
 	try {
 		if (guid.length == 0) {
 			try {
