@@ -1494,19 +1494,24 @@ function getAccountInfo() {
 			$('.alias').text('https://blockchain.info/wallet/'+data.alias);
 			$('.alias').show(200);
 		}
-
-		var device_qr = makeQRCode(300, 300, 1 , guid + '|' + sharedKey + '|' + password);
+		
+		try {
+			var device_qr = makeQRCode(300, 300, 1 , guid + '|' + sharedKey + '|' + password);
+		
+			$('#device-qr-code').empty().append(device_qr);
 	
-		$('#device-qr-code').empty().append(device_qr);
-
-		if (data.google_secret_url != null && data.google_secret_url.length > 0) {
-			console.log(data.google_secret_url);
-
-			var qr = makeQRCode(300, 300, 1 , data.google_secret_url);
-
-			$('#wallet-google-qr').empty().append(qr);
+			if (data.google_secret_url != null && data.google_secret_url.length > 0) {
+				console.log(data.google_secret_url);
+	
+				var qr = makeQRCode(300, 300, 1 , data.google_secret_url);
+	
+				$('#wallet-google-qr').empty().append(qr);
+			}
+			
+		} catch (e) {
+			console.log(e);
 		}
-
+		
 		if (data.dropbox_enabled == 1)
 			$('#wallet-dropbox-enabled').prop("checked", true);
 		else
@@ -1522,8 +1527,6 @@ function getAccountInfo() {
 			$('#verify-email').show();
 			$('#email-verified').hide();
 		} else {
-			
-			console.log('hide verify');
 			
 			$('#verify-email').hide();
 			$('#email-verified').show();
