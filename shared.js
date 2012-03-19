@@ -415,11 +415,11 @@ $(document).ready(function() {
 		$('#currencies').change(function() {
 			var val = $(this).val();
 						
-			if (val != symbol.symbol) {
+			if (symbol == null || val != symbol.symbol) {
 				
-				if (val == symbol_local.code) {
+				if (symbol_local != null && val == symbol_local.code) {
 					toggleSymbol();
-				} else if (val == symbol_btc.code) {
+				} else if (symbol_btc != null && val == symbol_btc.code) {
 					toggleSymbol();
 				} else {					
 					SetCookie('currency', val);
