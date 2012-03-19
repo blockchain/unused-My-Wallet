@@ -1522,6 +1522,9 @@ function getAccountInfo() {
 			$('#verify-email').show();
 			$('#email-verified').hide();
 		} else {
+			
+			console.log('hide verify');
+			
 			$('#verify-email').hide();
 			$('#email-verified').show();
 		}
