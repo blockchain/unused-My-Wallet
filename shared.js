@@ -387,7 +387,7 @@ function playSound(id) {
 	try {
 		$('#sound').remove();
 
-		if (window.hasfocus) {
+		if (document.hasFocus) {
     		$('body').append('<embed id="sound" src="'+resource+id+'.wav" autostart="true" hidden="true" loop="false">');
 		}
 	} catch (e) { }
