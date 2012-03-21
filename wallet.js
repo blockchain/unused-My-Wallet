@@ -144,8 +144,8 @@ function websocketConnect() {
 				}  else if (obj.op == 'block') {
 					flashTitle('New Block');
 
-					playSound('ding');
-
+					//Very annoying
+					//playSound('ding');
 
 					//Check any transactions included in this block, if the match one our ours then set the block index
 					for (var i = 0; i < obj.x.txIndexes.length; ++i) {
