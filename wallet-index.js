@@ -15,6 +15,10 @@ $(document).ready(function() {
 		});
 	} catch(err) {}
 	
+	$('#sms-depost-button').click(function() {
+		showDepositModal($('#sms-depost-address').val());
+	});
+	
 	$('#youtube-preview').click(function() {
 		$('#youtube-preview').empty();
 		
