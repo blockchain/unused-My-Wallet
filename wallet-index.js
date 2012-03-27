@@ -16,7 +16,7 @@ $(document).ready(function() {
 	} catch(err) {}
 	
 	$('#sms-depost-button').click(function() {
-		loadScript('./deposit/deposit.js', function() {
+		loadScript('/Resources/wallet/deposit/deposit.js', function() {
 			showDepositModal($('#sms-depost-address').val());
 		});
 	});
