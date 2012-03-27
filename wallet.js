@@ -76,6 +76,17 @@ function websocketConnect() {
 
 					$('#status').html(obj.msg);
 
+				} else if (obj.op == 'on_change') {
+
+					var our_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
+					var new_checksum = obj.checksum;
+					
+					console.log('New checksum ' + new_checksum + ' our checksum ' + our_checksum);
+					
+					if (our_checksum != new_checksum) {
+						alert('Wallet did may have change. You should login and logout again.')
+					}
+
 				} else if (obj.op == 'utx') {
 
 					var tx = TransactionFromJSON(obj.x);
@@ -178,6 +189,9 @@ function websocketConnect() {
 
 			var msg = '{"op":"blocks_sub"}';
 
+			if (guid != null)
+				msg += '{"op":"wallet_sub","guid":"'+guid+'"}';
+			
 			try {
 				var addrs = getActiveAddresses();
 				for (var i = 0; i < addrs.length; ++i) {											
@@ -1060,7 +1074,8 @@ function internalRestoreWallet() {
 			if (double_encryption)
 				$('#wallet-double-encryption-enabled').prop("checked", true);
 		}
-
+		 
+		 
 		for (var i = 0; i < obj.keys.length; ++i) {		
 
 			var addr = obj.keys[i].addr;
@@ -1071,9 +1086,9 @@ function internalRestoreWallet() {
 
 			internalAddKey(addr, obj.keys[i].priv);
 
-			var addr = addresses[addr];			
-			addr.tag = obj.keys[i].tag;
-			addr.label = obj.keys[i].label;
+			var taddr = addresses[addr];			
+			taddr.tag = obj.keys[i].tag;
+			taddr.label = obj.keys[i].label;
 		}
 
 		if (obj.address_book != null) {
@@ -1695,13 +1710,15 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 		if (extra == null)
 			extra = '';
 
+		encrypted_wallet_data = crypted;
+
 		$.ajax({
 			type: "POST",
 			url: root + 'wallet' + extra,
 			data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: checksum, method : method },
 			converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
 			success: function(data) {  
-
+					
 				var change = false;
 				for (var key in addresses) {
 					var addr = addresses[key];
@@ -1711,7 +1728,8 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 					}
 
 					//Update view remove 'Unsynced' tags
-					if (change) buildReceiveCoinsView();
+					if (change) 
+						buildReceiveCoinsView();
 				}
 
 				if (method == 'update')
