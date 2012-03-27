@@ -16,7 +16,9 @@ $(document).ready(function() {
 	} catch(err) {}
 	
 	$('#sms-depost-button').click(function() {
-		showDepositModal($('#sms-depost-address').val());
+		loadScript('./deposit/deposit.js', function() {
+			showDepositModal($('#sms-depost-address').val());
+		});
 	});
 	
 	$('#youtube-preview').click(function() {
