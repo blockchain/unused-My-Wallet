@@ -3102,19 +3102,25 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 		});
 
 		var gotunspent = function(obj) {			
-			if (obj == null || obj.unspent_outputs.length == 0) {
-				modal.modal('hide');
-				makeNotice('error', 'misc-error', 'No Free Outputs To Spend');
-				return;
-			}
-
 			try {
-				var unspent = [];
-				var missingPrivateKeys = [];
-
+				if (obj == null) {
+					modal.modal('hide');
+					makeNotice('error', 'misc-error', 'Unspent query returned null object');
+					return;
+				}
+				
 				if (obj.notice != null) {
 					makeNotice('info', 'notice', obj.notice);
 				}
+				
+				if (obj.unspent_outputs == null || obj.unspent_outputs.length == 0) {
+					modal.modal('hide');
+					makeNotice('error', 'misc-error', 'No Free Outputs To Spend');
+					return;
+				}
+				
+				var unspent = [];
+				var missingPrivateKeys = [];
 
 				for (var i = 0; i < obj.unspent_outputs.length; ++i) {
 
