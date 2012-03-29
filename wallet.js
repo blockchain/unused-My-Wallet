@@ -1493,6 +1493,9 @@ function getAccountInfo() {
 
 		$('#wallet-phrase').val(data.phrase);
 
+		
+		console.log('Auth type ' + data.auth_type);
+		
 		$('#two-factor-select').val(data.auth_type);
 		$('.two-factor').hide();
 		$('.two-factor.t'+data.auth_type).show(200);
@@ -3534,8 +3537,8 @@ function bind() {
 	$('#two-factor-select').change(function() {
 		var val = parseInt($(this).val());
 
+		
 		updateKV('Updating Two Factor Authentication', 'update-auth-type', val, function() {
-
 			//For Google Authenticator we need to refetch the account info to fetch the QR Code
 			if (val == 4) {
 				getAccountInfo();
