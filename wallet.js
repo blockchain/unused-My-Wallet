@@ -3407,14 +3407,27 @@ function bind() {
 	});
 
 	$('#deposit').click(function() {
-		loadScript(resource + 'wallet/deposit/deposit.js', function() {
-			showDepositModal(getActiveAddresses()[Math.floor(Math.random() * getActiveAddresses().length)]);
+		loadScript(resource + 'wallet/deposit/deposit.js', function() {			
+			for (var key in addresses) {
+				var addr = addresses[key];
+				if (addr.priv != null && addr.tag != 2) {
+					showDepositModal(addr.addr);
+					break;
+				}
+			}
 		});
 	});
 	
 	$('#deposit-bank').click(function() {
 		loadScript(resource + 'wallet/deposit/deposit-bank.js', function() {
-			showDepositBankModal(getActiveAddresses()[Math.floor(Math.random() * getActiveAddresses().length)]);
+			
+			for (var key in addresses) {
+				var addr = addresses[key];
+				if (addr.priv != null && addr.tag != 2) {
+					showDepositBankModal(addr.addr);
+					break;
+				}
+			}
 		});
 	});
 	
