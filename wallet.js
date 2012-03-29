@@ -78,13 +78,14 @@ function websocketConnect() {
 
 				} else if (obj.op == 'on_change') {
 
+					
+					console.log(encrypted_wallet_data);
+					
 					var our_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
 					var new_checksum = obj.checksum;
-					
-					console.log('New checksum ' + new_checksum + ' our checksum ' + our_checksum);
-					
-					if (our_checksum != new_checksum) {
-						alert('Wallet did may have change. You should login and logout again.')
+										
+					if (''+our_checksum != ''+new_checksum) {
+						alert('Wallet has changed. You should login and logout again.')
 					}
 
 				} else if (obj.op == 'utx') {
@@ -1715,6 +1716,8 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 
 		encrypted_wallet_data = crypted;
 
+		console.log(encrypted_wallet_data);
+		
 		$.ajax({
 			type: "POST",
 			url: root + 'wallet' + extra,
