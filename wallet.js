@@ -81,6 +81,8 @@ function websocketConnect() {
 					var our_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
 					var new_checksum = obj.checksum;
 										
+					console.log(our_checksum + ' != ' + new_checksum);
+					
 					if (''+our_checksum != ''+new_checksum) {
 						alert('Wallet has changed. You should login and logout again.');
 					}
