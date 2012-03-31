@@ -83,7 +83,7 @@ function websocketConnect() {
 										
 					console.log(our_checksum + ' != ' + new_checksum);
 					
-					if (''+our_checksum != ''+new_checksum) {
+					if ($.trim(''+our_checksum) != $.trim(''+new_checksum)) {
 						alert('Wallet has changed. You should login and logout again.');
 					}
 
