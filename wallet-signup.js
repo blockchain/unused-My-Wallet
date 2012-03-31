@@ -33,7 +33,7 @@ function generateNewWallet() {
 			
 			changeView($("#new-wallet-success"));
 
-			$('#new-wallet-url').html('http://www.blockchain.info/wallet/' + guid);
+			$('#new-wallet-url').html('https://blockchain.info/wallet/' + guid);
 			
 			isInitialized = true;
 		}, function() {
