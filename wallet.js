@@ -1512,6 +1512,8 @@ function getAccountInfo() {
 		$('#notifications-confirmations').val(data.notifications_confirmations);
 		$('#notifications-on').val(data.notifications_on);
 
+		
+
 		if (data.alias != null && data.alias.length > 0) {
 			$('#wallet-alias').val(data.alias);
 			$('.alias').text('https://blockchain.info/wallet/'+data.alias);
@@ -1539,7 +1541,14 @@ function getAccountInfo() {
 			$('#wallet-dropbox-enabled').prop("checked", true);
 		else
 			$('#wallet-dropbox-enabled').prop("checked", false);
+		
 
+		if (data.auto_email_backup == 1)
+			$('#auto-email-backup').prop("checked", true);
+		else
+			$('#auto-email-backup').prop("checked", false);
+
+		
 		$('#wallet-http-url').val(data.http_url);
 
 		$('#wallet-http-url').val(data.http_url);
@@ -3560,8 +3569,12 @@ function bind() {
 		updateKV('Updating Notifications Settings', 'update-notifications-on', $(this).val());
 	});
 
-	$('#notifications-confirmations').change(function() {
-		updateKV('Updating Notifications Settings', 'update-notifications-confirmations', $(this).val());
+	$('#notifications-on').change(function() {
+		updateKV('Updating Notifications Settings', 'update-notifications-on', $(this).val());
+	});
+
+	$('#auto-email-backup').change(function() {
+		updateKV('Updating Auto Backup Settings', 'update-auto-email-backup', $(this).is(':checked'));
 	});
 
 	$('#two-factor-select').change(function() {
@@ -3998,6 +4011,9 @@ function bind() {
 	});
 
 	$("#receive-coins-btn").click(function() {
+		if (!isInitialized)
+			return;
+		
 		changeView($("#receive-coins"));
 
 		buildReceiveCoinsView();
@@ -4115,8 +4131,6 @@ function showAddressModal(data) {
 		show: true
 	});
 
-	modal.center();
-
 	var body = modal.find('.modal-body');
 
 	var canvas = makeQRCode(300,300,1,data);
@@ -4147,6 +4161,8 @@ function showAddressModal(data) {
 		modal.modal('hide');
 		labelAddress(data);
 	});
+	
+	modal.center();
 }
 
 
