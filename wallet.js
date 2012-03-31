@@ -377,10 +377,12 @@ function buildSendTxView() {
 
 	var el = $('#address-book-tbl tbody');
 
-	el.empty();
-
-	for (var key in address_book) {
-		el.append('<tr><td>'+ address_book[key] + '</td><td><div class="addr-book-entry">'+ key + '</div></td><td style="width:16px" class="can-hide"><img src="'+resource+'delete.png" onclick="deleteAddressBook(\''+key+'\')" /></td><td><img src="' + resource+ 'paste.png" onclick="pasteAddress(\''+ key + '\')"></tr>');
+	if (nKeys(address_book) > 0) {
+		el.empty();
+	
+		for (var key in address_book) {
+			el.append('<tr><td>'+ address_book[key] + '</td><td><div class="addr-book-entry">'+ key + '</div></td><td style="width:16px" class="can-hide"><img src="'+resource+'delete.png" onclick="deleteAddressBook(\''+key+'\')" /></td><td><img src="' + resource+ 'paste.png" onclick="pasteAddress(\''+ key + '\')"></tr>');
+		}
 	}
 
 	var send_tx_form = $('#send-tx-form');
@@ -750,8 +752,12 @@ function buildTransactionsView() {
 
 	$('#summary-balance').html(formatMoney(final_balance, true));
 
-	if (transactions.length == 0)
+	if (transactions.length == 0) {
+		$('#transactions-header').hide();
 		return;
+	} else {
+		$('#transactions-header').show();
+	}
 
 	var interval = null;
 	var start = 0;
@@ -1291,6 +1297,7 @@ function getReadyForOffline() {
 
 	//Preload some images
 	new Image().src = resource + 'qrcode.png';
+	new Image().src = resource + 'info.png';
 	new Image().src = resource + 'archive.png';
 	new Image().src = resource + 'label.png';
 	new Image().src = resource + 'paste.png';
@@ -3398,6 +3405,74 @@ function downloadBackup() {
 	window.open(root + 'wallet/wallet.aes.json?guid=' + guid + '&sharedKey=' + sharedKey);
 }
 
+function delayLoad() {
+	try {	
+		$(function () {
+		 $(".pop")
+		   .popover({
+		     offset: 10,
+		     placement : 'left'
+		   });
+		});
+	} catch(e) {}
+	
+
+	//Virtual On-Screen Keyboard
+	var $write = $('#second-password'),
+	shift = false,
+	capslock = false;
+
+	$('#keyboard li').click(function(){
+		var $this = $(this),
+		character = $this.html(); // If it's a lowercase letter, nothing happens to this variable
+
+		// Shift keys
+		if ($this.hasClass('left-shift') || $this.hasClass('right-shift')) {
+			$('.letter').toggleClass('uppercase');
+			$('.symbol span').toggle();
+
+			shift = (shift === true) ? false : true;
+			capslock = false;
+			return false;
+		}
+
+		// Caps lock
+		if ($this.hasClass('capslock')) {
+			$('.letter').toggleClass('uppercase');
+			capslock = true;
+			return false;
+		}
+
+		// Delete
+		if ($this.hasClass('delete')) {
+			var html = $write.val();
+
+			$write.val(html.substr(0, html.length - 1));
+			return false;
+		}
+
+		// Special characters
+		if ($this.hasClass('symbol')) character = $('span:visible', $this).html();
+		if ($this.hasClass('space')) character = ' ';
+		if ($this.hasClass('tab')) character = "\t";
+		if ($this.hasClass('return')) character = "\n";
+
+		// Uppercase letter
+		if ($this.hasClass('uppercase')) character = character.toUpperCase();
+
+		// Remove shift once a key is clicked.
+		if (shift === true) {
+			$('.symbol span').toggle();
+			if (capslock === false) $('.letter').toggleClass('uppercase');
+
+			shift = false;
+		}
+
+		// Add the character
+		$write.val($write.val() + character);
+	});
+}
+
 function bind() {
 	
 	$('body').click(function() {
@@ -3489,65 +3564,8 @@ function bind() {
 		updateKV('Updating Notifications Settings', 'update-notifications-confirmations', $(this).val());
 	});
 
-	//Virtual On-Screen Keyboard
-	var $write = $('#second-password'),
-	shift = false,
-	capslock = false;
-
-	$('#keyboard li').click(function(){
-		var $this = $(this),
-		character = $this.html(); // If it's a lowercase letter, nothing happens to this variable
-
-		// Shift keys
-		if ($this.hasClass('left-shift') || $this.hasClass('right-shift')) {
-			$('.letter').toggleClass('uppercase');
-			$('.symbol span').toggle();
-
-			shift = (shift === true) ? false : true;
-			capslock = false;
-			return false;
-		}
-
-		// Caps lock
-		if ($this.hasClass('capslock')) {
-			$('.letter').toggleClass('uppercase');
-			capslock = true;
-			return false;
-		}
-
-		// Delete
-		if ($this.hasClass('delete')) {
-			var html = $write.val();
-
-			$write.val(html.substr(0, html.length - 1));
-			return false;
-		}
-
-		// Special characters
-		if ($this.hasClass('symbol')) character = $('span:visible', $this).html();
-		if ($this.hasClass('space')) character = ' ';
-		if ($this.hasClass('tab')) character = "\t";
-		if ($this.hasClass('return')) character = "\n";
-
-		// Uppercase letter
-		if ($this.hasClass('uppercase')) character = character.toUpperCase();
-
-		// Remove shift once a key is clicked.
-		if (shift === true) {
-			$('.symbol span').toggle();
-			if (capslock === false) $('.letter').toggleClass('uppercase');
-
-			shift = false;
-		}
-
-		// Add the character
-		$write.val($write.val() + character);
-	});
-
-
 	$('#two-factor-select').change(function() {
 		var val = parseInt($(this).val());
-
 		
 		updateKV('Updating Two Factor Authentication', 'update-auth-type', val, function() {
 			//For Google Authenticator we need to refetch the account info to fetch the QR Code
@@ -3954,8 +3972,16 @@ function bind() {
 	});
 
 	$('#remove-recipient').click(function() {
-		if ($("#recipient-container .recipient").children().length > 1)
+		var n = $("#recipient-container .recipient").length;
+		
+		console.log(n);
+		
+		if (n > 1) {
+			if (n == 2) 
+				$('#remove-recipient').hide(200);
+			
 			$("#recipient-container .recipient:last-child").remove();
+		}
 	});
 
 	$('#add-recipient').click(function() {
@@ -3967,6 +3993,8 @@ function bind() {
 		el.find('input[name="send-to-address"]').val('');
 
 		el.find('input[name="send-value"]').val('');
+		
+		$('#remove-recipient').show(200);
 	});
 
 	$("#receive-coins-btn").click(function() {
@@ -4013,6 +4041,9 @@ function privateKeyStringToKey(value, format) {
 
 $(document).ready(function() {	
 	setTimeout(bind, 100);
+	
+	setTimeout(delayLoad, 500);
+
 
 	//Load data attributes from html
 	encrypted_wallet_data = $('#data-encrypted').text();
@@ -4075,14 +4106,7 @@ function parseMiniKey(miniKey) {
 	}    
 };
 
-function hideqrcode(id, addr) {
-	$('.qrcode').remove();
-	$('.popover').remove();
-	$('#' +id).popover('hide');
-}
-
 function showAddressModal(data) {
-
 	var modal = $('#qr-code-modal');
 
 	modal.modal({
@@ -4208,7 +4232,7 @@ function buildReceiveCoinsView() {
 			extra = '<span class="can-hide"> - ' + addr.addr + '</span>';
 		}
 
-		var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'" onclick="showAddressModal(\'' + addr.addr +'\')" src="'+resource+'qrcode.png" /></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td>';
+		var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'" onclick="showAddressModal(\'' + addr.addr +'\')" src="'+resource+'info.png" /></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td>';
 
 		if (addr.tag != 2)
 			thtml += '<td><span id="'+addr.addr+'" style="color:green">' + balance +'</span></td>';

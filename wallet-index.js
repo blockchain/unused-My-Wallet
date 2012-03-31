@@ -2,7 +2,9 @@ $(document).ready(function() {
 	
 	try {
 		$('.slidedeck').slidedeck();
-	
+	} catch(err) {}
+
+	try {
 		//Popovers! 
 		$(function () {
 		 $("a[rel=popover]")
