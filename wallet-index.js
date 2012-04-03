@@ -39,4 +39,21 @@ $(document).ready(function() {
 	setTimeout(function() {
 		$('head').append('<script type="text/javascript" src="https://widget.uservoice.com/4wr7K1dKGPbvxshWQTrTg.js"></script>');		
 	}, 1000);
+	
+	
+	if ($('#slideshow').length > 0) {
+		var i = 0;
+		var changeImage = function() {
+			++i;
+			
+			if (i == 3)
+				i = 0;
+			
+			$('#slideshow img').hide();
+	
+			$('#slideshow img').eq(i).fadeIn();
+		};
+		
+		setInterval(changeImage, 7000);
+	}
 });
