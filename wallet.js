@@ -3420,7 +3420,7 @@ function delayLoad() {
 		 $(".pop")
 		   .popover({
 		     offset: 10,
-		     placement : 'left'
+		     placement : 'top'
 		   });
 		});
 	} catch(e) {}
