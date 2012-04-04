@@ -441,11 +441,13 @@ $(document).ready(function() {
 });
 
 function registerURIHandler() {
-	if (navigator) {
+	if (navigator && getCookie('protoreg') == null) {
 		try {
 			navigator.registerProtocolHandler("bitcoin",
 					window.location.protocol + '//' + window.location.hostname + "/uri?uri=%s",
 	               "Blockchain.info");
+			
+			setCooke('protoreg', true);
 		} catch(e) {
 			console.log(e);
 		}
