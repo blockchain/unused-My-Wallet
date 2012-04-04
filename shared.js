@@ -436,7 +436,21 @@ $(document).ready(function() {
 		
 		setAdv(show_adv);
 	} catch (e) {}
+	
+	registerURIHandler();	
 });
+
+function registerURIHandler() {
+	if (navigator) {
+		try {
+			navigator.registerProtocolHandler("bitcoin",
+					window.location.protocol + '//' + window.location.hostname + "/uri?uri=%s",
+	               "Blockchain.info");
+		} catch(e) {
+			console.log(e);
+		}
+	}
+}
 
 var titleInterval = null;
 var titleStart;
