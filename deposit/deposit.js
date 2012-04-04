@@ -1,11 +1,12 @@
-function showDepositModal(address) {
+function showDepositModal(address, method, title) {
 	loadScript(resource + 'wallet/bootstrap-modal.js', function () {
 
-		$('#deposit-sms-modal').remove();
+		$('#deposit-modal').remove();
+		
+		if ($('#deposit-modal').length == 0)
+			$('body').append('<div id="deposit-modal" class="modal hide fade" style="width:100%;max-width:700px;"><div class="modal-header"><a href="#" class="close">&times;</a><h3>'+title+'</h3></div><div class="modal-body"><iframe id="deposit-frame" border="0" scrolling="no" style="overflow-y:hidden;border-style:none;width:100%;height:425px"></iframe></div><div class="modal-footer">Deposit Bitcoin into address <b>'+address+'</b> <a class="btn secondary">Close</a></div></div>');
 
-		$('body').append('<div id="deposit-sms-modal" class="modal hide fade" style="width:100%;max-width:700px;"><div class="modal-header"><a href="#" class="close">&times;</a><h3>Deposit Using Phone/SMS</h3></div><div class="modal-body"><iframe src="/deposit?address='+address+'" border="0" scrolling="no" style="overflow-y:hidden;border-style:none;width:100%;height:325px"></iframe></div><div class="modal-footer">Deposit Bitcoin into address <b>'+address+'</b> <a class="btn secondary">Close</a></div></div>');
-
-		var modal = $('#deposit-sms-modal');
+		var modal = $('#deposit-modal');
 
 		modal.modal({
 			keyboard: true,
@@ -23,5 +24,7 @@ function showDepositModal(address) {
 
 		if (modal.center)
 			modal.center();
+		
+		$('#deposit-frame').attr('src', '/deposit?address='+address+'&method='+method);
 	});
 }

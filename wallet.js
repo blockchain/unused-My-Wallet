@@ -3493,7 +3493,7 @@ function bind() {
 			for (var key in addresses) {
 				var addr = addresses[key];
 				if (addr.priv != null && addr.tag != 2) {
-					showDepositModal(addr.addr);
+					showDepositModal(addr.addr, 'sms', 'Deposit Using Phone/SMS');
 					break;
 				}
 			}
@@ -3501,12 +3501,12 @@ function bind() {
 	});
 	
 	$('#deposit-bank').click(function() {
-		loadScript(resource + 'wallet/deposit/deposit-bank.js', function() {
+		loadScript(resource + 'wallet/deposit/deposit.js', function() {
 			
 			for (var key in addresses) {
 				var addr = addresses[key];
 				if (addr.priv != null && addr.tag != 2) {
-					showDepositBankModal(addr.addr);
+					showDepositModal(addr.addr, 'direct', 'Deposit Using Bank Transfer / Credit Card');
 					break;
 				}
 			}
