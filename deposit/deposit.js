@@ -25,6 +25,6 @@ function showDepositModal(address, method, title) {
 		if (modal.center)
 			modal.center();
 		
-		$('#deposit-frame').attr('src', '/deposit?address='+address+'&method='+method);
+		$('#deposit-frame').attr('src', '/deposit?address='+address+'&ptype='+method);
 	});
 }
