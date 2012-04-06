@@ -128,20 +128,20 @@ $(document).ready(function() {
 				updateKV('Updating Email', 'update-email', email, function() {
 					window.location = root + 'wallet/' + guid + window.location.hash;
 				}, function() {
-					$(this).attr("disabled", true);
+					$(this).attr("disabled", false);
 				});
 			});
 		} else if (email.length > 0) {
 			updateKV('Updating Email', 'update-email', email, function() {
 					window.location = root + 'wallet/' + guid + window.location.hash;
-			},function() {
-				$(this).attr("disabled", true);
+			}, function() {
+				$(this).attr("disabled", false);
 			});
 		} else if (alias.length > 0) {
 			updateKV('Updating Alias', 'update-alias', alias, function() {
 				window.location = root + 'wallet/' + guid + window.location.hash;
 			}, function() {
-				$(this).attr("disabled", true);
+				$(this).attr("disabled", false);
 			});
 		} else {
 			window.location = root + 'wallet/' + guid + window.location.hash;
