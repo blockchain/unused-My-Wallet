@@ -2210,9 +2210,16 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 		sendTx.addInput(selectedOuts[i]);
 	}
 
+	var askforfee = false;
 	for (var i =0; i < toAddresses.length; ++i) {	
 		var addrObj = toAddresses[i];
 
+		
+		//If less than 0.01 BTC show warning
+		if (addrObj.value.compareTo(BigInteger.valueOf(100000)) < 0) {
+			askforfee = true;
+		}
+		
 		if (addrObj.m != null) {
 			sendTx.addOutputScript(Bitcoin.Script.createMultiSigOutputScript(addrObj.m, addrObj.pubkeys), addrObj.value);
 		} else {
@@ -2245,7 +2252,7 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 	console.log(priority);
 
 	//Proority under 57 million requires a 0.0005 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
-	if ((priority < 57600000 || kilobytes > 1 || isEscrow) && (minersfee == null || minersfee.intValue() == 0)) {	
+	if ((priority < 57600000 || kilobytes > 1 || isEscrow || askforfee) && (minersfee == null || minersfee.intValue() == 0)) {	
 		askToIncludeFee(function() {
 			makeTransaction(toAddresses, fromAddress, BigInteger.valueOf(50000), unspentOutputs, selectedOuts, changeAddress, success, error);
 		}, function() {
