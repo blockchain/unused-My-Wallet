@@ -3427,7 +3427,7 @@ function delayLoad() {
 		 $(".pop")
 		   .popover({
 		     offset: 10,
-		     placement : 'top'
+		     placement : 'bottom'
 		   });
 		});
 	} catch(e) {}
@@ -3503,6 +3503,18 @@ function bind() {
 					showDepositModal(addr.addr, 'sms', 'Deposit Using Phone/SMS');
 					break;
 				}
+			}
+		});
+	});
+	
+	$('#payment-request').click(function() {
+		loadScript(resource + 'wallet/payment-request.js', function() {			
+			for (var key in addresses) {
+				var addr = addresses[key];
+				
+				showPaymentRequestModal(addr.addr, 'Payment Request');
+				
+				break;
 			}
 		});
 	});
