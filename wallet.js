@@ -1747,6 +1747,20 @@ function decrypt(data, password, success, error) {
 	return null;
 }
 
+function updateCacheManifest() {
+	try {
+		var appCache = window.applicationCache;
+
+		appCache.update(); 
+
+		if (appCache.status == window.applicationCache.UPDATEREADY) {
+		  appCache.swapCache();  // The fetch was successful, swap in the new cache.
+		}
+	} catch (e) {
+		console.log(e);
+	}
+}
+
 function backupWallet(method, successcallback, errorcallback, extra) {
 	if (offline) return;
 
@@ -1815,6 +1829,8 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 
 				if (successcallback != null)
 					successcallback();
+				
+				updateCacheManifest();
 			},
 
 			error : function(data) {
@@ -3276,7 +3292,6 @@ function newTx() {
 
 	getSecondPassword(function() {
 
-		var modal = null;
 		var changeAddress = null;
 		var fromAddress = null;
 		var toAddresses = [];
