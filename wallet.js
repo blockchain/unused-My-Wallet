@@ -2159,6 +2159,9 @@ function pushTx(tx) {
 		setTimeout(function() { 
 			if (transactions.length == size)
 				queryAPIMultiAddress(); 
+			
+			//Refresh the unspent output cache
+			getUnspentOutputs();
 		}, 1000);
 
 		makeNotice('success', 'misc-success', data);  
