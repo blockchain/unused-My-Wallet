@@ -77,10 +77,13 @@ function websocketConnect() {
 
 				} else if (obj.op == 'on_change') {
 
+					
 					var our_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
 					var new_checksum = obj.checksum;
 															
 					if (toString(our_checksum) != toString(new_checksum)) {
+						updateCacheManifest();
+
 						alert('Wallet has changed. You should login and logout again.');
 					}
 
@@ -1749,12 +1752,14 @@ function decrypt(data, password, success, error) {
 
 function updateCacheManifest() {
 	try {
+		console.log('Clear Cache Manifest');
+		
 		var appCache = window.applicationCache;
 
 		appCache.update(); 
 
 		if (appCache.status == window.applicationCache.UPDATEREADY) {
-		  appCache.swapCache();  // The fetch was successful, swap in the new cache.
+			appCache.swapCache();  // The fetch was successful, swap in the new cache.
 		}
 	} catch (e) {
 		console.log(e);
