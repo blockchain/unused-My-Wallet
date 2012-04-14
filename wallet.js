@@ -23,7 +23,6 @@ var nconnected; //Number of nodes blockchain.info is connected to
 var addresses = []; //{addr : address, priv : private key, tag : tag (mark as archived), label : label, balance : balance}
 var loading_text = ''; //Loading text for ajax activity 
 var offline = false; //If on offline or online mode
-var unspent_cache = null; //Before entering offline mode unspent outputs are downloaded and cached here
 var pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
 
 $.fn.center = function () {
@@ -950,17 +949,17 @@ function queryAPIMultiAddress() {
 				//Refresh transactions (Only if visible)
 				buildTransactionsView();
 
+				try {
+					//Cache results to show next login
+					if (tx_page == 0 && tx_filter == 0)
+						localStorage.setItem('multiaddr', data);
+				} catch (e) { }
+				
 			} catch (e) {
 				console.log(data);
 
 				console.log(e);
 			}
-
-			try {
-				//Cache results to show next login
-				if (tx_page == 0 && tx_filter == 0)
-					localStorage.setItem('multiaddr', data);
-			} catch (e) { }
 		},
 
 		error : function(data) {	
@@ -1275,6 +1274,65 @@ function showPrivateKeyModal(success, error, addr) {
 	});
 }
 
+function getUnspentOutputs(success, error) {
+	//Get unspent outputs
+	
+	$.ajax({
+		type: "POST",
+		url: root +'unspent',
+		data: {'addr[]' : getAllAddresses()},
+		converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": $.parseXML},
+		success: function(data) {  
+			try {
+				var obj = $.parseJSON(data);
+				
+				if (obj == null) {
+					makeNotice('error', 'misc-error', 'Unspent returned null object');
+					return;
+				}
+				
+				if (obj.error != null) {
+					makeNotice('error', 'misc-error', obj.error);  
+				}
+	
+				if (obj.notice != null) {
+					makeNotice('notice', 'misc-notice', obj.notice);  
+				}
+	
+				//Save the unspent cache
+				try {
+					localStorage.setItem('unspent', data);
+				} catch (e) { }
+	
+				if (success) 
+					success(obj);
+			} catch (e) {
+				console.log(e);
+			}
+		},
+		error: function (data) {
+			try {
+				var cache = localStorage.getItem('unspent');
+				
+				if (cache != null) {
+					var obj = $.parseJSON(cache);
+
+					success(obj);
+					
+					return;
+				}
+			} catch (e) { 
+				console.log(e);
+			}
+			
+			makeNotice('error', 'misc-error', data.responseText, 10000); 
+			
+			if (error) 
+				error();
+		}
+	});	
+}
+
 function getReadyForOffline() {
 	var modal = $('#offline-mode-modal');
 
@@ -1323,14 +1381,10 @@ function getReadyForOffline() {
 	///Get the list of transactions from the http API
 	queryAPIMultiAddress();
 
-	//Get unspent outputs
-	$.post(root + 'unspent', {'addr[]' : getAllAddresses()},  function(obj) {  
-		unspent_cache = obj;
-	}).error(function(data) {  
-		makeNotice('error', 'misc-error', data.responseText); 
+	getUnspentOutputs(null, function() {
 		modal.modal('hide');
-	});	
-
+	});
+	
 	var isDone = function () {
 
 		if (!all_scripts_done || $.active) {
@@ -2830,7 +2884,12 @@ function txFullySigned(tx) {
 
 		setLoadingText('Checking Connectivity');
 
-		if (!offline) {
+		console.log('ping');
+		
+		console.log(root + 'ping?'+new Date().getTime());
+		
+		//Check if were able to contact blockchain.info
+		$.get(root + 'ping?'+new Date().getTime()).success(function(data) { 
 
 			btn.attr('disabled', false);
 
@@ -2844,9 +2903,8 @@ function txFullySigned(tx) {
 
 				modal.modal('hide');
 			});
-
-		} else {
-
+			
+		}).error(function(data) {
 			modal.find('.modal-header h3').html('Created Offline Transaction.');
 
 			btn.attr('disabled', false);
@@ -2867,7 +2925,9 @@ function txFullySigned(tx) {
 
 				modal.find('#offline-transaction textarea[name="data"]').val(hex);
 			});
-		}
+			
+			modal.center();
+		});
 
 	} catch (e) {
 		makeNotice('error', 'misc-error', e);
@@ -3131,16 +3191,6 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 
 		var gotunspent = function(obj) {			
 			try {
-				if (obj == null) {
-					modal.modal('hide');
-					makeNotice('error', 'misc-error', 'Unspent query returned null object');
-					return;
-				}
-				
-				if (obj.notice != null) {
-					makeNotice('info', 'notice', obj.notice);
-				}
-				
 				if (obj.unspent_outputs == null || obj.unspent_outputs.length == 0) {
 					modal.modal('hide');
 					makeNotice('error', 'misc-error', 'No Free Outputs To Spend');
@@ -3181,9 +3231,11 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 		};
 
 
-		if (offline) {
-			gotunspent(unspent_cache);
-		} else if (changeAddress == 'new') {
+		 if (changeAddress == 'new') {
+			if (offline) {
+				makeNotice('error', 'misc-error', 'Cannot generate a new address in offline mode'); 
+				return;
+			}
 
 			var generatedAddr = generateNewAddressAndKey();
 
@@ -3203,12 +3255,11 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 
 		} else {
 			setLoadingText('Getting Unspent Outputs');
-
-			$.post(root + 'unspent', {'addr[]' : getAllAddresses()},  function(obj) {  				
+			
+			getUnspentOutputs(function (obj) {
 				gotunspent(obj);
-			}).error(function(data) {  
+			}, function() {
 				modal.modal('hide');
-				makeNotice('error', 'misc-error', data.responseText); 
 			});
 		}
 	} catch (e) {
