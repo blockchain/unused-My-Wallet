@@ -24,6 +24,7 @@ var addresses = []; //{addr : address, priv : private key, tag : tag (mark as ar
 var loading_text = ''; //Loading text for ajax activity 
 var offline = false; //If on offline or online mode
 var pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
+var payload_checksum = null;
 
 $.fn.center = function () {
 	this.css("top", ( $(window).height() - this.height() ) / 2+$(window).scrollTop() + "px");
@@ -76,15 +77,16 @@ function websocketConnect() {
 					$('#status').html(obj.msg);
 
 				} else if (obj.op == 'on_change') {
-
-					
-					var our_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
+					var old_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
 					var new_checksum = obj.checksum;
-															
-					if (toString(our_checksum) != toString(new_checksum)) {
+									
+					console.log('On change ' + old_checksum + ' == '+ new_checksum);
+
+					if (toString(old_checksum) != toString(new_checksum)) {
 						updateCacheManifest();
 
-						alert('Wallet has changed. You should login and logout again.');
+						//Fetch the updated wallet from the server
+						setTimeout(getWallet, 500);
 					}
 
 				} else if (obj.op == 'utx') {
@@ -1054,6 +1056,35 @@ function didDecryptWallet() {
 	makeNotice('success', 'misc-success', 'Sucessfully Decrypted Wallet'); 
 }
 
+//Fetch a new wallet from the server
+function getWallet() {	
+	for (var key in addresses) {
+		var addr = addresses[key];
+		if (addr.tag == 1) { //Don't fetch a new wallet if we have any keys which are marked un-synced
+			alert('Warning! wallet data may have changed but cannot sync as you have uns-saved keys');
+			return;
+		}
+	}
+
+	$.get(root + 'wallet/wallet.aes.json?guid='+guid+'&sharedKey='+sharedKey+'&checksum='+payload_checksum).success(function(data) { 		
+		if (data == null || data.length == 0)
+			return;
+		if (data == 'Not modified') {
+			console.log('Not modified');
+			return;
+		} else {
+			console.log('Wallet data modified');
+
+			encrypted_wallet_data = data;
+			
+			payload_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
+			
+			internalRestoreWallet();
+		}
+		
+	});
+}
+
 function internalRestoreWallet() {
 	try {
 		if (encrypted_wallet_data == null || encrypted_wallet_data.length == 0) {
@@ -1086,7 +1117,7 @@ function internalRestoreWallet() {
 				$('#wallet-double-encryption-enabled').prop("checked", true);
 		}
 		 
-		 
+		addresses = [];
 		for (var i = 0; i < obj.keys.length; ++i) {		
 
 			var addr = obj.keys[i].addr;
@@ -1102,6 +1133,7 @@ function internalRestoreWallet() {
 			taddr.label = obj.keys[i].label;
 		}
 
+		address_book = [];
 		if (obj.address_book != null) {
 			for (var i = 0; i < obj.address_book.length; ++i) {					
 				internalAddAddressBookEntry(obj.address_book[i].addr, obj.address_book[i].label);
@@ -1110,6 +1142,14 @@ function internalRestoreWallet() {
 
 		sharedKey = obj.sharedKey;
 
+		//If we don't have a checksum then the wallet is probably brand new - so we can generate our own
+		if (payload_checksum == null || payload_checksum.length == 0) {
+			payload_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
+		} else {
+		//Else we need to check if the wallet has changed
+			getWallet();
+		}
+		
 		setIsIntialized();
 		
 		return true;
@@ -1484,7 +1524,6 @@ function restoreWallet() {
 			encrypted_wallet_data = data;
 
 			if (internalRestoreWallet()) {
-
 				if (toffline)
 					getReadyForOffline();
 				else
@@ -1754,13 +1793,7 @@ function updateCacheManifest() {
 	try {
 		console.log('Clear Cache Manifest');
 		
-		var appCache = window.applicationCache;
-
-		appCache.update(); 
-
-		if (appCache.status == window.applicationCache.UPDATEREADY) {
-			appCache.swapCache();  // The fetch was successful, swap in the new cache.
-		}
+		window.applicationCache.update(); 
 	} catch (e) {
 		console.log(e);
 	}
@@ -1826,6 +1859,8 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 					if (change) 
 						buildReceiveCoinsView();
 				}
+				
+				payload_checksum = checksum;
 
 				if (method == 'update')
 					updatePubKeys();
@@ -1836,6 +1871,7 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 					successcallback();
 				
 				updateCacheManifest();
+				
 			},
 
 			error : function(data) {
@@ -4166,6 +4202,8 @@ $(document).ready(function() {
 	//Load data attributes from html
 	encrypted_wallet_data = $('#data-encrypted').text();
 	guid = $('#data-guid').text();
+	payload_checksum =  $('#data-checksum').text();
+
 	sharedKey = $('#data-sharedkey').text();
 	sync_pubkeys = $('#sync-pubkeys').text();
 
@@ -4201,6 +4239,17 @@ $(document).ready(function() {
 	cVisible = $("#restore-wallet");
 
 	cVisible.show();
+	
+	//Watch the cahce manifest for changes
+	window.addEventListener('load', function(e) {
+		if (window.applicationCache) {
+			window.applicationCache.addEventListener('updateready', function(e) {
+				if (window.applicationCache.status == window.applicationCache.UPDATEREADY) {
+					window.applicationCache.swapCache();
+				}
+			}, false);
+		}
+	}, false);
 });
 
 
