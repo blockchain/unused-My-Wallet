@@ -899,6 +899,20 @@ function parseMultiAddressJSON(json) {
 	if (obj.info.latest_block != null)
 		setLatestBlock(obj.info.latest_block);
 
+	var new_symbol_local = obj.info.symbol_local;
+
+	console.log(symbol_local);
+	
+	console.log(symbol);
+	
+	if (symbol == symbol_local) {
+		symbol_local = new_symbol_local;
+		symbol = new_symbol_local;
+		calcMoney();
+	} else {
+		symbol_local = new_symbol_local;
+	}
+	
 	transactions = [];
 
 	if (obj.wallet == null) {
@@ -3606,6 +3620,12 @@ function delayLoad() {
 
 function bind() {
 	
+	$('#local_currency').click(function() {
+		SetCookie('currency', $(this).val());
+		
+		queryAPIMultiAddress(); 
+	});
+
 	$('body').click(function() {
 		rng_seed_time();
 	});
