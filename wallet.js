@@ -400,16 +400,21 @@ function buildSendTxView() {
 	selects.val($("#target option:first").val());
 
 	send_tx_form.find('input[name="send-to-address"]').val('');
-	send_tx_form.find('input[name="send-value"]').val('');
+	send_tx_form.find('.send-value').val('');
+	send_tx_form.find('.send-value-usd').html('$0');
 	send_tx_form.find('input[name="send-fees"]').val('0');
-
-	var el = $("#recipient-container div:first-child").clone();
+	
+	var el = $("#recipient-container .recipient:first-child").clone();
 	$('#recipient-container').empty().append(el);
 
-
 	//Escrow
-	var el = $("#escrow-recipient-container div:first-child").clone();
+	var el = $("#escrow-recipient-container .recipient:first-child").clone();
 	$('#escrow-recipient-container').empty().append(el);
+		
+	send_tx_form.find('.send-value').keyup(function() {		
+		$(this).parent().find('.send-value-usd').html(formatSymbol($(this).val() *  100000000, symbol_local));
+	});
+
 }
 
 function importPyWalletJSONObject(obj) {
@@ -3021,7 +3026,7 @@ function newEscrowTx() {
 		var pubkeys = [];
 		var nPubKeys = 0;
 		var error = false;
-		var value_input = container.find('input[name="send-value"]');
+		var value_input = container.find('.send-value');
 
 		console.log(value_input.val());
 
@@ -3230,7 +3235,7 @@ function newTx() {
 
 			var send_to_address = child.find('input[name="send-to-address"]');
 
-			var value_input = child.find('input[name="send-value"]');
+			var value_input = child.find('.send-value');
 
 			var value = 0;
 			var toAddress;
@@ -4024,7 +4029,11 @@ function bind() {
 
 		el.find('input[name="send-to-address"]').val('');
 
-		el.find('input[name="send-value"]').val('');
+		el.find('.send-value-usd').html('$0');		
+		el.find('.send-value').val('').keyup(function() {		
+			$(this).parent().find('.send-value-usd').html(formatSymbol($(this).val() *  100000000, symbol_local));
+		});
+
 		
 		$('#remove-recipient').show(200);
 	});

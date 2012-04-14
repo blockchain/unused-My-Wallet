@@ -93,14 +93,21 @@ function formatBTC(value) {
 	return neg + integerPart+"."+decimalPart;
 }
 
-function formatMoney(x, span) {
+
+function formatSymbol(x, symbol) {
 	var str;
 	
 	if (symbol.code != 'BTC') {
-		str = symbol.symbol + ' ' + toFixed(x / symbol.conversion, 2);
+		str = symbol.symbol + ' ' + toFixed(x / symbol.conversion, 2).toString().replace(/(\d)(?=(\d\d\d)+(?!\d))/g, "$1,");
 	} else {
 		str = formatBTC(''+x) + ' ' + symbol.symbol;
 	}
+
+	return str;
+}
+
+function formatMoney(x, span) {
+	var str = formatSymbol(x, symbol);
 	
 	if (span) {
 		str = '<span data-c="'+x+'">'+str+'</span>';
