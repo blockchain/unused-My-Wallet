@@ -80,14 +80,14 @@ function websocketConnect() {
 					var old_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
 					var new_checksum = obj.checksum;
 									
-					console.log('On change ' + old_checksum + ' == '+ new_checksum);
+					console.log('On change old ' + old_checksum + ' ==  new '+ new_checksum);
 
-					if (toString(old_checksum) != toString(new_checksum)) {
+					if (old_checksum != new_checksum) {
 						updateCacheManifest();
-
+						
 						//Fetch the updated wallet from the server
-						setTimeout(getWallet, 500);
-					}
+						setTimeout(getWallet, 250);
+					} 
 
 				} else if (obj.op == 'utx') {
 
@@ -900,10 +900,6 @@ function parseMultiAddressJSON(json) {
 		setLatestBlock(obj.info.latest_block);
 
 	var new_symbol_local = obj.info.symbol_local;
-
-	console.log(symbol_local);
-	
-	console.log(symbol);
 	
 	if (symbol == symbol_local) {
 		symbol_local = new_symbol_local;
@@ -1080,9 +1076,12 @@ function getWallet() {
 		}
 	}
 
-	$.get(root + 'wallet/wallet.aes.json?guid='+guid+'&sharedKey='+sharedKey+'&checksum='+payload_checksum).success(function(data) { 		
+	console.log('Get wallet with checksum ' + payload_checksum);
+	
+	$.get(root + 'wallet/wallet.aes.json?guid='+guid+'&sharedKey='+sharedKey+'&checksum='+payload_checksum).success(function(data) { 				
 		if (data == null || data.length == 0)
 			return;
+		
 		if (data == 'Not modified') {
 			console.log('Not modified');
 			return;
@@ -1094,6 +1093,12 @@ function getWallet() {
 			payload_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
 			
 			internalRestoreWallet();
+			
+			buildReceiveCoinsView();
+			
+			buildSendTxView();
+
+			buildTransactionsView();
 		}
 		
 	});
