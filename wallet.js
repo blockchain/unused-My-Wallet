@@ -615,6 +615,31 @@ function getAllAddresses() {
 	return array;
 }
 
+//Find the prefferred addres to use for change
+//Order deposit / request coins
+function getPreferredAddress() {
+	var preferred = null;
+	for (var key in addresses) {
+		var addr = addresses[key];
+
+		console.log(addr.addr);
+		
+		if (preferred == null)
+			preferred = addr.addr;
+		
+		if (addr.priv != null) {
+			if (preferred == null)
+				preferred = addr.addr;
+			
+			if (addr.tag == null || addr.tag == 0) {
+				preferred = addr.addr;
+				break;
+			}
+		}
+	}
+	return preferred;
+}
+
 function getActiveAddresses() {
 	var array = [];
 	for (var key in addresses) {
@@ -1270,7 +1295,7 @@ function showPrivateKeyModal(success, error, addr) {
 		var interval = initQRCodeReader('qr-code-reader', function(code){
 			try {
 
-				var key = privateKeyStringToKey(code, 'base58');
+				var key = privateKeyStringToKey(code, detectPrivateKeyFormat(code));
 
 				if (key == null) {
 					error('Error decoding private key');
@@ -1303,7 +1328,6 @@ function showPrivateKeyModal(success, error, addr) {
 
 	modal.find('.btn.primary').unbind().click(function() {
 		var value = modal.find('input[name="key"]').val();
-		var format = modal.find('select[name="format"]').val();
 
 		if (value.length == 0) {
 			error('You must enter a private key to import');
@@ -1312,7 +1336,7 @@ function showPrivateKeyModal(success, error, addr) {
 		}
 
 		try {
-			var key = privateKeyStringToKey(value, format);
+			var key = privateKeyStringToKey(value, detectPrivateKeyFormat(value));
 
 			if (key == null) {
 				error('Error decoding private key');
@@ -1386,9 +1410,9 @@ function getUnspentOutputs(success, error) {
 			} catch (e) { 
 				console.log(e);
 			}
-			
-			makeNotice('error', 'misc-error', data.responseText, 10000); 
-			
+						
+			makeNotice('error', 'misc-error', 'Error Contacting Server. No unspent outputs available in cache.', 10000); 
+
 			if (error) 
 				error();
 		}
@@ -2249,16 +2273,6 @@ function pushTx(tx) {
 	return true;
 }
 
-//Rendom key from associative array
-function randomKey(obj) {
-	var ret;
-	var c = 0;
-	for (var key in obj)
-		if (Math.random() < 1/++c)
-			ret = key;
-	return ret;
-}
-
 //toAddresses receipients list e.g. {value, address} for simple pay to pub key hash {value, m, pubkeys} for multi sig
 //fromAddress specific address to take payment from, otherwise null
 //list of unspentOutputs this transaction is able to redeem {script, value, tx_output_n, tx_hash, confirmations}
@@ -2371,8 +2385,7 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 		else if (fromAddress != null) //Else return to the from address if specified
 			sendTx.addOutput(fromAddress, changeValue);
 		else { //Otherwise return to random unarchived					
-			var active = getActiveAddresses();
-			sendTx.addOutput(new Bitcoin.Address(active[Math.floor(Math.random() * active.length)]), changeValue);
+			sendTx.addOutput(new Bitcoin.Address(getPreferredAddress()), changeValue);
 		}
 	}
 
@@ -3637,38 +3650,19 @@ function bind() {
 
 	$('#deposit').click(function() {
 		loadScript(resource + 'wallet/deposit/deposit.js', function() {			
-			for (var key in addresses) {
-				var addr = addresses[key];
-				if (addr.priv != null && addr.tag != 2) {
-					showDepositModal(addr.addr, 'sms', 'Deposit Using Phone/SMS');
-					break;
-				}
-			}
+			showDepositModal(getPreferredAddress(), 'sms', 'Deposit Using Phone/SMS');
 		});
 	});
 	
 	$('#payment-request').click(function() {
 		loadScript(resource + 'wallet/payment-request.js', function() {			
-			for (var key in addresses) {
-				var addr = addresses[key];
-				
-				showPaymentRequestModal(addr.addr, 'Payment Request');
-				
-				break;
-			}
+			showPaymentRequestModal(getPreferredAddress(), 'Payment Request');
 		});
 	});
 	
 	$('#deposit-bank').click(function() {
 		loadScript(resource + 'wallet/deposit/deposit.js', function() {
-			
-			for (var key in addresses) {
-				var addr = addresses[key];
-				if (addr.priv != null && addr.tag != 2) {
-					showDepositModal(addr.addr, 'direct', 'Deposit Using Bank Transfer / Credit Card');
-					break;
-				}
-			}
+			showDepositModal(getPreferredAddress(), 'direct', 'Deposit Using Bank Transfer / Credit Card');
 		});
 	});
 	
@@ -4008,7 +4002,6 @@ function bind() {
 				return;
 
 			var value = form.find('input[name="key"]').val();
-			var format = form.find('select[name="format"]').val();
 
 			try {
 
@@ -4020,31 +4013,36 @@ function bind() {
 					return;				
 
 				getSecondPassword(function() {
-					var key = privateKeyStringToKey(value, format);
-
-					if (key == null)
-						throw 'Decode returned null key';
-
-					var addr = key.getBitcoinAddress().toString();
-
-					if (addr == null || addr.length == 0 || addr == 'undefined')
-						throw 'Unable to decode bitcoin addresses from private key';
-
-					if (internalAddKey(addr, encodePK(key.priv))) {
-
-						//Rebuild the My-address list
-						buildReceiveCoinsView();
-
-						//Perform a wallet backup
-						backupWallet();
-
-						//Get the new list of transactions
-						queryAPIMultiAddress();
-
-						makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr);
-					} else {
-						throw 'Unable to add private key for bitcoin address ' + addr;
-					}	
+					try {
+						var key = privateKeyStringToKey(value, detectPrivateKeyFormat(value));
+	
+						if (key == null)
+							throw 'Decode returned null key';
+	
+						var addr = key.getBitcoinAddress().toString();
+	
+						if (addr == null || addr.length == 0 || addr == 'undefined')
+							throw 'Unable to decode bitcoin addresses from private key';
+	
+						if (internalAddKey(addr, encodePK(key.priv))) {
+	
+							//Rebuild the My-address list
+							buildReceiveCoinsView();
+	
+							//Perform a wallet backup
+							backupWallet();
+	
+							//Get the new list of transactions
+							queryAPIMultiAddress();
+	
+							makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr);
+						} else {
+							throw 'Unable to add private key for bitcoin address ' + addr;
+						}	
+					} catch (e) {
+						makeNotice('error', 'misc-error', 'Error importing private key: ' + e);
+						return;
+					}
 				});
 
 			} catch(e) {
@@ -4192,8 +4190,37 @@ function bind() {
 	});
 }
 
+function detectPrivateKeyFormat(key) {
+	// 51 characters base58, always starts with a '5'
+	if (/^5[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{50}$/.test(key))
+		return 'sipa';
+	
+	if (/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{44}$/.test(key))
+		return 'base58';
+	
+	if (/^[A-Fa-f0-9]{64}$/.test(key))
+		return 'hex';
+
+	if (/^[ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789=+\/]{44}$/.test(key))
+		return 'base64';
+	
+	
+	if (/^S[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{21}$/.test(key) ||
+		/^S[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{25}$/.test(key) ||
+		/^S[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{29}$/.test(key)) {
+		
+		var testBytes = Crypto.SHA256(key + "?", { asBytes: true });
+
+		if (testBytes[0] === 0x00 || testBytes[0] === 0x01)
+			return 'mini';
+	}
+	
+	throw 'Unknown Key Format';
+}
+
 function privateKeyStringToKey(value, format) {
 
+	console.log(format)
 	var key_bytes = null;
 
 	if (format == 'base58') {
@@ -4209,7 +4236,7 @@ function privateKeyStringToKey(value, format) {
 		tbytes.shift();
 		key_bytes = tbytes.slice(0, tbytes.length - 4);
 	} else {
-		throw 'Unsupported key format';
+		throw 'Unsupported Key Format';
 	}	
 
 	if (key_bytes.length != 32) 
@@ -4283,13 +4310,13 @@ function parseMiniKey(miniKey) {
 
 	switch(check.slice(0,2)) {
 	case '00':
-		var decodedKey = Crypto.SHA256(miniKey); 
+		var decodedKey = Crypto.SHA256(miniKey, {asBytes: true}); 
 		return decodedKey;
 		break;
 	case '01':
 		var x          = Crypto.util.hexToBytes(check.slice(2,4))[0];
 		var count      = Math.round(Math.pow(2, (x / 4)));
-		var decodedKey = Crypto.PBKDF2(miniKey, 'Satoshi Nakamoto', 32, { iterations: count });
+		var decodedKey = Crypto.PBKDF2(miniKey, 'Satoshi Nakamoto', 32, { iterations: count, asBytes: true});
 		return decodedKey;
 		break;
 	default:
@@ -4385,7 +4412,6 @@ function archiveAddr(addr) {
 	var addr = addresses[addr];
 	if (addr.tag == null || addr.tag == 0) {
 		addr.tag = 2;
-
 		internalArchive();
 
 	} else {
