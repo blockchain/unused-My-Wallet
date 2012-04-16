@@ -4190,6 +4190,27 @@ function bind() {
 	});
 }
 
+
+function parseMiniKey(miniKey) {
+	var check = Crypto.SHA256(miniKey + '?');
+
+	switch(check.slice(0,2)) {
+	case '00':
+		var decodedKey = Crypto.SHA256(miniKey, {asBytes: true}); 
+		return decodedKey;
+		break;
+	case '01':
+		var x          = Crypto.util.hexToBytes(check.slice(2,4))[0];
+		var count      = Math.round(Math.pow(2, (x / 4)));
+		var decodedKey = Crypto.PBKDF2(miniKey, 'Satoshi Nakamoto', 32, { iterations: count, asBytes: true});
+		return decodedKey;
+		break;
+	default:
+		console.log('invalid key');
+	break;
+	}    
+};
+
 function detectPrivateKeyFormat(key) {
 	// 51 characters base58, always starts with a '5'
 	if (/^5[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{50}$/.test(key))
@@ -4304,26 +4325,6 @@ $(document).ready(function() {
 	}, false);
 });
 
-
-function parseMiniKey(miniKey) {
-	var check = Crypto.SHA256(miniKey + '?');
-
-	switch(check.slice(0,2)) {
-	case '00':
-		var decodedKey = Crypto.SHA256(miniKey, {asBytes: true}); 
-		return decodedKey;
-		break;
-	case '01':
-		var x          = Crypto.util.hexToBytes(check.slice(2,4))[0];
-		var count      = Math.round(Math.pow(2, (x / 4)));
-		var decodedKey = Crypto.PBKDF2(miniKey, 'Satoshi Nakamoto', 32, { iterations: count, asBytes: true});
-		return decodedKey;
-		break;
-	default:
-		console.log('invalid key');
-	break;
-	}    
-};
 
 function showAddressModal(data) {
 	var modal = $('#qr-code-modal');
