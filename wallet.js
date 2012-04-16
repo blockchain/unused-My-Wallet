@@ -1621,6 +1621,10 @@ function setIsIntialized() {
 
 	$('#status-container').show();
 
+	console.log('Show');
+	
+	$('#logout').show();
+	
 	isInitialized = true;
 }
 
@@ -3676,6 +3680,11 @@ function delayLoad() {
 }
 
 function bind() {
+	
+	$('#logout').click(function () {
+		window.location.reload();
+	});
+	
 	$('#enable_archived_checkbox').change(function() {		
 		var enabled = $(this).is(':checked');
 		
