@@ -24,7 +24,7 @@ var addresses = []; //{addr : address, priv : private key, tag : tag (mark as ar
 var loading_text = ''; //Loading text for ajax activity 
 var offline = false; //If on offline or online mode
 var pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
-var payload_checksum = null;
+var payload_checksum = null; //SHA256 hash of the current wallet.aes.json
 
 $.fn.center = function () {
 	this.css("top", ( $(window).height() - this.height() ) / 2+$(window).scrollTop() + "px");
@@ -622,8 +622,6 @@ function getPreferredAddress() {
 	for (var key in addresses) {
 		var addr = addresses[key];
 
-		console.log(addr.addr);
-		
 		if (preferred == null)
 			preferred = addr.addr;
 		
@@ -640,17 +638,23 @@ function getPreferredAddress() {
 	return preferred;
 }
 
-function getActiveAddresses() {
+function getAddressesWithTag(tag) {
 	var array = [];
 	for (var key in addresses) {
 		var addr = addresses[key];
 		//Don't include archived addresses
-		if (addr.tag == 2)
-			continue;
-
-		array.push(addr.addr);
+		if (addr.tag == tag)
+			array.push(addr.addr);
 	}
 	return array;
+}
+
+function getActiveAddresses() {
+	return getAddressesWithTag();
+}
+
+function getArchivedAddresses() {
+	return getAddressesWithTag(2);
 }
 
 function updateLatestBlockAge() {
@@ -964,15 +968,13 @@ function parseMultiAddressJSON(json) {
 //Get the list of transactions from the http API, after that it will update through websocket
 function queryAPIMultiAddress() {
 	if (offline) return;
-
-	var addrs = getAllAddresses();
-
+	
 	setLoadingText('Loading transactions');
 
 	$.ajax({
 		type: "POST",
 		url: root +'multiaddr?filter='+tx_filter+'&offset='+tx_page*50,
-		data: {'addr[]' : addrs},
+		data: {'active' : getActiveAddresses().join('|'), 'archived' : getArchivedAddresses().join('|') },
 		converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": $.parseXML},
 		success: function(data) {  
 
@@ -993,7 +995,9 @@ function queryAPIMultiAddress() {
 					//Cache results to show next login
 					if (tx_page == 0 && tx_filter == 0)
 						localStorage.setItem('multiaddr', data);
-				} catch (e) { }
+				} catch (e) { 	
+					
+				}
 				
 			} catch (e) {
 				console.log(data);
@@ -1894,7 +1898,7 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 				for (var key in addresses) {
 					var addr = addresses[key];
 					if (addr.tag == 1) {
-						addr.tag = 0; //Make any unsaved addresses as saved
+						addr.tag = null; //Make any unsaved addresses as saved
 						change = true;
 					}
 
@@ -2277,19 +2281,18 @@ function pushTx(tx) {
 //fromAddress specific address to take payment from, otherwise null
 //list of unspentOutputs this transaction is able to redeem {script, value, tx_output_n, tx_hash, confirmations}
 //changeAddress  = address to reutn change (Bitcoin.Address)
-function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, selectedOuts, changeAddress, success, error) {
+function makeTransaction(toAddresses, fromAddresses, minersfee, unspentOutputs, selectedOuts, changeAddress, success, error) {
 
 	selectedOuts.length = 0;
 
 	var txValue = BigInteger.ZERO;
 
 	for (var i = 0; i < toAddresses.length; ++i) {	
-
-		console.log(toAddresses[i].value.toString());
-
 		txValue = txValue.add(toAddresses[i].value);
 	}
 
+	var isSweep = (toAddresses.length == 0);
+	
 	var isEscrow = false;
 
 	//If we have any escrow outputs we increase the fee to 0.05 BTC
@@ -2302,11 +2305,7 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 	}
 
 	var availableValue = BigInteger.ZERO;
-
-	var fromAddr = null;
-	if (fromAddress != null)
-		fromAddr = fromAddress.toString();
-
+	
 	//Add the miners fees
 	if (minersfee != null)
 		txValue = txValue.add(minersfee);
@@ -2323,8 +2322,8 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 			} 
 
 			var out = unspentOutputs[i];
-
-			if (fromAddr != null && addr != fromAddr) {
+						
+			if (fromAddresses != null && fromAddresses.length > 0 && $.inArray(addr.toString(), fromAddresses) == -1) {
 				continue;
 			}  else {
 				availableValue = availableValue.add(out.value);
@@ -2338,7 +2337,7 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 
 			priority += out.value * out.confirmations;
 
-			if (availableValue.compareTo(txValue) >= 0) 
+			if (!isSweep && availableValue.compareTo(txValue) >= 0) 
 				break;
 
 		} catch (e) {
@@ -2346,15 +2345,18 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 			makeNotice('info', 'tx-error', e);
 		}
 	}
-
+	
 	if (availableValue.compareTo(txValue) < 0) {
 		error('Insufficient funds. Value Needed ' +  formatBTC(txValue.toString()) + ' BTC. Available amount ' + formatBTC(availableValue.toString()) + ' BTC');
 		return;
 	}
 
-	console.log('availableValue ' + availableValue + ' txValue ' + txValue + ' minersFee ' +minersfee );
+	if (selectedOuts.length == 0) {
+		error('No Available Outputs To Spend.');
+		return;
+	}
 
-	var	changeValue = availableValue.subtract(txValue);
+	console.log('availableValue ' + availableValue + ' txValue ' + txValue + ' minersFee ' +minersfee );
 
 	var sendTx = new Bitcoin.Transaction();
 
@@ -2366,7 +2368,6 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 	for (var i =0; i < toAddresses.length; ++i) {	
 		var addrObj = toAddresses[i];
 
-		
 		//If less than 0.01 BTC show warning
 		if (addrObj.value.compareTo(BigInteger.valueOf(100000)) < 0) {
 			askforfee = true;
@@ -2379,11 +2380,13 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 		}
 	}
 
-	if (changeValue > 0) {
+	//Nwo deal with the change
+	var	changeValue = availableValue.subtract(txValue);
+	if (changeValue.compareTo(BigInteger.ZERO) > 0) {
 		if (changeAddress != null) //If chenge address speicified return to that
 			sendTx.addOutput(changeAddress, changeValue);
-		else if (fromAddress != null) //Else return to the from address if specified
-			sendTx.addOutput(fromAddress, changeValue);
+		else if (!isSweep && fromAddresses != null && fromAddresses.length > 0) //Else return to the from address if specified
+			sendTx.addOutput(new Bitcoin.Address(fromAddresses[0]), changeValue);
 		else { //Otherwise return to random unarchived					
 			sendTx.addOutput(new Bitcoin.Address(getPreferredAddress()), changeValue);
 		}
@@ -2402,10 +2405,10 @@ function makeTransaction(toAddresses, fromAddress, minersfee, unspentOutputs, se
 
 	console.log(priority);
 
-	//Proority under 57 million requires a 0.0005 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
+	//Priority under 57 million requires a 0.0005 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
 	if ((priority < 57600000 || kilobytes > 1 || isEscrow || askforfee) && (minersfee == null || minersfee.intValue() == 0)) {	
 		askToIncludeFee(function() {
-			makeTransaction(toAddresses, fromAddress, BigInteger.valueOf(50000), unspentOutputs, selectedOuts, changeAddress, success, error);
+			makeTransaction(toAddresses, fromAddresses, BigInteger.valueOf(50000), unspentOutputs, selectedOuts, changeAddress, success, error);
 		}, function() {
 			success(sendTx);
 		});
@@ -2697,14 +2700,12 @@ function addAddressBookEntry() {
 }
 
 
-function deleteAddress(addr) {
+function deleteAddresses(addrs) {
 
 	if (getActiveAddresses().length <= 1) {
 		makeNotice('error', 'add-error', 'You must leave at least one active address');
 		return;
 	}
-
-	addr = addresses[addr];
 
 	var modal = $('#delete-address-modal');
 
@@ -2716,15 +2717,30 @@ function deleteAddress(addr) {
 
 	modal.center();
 
-	modal.find('.btn.primary').show();
-	modal.find('.btn.danger').show();
+	modal.find('.btn.primary').hide();
+	modal.find('.btn.danger').hide();
+	
 	modal.find('.modal-body').show();
 	$('#change-mind').hide();
 
-	modal.find('#to-delete-address').html(addr.addr);
+	modal.find('#to-delete-address').html(addrs.join(' '));
 
-	modal.find('#delete-balance').text('Balance ' + formatBTC(addr.balance) + ' BTC');
+	modal.find('#delete-balance').empty();
+	
+	apiGetBalance(addrs, function(data) {
 
+		modal.find('.btn.primary').show(200);
+		modal.find('.btn.danger').show(200);
+		
+		modal.find('#delete-balance').text('Balance ' + formatBTC(data) + ' BTC');
+	}, function() {
+
+		modal.find('.btn.primary').show(200);
+		modal.find('.btn.danger').show(200);
+		
+		modal.find('#delete-balance').text('Error Fetching Balance');
+	});
+	
 	var isCancelled = false;
 	var i = 0;
 	var interval = null;
@@ -2732,6 +2748,8 @@ function deleteAddress(addr) {
 	changeMind = function() {		
 		$('#change-mind').show();
 
+		console.log(5 - i);
+		
 		$('#change-mind-time').text(5 - i);
 	};
 
@@ -2746,6 +2764,8 @@ function deleteAddress(addr) {
 
 			if (isCancelled)
 				return;
+			
+			console.log('Change mind');
 
 			playSound('beep');
 
@@ -2759,8 +2779,10 @@ function deleteAddress(addr) {
 
 				makeNotice('warning', 'warning-deleted', 'Private Key Removed From Wallet');
 
-				internalDeletePrivateKey(addr.addr);
-
+				for (var ii in addrs) {					
+					internalDeletePrivateKey(addrs[ii]);
+				}
+				
 				//Update view with remove address
 				buildReceiveCoinsView();
 
@@ -2799,8 +2821,10 @@ function deleteAddress(addr) {
 
 					makeNotice('warning', 'warning-deleted', 'Address & Private Key Removed From Wallet');
 
-					internalDeleteAddress(addr.addr);
-
+					for (var ii in addrs) {					
+						internalDeleteAddress(addrs[ii]);
+					}
+					
 					buildReceiveCoinsView();
 
 					backupWallet();
@@ -2975,10 +2999,6 @@ function txFullySigned(tx) {
 		var btn = modal.find('.btn.primary');
 
 		setLoadingText('Checking Connectivity');
-
-		console.log('ping');
-		
-		console.log(root + 'ping?'+new Date().getTime());
 		
 		//Check if were able to contact blockchain.info
 		$.get(root + 'ping?'+new Date().getTime()).success(function(data) { 
@@ -3020,6 +3040,8 @@ function txFullySigned(tx) {
 			
 			modal.center();
 		});
+		
+		modal.center();
 
 	} catch (e) {
 		makeNotice('error', 'misc-error', e);
@@ -3028,13 +3050,13 @@ function txFullySigned(tx) {
 	}
 }
 
-function txConstructSecondPhase(toAddresses, fromAddress, fees, unspent, missingPrivateKeys, changeAddress) {
+function txConstructSecondPhase(toAddresses, fromAddresses, fees, unspent, missingPrivateKeys, changeAddress) {
 	var modal = $('#new-transaction-modal');
 
 	var selectedOuts = [];
 
 	//First we make the transaction with it's inputs unsigned
-	makeTransaction(toAddresses, fromAddress, fees, unspent, selectedOuts, changeAddress, function(tx) {
+	makeTransaction(toAddresses, fromAddresses, fees, unspent, selectedOuts, changeAddress, function(tx) {
 		var progress = $('#tx-sign-progress').show(200);
 
 		var outputN = 0;
@@ -3151,6 +3173,17 @@ function apiGetPubKey(addr, success, error) {
 	});
 }
 
+function apiGetBalance(addresses, success, error) {
+	setLoadingText('Getting Balance');
+	
+	$.get(root + 'q/addressbalance/'+addresses.join('|')).success(function(data) { 
+		success(data);
+	}).error(function(data) {
+		console.log(data);
+
+		error();
+	});
+}
 
 function apiResolveFirstbits(addr, success, error) {	
 
@@ -3237,11 +3270,7 @@ function newEscrowTx() {
 				clearInterval(timer);
 
 				var toAddresses = [{value : value, m : m, pubkeys : pubkeys}];
-				var fromAddress = null;
-				var minersfee = null;
-				var changeAddress = null;
-
-				txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddress);
+				txConstructFirstPhase(toAddresses, null, null, null);
 			}
 
 		}, 1000);
@@ -3251,7 +3280,7 @@ function newEscrowTx() {
 //show the progress modal
 //Get unspent outputs
 //Forward to second phase
-function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddress) {		
+function txConstructFirstPhase(toAddresses, fromAddresses, minersfee, changeAddress) {		
 
 	var modal = $('#new-transaction-modal');
 
@@ -3313,7 +3342,7 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 
 				modal.find('.modal-header h3').html('Signing Transaction');
 
-				txConstructSecondPhase(toAddresses, fromAddress, minersfee, unspent, missingPrivateKeys, changeAddress);
+				txConstructSecondPhase(toAddresses, fromAddresses, minersfee, unspent, missingPrivateKeys, changeAddress);
 
 			} catch (e) {
 				makeNotice('error', 'misc-error', 'Error creating transaction: ' + e);
@@ -3338,7 +3367,7 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 				buildSendTxView();
 
 				//Call again with the new change address
-				getUnspentAndProceed(toAddresses, fromAddress, minersfee, changeAddress);
+				getUnspentAndProceed(toAddresses, fromAddresses, minersfee, changeAddress);
 
 			}, function() {
 				makeNotice('error', 'misc-error', 'Error syncing wallet. Transaction cancelled'); 
@@ -3360,13 +3389,19 @@ function txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddres
 	}
 }
 
+function sweepAddresses(addresses) {	
+	getSecondPassword(function() {
+		txConstructFirstPhase([], addresses, null, null);
+	});
+}
+
 //Check for inputs and get unspent for before signinging
 function newTx() {
 
 	getSecondPassword(function() {
 
 		var changeAddress = null;
-		var fromAddress = null;
+		var fromAddresses = null;
 		var toAddresses = [];
 		var slientReturn = false;
 		var called = false;
@@ -3428,10 +3463,14 @@ function newTx() {
 		}
 
 		//Get the from address, if any
-		if ($('#send-from-address').val() != 'any') {
-
+		var fromval = $('#send-from-address').val();
+		if (fromval == 'any') {
+			fromAddresses = getActiveAddresses();
+		} else {
 			try {
-				fromAddress = new Bitcoin.Address($('#send-from-address').val());
+				 new Bitcoin.Address(fromval);
+				 
+				 fromAddresses = [fromval];
 			} catch (e) {
 				makeNotice('error', 'from-error', 'Invalid from address: ' + e);
 				return false;
@@ -3463,7 +3502,7 @@ function newTx() {
 			return false;
 		};
 
-		txConstructFirstPhase(toAddresses, fromAddress, minersfee, changeAddress);
+		txConstructFirstPhase(toAddresses, fromAddresses, minersfee, changeAddress);
 
 		return true;
 
@@ -3637,6 +3676,45 @@ function delayLoad() {
 }
 
 function bind() {
+	$('#enable_archived_checkbox').change(function() {		
+		var enabled = $(this).is(':checked');
+		
+		$('.archived_checkbox').attr('checked', false);
+		
+		$('.archived_checkbox').attr('disabled', !enabled);
+		
+		$('#archived-sweep').attr('disabled', !enabled);
+		
+		$('#archived-delete').attr('disabled', !enabled);
+	});
+	
+	$('#archived-sweep').click(function() {
+		
+		var toSweep = [];
+		
+		$('.archived_checkbox:checked').each(function() {
+			toSweep.push($(this).val());
+		});
+		
+		if (toSweep.length == 0)
+			return;
+		
+		sweepAddresses(toSweep);
+	});
+	
+	$('#archived-delete').click(function() {
+		
+		var toDelete = [];
+		
+		$('.archived_checkbox:checked').each(function() {
+			toDelete.push($(this).val());
+		});
+		
+		if (toDelete.length == 0)
+			return;
+		
+		deleteAddresses(toDelete);
+	});
 	
 	$('#local_currency').click(function() {
 		SetCookie('currency', $(this).val());
@@ -4271,7 +4349,6 @@ $(document).ready(function() {
 	
 	setTimeout(delayLoad, 500);
 
-
 	//Load data attributes from html
 	encrypted_wallet_data = $('#data-encrypted').text();
 	guid = $('#data-guid').text();
@@ -4341,24 +4418,10 @@ function showAddressModal(data) {
 
 	$('#qr-data').empty().append(canvas);
 
-	var addr = addresses[data];
-
-	if (addr != null && addr.priv != null && (!double_encryption || dpassword != null)) {
-		//Display the users public key if possible withotu asking for password (need priv to determine pub)
-		body.find('.pubkey').text(Crypto.util.bytesToHex(new Bitcoin.ECKey(decodePK(addr.priv)).getPub()));
-	} else {
-		body.find('.pubkey').text('Unable to display');
-	}
-
 	body.find('.code').text(data);
 
 	modal.find('.btn.secondary').unbind().click(function() {
 		modal.modal('hide');
-	});
-
-	modal.find('.btn.danger').unbind().click(function() {
-		modal.modal('hide');
-		deleteAddress(data);
 	});
 
 	modal.find('.btn.primary').unbind().click(function() {
@@ -4393,7 +4456,7 @@ function unArchiveAddr(addr) {
 
 	var addr = addresses[addr];
 	if (addr.tag == 2) {
-		addr.tag = 0;
+		addr.tag = null;
 
 		internalArchive();
 	} else {
@@ -4404,7 +4467,6 @@ function unArchiveAddr(addr) {
 
 
 function archiveAddr(addr) {
-
 	if (getActiveAddresses().length <= 1) {
 		makeNotice('error', 'add-error', 'You must leave at least one active address');
 		return;
@@ -4427,6 +4489,10 @@ function buildReceiveCoinsView() {
 	//Only build when visible
 	if ("receive-coins" != cVisible.attr('id'))
 		return;
+
+	$('#enable_archived_checkbox').attr('checked', false);
+	$('#archived-delete').attr('disabled', true);
+	$('#archived-sweep').attr('disabled', true);
 
 	var html = null;
 	var arc_html = null;
@@ -4451,7 +4517,13 @@ function buildReceiveCoinsView() {
 			extra = '<span class="can-hide"> - ' + addr.addr + '</span>';
 		}
 
-		var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'" onclick="showAddressModal(\'' + addr.addr +'\')" src="'+resource+'info.png" /></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td>';
+		var thtml = '<tr>';
+		if (addr.tag != 2)
+			thtml += '<td style="width:20px;"><img id="qr'+addr.addr+'" onclick="showAddressModal(\'' + addr.addr +'\')" src="'+resource+'info.png" /></td>';
+		else
+			thtml += '<td style="width:20px;"><input type="checkbox" class="archived_checkbox" value="'+addr.addr+'" disabled></td>';
+		
+		thtml += '<td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td>';
 
 		if (addr.tag != 2)
 			thtml += '<td><span id="'+addr.addr+'" style="color:green">' + balance +'</span></td>';
@@ -4469,8 +4541,8 @@ function buildReceiveCoinsView() {
 			html += thtml;
 	}
 
-	$('#my-addresses tbody').empty().append(html);
-	$('#archived-addr tbody').empty().append(arc_html);
+	$('#my-addresses tbody').html(html);
+	$('#archived-addr tbody').html(arc_html);
 
 	setupToggle();
 }
