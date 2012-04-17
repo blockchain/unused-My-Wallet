@@ -1201,7 +1201,6 @@ function internalRestoreWallet() {
 		}
 		
 		setIsIntialized();
-		
 		return true;
 
 	} catch (e) {
@@ -4292,6 +4291,31 @@ function parseMiniKey(miniKey) {
 	}    
 };
 
+function signMessage(addressString, strMessage) {
+		var strMessageMagic = 'Bitcoin Signed Message:\n';
+		
+		var addr = addresses[addressString];
+		
+		if (addr.priv == null) {
+			makeNotice('error', 'add-error', 'Cannot sign a message with a watch only address', 0);
+			return;
+		}
+		
+		var eckey = new Bitcoin.ECKey(decodePK(addr.priv));
+		
+		var concenated = strMessageMagic + strMessage;
+	
+		console.log(concenated);
+		
+		var rs = eckey.sign(Crypto.SHA256(concenated, { asBytes: true }));
+
+		console.log(rs);
+		
+		var signature = Bitcoin.ECDSA.serializeSig(rs.r, rs.s);
+
+		return Crypto.util.bytesToBase64(signature);
+}
+
 function detectPrivateKeyFormat(key) {
 	// 51 characters base58, always starts with a '5'
 	if (/^5[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{50}$/.test(key))
@@ -4322,7 +4346,6 @@ function detectPrivateKeyFormat(key) {
 
 function privateKeyStringToKey(value, format) {
 
-	console.log(format)
 	var key_bytes = null;
 
 	if (format == 'base58') {
@@ -4348,6 +4371,7 @@ function privateKeyStringToKey(value, format) {
 }
 
 $(document).ready(function() {	
+	
 	if (window.location.protocol == 'http:') {
 		makeNotice('error', 'add-error', 'You must use https:// not http://. Please update your link', 0);
 		return;
