@@ -4499,9 +4499,6 @@ function buildReceiveCoinsView() {
 	$('#archived-delete').attr('disabled', true);
 	$('#archived-sweep').attr('disabled', true);
 
-	var html = null;
-	var arc_html = null;
-
 	for (var key in addresses) {
 
 		var addr = addresses[key];
@@ -4541,13 +4538,10 @@ function buildReceiveCoinsView() {
 		thtml += '</tr>';
 
 		if (addr.tag == 2)
-			arc_html += thtml;
+			$('#archived-addr tbody').append(thtml);
 		else
-			html += thtml;
+			$('#my-addresses tbody').append(thtml);
 	}
-
-	$('#my-addresses tbody').html(html);
-	$('#archived-addr tbody').html(arc_html);
 
 	setupToggle();
 }
