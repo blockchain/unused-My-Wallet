@@ -3941,10 +3941,6 @@ function bind() {
 		dropboxBackup();
 	});
 
-	$('#download-backup-btn').click(function() {    			
-		downloadBackup();
-	});
-
 	$('#wallet-login').unbind().click(function() {    
 
 		try {
@@ -4498,6 +4494,8 @@ function buildReceiveCoinsView() {
 	$('#enable_archived_checkbox').attr('checked', false);
 	$('#archived-delete').attr('disabled', true);
 	$('#archived-sweep').attr('disabled', true);
+	$('#archived-addr tbody').empty();
+	$('#my-addresses tbody').empty();
 
 	for (var key in addresses) {
 
