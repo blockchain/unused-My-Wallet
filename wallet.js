@@ -234,15 +234,17 @@ function makeNotice(type, id, msg, timeout) {
 
 	$("#notices").append(el).hide().fadeIn(200);
 
-	(function() {
-		var tel = el;
-
-		setTimeout(function() {
-			tel.fadeOut(200, function() {
-				$(this).remove();
-			});
-		}, timeout);  
-	})();
+	if (timeout > 0) {
+		(function() {
+			var tel = el;
+	
+			setTimeout(function() {
+				tel.fadeOut(200, function() {
+					$(this).remove();
+				});
+			}, timeout);  
+		})();
+	}
 }
 
 function noConvert(x) { return x; }
@@ -4346,6 +4348,11 @@ function privateKeyStringToKey(value, format) {
 }
 
 $(document).ready(function() {	
+	if (window.location.protocol == 'http:') {
+		makeNotice('error', 'add-error', 'You must use https:// not http://. Please update your link', 0);
+		return;
+	}
+	
 	setTimeout(bind, 100);
 	
 	setTimeout(delayLoad, 500);
