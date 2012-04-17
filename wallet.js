@@ -1621,10 +1621,6 @@ function setIsIntialized() {
 
 	$('#status-container').show();
 
-	console.log('Show');
-	
-	$('#logout').show();
-	
 	isInitialized = true;
 }
 
