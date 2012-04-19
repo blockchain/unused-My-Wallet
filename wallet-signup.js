@@ -1,3 +1,4 @@
+isSignup = true;
 
 function guidGenerator() {
     var S4 = function() {
@@ -49,6 +50,7 @@ function generateNewWallet() {
 	
 	return false;
 }
+
 $(document).ready(function() {	
 	
 	$('#intro-header').fadeOut(200);
