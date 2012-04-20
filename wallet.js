@@ -226,14 +226,14 @@ function makeNotice(type, id, msg, timeout) {
 	if (timeout == null)
 		timeout = 5000;
 
-	var contents = '<div class="alert-message '+type+'" data-alert="alert"><a class="close">×</a><p>'+msg+'</p></div>';
+	var el = $('<div class="alert-message '+type+'"><p></p></div>');
 
+	el.find('p').text(msg);
+	
 	if ($('#'+id).length > 0) {
-		$('#'+id).html(contents);
+		el.attr('id', id);
 		return;
 	}
-
-	var el = $('<div id='+id+'>' + contents + '</div>');
 
 	$("#notices").append(el).hide().fadeIn(200);
 
@@ -1224,9 +1224,6 @@ function internalRestoreWallet() {
 		if (obj.double_encryption != null && obj.dpasswordhash != null) {
 			double_encryption = obj.double_encryption;
 			dpasswordhash = obj.dpasswordhash;
-
-			if (double_encryption)
-				$('#wallet-double-encryption-enabled').prop("checked", true);
 		}
 		 
 		addresses = [];
@@ -1303,8 +1300,11 @@ function askToIncludeFee(success, error) {
 
 function getSecondPassword(success, error) {
 
-	if (!double_encryption || dpassword != null) {
-		success();
+	if (!double_encryption || dpassword != null) {		
+		if (success) {
+			try { success(); } catch (e) { console.log(e); }
+		}
+		
 		return;
 	}
 
@@ -1325,10 +1325,12 @@ function getSecondPassword(success, error) {
 		var password = input.val();
 
 		if (vaidateDPassword(password)) {
-			try { success(); } catch (e) { console.log(e); }
+			if (success) {
+				try { success(); } catch (e) { console.log(e); }
+			}
 		} else {
 			makeNotice('error', 'misc-error', 'Password incorrect.');
-			if (error != null) {
+			if (error) {
 				try { error(); } catch (e) { console.log(e); }
 			}
 		}
@@ -1339,6 +1341,10 @@ function getSecondPassword(success, error) {
 	modal.find('.btn.secondary').unbind().click(function() {
 		makeNotice('error', 'misc-error', 'User cancelled, password needed to continue.');
 		modal.modal('hide');
+		
+		if (error) {
+			try { error(); } catch (e) { console.log(e); }
+		}
 	});
 
 	modal.center();
@@ -2083,13 +2089,28 @@ function vaidateDPassword(input) {
 	return false;
 }
 
+function setDoubleEncryptionButton() {
+	if (double_encryption) {
+		$('#double-encryption-off').hide();
+		$('#double-encryption-on').show();
+	} else {
+		$('#double-encryption-on').hide();
+		$('#double-encryption-off').show();
+	}
+	
+	$('#double-password').val('');
+	$('#double-password2').val('');
+}
+
 function setDoubleEncryption(value) {
 
 	var panic = function(e) {
 		//If we caught an exception here the wallet could be in a inconsistent state
 		//We probably haven't synced it, so no harm done
 		//But for now panic!
-		window.location = root + 'wallet/' + guid;
+		window.location.reload();
+		
+		console.log('Panic!');
 	};
 	
 	try {
@@ -2145,6 +2166,8 @@ function setDoubleEncryption(value) {
 							checkAllKeys();
 							
 							backupWallet();
+							
+							setDoubleEncryptionButton();
 						} catch(e) {
 							panic(e);
 						}
@@ -2154,6 +2177,7 @@ function setDoubleEncryption(value) {
 				} catch(e) {
 					panic(e);
 				}
+				
 			}, function () {
 				panic();
 			});
@@ -2176,6 +2200,8 @@ function setDoubleEncryption(value) {
 					checkAllKeys();
 	
 					backupWallet();
+					
+					setDoubleEncryptionButton();
 				} catch (e) {
 					panic(e);
 				}
@@ -3965,12 +3991,12 @@ function bind() {
 		$('#email-verified').hide();
 	});
 
-	$('#wallet-double-encryption-enabled').change(function(e) {		
-		if ($(this).is(':checked')) {
-			setDoubleEncryption(true);
-		} else {
-			setDoubleEncryption(false);
-		}
+	$('#wallet-double-encryption-enable').click(function(e) {
+		setDoubleEncryption(true);
+	});
+	
+	$('#wallet-double-encryption-disable').click(function(e) {
+		setDoubleEncryption(false);
 	});
 
 	$('#wallet-email-code').change(function(e) {		
@@ -4255,6 +4281,8 @@ function bind() {
 		if (!isInitialized)
 			return;
 
+		setDoubleEncryptionButton();
+		
 		getAccountInfo();
 
 		changeView($("#my-account"));
