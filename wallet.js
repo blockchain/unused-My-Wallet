@@ -3736,15 +3736,6 @@ function populateImportExportView() {
 	}
 }
 
-function dropboxBackup() {
-	window.open(root + 'wallet/dropbox-login?guid=' + guid + '&sharedKey=' + sharedKey);
-}
-
-function downloadBackup() {
-	window.open(root + 'wallet/wallet.aes.json?guid=' + guid + '&sharedKey=' + sharedKey);
-}
-
-
 function bind() {
 	
 	try {	
@@ -3758,6 +3749,10 @@ function bind() {
 	} catch(e) {}
 	
 
+	$('#download-backup-btn').click(function() {
+		window.open(root + 'wallet/wallet.aes.json?guid=' + guid + '&sharedKey=' + sharedKey);
+	});
+	
 	//Virtual On-Screen Keyboard
 	var $write = $('#second-password'),
 	shift = false,
@@ -4074,7 +4069,7 @@ function bind() {
 	});
 
 	$('#dropbox-backup-btn').click(function() {    			
-		dropboxBackup();
+		window.open(root + 'wallet/dropbox-login?guid=' + guid + '&sharedKey=' + sharedKey);
 	});
 
 	$('#wallet-login').unbind().click(function() {    
