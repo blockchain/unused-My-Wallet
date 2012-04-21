@@ -1155,6 +1155,9 @@ function didDecryptWallet() {
 	queryAPIMultiAddress();
 
 	changeView($("#home-intro"));
+	
+	$('#initial_error').remove();
+	$('#initial_success').remove();
 
 	makeNotice('success', 'misc-success', 'Sucessfully Decrypted Wallet'); 
 }
