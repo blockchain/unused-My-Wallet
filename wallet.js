@@ -563,9 +563,7 @@ function importJSON() {
 					if (obj.keys[i].priv != null) {
 						
 						if (obj.double_encryption) {
-								var decrypted = decrypt(obj.keys[i].priv, obj.sharedKey + dpassword, function(decrypted) {
-									return isBase58(decrypted);
-								});
+								var decrypted = decrypt(obj.keys[i].priv, obj.sharedKey + dpassword, isBase58);
 							
 								if (decrypted == null) 
 									throw 'Error decrypting private key for address ' + addr;
@@ -1934,9 +1932,13 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 
 		var data = makeWalletJSON();
 
-		//Double check the json is parasable
-		var obj = $.parseJSON(data);
-
+		try {
+			//Double check the json is parasable
+			var obj = $.parseJSON(data);
+		} catch (e) {
+			throw new 'Error parsing JSON aborting wallet backup';
+		}
+		
 		if (obj == null)
 			throw 'null json error';
 
@@ -2040,9 +2042,7 @@ function decryptPK(priv) {
 		if (dpassword == null)
 			throw 'Cannot decrypt private key without a password';
 
-		return decrypt(priv, sharedKey + dpassword, function(decrypted) {
-			return isBase58(decrypted);
-		});
+		return decrypt(priv, sharedKey + dpassword, isBase58);
 	} else {
 		return priv;
 	}
@@ -2448,8 +2448,6 @@ function makeTransaction(toAddresses, fromAddresses, minersfee, unspentOutputs, 
 		return;
 	}
 
-	console.log('availableValue ' + availableValue + ' txValue ' + txValue + ' minersFee ' +minersfee );
-
 	var sendTx = new Bitcoin.Transaction();
 
 	for (var i = 0; i < selectedOuts.length; i++) {
@@ -2459,12 +2457,6 @@ function makeTransaction(toAddresses, fromAddresses, minersfee, unspentOutputs, 
 	var askforfee = false;
 	for (var i =0; i < toAddresses.length; ++i) {	
 		var addrObj = toAddresses[i];
-
-		//If less than 0.01 BTC show warning
-		if (addrObj.value.compareTo(BigInteger.valueOf(100000)) < 0) {
-			askforfee = true;
-		}
-		
 		if (addrObj.m != null) {
 			sendTx.addOutputScript(Bitcoin.Script.createMultiSigOutputScript(addrObj.m, addrObj.pubkeys), addrObj.value);
 		} else {
@@ -2483,7 +2475,25 @@ function makeTransaction(toAddresses, fromAddresses, minersfee, unspentOutputs, 
 			sendTx.addOutput(new Bitcoin.Address(getPreferredAddress()), changeValue);
 		}
 	}
+	
+	var forceFee = false;
+	
+	//Check for tiny outputs
+	for (var i = 0; i < sendTx.outs.length; ++i) {
+		var out = sendTx.outs[i];
 
+		var array = out.value.slice();
+		array.reverse();
+		var val =  new BigInteger(array);
+		
+		//If less than 0.0005 BTC force fee
+		if (val.compareTo(BigInteger.valueOf(50000)) < 0) {
+			forceFee = true;
+		} else if (val.compareTo(BigInteger.valueOf(1000000)) < 0) { //If less than 0.01 BTC show warning			
+			askforfee = true;
+		}	
+	}
+	
 	//Estimate scripot sig (Cannot use serialized tx size yet becuase we haven't signed the inputs)
 	//18 bytes standard header
 	//standard scriptPubKey 24 bytes
@@ -2496,7 +2506,9 @@ function makeTransaction(toAddresses, fromAddresses, minersfee, unspentOutputs, 
 	var kilobytes = estimatedSize / 1024;
 
 	//Priority under 57 million requires a 0.0005 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
-	if ((priority < 57600000 || kilobytes > 1 || isEscrow || askforfee) && (minersfee == null || minersfee.intValue() == 0)) {	
+	if (forceFee && (minersfee == null || minersfee.intValue() == 0)) {
+		makeTransaction(toAddresses, fromAddresses, BigInteger.valueOf(50000), unspentOutputs, selectedOuts, changeAddress, success, error);
+	} else if ((priority < 57600000 || kilobytes > 1 || isEscrow || askforfee) && (minersfee == null || minersfee.intValue() == 0)) {	
 		askToIncludeFee(function() {
 			makeTransaction(toAddresses, fromAddresses, BigInteger.valueOf(50000), unspentOutputs, selectedOuts, changeAddress, success, error);
 		}, function() {
@@ -3895,6 +3907,7 @@ function bind() {
 		getSecondPassword(function() {
 			try {				
 				checkAllKeys(true);
+				
 				backupWallet();
 			} catch (e) {
 				makeNotice('error', 'misc-error', e);
