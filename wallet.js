@@ -1936,7 +1936,7 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 			//Double check the json is parasable
 			var obj = $.parseJSON(data);
 		} catch (e) {
-			throw new 'Error parsing JSON aborting wallet backup';
+			throw 'Error parsing JSON aborting wallet backup';
 		}
 		
 		if (obj == null)
