@@ -430,6 +430,7 @@ $(document).ready(function() {
 					toggleSymbol();
 				} else {					
 					SetCookie('currency', val);
+					SetCookie('local', 'true');
 					location.reload();
 				}
 			}
