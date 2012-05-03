@@ -4519,7 +4519,7 @@ $(document).ready(function() {
 	
 	if (window.location.protocol == 'http:') {
 		makeNotice('error', 'add-error', 'You must use https:// not http://. Please update your link', 0);
-		return;
+		//return;
 	}
 	
 	if (!isSignup) {
@@ -4704,6 +4704,7 @@ function buildReceiveCoinsView() {
 	$('#archived-sweep').attr('disabled', true);
 	$('#archived-addr tbody').empty();
 	$('#my-addresses tbody').empty();
+	$('.extrapop').popover('hide');
 
 	for (var key in addresses) {
 
@@ -4711,11 +4712,12 @@ function buildReceiveCoinsView() {
 
 		var noPrivateKey = '';
 
-		if (addr.tag == 1)
-			noPrivateKey = ' <font color="red">(Not Synced)</font>';
-		else if (addr.priv == null)
-			noPrivateKey = ' <font color="red">(Watch Only)</font>';
-
+		if (addr.tag == 1) {
+			noPrivateKey = ' <font color="red" class="extrapop" title="Not Synced" data-content="This is a new address which has not yet been synced with our the server. Do not used this address yet.">(Not Synced)</font>';
+		} else if (addr.priv == null) {
+			noPrivateKey = ' <font color="red" class="extrapop" title="Watch Only" data-content="Watch Only means there is no private key associated with this bitcoin address. <br /><br /> Unless you have the private key stored elsewhere you do not own this address and can only observe it.">(Watch Only)</font>';
+		}	 
+		 
 		var balance = formatBTC(addr.balance) + ' <span class="can-hide">BTC</span>';	
 
 		var extra = '';
@@ -4748,6 +4750,11 @@ function buildReceiveCoinsView() {
 		else
 			$('#my-addresses tbody').append(thtml);
 	}
+	
+	$('.extrapop') .popover({
+	     offset: 10,
+	     placement : 'bottom'
+	});
 
 	setupToggle();
 }
