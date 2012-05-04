@@ -1756,11 +1756,6 @@ function getAccountInfo() {
 			console.log(e);
 		}
 		
-		if (data.dropbox_enabled == 1)
-			$('#wallet-dropbox-enabled').prop("checked", true);
-		else
-			$('#wallet-dropbox-enabled').prop("checked", false);
-		
 
 		if (data.auto_email_backup == 1)
 			$('#auto-email-backup').prop("checked", true);
@@ -4048,16 +4043,6 @@ function bind() {
 		}
 
 		updateKV('Updating Secret Phrase', 'update-phrase', phrase);
-	});
-
-	$('#wallet-dropbox-enabled').change(function(e) {	
-		var val = false;
-
-		if ($(this).is(':checked')) {
-			val = true;
-		}
-
-		updateKV('Updating Dropbox Settings', 'update-dropbox-enabled', val);
 	});
 
 	$('#wallet-alias').change(function(e) {		
