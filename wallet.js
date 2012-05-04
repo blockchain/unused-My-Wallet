@@ -2349,12 +2349,16 @@ function pushTx(tx) {
 	var size = transactions.length;
 
 	$.post("/pushtx", { tx: hex }).success(function(data) { 
-
 		//Wait 1/2 second if we haven't received a new transaction
 		//Call a manual update
 		setTimeout(function() { 
-			if (transactions.length == size)
+			if (transactions.length == size) {
 				queryAPIMultiAddress(); 
+							
+				apiGetRejectionReason(Crypto.util.bytesToHex(tx.getHash()), function(reason) {
+					makeNotice('error', 'rejection-error', reason); 
+				});
+			}
 			
 			//Refresh the unspent output cache
 			getUnspentOutputs(getAllAddresses());
@@ -3135,9 +3139,6 @@ function txFullySigned(tx, success, error) {
 				if (success) {
 					success(function() {
 						pushTx(tx);
-						modal.modal('hide');
-					}, function() {
-						modal.modal('hide');
 					});
 				} else {
 					pushTx(tx);
@@ -3281,11 +3282,22 @@ function txConstructSecondPhase(toAddresses, fromAddresses, fees, unspent, missi
 		modal.modal('hide');
 		return;	
 	});
+}
 
+function apiGetRejectionReason(hexhash, success, error) {	
+	$.get(root + 'q/rejected/'+hexhash).success(function(data) { 
+
+		if (data == null || data.length == 0)
+			error();
+		else
+			success(data);
+
+	}).error(function(data) {
+		if (error) error();
+	});
 }
 
 function apiGetOutScript(txIndex, txOutputN, success, error) {	
-
 	setLoadingText('Getting Output Script');
 
 	$.get(root + 'q/outscript?tx_index='+txIndex+'&tx_output_n='+txOutputN).success(function(data) { 
@@ -3301,7 +3313,6 @@ function apiGetOutScript(txIndex, txOutputN, success, error) {
 }
 
 function apiGetPubKey(addr, success, error) {	
-
 	setLoadingText('Getting Pub Key');
 
 	$.get(root + 'q/pubkeyaddr/'+addr).success(function(data) { 
@@ -3629,7 +3640,8 @@ function newTx() {
 						}, 2000);
 					}, function() {
 						
-						if (error) success();
+						if (error) 
+							error();
 
 						//If we fail the backup then we remove the addresses
 						for (var to_email in email_to_addr) {
@@ -4519,7 +4531,7 @@ $(document).ready(function() {
 	
 	if (window.location.protocol == 'http:') {
 		makeNotice('error', 'add-error', 'You must use https:// not http://. Please update your link', 0);
-		//return;
+		return;
 	}
 	
 	if (!isSignup) {
