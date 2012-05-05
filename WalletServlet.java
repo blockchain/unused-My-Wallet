@@ -80,7 +80,7 @@ public class WalletServlet extends BaseServlet {
 	final static private String DROPBOX_CACHE_PREFIX = "drop:";
 	final static private String DROPBOX_CALLBACK = "https://www.blockchain.info/wallet/dropbox-update";
 
-	
+
 	final public static int MaxAddresses = 400;
 
 	public static class GoogleAuthenticator {
@@ -105,7 +105,7 @@ public class WalletServlet extends BaseServlet {
 			for (int i = 8; i-- > 0; value >>>= 8) {
 				data[i] = (byte) value;
 			}
-			
+
 			SecretKeySpec signKey = new SecretKeySpec(key, "HmacSHA1");
 			Mac mac = Mac.getInstance("HmacSHA1");
 			mac.init(signKey);
@@ -122,7 +122,7 @@ public class WalletServlet extends BaseServlet {
 				// we just keep the first byte.
 				truncatedHash |= (hash[offset + i] & 0xFF);
 			}
-			
+
 			truncatedHash &= 0x7FFFFFFF;
 			truncatedHash %= 1000000;
 
@@ -374,7 +374,7 @@ public class WalletServlet extends BaseServlet {
 
 				if (rguid == null || rguid.length() == 0 || sharedKey == null || sharedKey.length() == 0)
 					return;
-				
+
 				PreparedStatement select_smt = conn.prepareStatement("select payload from bitcoin_wallets where guid = ? and shared_key = ?");
 
 				try {
@@ -393,16 +393,16 @@ public class WalletServlet extends BaseServlet {
 				} finally {
 					BitcoinDatabaseManager.close(select_smt);
 				}
- 
+
 				return;
 			} else if (guid.equals("unsubscribe")) {
 				String rguid = req.getParameter("guid");
-				
+
 				if (rguid == null || rguid.length() == 0)
 					return;
-				
+
 				String unscrambled = Scrambler.unscramble(rguid);
-								
+
 				PreparedStatement disable_notifications = conn.prepareStatement("update bitcoin_wallets set notifications_type = 0 where guid = ?");
 
 				try {
@@ -413,7 +413,7 @@ public class WalletServlet extends BaseServlet {
 					} else {					
 						req.setAttribute("initial_error", "Wallet identifier or email code were incorrect. You have not been unsubscribed");
 					}
-	
+
 					getServletContext().getRequestDispatcher("/WEB-INF/"+ BaseServlet.ROOT + "bitcoin-wallet-index.jsp").forward(req, res);
 				} finally {
 					BitcoinDatabaseManager.close(disable_notifications);
@@ -461,7 +461,7 @@ public class WalletServlet extends BaseServlet {
 				}
 
 				long now = System.currentTimeMillis();
-				
+
 				if (account_locked_time > now)
 					throw new Exception("Account is locked for another " + ((account_locked_time - now) / 60000) + " minutes");
 
@@ -479,20 +479,16 @@ public class WalletServlet extends BaseServlet {
 					req.setAttribute("wallet_data", payload);
 				} else {
 
-					HttpSession session = req.getSession();
-
-					String saved_guid = (String) session.getAttribute("saved_guid");
-					Integer saved_auth_type = (Integer) session.getAttribute("saved_auth_type");
+					String saved_guid = (String)getSessionValue(req, res, "saved_guid");
+					Integer saved_auth_type = (Integer) getSessionValue(req, res, "saved_auth_type");
 
 					//Check to see if the user has their two factor authentication settings saved
 					boolean needs_auth = true;
-					if (session != null) {
-
-						if (saved_guid != null && saved_auth_type != null && saved_guid.equals(rguid) && saved_auth_type == auth_type) {
-							req.setAttribute("wallet_data", payload);
-							needs_auth = false;
-						}
+					if (saved_guid != null && saved_auth_type != null && saved_guid.equals(rguid) && saved_auth_type == auth_type) {
+						req.setAttribute("wallet_data", payload);
+						needs_auth = false;
 					}
+
 
 					//Otherwise we need them to authorize themselves
 					if (needs_auth) {
@@ -505,7 +501,7 @@ public class WalletServlet extends BaseServlet {
 								req.setAttribute("show_yubikey", true);
 							}
 						} else if (auth_type == AuthTypeGoogleAuthenticator) {
-								req.setAttribute("show_google_auth", true);
+							req.setAttribute("show_google_auth", true);
 						} else if (auth_type == AuthTypeEmail) {
 
 							if (email == null || email.length() == 0) {
@@ -568,9 +564,9 @@ public class WalletServlet extends BaseServlet {
 
 			} else {
 				System.out.println("Wallet Identifier: " + guid + " Not found " + req.getRemoteAddr());
-				
+
 				RequestLimiter.didRequest(req.getRemoteAddr(), 100); //Limited to approx 6 failed tries every 4 hours (Global over whole site)
-				
+
 				req.setAttribute("guid", "");
 				req.setAttribute("initial_error", "Unknown wallet identifier. Please check you entered it correctly.");
 				getServletContext().getRequestDispatcher("/WEB-INF/" + BaseServlet.ROOT + "bitcoin-wallet-app.jsp").forward(req, res);
@@ -786,14 +782,14 @@ public class WalletServlet extends BaseServlet {
 			if (guid == null || guid.length() != 36 || pre_guid_length != guid.length()) {
 				throw new Exception("Invalid Input");
 			}
-			
+
 			//get-info has no payload
 			if (!method.equals("get-info") && !method.equals("email-backup")) {
 				int pre_payload_length = payload.length();
 
 				//Strip and html or javascript
 				payload = Jsoup.parse(payload).text();
-				
+
 				int ulength = 0;
 				try {
 					ulength = Integer.valueOf(length).intValue(); //Must catch this as potential for XSS here
@@ -981,7 +977,7 @@ public class WalletServlet extends BaseServlet {
 					} catch (Exception e) {
 						throw new Exception("Payload must be numerical");
 					}
-					
+
 					update_smt.setString(2, guid);
 					update_smt.setString(3, sharedKey);
 
@@ -1005,7 +1001,7 @@ public class WalletServlet extends BaseServlet {
 				} catch (Exception e) {
 					throw new Exception("Payload must be numerical");
 				}
-			
+
 				try {
 					update_smt.setInt(1, auth_type);
 					update_smt.setString(2, guid);
@@ -1021,12 +1017,12 @@ public class WalletServlet extends BaseServlet {
 				} finally {
 					BitcoinDatabaseManager.close(update_smt);
 				}
-				
+
 				if (auth_type == AuthTypeGoogleAuthenticator) {
 					String new_secret = GoogleAuthenticator.generateSecret();
-										
+
 					PreparedStatement update_secret_smt = conn.prepareStatement("update bitcoin_wallets set google_secret = ? where guid = ? and shared_key = ?");
-					
+
 					try {
 						update_secret_smt.setString(1, new_secret);
 						update_secret_smt.setString(2, guid);
@@ -1263,44 +1259,44 @@ public class WalletServlet extends BaseServlet {
 				try {
 					select_smt.setString(1, guid);
 					select_smt.setString(2, sharedKey);
-					
+
 					ResultSet results = select_smt.executeQuery();
 
 					if (results.next()) {
 						int email_verified = results.getInt(5);
 						int dropbox_enabled = results.getInt(8);
 						int auth_type = results.getInt(10);
-						
+
 						String email = results.getString(1);
 						if (email != null)
 							email = StringEscapeUtils.escapeJavaScript(email);
 						else 
 							email = "";
-						
+
 						String phrase = results.getString(2);
 						if (phrase != null)
 							phrase = StringEscapeUtils.escapeJavaScript(phrase);
 						else 
 							phrase = "";
-						
+
 						String alias = results.getString(3);
 						if (alias != null)
 							alias = StringEscapeUtils.escapeJavaScript(alias);
 						else 
 							alias = "";
-												
+
 						String http_url = results.getString(6);
 						if (http_url != null)
 							http_url = StringEscapeUtils.escapeJavaScript(http_url);
 						else 
 							http_url = "";
-						
+
 						String skype_username = results.getString(7);
 						if (skype_username != null)
 							skype_username = StringEscapeUtils.escapeJavaScript(skype_username);
 						else 
 							skype_username = "";
-					
+
 						String yubikey = "";
 						if (auth_type == AuthTypeYubikey || auth_type == AuthTypeYubikeyMtGox) {
 							yubikey = StringEscapeUtils.escapeJavaScript(results.getString(4));
@@ -1314,10 +1310,10 @@ public class WalletServlet extends BaseServlet {
 							} else {
 								google_secret_url = GoogleAuthenticator.getQRBarcodeURL(guid, "blockchain.info", google_secret);
 							}
-							
+
 							google_secret_url = StringEscapeUtils.escapeJavaScript(google_secret_url);
 						}
-						
+
 						res.setContentType("application/json");
 
 						res.getOutputStream().print("{\"email\" : \"" + email + "\", \"phrase\" : \"" + phrase + "\", \"alias\" : \"" + alias + "\", \"yubikey\" : \"" + yubikey + "\", \"email_verified\" : \"" + email_verified + "\", \"http_url\" : \"" + http_url + "\", \"skype_username\" : \"" + skype_username + "\", \"dropbox_enabled\" : \"" + dropbox_enabled + "\", \"google_secret_url\" : \"" + google_secret_url + "\"}");
@@ -1330,13 +1326,13 @@ public class WalletServlet extends BaseServlet {
 					BitcoinDatabaseManager.close(select_smt);
 				}
 			} else if (method.equals("update-phrase")) {
-				
+
 				if (!StringUtils.isAlphanumericSpace(payload)) {
 					res.setStatus(500);
 					res.getOutputStream().print("Secret Phrase must be alphanumric");
 					return;
 				}
-				
+
 				PreparedStatement update_smt = conn.prepareStatement("update bitcoin_wallets set secret_phrase = ? where guid = ? and shared_key = ?");
 
 				try {
@@ -1380,15 +1376,15 @@ public class WalletServlet extends BaseServlet {
 				}
 
 			} else if (method.equals("update-alias")) {
-				
+
 				String alias = payload.trim();
-				
+
 				if (!StringUtils.isAlphanumeric(alias)) {
 					res.setStatus(500);
 					res.getOutputStream().print("Alias must be alphanumric");
 					return;
 				}
-				
+
 				PreparedStatement update_smt = conn.prepareStatement("update bitcoin_wallets set alias = ? where guid = ? and shared_key = ?");
 
 				try {
@@ -1463,11 +1459,11 @@ public class WalletServlet extends BaseServlet {
 						failed_logins = results.getInt(6);
 						String email_code = results.getString(7);
 						String google_secret = results.getString(8);
-						
+
 						if (account_locked_time > now) {				
 							throw new Exception("Account is locked");
 						}
-						
+
 						//Not Two factor authenitcation just print the wallet data
 						if (auth_type == AuthTypeStandard) {
 							res.getOutputStream().print(wallet_payload);
@@ -1500,15 +1496,9 @@ public class WalletServlet extends BaseServlet {
 									YubicoResponse response = client.verify(otp);
 
 									if (response.getStatus() == YubicoResponseStatus.OK) {
-
-										HttpSession session = req.getSession(true);
-
-										if (session != null) {
-											session.setAttribute("saved_guid", guid);
-											session.setAttribute("saved_auth_type", auth_type);
-
-											session.setMaxInactiveInterval(1440);
-										}
+										setSessionValue(req, res, "saved_guid", guid, 1440);
+										setSessionValue(req, res, "saved_auth_type", auth_type, 1440);
+										
 
 										//Everything ok, output the encrypted payload
 										res.getOutputStream().print(wallet_payload);
@@ -1518,7 +1508,7 @@ public class WalletServlet extends BaseServlet {
 									}
 								} catch (Exception e) {
 									e.printStackTrace();
-									
+
 									throw new Exception("Error Validating Yubikey");
 								}
 							}
@@ -1541,14 +1531,8 @@ public class WalletServlet extends BaseServlet {
 								login_did_fail = true;
 								throw new Exception("OTP provided does not match yubikey associated with the account");
 							} else {
-
-								HttpSession session = req.getSession(true);
-
-								if (session != null) {
-									session.setAttribute("saved_guid", guid);
-									session.setAttribute("saved_auth_type", auth_type);
-									session.setMaxInactiveInterval(1440); //Email expires in 4 hours
-								}
+								setSessionValue(req, res, "saved_guid", guid, 1440);
+								setSessionValue(req, res, "saved_auth_type", auth_type, 1440);
 
 								res.getOutputStream().print(wallet_payload);
 							}
@@ -1562,13 +1546,8 @@ public class WalletServlet extends BaseServlet {
 								throw new Exception("You must provide a valid email authentication code");
 
 							if (code.equals(email_code)) {
-								HttpSession session = req.getSession(true);
-
-								if (session != null) {
-									session.setAttribute("saved_guid", guid);
-									session.setAttribute("saved_auth_type", auth_type);
-									session.setMaxInactiveInterval(43200);
-								}
+								setSessionValue(req, res, "saved_guid", guid, 43200);
+								setSessionValue(req, res, "saved_auth_type", auth_type, 43200);
 
 								//Login successful				
 								res.getOutputStream().print(wallet_payload);
@@ -1579,24 +1558,18 @@ public class WalletServlet extends BaseServlet {
 
 						}  else if (auth_type == AuthTypeGoogleAuthenticator) {
 							//Validate the TOTP
-							
+
 							Long code = null;
 							try {
 								code = Long.valueOf(payload);
 							} catch (Exception e) {
 								throw new Exception("Authentication code must be numerical");
 							}
-							
+
 							//time window of 30 seconds (30,000 milliseconds)
 							if (GoogleAuthenticator.check_code(google_secret, code, new Date().getTime()  / 30000)) {
-								HttpSession session = req.getSession(true);
-
-								if (session != null) {
-									session.setAttribute("saved_guid", guid);
-									session.setAttribute("saved_auth_type", auth_type);
-
-									session.setMaxInactiveInterval(1440);
-								}
+								setSessionValue(req, res, "saved_guid", guid, 1440);
+								setSessionValue(req, res, "saved_auth_type", auth_type, 1440);
 
 								//Everything ok, output the encrypted payload
 								res.getOutputStream().print(wallet_payload);
