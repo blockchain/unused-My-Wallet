@@ -1579,6 +1579,7 @@ function getReadyForOffline() {
 				$('#email-backup-btn').attr('disabled', true);
 				$('#my-account-btn').attr('disabled', true);
 				$('#dropbox-backup-btn').attr('disabled', true);
+				$('#gdrive-backup-btn').attr('disabled', true);
 
 				modal.modal('hide');										
 
@@ -4082,6 +4083,10 @@ function bind() {
 		window.open(root + 'wallet/dropbox-login?guid=' + guid + '&sharedKey=' + sharedKey);
 	});
 
+	$('#gdrive-backup-btn').click(function() {    			
+		window.open(root + 'wallet/gdrive-login?guid=' + guid + '&sharedKey=' + sharedKey);
+	});
+	
 	$('#wallet-login').unbind().click(function() {    
 
 		try {
@@ -4516,7 +4521,7 @@ $(document).ready(function() {
 	
 	if (window.location.protocol == 'http:') {
 		makeNotice('error', 'add-error', 'You must use https:// not http://. Please update your link', 0);
-		return;
+		//return;
 	}
 	
 	if (!isSignup) {
