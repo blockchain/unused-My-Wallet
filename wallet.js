@@ -1805,6 +1805,8 @@ function verifyEmail(code) {
 		makeNotice('error', 'misc-error', 'You must enter a code to verify');
 		return;
 	}
+	
+	code = $.trim(code);
 
 	setLoadingText('Verifying Email');
 
@@ -1833,6 +1835,8 @@ function updateKV(txt, method, value, success, error) {
 		makeNotice('error', 'misc-error', txt + ': Invalid value');
 		return;
 	}
+	
+	value = $.trim(value);
 
 	setLoadingText(txt);
 
