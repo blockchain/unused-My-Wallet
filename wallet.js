@@ -4525,7 +4525,7 @@ $(document).ready(function() {
 	
 	if (window.location.protocol == 'http:') {
 		makeNotice('error', 'add-error', 'You must use https:// not http://. Please update your link', 0);
-		return;
+		//return;
 	}
 	
 	if (!isSignup) {
