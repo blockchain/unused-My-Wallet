@@ -18,7 +18,6 @@ var double_encryption = false; //If wallet has a second password
 var tx_page = 0; //Multi-address page
 var tx_filter = 0; //Transaction filter (e.g. Sent Received etc)
 var maxAddr = 400; //Maximum number of addresses
-var sync_pubkeys; //Whether to extract the public keys from the wallet
 var nconnected; //Number of nodes blockchain.info is connected to
 var addresses = []; //{addr : address, priv : private key, tag : tag (mark as archived), label : label, balance : balance}
 var loading_text = ''; //Loading text for ajax activity 
@@ -487,10 +486,9 @@ function parseMultiBit(str) {
 		if (addedOne) {
 
 			//Perform a wallet backup
-			backupWallet();
-
-			//Get the new list of transactions
-			queryAPIMultiAddress();
+			backupWallet('update', function() {
+				queryAPIMultiAddress();
+			});
 
 			return true;
 		}
@@ -600,10 +598,9 @@ function importJSON() {
 			$('#import-json').val('');
 	
 			//Perform a wallet backup
-			backupWallet();
-	
-			//Get the new list of transactions
-			queryAPIMultiAddress();
+			backupWallet('update', function() {
+				queryAPIMultiAddress();
+			});
 		} catch (e) {
 			makeNotice('error', 'misc-error', e);  
 		}
@@ -1823,11 +1820,6 @@ function verifyEmail(code) {
 	});
 }
 
-function updatePubKeys() {
-	//Only update public keys when needed for send notifications
-	if (sync_pubkeys) updateKV('Updating Public Keys', 'update-pub-keys', getActiveAddresses().join('|'));
-}
-
 function updateKV(txt, method, value, success, error) {
 	if (offline) return;
 
@@ -1988,16 +1980,12 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 				
 				payload_checksum = checksum;
 
-				if (method == 'update')
-					updatePubKeys();
-
 				makeNotice('success', 'misc-success', data);
 
 				if (successcallback != null)
 					successcallback();
 				
 				updateCacheManifest();
-				
 			},
 
 			error : function(data) {
@@ -2343,8 +2331,8 @@ function pushTx(tx) {
 
 	var hex = Crypto.util.bytesToHex(s);
 
-	if (hex.length >= 16384) {
-		makeNotice('success', 'misc-error', 'My wallet cannot handle transactions over 16kb in size. Please try splitting your transaction,');
+	if (hex.length >= 32768) {
+		makeNotice('success', 'misc-error', 'My wallet cannot handle transactions over 32KB in size. Please try splitting your transaction,');
 		return;
 	}
 
@@ -2942,9 +2930,9 @@ function deleteAddresses(addrs) {
 					
 					buildReceiveCoinsView();
 
-					backupWallet();
-
-					queryAPIMultiAddress();
+					backupWallet('update', function() {
+						queryAPIMultiAddress();
+					});
 
 				} finally {
 					clearInterval(interval);
@@ -3957,8 +3945,8 @@ function bind() {
 		$('.notifications-type').hide(200);
 		$('.notifications-type.t'+val).show(200);
 
-		if (val != 0)
-			updatePubKeys();
+		//Backup the wallet to syn the pub keys
+		backupWallet();
 	});
 
 	$('#notifications-on').change(function() {
@@ -4177,10 +4165,9 @@ function bind() {
 					buildReceiveCoinsView();
 
 					//Backup
-					backupWallet();
-
-					//Update the balance list
-					queryAPIMultiAddress(); 
+					backupWallet('update', function() {
+						queryAPIMultiAddress();
+					});
 				} else {
 					makeNotice('error', 'add-error', 'Error Adding Address ' + address);
 				}
@@ -4210,10 +4197,9 @@ function bind() {
 						buildReceiveCoinsView();
 
 						//Perform a wallet backup
-						backupWallet();
-
-						//Get the new list of transactions
-						queryAPIMultiAddress();
+						backupWallet('update', function() {
+							queryAPIMultiAddress();
+						});
 
 						makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr);
 					} else {
@@ -4263,10 +4249,9 @@ function bind() {
 							buildReceiveCoinsView();
 	
 							//Perform a wallet backup
-							backupWallet();
-	
-							//Get the new list of transactions
-							queryAPIMultiAddress();
+							backupWallet('update', function() {
+								queryAPIMultiAddress();
+							});
 	
 							makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr);
 						} else {
@@ -4571,7 +4556,6 @@ $(document).ready(function() {
 	payload_checksum =  $('#data-checksum').text();
 
 	sharedKey = $('#data-sharedkey').text();
-	sync_pubkeys = $('#sync-pubkeys').text();
 
 	$('body').ajaxStart(function() {
 		$('.loading-indicator').fadeIn(200);
@@ -4665,8 +4649,9 @@ function internalArchive(addr) {
 	}
 
 	archTimer = setTimeout(function (){
-		backupWallet('update', null, null);
-		queryAPIMultiAddress();
+		backupWallet('update', function() {
+			queryAPIMultiAddress();
+		});
 	}, 3000);
 }
 
