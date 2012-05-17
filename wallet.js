@@ -1932,24 +1932,28 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 
 		var data = makeWalletJSON();
 
-		try {
-			//Double check the json is parasable
-			var obj = $.parseJSON(data);
-		} catch (e) {
-			throw 'Error parsing JSON aborting wallet backup';
-		}
-		
-		if (obj == null)
-			throw 'null json error';
-
-		if (obj.keys.length == 0)
-			throw 'Cannot backup wallet with no keys';
-
 		//Everything looks ok, Encrypt the JSON output
 		var crypted = encrypt(data, password);
 
 		if (crypted.length == 0) {
 			throw 'Error enrypting the JSON output';
+		}
+		
+		//Now Decrypt the it again to double check for any possible curruption
+		var obj = null;
+		decrypt(crypted, password, function(decrypted) {	
+			try {
+				obj = $.parseJSON(decrypted);
+				return (obj != null);
+			} catch (e) {
+				console.log(e);
+				return false;
+			};
+		});
+		
+		if (obj == null) {
+			makeNotice('error', 'misc-error', 'Error Decrypting Wallet, Not saving. This is a serious error..');	
+			return false;
 		}
 
 		//SHA256 checksum verified by server in case of curruption during transit
@@ -4525,7 +4529,7 @@ $(document).ready(function() {
 	
 	if (window.location.protocol == 'http:') {
 		makeNotice('error', 'add-error', 'You must use https:// not http://. Please update your link', 0);
-		//return;
+		return;
 	}
 	
 	if (!isSignup) {
