@@ -31,6 +31,9 @@ function connect() {
 	    ws = new WebSocket("ws://api.blockchain.info:8335/inv");
 
 		ws.onmessage = function(e) {
+			
+			console.log(e.data);
+			
 			var obj = $.parseJSON(e.data);
 					
 			if (obj.op == 'minitx') {									
