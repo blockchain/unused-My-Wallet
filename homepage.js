@@ -32,8 +32,6 @@ function connect() {
 
 		ws.onmessage = function(e) {
 			
-			console.log(e.data);
-			
 			var obj = $.parseJSON(e.data);
 					
 			if (obj.op == 'minitx') {									
