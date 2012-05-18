@@ -1,6 +1,7 @@
 
 var noFocus = 0;
 var ws;
+var retry = 0;
 function updateTimes() {
 	document.hasFocus ? noFocus = 0 : ++noFocus;
 		
@@ -32,7 +33,7 @@ function connect() {
 		ws.onmessage = function(e) {
 			var obj = $.parseJSON(e.data);
 					
-			if (obj.op == 'utx') {									
+			if (obj.op == 'minitx') {									
 				var tx = obj.x;
 										
 				$('#txs tr:first').after('<tr><td><a href="${root}tx-index/'+tx.txIndex+'/'+tx.hash+'">'+tx.hash.substring(0, 25)+'...</a></td><td data-time="'+tx.time+'">< 1 minute</td><td><button class="btn success cb">'+ formatMoney(tx.value) +'</button></td></tr>');
@@ -50,14 +51,18 @@ function connect() {
 		};
 
 		ws.onopen = function() {
+			retry = 0;
+			
 			ws.send('{"op":"set_tx_mini"}{"op":"unconfirmed_sub"}{"op":"blocks_sub"}');
 		};
 		
 		ws.onclose = function() {
 			console.log('On close');
 			
-			if(document.hasFocus)
+			if(document.hasFocus && retry < 3) {
 				connect();
+				++retry;
+			}
 		};
 	} catch (e) {
 		console.log(e);
