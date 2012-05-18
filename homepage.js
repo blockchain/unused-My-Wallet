@@ -37,7 +37,7 @@ function connect() {
 			if (obj.op == 'minitx') {									
 				var tx = obj.x;
 										
-				$('#txs tr:first').after('<tr><td><a href="${root}tx-index/'+tx.txIndex+'/'+tx.hash+'">'+tx.hash.substring(0, 25)+'...</a></td><td data-time="'+tx.time+'">< 1 minute</td><td><button class="btn success cb">'+ formatMoney(tx.value) +'</button></td></tr>');
+				$('#txs tr:first').after('<tr><td><a href="${root}tx-index/'+tx.txIndex+'/'+tx.hash+'">'+tx.hash.substring(0, 25)+'...</a></td><td data-time="'+tx.time+'">< 1 minute</td><td><button class="btn success cb" onclick="toggleSymbol()">'+ formatMoney(tx.value) +'</button></td></tr>');
 			
 			    $('#txs tr:last-child').remove();
 			} else if (obj.op == 'block') {					
