@@ -19,11 +19,13 @@ function BlockFromJSON(json) {
 
 	block.hash = json.hash;
 	block.time = json.time;
-	block.nTx = json.n_tx;
 	block.blockIndex = json.block_index;
 	block.height = json.height;
 	block.txIndex = json.txIndexes;
-	
+	block.outputValue = json.output_value;
+	block.foundByLink = json.found_by_link;
+	block.foundByDescription = json.found_by_description;
+
 	return block;
 }
 
