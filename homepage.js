@@ -37,7 +37,7 @@ function connect() {
 			if (obj.op == 'minitx') {									
 				var tx = obj.x;
 										
-				$('#txs tr:first').after('<tr><td><a href="${root}tx-index/'+tx.txIndex+'/'+tx.hash+'">'+tx.hash.substring(0, 25)+'...</a></td><td data-time="'+tx.time+'">< 1 minute</td><td><button class="btn success cb" onclick="toggleSymbol()">'+ formatMoney(tx.value) +'</button></td></tr>');
+				$('#txs tr:first').after('<tr><td><a href="${root}tx-index/'+tx.txIndex+'/'+tx.hash+'">'+tx.hash.substring(0, 25)+'...</a></td><td data-time="'+tx.time+'">< 1 minute</td><td><button class="btn success cb" onclick="toggleSymbol()">'+ formatMoney(tx.value, true) +'</button></td></tr>');
 			
 			    $('#txs tr:last-child').remove();
 			} else if (obj.op == 'block') {					
@@ -45,7 +45,7 @@ function connect() {
 				
 				var block = BlockFromJSON(obj.x);
 				
-				$('#blocks tr:first').after('<tr><td><a href="${root}/block-index/'+block.blockIndex+'/'+block.hash+'">'+block.height+'</a></td><td data-time="'+block.time+'">< 1 minute</td><td>'+block.txIndex.length+'</td><td>'+formatMoney(block.outputValue)+'<td><a href="'+block.foundByLink+'">'+block.foundByDescription+'</a></td><td>'+block.size+'</td></tr>');
+				$('#blocks tr:first').after('<tr><td><a href="${root}/block-index/'+block.blockIndex+'/'+block.hash+'">'+block.height+'</a></td><td data-time="'+block.time+'">< 1 minute</td><td>'+block.txIndex.length+'</td><td>'+formatMoney(block.outputValue, true)+'<td><a href="'+block.foundByLink+'">'+block.foundByDescription+'</a></td><td>'+block.size+'</td></tr>');
 				
 			    $('#blocks tr:last-child').remove();
 			}
