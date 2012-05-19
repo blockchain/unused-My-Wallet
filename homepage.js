@@ -2,6 +2,7 @@
 var noFocus = 0;
 var ws;
 var retry = 0;
+decimals = 2;
 function updateTimes() {
 	document.hasFocus ? noFocus = 0 : ++noFocus;
 		
@@ -13,6 +14,7 @@ function updateTimes() {
 	var now = new Date().getTime() / 1000;
 	$('td[data-time]').each(function(index) {
 		var diff = now - $(this).attr('data-time');
+		
 		if (diff < 60) {
 			$(this).text('< 1 minute');
 		} else if (diff < 3600) {
@@ -22,7 +24,6 @@ function updateTimes() {
 			var p = (parseInt(diff / 3600) > 1) ? 's' : '';
 			$(this).text(parseInt(diff / 3600) + ' hour'+p+' ' + parseInt((diff % 3600) / 60) + ' minutes');
 		}
-
 	});
 }
 
@@ -31,22 +32,27 @@ function connect() {
 	    ws = new WebSocket("ws://api.blockchain.info:8335/inv");
 
 		ws.onmessage = function(e) {
-			
+						
 			var obj = $.parseJSON(e.data);
-					
+			
 			if (obj.op == 'minitx') {									
 				var tx = obj.x;
 										
-				$('#txs tr:first').after('<tr><td><a href="${root}tx-index/'+tx.txIndex+'/'+tx.hash+'">'+tx.hash.substring(0, 25)+'...</a></td><td data-time="'+tx.time+'">< 1 minute</td><td><button class="btn success cb" onclick="toggleSymbol()">'+ formatMoney(tx.value, true) +'</button></td></tr>');
-			
+				$('<tr><td><div><a href="${root}tx-index/'+tx.txIndex+'/'+tx.hash+'">'+tx.hash.substring(0, 25)+'...</a></div></td><td data-time="'+tx.time+'"><div>< 1 minute</div></td><td><div><button class="btn success" onclick="toggleSymbol()">'+ formatMoney(tx.value, true) +'</button></div></td></tr>').insertAfter($('#txs tr:first')).find('div').hide().slideDown('slow');
+				
 			    $('#txs tr:last-child').remove();
 			} else if (obj.op == 'block') {					
 				console.log('on block');
 				
 				var block = BlockFromJSON(obj.x);
 				
-				$('#blocks tr:first').after('<tr><td><a href="${root}/block-index/'+block.blockIndex+'/'+block.hash+'">'+block.height+'</a></td><td data-time="'+block.time+'">< 1 minute</td><td>'+block.txIndex.length+'</td><td>'+formatMoney(block.outputValue, true)+'<td><a href="'+block.foundByLink+'">'+block.foundByDescription+'</a></td><td>'+block.size+'</td></tr>');
+				var foundByTxt = 'Unknown'; 
+				if (block.foundBy) {
+					foundByTxt = '<a href="'+block.foundBy.link+'">'+block.foundBy.description+'</a>';
+				}
 				
+				$('<tr><td><div><a href="${root}/block-index/'+block.blockIndex+'/'+block.hash+'">'+block.height+'</a></div></td><td data-time="'+block.time+'"><div>< 1 minute</div></td><td><div>'+block.txIndex.length+'</div></td><td><div>'+formatMoney(block.totalBTCSent, true)+'</div></td><td><div>'+foundByTxt+'</div></td><td><div>'+parseInt(block.size / 1024)+'</div></td></tr>').insertAfter($('#blocks tr:first')).find('div').hide().slideDown('slow');
+
 			    $('#blocks tr:last-child').remove();
 			}
 		};
@@ -55,13 +61,17 @@ function connect() {
 			retry = 0;
 			
 			ws.send('{"op":"set_tx_mini"}{"op":"unconfirmed_sub"}{"op":"blocks_sub"}');
+			
+			setTimeout(function() {
+				ws.send('{"op":"ping_block"}');
+			}, 1000);
 		};
 		
 		ws.onclose = function() {
 			console.log('On close');
 			
 			if(document.hasFocus && retry < 3) {
-				connect();
+				setTimeout(connect, 1000*retry);
 				++retry;
 			}
 		};

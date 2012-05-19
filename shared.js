@@ -9,7 +9,7 @@ var symbol_local; //Users local currency object
 var symbol; //Active currency object
 var root = '/';
 var resource = '/Resources/';
-
+var decimals = 8;
 
 function Transaction () { };
 function Block () { };
@@ -22,21 +22,11 @@ function BlockFromJSON(json) {
 	block.blockIndex = json.block_index;
 	block.height = json.height;
 	block.txIndex = json.txIndexes;
-	block.outputValue = json.output_value;
-	block.foundByLink = json.found_by_link;
-	block.foundByDescription = json.found_by_description;
+	block.totalBTCSent = json.totalBTCSent;
+	block.foundBy = json.foundBy;
+	block.size = json.size;
 
 	return block;
-}
-
-function toFixed(x, n) {
- if(!parseInt(n))
-	 var n=0;
- 
- if(!parseFloat(x))
-	 return 0;
- 
-  return Math.round(x*Math.pow(10,n))/Math.pow(10,n);
 }
 
 function TransactionFromJSON(json) {
@@ -70,8 +60,7 @@ function dateToString(d) {
 	  return padStr(d.getFullYear()) + '-' + padStr(1 + d.getMonth()) + '-' + padStr(d.getDate()) + ' ' + padStr(d.getHours()) + ':' + padStr(d.getMinutes()) + ':' + padStr(d.getSeconds());
 };
 
-function formatBTC(value) {
-		
+function formatBTC(value) {	
 	if (value == null)
 		return '';
 	
@@ -80,7 +69,7 @@ function formatBTC(value) {
 		value = -value;
 		neg = '-';
 	}
-	
+		
 	value = ''+value;
 	
 	var integerPart = value.length > 8 ? value.substr(0, value.length-8) : '0';
@@ -90,9 +79,14 @@ function formatBTC(value) {
 		while (decimalPart.length < 8) decimalPart = "0"+decimalPart;
 		decimalPart = decimalPart.replace(/0*$/, '');
 		while (decimalPart.length < 2) decimalPart += "0";
+		
+		if (decimals < 8)
+			return neg + integerPart + parseFloat('0.'+decimalPart).toFixed(decimals).substr(1);
+		else
+			return neg + integerPart+"."+decimalPart;
 	}
 	
-	return neg + integerPart+"."+decimalPart;
+	return neg + integerPart;
 }
 
 
@@ -100,9 +94,9 @@ function formatSymbol(x, symbol) {
 	var str;
 	
 	if (symbol.code != 'BTC') {
-		str = symbol.symbol + ' ' + toFixed(x / symbol.conversion, 2).toString().replace(/(\d)(?=(\d\d\d)+(?!\d))/g, "$1,");
+		str = symbol.symbol + ' ' + (x / symbol.conversion).toFixed(2).toString().replace(/(\d)(?=(\d\d\d)+(?!\d))/g, "$1,");
 	} else {
-		str = formatBTC(''+x) + ' ' + symbol.symbol;
+		str = formatBTC(x) + ' ' + symbol.symbol;
 	}
 
 	return str;

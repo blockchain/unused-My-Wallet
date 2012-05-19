@@ -49,27 +49,31 @@ $(document).ready(function() {
 				for (var i = 0; i < tx.inputs.length; i++) {
 					var input = tx.inputs[i];
 					 			
+					console.log(input.prev_out.addr);
+					
 					//If it is our address then subtract the value
 					if (input.prev_out.addr == '${address}') {
-						var value = parseInt(input.prev_out.value);
-						result -= value;
-						$('#final_balance span').attr('data-c', parseInt($('#final_balance span').attr('data-c')) + value);
+						result -= parseInt(input.prev_out.value);
 					}
 				}
 				
+				console.log('result ' + result);
 
+				var total_received = 0;
 				for (var i = 0; i < tx.out.length; i++) {
 					var output = tx.out[i];
 											
-					if (output.addr != '${address}') {
-						var value = parseInt(output.value);
-						result += value;
-
-						$('#final_balance span').attr('data-c', parseInt($('#final_balance span').attr('data-c')) + value);
-						$('#total_received span').attr('data-c', parseInt($('#total_received span').attr('data-c')) + value);
+					if (output.addr == '${address}') {
+						total_received += parseInt(output.value);
 					}
 				}
 				
+				$('#total_received span').attr('data-c', parseInt($('#total_received span').attr('data-c')) + total_received);
+				
+				result += total_received;
+				
+				$('#final_balance span').attr('data-c', parseInt($('#final_balance span').attr('data-c')) + result);
+
 				flashTitle('New Transaction');
 				
 				tx.result = result;
