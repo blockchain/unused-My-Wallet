@@ -3973,6 +3973,9 @@ function bind() {
 
 		$('.two-factor').hide(200);
 		$('.two-factor.t'+val).show(200);
+		
+		//Refresh the cache manifest to clear the wallet data 
+		updateCacheManifest();
 	});
 
 	$("#new-addr").click(function() {
