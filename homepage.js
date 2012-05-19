@@ -47,7 +47,7 @@ function connect() {
 				var block = BlockFromJSON(obj.x);
 				
 				var foundByTxt = 'Unknown'; 
-				if (block.foundBy) {
+				if (block.foundBy != null) {
 					foundByTxt = '<a href="'+block.foundBy.link+'">'+block.foundBy.description+'</a>';
 				}
 				
