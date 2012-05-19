@@ -60,11 +60,7 @@ function connect() {
 		ws.onopen = function() {
 			retry = 0;
 			
-			ws.send('{"op":"set_tx_mini"}{"op":"unconfirmed_sub"}');
-			
-			setTimeout(function() {
-				ws.send('{"op":"ping_block"}');
-			}, 1000);
+			ws.send('{"op":"set_tx_mini"}{"op":"unconfirmed_sub"}{"op":"blocks_sub"}');
 		};
 		
 		ws.onclose = function() {
