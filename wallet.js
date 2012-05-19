@@ -1921,7 +1921,7 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 		if (guid.length != 36) {
 			throw 'Invalid wallet identifier';
 		}
-
+		
 		var data = makeWalletJSON();
 
 		//Everything looks ok, Encrypt the JSON output
