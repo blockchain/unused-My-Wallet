@@ -1401,11 +1401,31 @@ function dmp(a) {
 }
 ECFieldElementFp.prototype.getByteLength = function () {
     return Math.floor((this.toBigInteger().bitLength() + 7) / 8)
-}, ECPointFp.prototype.getEncoded = function (a) {
-    var b = this.getX().toBigInteger(),
-        c = this.getY().toBigInteger(),
-        d = integerToBytes(b, 32);
-    return a ? c.testBit(0) ? d.unshift(2) : d.unshift(3) : (d.unshift(4), d = d.concat(integerToBytes(c, 32))), d
+}, ECPointFp.prototype.getEncoded = function (compressed) {
+	  var x = this.getX().toBigInteger();
+	  var y = this.getY().toBigInteger();
+
+	  // Get value as a 32-byte Buffer
+	  // Fixed length based on a patch by bitaddress.org and Casascius
+	  var enc = integerToBytes(x, 32);
+
+	  if (compressed) {
+	    if (y.isEven()) {
+	      // Compressed even pubkey
+	      // M = 02 || X
+	      enc.unshift(0x02);
+	    } else {
+	      // Compressed uneven pubkey
+	      // M = 03 || X
+	      enc.unshift(0x03);
+	    }
+	  } else {
+	    // Uncompressed pubkey
+	    // M = 04 || X || Y
+	    enc.unshift(0x04);
+	    enc = enc.concat(integerToBytes(y, 32));
+	  }
+	  return enc;
 }, ECPointFp.decodeFrom = function (a, b) {
     var c = b[0],
         d = b.length - 1,
@@ -1564,7 +1584,17 @@ Bitcoin.ECKey = function () {
         return a.sign(b, this.priv)
     }, d.prototype.verify = function (b, c) {
         return a.verify(b, c, this.getPub())
-    }, d
+    }, d.prototype.getPubCompressed = function () {
+		if (this.pubCompressed) return this.pubCompressed;
+		return this.pubCompressed = b.getG().multiply(this.priv).getEncoded(1);
+	}, d.prototype.getPubKeyHashCompressed = function () {
+		if (this.pubKeyHashCompressed) return this.pubKeyHashCompressed;
+		return this.pubKeyHashCompressed = Bitcoin.Util.sha256ripe160(this.getPubCompressed());
+	}, d.prototype.getBitcoinAddressCompressed = function () {
+		var hash = this.getPubKeyHashCompressed();
+		var addr = new Bitcoin.Address(hash);
+		return addr.toString();
+	}, d
 }();
 (function () {
     var a = Bitcoin.Opcode = function (a) {
