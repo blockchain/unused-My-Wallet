@@ -62,8 +62,7 @@ function doStuffTimer () {
 } 
 
 function websocketConnect() {
-
-	if (offline) return;
+	if (!isInitialized && offline) return;
 
 	try {
 		ws = new WebSocket("ws://api.blockchain.info:8335/inv");
@@ -989,7 +988,7 @@ function parseMultiAddressJSON(json) {
 
 //Get the list of transactions from the http API, after that it will update through websocket
 function queryAPIMultiAddress() {
-	if (offline) return;
+	if (!isInitialized && offline) return;
 
 	setLoadingText('Loading transactions');
 
@@ -1720,7 +1719,7 @@ function validateEmail(str) {
 //Get email address, secret phrase, yubikey etc.
 function getAccountInfo() {
 
-	if (offline) return;
+	if (!isInitialized && offline) return;
 
 	setLoadingText('Getting Wallet Info');
 
@@ -1798,7 +1797,7 @@ function getAccountInfo() {
 }
 
 function emailBackup() {
-	if (offline) return;
+	if (!isInitialized && offline) return;
 
 	setLoadingText('Sending email backup');
 
@@ -1811,7 +1810,7 @@ function emailBackup() {
 }
 
 function verifyEmail(code) {
-	if (offline) return;
+	if (!isInitialized && offline) return;
 
 	if (code == null || code.length == 0 || code.length > 255) {
 		makeNotice('error', 'misc-error', 'You must enter a code to verify');
@@ -1836,7 +1835,7 @@ function verifyEmail(code) {
 }
 
 function updateKV(txt, method, value, success, error) {
-	if (offline) return;
+	if (!isInitialized && offline) return;
 
 	if (value == null || value.length == 0) {
 		makeNotice('error', 'misc-error', txt + ': Invalid value');
@@ -2262,7 +2261,7 @@ function checkAllKeys(reencrypt) {
 
 
 function checkAndSetPassword() {
-	if (offline) return;
+	if (!isInitialized && offline) return;
 
 	var tpassword = $("#password").val();
 	var tpassword2 = $("#password2").val();
@@ -2283,7 +2282,7 @@ function checkAndSetPassword() {
 }
 
 function updatePassword() {
-	if (offline) return;
+	if (!isInitialized && offline) return;
 
 	var modal = $('#update-password-modal');
 
