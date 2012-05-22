@@ -19,20 +19,17 @@
 
 
 !function( $ ){
-
-  "use strict"
-
   function activate ( element, container ) {
     container
       .find('> .active')
       .removeClass('active')
       .find('> .dropdown-menu > .active')
-      .removeClass('active')
+      .removeClass('active');
 
-    element.addClass('active')
+    element.addClass('active');
 
     if ( element.parent('.dropdown-menu') ) {
-      element.closest('li.dropdown').addClass('active')
+      element.closest('li.dropdown').addClass('active');
     }
   }
 
@@ -41,25 +38,25 @@
       , $ul = $this.closest('ul:not(.dropdown-menu)')
       , href = $this.attr('href')
       , previous
-      , $href
+      , $href;
 
     if ( /^#\w+/.test(href) ) {
-      e.preventDefault()
+      e.preventDefault();
 
       if ( $this.parent('li').hasClass('active') ) {
         return
       }
 
-      previous = $ul.find('.active a').last()[0]
-      $href = $(href)
+      previous = $ul.find('.active a').last()[0];
+      $href = $(href);
 
-      activate($this.parent('li'), $ul)
-      activate($href, $href.parent())
+      activate($this.parent('li'), $ul);
+      activate($href, $href.parent());
 
       $this.trigger({
         type: 'change'
       , relatedTarget: previous
-      })
+      });
     }
   }
 
@@ -69,12 +66,12 @@
 
   $.fn.tabs = $.fn.pills = function ( selector ) {
     return this.each(function () {
-      $(this).delegate(selector || '.tabs li > a, .pills > li > a', 'click', tab)
-    })
-  }
+      $(this).delegate(selector || '.tabs li > a, .pills > li > a', 'click', tab);
+    });
+  };
 
   $(document).ready(function () {
-    $('body').tabs('ul[data-tabs] li > a, ul[data-pills] > li > a')
-  })
+    $('body').tabs('ul[data-tabs] li > a, ul[data-pills] > li > a');
+  });
 
 }( window.jQuery || window.ender );

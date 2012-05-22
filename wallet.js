@@ -3776,14 +3776,10 @@ function populateImportExportView() {
 }
 
 function bind() {
-
 	try {	
-		$(function () {
-			$(".pop")
-			.popover({
-				offset: 10,
-				placement : 'bottom'
-			});
+		$(".pop").popover({
+			offset: 10,
+			placement : 'bottom'
 		});
 	} catch(e) {}
 
