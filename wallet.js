@@ -53,7 +53,7 @@ function doStuffTimer () {
 	try {
 
 		if (WebSocket != null) {
-			if (!offline && isInitialized && ws.readyState != WebSocket.OPEN)
+			if ((!offline && isInitialized) && (ws == null || ws.readyState != WebSocket.OPEN))
 				websocketConnect();
 		}
 
@@ -1670,7 +1670,6 @@ function restoreWallet() {
 
 		})
 		.error(function(data) { 
-
 			$("#restore-wallet-continue").removeAttr('disabled');
 
 			makeNotice('error', 'misc-error', data.responseText); 
@@ -1696,7 +1695,8 @@ function restoreWallet() {
 }
 
 function setIsIntialized() {
-
+	isInitialized = true;
+	
 	websocketConnect();
 
 	$('#tech-faq').hide();
@@ -1706,8 +1706,6 @@ function setIsIntialized() {
 	$('#large-summary').show();
 
 	$('#status-container').show();
-
-	isInitialized = true;
 }
 
 function validateEmail(str) { 
