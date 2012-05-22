@@ -1236,8 +1236,7 @@ function internalRestoreWallet() {
 		});
 
 		if (obj == null) {
-			makeNotice('error', 'misc-error', 'Error Decrypting Wallet. Please check your password is correct.');	
-			return false;
+			throw 'Error Decrypting Wallet. Please check your password is correct.';	
 		}
 
 		if (obj.double_encryption != null && obj.dpasswordhash != null) {
@@ -1265,6 +1264,9 @@ function internalRestoreWallet() {
 		}
 
 		sharedKey = obj.sharedKey;
+		
+		if (sharedKey == null || sharedKey.length == 0 || sharedKey.length != 36)
+			throw 'Shared Key is invalid';
 
 		//If we don't have a checksum then the wallet is probably brand new - so we can generate our own
 		if (payload_checksum == null || payload_checksum.length == 0) {
@@ -1279,10 +1281,7 @@ function internalRestoreWallet() {
 		return true;
 
 	} catch (e) {
-
-		console.log(e);
-
-		makeNotice('error', 'misc-error', 'Error decrypting wallet. Please check you entered your password correctly.');
+		makeNotice('error', 'misc-error', e);
 	}
 
 	return false;
@@ -1841,6 +1840,11 @@ function updateKV(txt, method, value, success, error) {
 
 	if (value == null || value.length == 0) {
 		makeNotice('error', 'misc-error', txt + ': Invalid value');
+		return;
+	}
+	
+	if (sharedKey == null || sharedKey.length == 0 || sharedKey.length != 36) {
+		makeNotice('error', 'misc-error', 'Shared key is invalid');
 		return;
 	}
 
@@ -4616,8 +4620,6 @@ $(document).ready(function() {
 	encrypted_wallet_data = $('#data-encrypted').text();
 	guid = $('#data-guid').text();
 	payload_checksum =  $('#data-checksum').text();
-
-	sharedKey = $('#data-sharedkey').text();
 
 	$('body').ajaxStart(function() {
 		$('.loading-indicator').fadeIn(200);
