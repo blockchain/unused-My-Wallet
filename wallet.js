@@ -2259,8 +2259,6 @@ function checkAllKeys(reencrypt) {
 
 
 function checkAndSetPassword() {
-	if (!isInitialized || offline) return;
-
 	var tpassword = $("#password").val();
 	var tpassword2 = $("#password2").val();
 

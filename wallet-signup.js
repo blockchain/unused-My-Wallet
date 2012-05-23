@@ -28,8 +28,9 @@ function generateNewWallet() {
 			makeNotice('error', 'misc-error', 'Error generating wallet identifier');
 			return false;
 		}
-					
+							
 		backupWallet('insert', function(){
+			
 		    $('#password-strength').fadeOut(200);
 			
 			changeView($("#new-wallet-success"));
@@ -38,6 +39,7 @@ function generateNewWallet() {
 			
 			isInitialized = true;
 		}, function() {
+			
 			$("#captcha").attr("src", $("#captcha").attr("src")+"?timestamp=" + new Date().getTime());
 			
 		}, '?kaptcha='+$('#captcha-value').val());
@@ -60,7 +62,7 @@ $(document).ready(function() {
 	$('#password-strength').fadeIn(200);
 	
 	$("#new-wallet-continue").click(function() {
-	
+		
 		$(this).attr("disabled", true);		
 		
 		try {
