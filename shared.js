@@ -56,8 +56,16 @@ function padStr(i) {
     return (i < 10) ? "0" + i : "" + i;
 };
 
+Date.prototype.sameDayAs = function(pDate){
+    return ((this.getFullYear()==pDate.getFullYear())&&(this.getMonth()==pDate.getMonth())&&(this.getDate()==pDate.getDate()));
+}
+
 function dateToString(d) {
-	  return padStr(d.getFullYear()) + '-' + padStr(1 + d.getMonth()) + '-' + padStr(d.getDate()) + ' ' + padStr(d.getHours()) + ':' + padStr(d.getMinutes()) + ':' + padStr(d.getSeconds());
+      if (d.sameDayAs(new Date())) {
+          return 'Today ' + padStr(d.getHours()) + ':' + padStr(d.getMinutes()) + ':' + padStr(d.getSeconds());
+      }  else {
+	        return padStr(d.getFullYear()) + '-' + padStr(1 + d.getMonth()) + '-' + padStr(d.getDate()) + ' ' + padStr(d.getHours()) + ':' + padStr(d.getMinutes()) + ':' + padStr(d.getSeconds());
+      }
 };
 
 function formatBTC(value) {	
@@ -179,19 +187,7 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 
     var result = this.result;
     
-	var html = '<div id="tx-'+this.txIndex+'"><table class="zebra-striped" cellpadding="0" cellspacing="0" style="padding:0px;float:left;margin:0px;margin-top:10px;"><tr><th colspan="4" style="font-weight:normal"><div class="hash-link">';
-	
-	if (result != null) {
-		if (result > 0) {
-			html += '<span class="label success">Received</span>';
-		} else if (result < 0) {
-			html += '<span class="label important">Sent</span>';
-		}	else if (result == 0) {
-			html += '<span class="label">Moved</span>';
-		}
-	}
-	
-	html += ' <a target="new" href="'+root+'tx-index/'+this.txIndex+'/'+this.hash+'">'+this.hash+'</a></div> <span style="float:right"><span class="can-hide"><b>';
+	var html = '<div id="tx-'+this.txIndex+'"><table class="table table-striped" cellpadding="0" cellspacing="0" style="padding:0px;float:left;margin:0px;margin-top:10px;"><tr><th colspan="4"><div class="hash-link"><a target="new" href="'+root+'tx-index/'+this.txIndex+'/'+this.hash+'">'+this.hash+'</a></div> <span style="float:right"><span class="can-hide"><b>';
 				
 	if (this.time > 0) {
 		var date = new Date(this.time * 1000);
@@ -201,7 +197,7 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 	
 	var tclass = '';
 	if (result < 0)
-		tclass = 'class="txtd can-hide"';
+		tclass = 'class="txtd hidden-phone"';
 	else
 		tclass = 'class="txtd"';
 	
@@ -221,7 +217,7 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 		html += 'No inputs, transaction probably sent from self.<br />';
     }
 
-	html += '</td><td width="48px" class="can-hide" style="padding:4px;text-align:center;vertical-align:middle;">';
+	html += '</td><td width="48px" class="hidden-phone" style="padding:4px;text-align:center;vertical-align:middle;">';
 	
     if (result == null) {
     	result = 0;
@@ -232,10 +228,10 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
     
 	var button_class;
 	if (result == null || result > 0) {
-		button_class = 'btn success';
+		button_class = 'btn btn-success';
 		html += '<img src="'+resource+'arrow_right_green.png" />';
 	} else if (result < 0) {
-		button_class = 'btn error';
+		button_class = 'btn btn-danger';
 		html += '<img src="'+resource+'arrow_right_red.png" />';
 	} else  {
 		button_class = 'btn';
@@ -244,7 +240,7 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 	
 	var tclass = '';
 	if (result >= 0)
-		tclass = 'class="txtd can-hide"';
+		tclass = 'class="txtd hidden-phone"';
 	else
 		tclass = 'class="txtd"';
 
@@ -276,7 +272,7 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 	
 	for (var i = 0; i < this.out.length; i++) {
 		output = this.out[i];
-		html += '<span class="can-hide">' + formatMoney(output.value, true) +'</span><br />';
+		html += '<span class="hidden-phone">' + formatMoney(output.value, true) +'</span><br />';
 	}
 	
 	html += '</td></tr></table><span style="float:right;padding-bottom:30px;clear:both;">';
@@ -284,15 +280,15 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 	if (this.confirmations == null) {
 		html += '<button style="display:none"></button> ';
 	} else if (this.confirmations == 0) {
-		html += '<button class="btn error">Unconfirmed Transaction!</button> ';
+		html += '<button class="btn btn-danger">Unconfirmed Transaction!</button> ';
 	} else if (this.confirmations > 0) {
-		html += '<button class="btn primary">' + this.confirmations + ' Confirmations</button> ';
+		html += '<button class="btn btn-primary">' + this.confirmations + ' Confirmations</button> ';
 	} 
 	
 	html += '<button class="'+button_class+'" onclick="toggleSymbol()">' + formatMoney(result, true) + '</button>';
 	
 	if (this.double_spend == true) {
-		html += '<button class="btn error">Double Spend</button> ';
+		html += '<button class="btn btn-danger">Double Spend</button> ';
 	}
 	
 	//Only show for My Wallet
@@ -303,7 +299,7 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 			if (escrow_addr != null)
 				priv = escrow_addr.priv;
 			
-			html += '<button class="btn info" onclick="openEscrow('+this.txIndex+', '+escrow_n+', \''+priv+'\')">Redeem / Release</button>';
+			html += '<button class="btn btn-info" onclick="openEscrow('+this.txIndex+', '+escrow_n+', \''+priv+'\')">Redeem / Release</button>';
 		}
 		
 		if (this.confirmations == 0) {

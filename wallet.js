@@ -56,8 +56,6 @@ function doStuffTimer () {
 			if ((!offline && isInitialized) && (ws == null || ws.readyState != WebSocket.OPEN))
 				websocketConnect();
 		}
-
-		updateLatestBlockAge();
 	} catch (e) {}
 } 
 
@@ -149,10 +147,7 @@ function websocketConnect() {
 						transactions.unshift(tx);
 
 						//Meed to update transactions list
-						buildTransactionsView();
-
-						//Also Need to update balance on Received coins view
-						buildReceiveCoinsView();
+                        buildVisibleView();
 					}
 
 				}  else if (obj.op == 'block') {
@@ -176,7 +171,7 @@ function websocketConnect() {
 					setLatestBlock(BlockFromJSON(obj.x));
 
 					//Need to update latest block
-					buildTransactionsView();
+                    buildVisibleView();
 				}
 
 			} catch(e) {
@@ -224,9 +219,9 @@ function makeNotice(type, id, msg, timeout) {
 	if (timeout == null)
 		timeout = 5000;
 
-	var el = $('<div class="alert-message '+type+'"><p></p></div>');
+	var el = $('<div class="alert alert-block alert-'+type+'"></div>');
 
-	el.find('p').text(''+msg);
+	el.text(''+msg);
 
 	if ($('#'+id).length > 0) {
 		el.attr('id', id);
@@ -354,7 +349,7 @@ function deleteAddressBook(addr) {
 
 	backupWallet();
 
-	buildSendTxView();
+    buildVisibleView();
 }
 
 
@@ -382,17 +377,13 @@ function constructMyAddrSelect(select) {
 
 function buildSendTxView() {
 
-	//Only build when visible
-	if ("send-coins" != cVisible.attr('id'))
-		return;
-
 	var el = $('#address-book-tbl tbody');
 
 	if (nKeys(address_book) > 0) {
 		el.empty();
 
 		for (var key in address_book) {
-			el.append('<tr><td>'+ address_book[key] + '</td><td><div class="addr-book-entry">'+ key + '</div></td><td style="width:16px" class="can-hide"><img src="'+resource+'delete.png" onclick="deleteAddressBook(\''+key+'\')" /></td><td><img src="' + resource+ 'paste.png" onclick="pasteAddress(\''+ key + '\')"></tr>');
+			el.append('<tr><td>'+ address_book[key] + '</td><td><div class="addr-book-entry">'+ key + '</div></td><td style="width:16px" class="hidden-phone"><img src="'+resource+'delete.png" onclick="deleteAddressBook(\''+key+'\')" /></td><td><img src="' + resource+ 'paste.png" onclick="pasteAddress(\''+ key + '\')"></tr>');
 		}
 	}
 
@@ -677,22 +668,9 @@ function getArchivedAddresses() {
 	return getAddressesWithTag(2);
 }
 
-function updateLatestBlockAge() {
-
-	if (latest_block != null) {
-		var age = new Date().getTime() -  new Date(latest_block.time * 1000).getTime();
-
-		var min = Math.round(age / 1000 / 60);
-
-		if (min <= 1)
-			$('#latest-block-age').html('just now');
-		else
-			$('#latest-block-age').html(min + ' minutes ago');
-	}
-}
-
 function setLatestBlock(block) {
 
+    /*
 	$('#latest-block').show();
 
 	$('#latest-block-height').html(block.height);
@@ -700,29 +678,16 @@ function setLatestBlock(block) {
 	var date = new Date(block.time * 1000);
 
 	$('#latest-block-time').html(dateToString(date));
+    */
 
 	latest_block = block;
-
-	updateLatestBlockAge();
 }
 
 Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {    
 
 	var result = this.result;
 
-	var html = '<tr><td>';
-
-	if (result != null) {
-		if (result > 0) {
-			html += '<span class="label success">Received</span>';
-		} else if (result < 0) {
-			html += '<span class="label important">Sent</span>';
-		}	else if (result == 0) {
-			html += '<span class="label">Moved</span>';
-		}
-	}
-
-	html += '</td><td><ul class="txul short-addr">';
+	var html = '<tr><td class="hidden-phone"><ul class="txul short-addr">';
 
 	if (result > 0) {
 		if (this.inputs.length > 0) {
@@ -751,17 +716,22 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
 			html += formatOutput(this.out[i], myAddresses, addresses_book);
 		}
 	} else {
-		return '';
+        html += '<span class="label">Moved Between Wallet</info>';
 	}
 
-	html += '</ul></td>';
+    html += '</ul></td><td>';
 
-	if (this.time > 0) {
-		var date = new Date(this.time * 1000);
-		html += '<td class="can-hide">' + dateToString(date) + '</td>';
-	} else {
-		html += '<td class="can-hide"></td>';
-	}
+    if (this.time > 0) {
+        html += dateToString(new Date(this.time * 1000));
+    }
+
+    if (this.confirmations == 0) {
+        html += ' <span class="label label-important">Unconfirmed Transaction!</sxpan> ';
+    } else if (this.confirmations > 0) {
+        html += ' <span class="label label-info">' + this.confirmations + ' Confirmations</span> ';
+    }
+
+    html += '</td>';
 
 	if (result >= 0)
 		html += '<td style="color:green">' + formatMoney(result, true) + '</td>';
@@ -769,15 +739,49 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
 		html += '<td style="color:red">' + formatMoney(result, true) + '</td>';
 
 	if (this.balance == null)
-		html += '<td class="can-hide"></td>';
+		html += '<td></td>';
 	else
-		html += '<td class="can-hide">' + formatMoney(this.balance) + '</td>';
+		html += '<td class="hidden-phone">' + formatMoney(this.balance) + '</td>';
 
 	html += '</tr>';
 
 	return html;
 };
 
+
+function buildVisibleView() {
+    //Only build when visible
+    var id = cVisible.attr('id');
+    if ("send-coins" == id)
+        buildSendTxView();
+    else if ("home-intro" == id)
+        buildHomeIntroView();
+    else if ("receive-coins" == id)
+        buildReceiveCoinsView()
+    else if ("my-transactions" == id)
+        buildTransactionsView();
+
+    //Update the account balance
+    if (final_balance == null) {
+        $('#balance').html('Loading...');
+    } else {
+        $('#balance').html(formatSymbol(final_balance, symbol));
+        $('#balance2').html(formatSymbol(final_balance, (symbol == symbol_local) ? symbol_btc : symbol_local));
+    }
+}
+
+
+function buildHomeIntroView() {
+    $('#summary-n-tx').html(n_tx);
+
+    $('#summary-received').html(formatMoney(total_received, true));
+
+    $('#summary-sent').html(formatMoney(total_sent, true));
+
+    $('#summary-balance').html(formatMoney(final_balance, symbol));
+
+
+}
 
 function buildTransactionsView() {
 
@@ -787,28 +791,6 @@ function buildTransactionsView() {
 
 	if (addr_filter.length == 0)
 		addr_filter = null;
-
-	//Build the large summary
-	//UpdateThe summary
-	$('#transactions-summary').show();
-
-	if (final_balance == null) {
-		$('#balance').html('Loading...');
-	} else {
-		$('#balance').html(formatMoney(final_balance, true));
-	}
-
-	//Only build the actualy tx view when visible
-	if ("my-transactions" != cVisible.attr('id'))
-		return;
-
-	$('#summary-n-tx').html(n_tx);
-
-	$('#summary-received').html(formatMoney(total_received, true));
-
-	$('#summary-sent').html(formatMoney(total_sent, true));
-
-	$('#summary-balance').html(formatMoney(final_balance, true));
 
 	if (transactions.length == 0) {
 		$('#transactions-header').hide();
@@ -828,7 +810,7 @@ function buildTransactionsView() {
 	var txcontainer = $('#transactions').empty();
 
 	if (tx_display == 1) {
-		var table = $('<table class="zebra-striped"><tr><th style="width:100px">Type</th><th>To / From</th><th class="can-hide">Date</th><th>Amount</th><th class="can-hide">Balance</th></tr></table>');
+		var table = $('<table class="table table-striped"><tr><th class="hidden-phone">To / From</th><th>Date</th><th>Amount</th><th class="hidden-phone">Balance</th></tr></table>');
 
 		txcontainer.append(table);
 		txcontainer = table;
@@ -916,7 +898,7 @@ function buildTransactionsView() {
 		if (tx_page == i)
 			active = ' class="active"';
 
-		container.append('<li onclick="setPage('+i+')"'+active+'><a class="can-hide">'+i+'</a></li>');
+		container.append('<li onclick="setPage('+i+')"'+active+'><a class="hidden-phone">'+i+'</a></li>');
 	}
 
 	var disabled = ' disabled';
@@ -1007,10 +989,7 @@ function queryAPIMultiAddress() {
 				parseMultiAddressJSON(data);
 
 				//Rebuild the my-addresses list with the new updated balances (Only if visible)
-				buildReceiveCoinsView();
-
-				//Refresh transactions (Only if visible)
-				buildTransactionsView();
+				buildVisibleView();
 
 				try {
 					//Cache results to show next login
@@ -1032,7 +1011,7 @@ function queryAPIMultiAddress() {
 			console.log(data);
 
 			makeNotice('error', 'misc-error', data.responseText);
-		},
+		}
 	});
 }
 
@@ -1084,15 +1063,15 @@ function showClaimModal(key) {
 		modal.find('#claim-balance').text('Error Fetching Balance');
 	});
 
-	modal.find('.btn.primary').unbind().click(function() {
+	modal.find('.btn.btn-primary').unbind().click(function() {
 		window.location = root + 'wallet/new' + window.location.hash;
 	});
 
-	modal.find('.btn.success').unbind().click(function() {
+	modal.find('.btn.btn-success').unbind().click(function() {
 		modal.modal('hide');
 	});
 
-	modal.find('.btn.secondary').unbind().click(function() {
+	modal.find('.btn.btn-secondary').unbind().click(function() {
 
 		$('#claim-manual').show(200);
 
@@ -1159,7 +1138,7 @@ function didDecryptWallet() {
 		if (multiaddrjson != null) {
 			parseMultiAddressJSON(multiaddrjson);
 
-			buildTransactionsView();
+			buildVisibleView();
 		}
 
 		localStorage.setItem('guid', guid);
@@ -1170,6 +1149,8 @@ function didDecryptWallet() {
 	queryAPIMultiAddress();
 
 	changeView($("#home-intro"));
+
+    buildVisibleView();
 
 	$('#initial_error').remove();
 	$('#initial_success').remove();
@@ -1205,11 +1186,7 @@ function getWallet() {
 
 			internalRestoreWallet();
 
-			buildReceiveCoinsView();
-
-			buildSendTxView();
-
-			buildTransactionsView();
+            buildVisibleView();
 		}
 
 	});
@@ -1296,13 +1273,13 @@ function askToIncludeFee(success, error) {
 		show: true
 	});
 
-	modal.find('.btn.primary').unbind().click(function() {
+	modal.find('.btn.btn-primary').unbind().click(function() {
 		success();
 
 		modal.modal('hide');
 	});
 
-	modal.find('.btn.secondary').unbind().click(function() {
+	modal.find('.btn.btn-secondary').unbind().click(function() {
 		error();
 
 		modal.modal('hide');
@@ -1333,7 +1310,7 @@ function getSecondPassword(success, error) {
 
 	input.val('');
 
-	modal.find('.btn.primary').unbind().click(function() {
+	modal.find('.btn.btn-primary').unbind().click(function() {
 
 		var password = input.val();
 
@@ -1351,7 +1328,7 @@ function getSecondPassword(success, error) {
 		modal.modal('hide');
 	});
 
-	modal.find('.btn.secondary').unbind().click(function() {
+	modal.find('.btn.btn-secondary').unbind().click(function() {
 		makeNotice('error', 'misc-error', 'User cancelled, password needed to continue.');
 		modal.modal('hide');
 
@@ -1412,7 +1389,7 @@ function showPrivateKeyModal(success, error, addr) {
 		console.log(e);
 	}
 
-	modal.find('.btn.primary').unbind().click(function() {
+	modal.find('.btn.btn-primary').unbind().click(function() {
 		var value = modal.find('input[name="key"]').val();
 
 		if (value.length == 0) {
@@ -1440,7 +1417,7 @@ function showPrivateKeyModal(success, error, addr) {
 
 	modal.center();
 
-	modal.find('.btn.secondary').unbind().click(function() {
+	modal.find('.btn.btn-secondary').unbind().click(function() {
 		error('User Cancelled');
 		modal.modal('hide');
 	});
@@ -1519,9 +1496,9 @@ function getReadyForOffline() {
 
 	modal.center();
 
-	modal.find('.btn.primary').attr('disabled', true);
+	modal.find('.btn.btn-primary').attr('disabled', true);
 
-	modal.find('.btn.secondary').unbind().click(function() {
+	modal.find('.btn.btn-secondary').unbind().click(function() {
 		modal.modal('hide');
 	});
 
@@ -1569,9 +1546,9 @@ function getReadyForOffline() {
 
 		modal.find('.ready').show();
 
-		modal.find('.btn.primary').removeAttr('disabled');
+		modal.find('.btn.btn-primary').removeAttr('disabled');
 
-		modal.find('.btn.primary').unbind().click(function() {		
+		modal.find('.btn.btn-primary').unbind().click(function() {		
 			$.get(root + 'ping?'+new Date().getTime()).success(function(data) { 
 
 				setLoadingText('Checking connectivity');
@@ -1991,8 +1968,8 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 					}
 
 					//Update view remove 'Unsynced' tags
-					if (change) 
-						buildReceiveCoinsView();
+					if (change)
+                        buildVisibleView();
 				}
 
 				payload_checksum = checksum;
@@ -2290,7 +2267,7 @@ function updatePassword() {
 
 	modal.center();
 
-	modal.find('.btn.primary').unbind().click(function() {
+	modal.find('.btn.btn-primary').unbind().click(function() {
 		modal.modal('hide');
 
 		var oldPassword = password;
@@ -2313,7 +2290,7 @@ function updatePassword() {
 		}
 	});
 
-	modal.find('.btn.secondary').unbind().click(function() {
+	modal.find('.btn.btn-secondary').unbind().click(function() {
 		modal.modal('hide');
 	});
 }
@@ -2368,7 +2345,7 @@ function pushTx(tx) {
 
 			//Refresh the unspent output cache
 			getUnspentOutputs(getAllAddresses());
-		}, 1000);
+		}, 5000);
 
 		makeNotice('success', 'misc-success', data);  
 
@@ -2698,7 +2675,7 @@ function showInventoryModal(hash) {
 		makeNotice('error', 'misc-error', data.responseText); 
 	});
 
-	modal.find('.btn.secondary').unbind().click(function() {
+	modal.find('.btn.btn-secondary').unbind().click(function() {
 		modal.modal('hide');
 	});
 }
@@ -2723,7 +2700,7 @@ function labelAddress(addr) {
 	label_input.val('');
 
 	//Added address book button
-	modal.find('.btn.primary').unbind().click(function() {
+	modal.find('.btn.btn-primary').unbind().click(function() {
 
 		modal.modal('hide');
 
@@ -2738,10 +2715,10 @@ function labelAddress(addr) {
 
 		backupWallet('update', null, null);
 
-		buildReceiveCoinsView();
+        buildVisibleView();
 	});
 
-	modal.find('.btn.secondary').unbind().click(function() {
+	modal.find('.btn.btn-secondary').unbind().click(function() {
 		modal.modal('hide');
 	});
 }
@@ -2768,7 +2745,7 @@ function addAddressBookEntry() {
 	addrField.val('');
 
 	//Added address book button
-	modal.find('.btn.primary').unbind().click(function() {
+	modal.find('.btn.btn-primary').unbind().click(function() {
 
 		modal.modal('hide');
 
@@ -2789,7 +2766,7 @@ function addAddressBookEntry() {
 		var addr;
 
 		try {
-			addr = new Bitcoin.Address(bitcoinAddress);
+			addr = new Bitcoin.Address($.trim(bitcoinAddress));
 
 			if (addr == null)
 				throw 'Null address';
@@ -2810,10 +2787,10 @@ function addAddressBookEntry() {
 
 		backupWallet();
 
-		buildSendTxView();
+		buildVisibleView();
 	});
 
-	modal.find('.btn.secondary').unbind().click(function() {
+	modal.find('.btn.btn-secondary').unbind().click(function() {
 		modal.modal('hide');
 	});
 }
@@ -2836,8 +2813,8 @@ function deleteAddresses(addrs) {
 
 	modal.center();
 
-	modal.find('.btn.primary').hide();
-	modal.find('.btn.danger').hide();
+	modal.find('.btn.btn-primary').hide();
+	modal.find('.btn.btn-danger').hide();
 
 	modal.find('.modal-body').show();
 	$('#change-mind').hide();
@@ -2850,8 +2827,8 @@ function deleteAddresses(addrs) {
 
 	apiGetBalance(addrs, function(data) {
 
-		modal.find('.btn.primary').show(200);
-		modal.find('.btn.danger').show(200);
+		modal.find('.btn.btn-primary').show(200);
+		modal.find('.btn.btn-danger').show(200);
 
 		dbalance.html('Balance ' + formatBTC(data) + ' BTC');
 
@@ -2863,8 +2840,8 @@ function deleteAddresses(addrs) {
 
 	}, function() {
 
-		modal.find('.btn.primary').show(200);
-		modal.find('.btn.danger').show(200);
+		modal.find('.btn.btn-primary').show(200);
+		modal.find('.btn.btn-danger').show(200);
 
 		dbalance.text('Error Fetching Balance');
 	});
@@ -2878,12 +2855,12 @@ function deleteAddresses(addrs) {
 		$('#change-mind-time').text(5 - i);
 	};
 
-	modal.find('.btn.primary').unbind().click(function() {
+	modal.find('.btn.btn-primary').unbind().click(function() {
 
 		changeMind();
 
-		modal.find('.btn.primary').hide();
-		modal.find('.btn.danger').hide();
+		modal.find('.btn.btn-primary').hide();
+		modal.find('.btn.btn-danger').hide();
 
 		interval = setInterval(function() { 
 
@@ -2909,7 +2886,7 @@ function deleteAddresses(addrs) {
 				}
 
 				//Update view with remove address
-				buildReceiveCoinsView();
+                buildVisibleView();
 
 				backupWallet();
 
@@ -2919,12 +2896,12 @@ function deleteAddresses(addrs) {
 		}, 1000);
 	});
 
-	modal.find('.btn.danger').unbind().click(function() {
+	modal.find('.btn.btn-danger').unbind().click(function() {
 
 		changeMind();
 
-		modal.find('.btn.primary').hide();
-		modal.find('.btn.danger').hide();
+		modal.find('.btn.btn-primary').hide();
+		modal.find('.btn.btn-danger').hide();
 
 		interval = setInterval(function() { 
 
@@ -2950,7 +2927,7 @@ function deleteAddresses(addrs) {
 						internalDeleteAddress(addrs[ii]);
 					}
 
-					buildReceiveCoinsView();
+                    buildVisibleView();
 
 					backupWallet('update', function() {
 						queryAPIMultiAddress();
@@ -2972,7 +2949,7 @@ function deleteAddresses(addrs) {
 		}
 	});
 
-	modal.find('.btn.secondary').unbind().click(function() {
+	modal.find('.btn.btn-secondary').unbind().click(function() {
 		modal.modal('hide');
 	});
 
@@ -3102,7 +3079,7 @@ function setReviewTransactionContent(modal, tx) {
 
 	if (all_txs_to_self == true) {
 		if (privateKeyToSweep == null)
-			basic_str = 'move <b>' + formatBTC(amount.toString()) + ' BTC</b> between your own bitcoin addresses';
+			basic_str = 'move <b>' + formatBTC(total.toString()) + ' BTC</b> between your own bitcoin addresses';
 		else
 			basic_str = 'claim <b>' + formatBTC(amount.toString()) + ' BTC</b> into your bitcoin wallet';
 	}
@@ -3135,7 +3112,7 @@ function txFullySigned(tx, success, error) {
 		setReviewTransactionContent(modal, tx);
 
 		//We have the transaction ready to send, check if were online or offline
-		var btn = modal.find('.btn.primary');
+		var btn = modal.find('.btn.btn-primary');
 
 		setLoadingText('Checking Connectivity');
 
@@ -3395,11 +3372,11 @@ function txConstructFirstPhase(toAddresses, fromAddresses, minersfee, changeAddr
 		modal.center();
 
 		//disable primary for now
-		modal.find('.btn.primary').attr('disabled', true);
+		modal.find('.btn.btn-primary').attr('disabled', true);
 
-		modal.find('.btn.primary').text('Send Transaction');
+		modal.find('.btn.btn-primary').text('Send Transaction');
 
-		modal.find('.btn.secondary').unbind().click(function() {
+		modal.find('.btn.btn-secondary').unbind().click(function() {
 			if (error) error();
 
 			modal.modal('hide');
@@ -3458,7 +3435,7 @@ function txConstructFirstPhase(toAddresses, fromAddresses, minersfee, changeAddr
 
 				changeAddress = generatedAddr;
 
-				buildSendTxView();
+                buildVisibleView();
 
 				//Call again with the new change address
 				getUnspentAndProceed(toAddresses, fromAddresses, minersfee, changeAddress);
@@ -3673,8 +3650,6 @@ function newTx() {
 			return true;
 
 		} catch (e) {
-			if (error) error();
-
 			makeNotice('error', 'misc-error', e);
 
 			return false;
@@ -3682,93 +3657,107 @@ function newTx() {
 	});
 };
 
-function populateImportExportView() {
-	var val = $('#export-tabs .active').text();
+function showImportView() {
+    $('#import-export-content .padded').hide();
+    $('#import').show(200);
+}
 
-	try {
-		if (val == 'Export Unencrypted') {			
-			getSecondPassword(function() {
-				$('#export-priv-format').val('base58');
-				$("#json-unencrypted-export").val(makeWalletJSON($('#export-priv-format').val()));
-			});
+function showImportWalletView() {
+    $('#import-export-content .padded').hide();
+    $('#import-wallet').show(200);
+}
 
-		} else if (val == 'Export') {
+function showExportView() {
+    $('#import-export-content .padded').hide();
 
-			var data = makeWalletJSON();
+    var data = makeWalletJSON();
 
-			var crypted = encrypt(data, password);
+    var crypted = encrypt(data, password);
 
-			$("#json-crypted-export").val(crypted);
+    $("#json-crypted-export").val(crypted);
 
-		} else if (val == 'Paper Wallet') {
+    $('#export-crypted').show(200);
+}
 
-			$('#paper-wallet').empty();
+function showExportUnencryptedView() {
+    $('#import-export-content .padded').hide();
+    $('#export-unencrypted').show(200);
 
-			getSecondPassword(function() {
+    getSecondPassword(function() {
+        $('#export-priv-format').val('base58');
+        $("#json-unencrypted-export").val(makeWalletJSON($('#export-priv-format').val()));
+    });
+}
 
-				var container = $('#paper-wallet');
+function showPaperWalletView() {
+    $('#export-paper').show(200);
 
-				container.empty();
+    getSecondPassword(function() {
+        var popup = window.open(null, null, "width=700,height=800");
 
-				var table = $('<table class="trbreak"></table>');
+        if (popup == null) {
+            makeNotice('error', 'misc-error', 'Failed to open popup window');
+            return;
+        }
 
-				container.append(table);
+        popup.document.write('<!DOCTYPE html><html><head></head><body></body></html>');
 
-				var ii = 1;
-				for (var key in addresses) {
-					var addr = addresses[key];
+        var container = $("body", popup.document);
+        container.empty();
 
-					var mode = 'Online Mode';
+        var table = $('<table style="page-break-after:always;"></table>');
 
-					if (addr.tag == 1)
-						mode = 'Offline Mode';
+        var ii = 1;
+        for (var key in addresses) {
+            var addr = addresses[key];
 
-					if (addr.priv == null) {
-						continue;
-					}
+            var mode = 'Online Mode';
 
-					var pk = decryptPK(addr.priv);
+            if (addr.tag == 1)
+                mode = 'Offline Mode';
 
-					if (pk == null)
-						continue;
+            if (addr.priv == null) {
+                continue;
+            }
 
-					var row = $('<tr></tr>');
+            var pk = decryptPK(addr.priv);
 
-					//Add Address QR code
-					var qrspan = $('<td><div style="height:225px;overflow:hidden"></div></td>');
+            if (pk == null)
+                continue;
 
-					var qr = makeQRCode(250, 250, 1 , pk);
+            var row = $('<tr></tr>');
 
-					qrspan.children(":first").append(qr);
+            //Add Address QR code
+            var qrspan = $('<td><div style="height:225px;overflow:hidden"></div></td>');
 
-					row.append(qrspan);
+            var qr = makeQRCode(250, 250, 1 , pk);
 
-					var label = '';
-					if (addr.label != null)
-						label = addr.label + ' - ';
+            qrspan.children(":first").append(qr);
 
-					var body = $('<td style="padding-top:25px;"><h3>' + addr.addr + '</h3><br /><small><p><b>' + pk + '</b></p></small><br /><p>' + mode + '</p><br /><p>'+label+'Balance ' + formatBTC(addr.balance) + ' BTC</p> </td>');
+            row.append(qrspan);
 
-					row.append(body);
+            var label = '';
+            if (addr.label != null)
+                label = addr.label + ' - ';
 
-					if (addr.balance > 0)
-						table.prepend(row);
-					else 
-						table.append(row);
+            var body = $('<td style="padding-top:25px;"><h3>' + addr.addr + '</h3><br /><small><p><b>' + pk + '</b></p></small><br /><p>' + mode + '</p><br /><p>'+label+'Balance ' + formatBTC(addr.balance) + ' BTC</p> </td>');
 
-					if (ii % 3 == 0) {
-						table = $('<table class="trbreak"></table>');
-						container.append(table);
-					}
+            row.append(body);
 
-					ii++;
-				}
-			}); 
-		}
-	} catch (e) {
-		makeNotice('error', 'misc-error', 'Error Exporting keys');
-		return;
-	}
+            if (addr.balance > 0)
+                table.prepend(row);
+            else
+                table.append(row);
+
+            if (ii % 3 == 0) {
+                table = $('<table style="page-break-after:always;"></table>');
+                container.append(table);
+            }
+
+            ii++;
+        }
+
+    });
 }
 
 function bind() {
@@ -3913,7 +3902,6 @@ function bind() {
 
 	$('#show-import-export').click(function () {
 		$('#export-warning').hide();
-		$('#export-tabs').show(200);
 		$('#import-export-content').show(200);
 	}); 
 
@@ -4078,11 +4066,11 @@ function bind() {
 	$('#tx_display').change(function(){
 		SetCookie("tx_display", $(this).val());
 
-		buildTransactionsView();
+        buildVisibleView();
 	});
 
-	$('#addr_filter').keyup(function(){		
-		buildTransactionsView();
+	$('#addr_filter').keyup(function(){
+        buildVisibleView();
 	});
 
 	$('#update-password-btn').click(function() {    			
@@ -4178,7 +4166,7 @@ function bind() {
 					makeNotice('success', 'added-address', 'Sucessfully Added Address ' + address);
 
 					//Rebuild the list
-					buildReceiveCoinsView();
+                    buildVisibleView();
 
 					//Backup
 					backupWallet('update', function() {
@@ -4210,7 +4198,7 @@ function bind() {
 					if (internalAddKey(addr, encodePK(key.priv))) {
 
 						//Rebuild the My-address list
-						buildReceiveCoinsView();
+                        buildVisibleView();
 
 						//Perform a wallet backup
 						backupWallet('update', function() {
@@ -4230,13 +4218,11 @@ function bind() {
 		});
 
 
-		var form = $('#import-private-key');
-
-		form.find('button[name="add"]').unbind().click(function() {
+		$('#import-private-btn').unbind().click(function() {
 			if (!isInitialized)
 				return;
 
-			var value = form.find('input[name="key"]').val();
+			var value = $('#import-private-key').val();
 
 			try {
 
@@ -4266,7 +4252,7 @@ function bind() {
 									addresses[addr].tag = 1;
 
 									//Rebuild the My-address list
-									buildReceiveCoinsView();
+                                    buildVisibleView();
 
 									//Perform a wallet backup
 									backupWallet('update', function() {
@@ -4291,7 +4277,7 @@ function bind() {
 								addresses[addr].tag = 1;
 
 								//Rebuild the My-address list
-								buildReceiveCoinsView();
+                                buildVisibleView();
 
 								//Perform a wallet backup
 								backupWallet('update', function() {
@@ -4323,7 +4309,7 @@ function bind() {
 
 		changeView($("#import-export"));
 
-		populateImportExportView();
+        showImportView();
 	});
 
 
@@ -4342,9 +4328,17 @@ function bind() {
 		changeView($("#my-account"));
 	});
 
+    $('#large-summary').click(function() {
+        toggleSymbol();
+
+        buildVisibleView();
+    });
+
 	$("#home-intro-btn").click(function() {
 		if (!isInitialized)
 			return;
+
+        buildHomeIntroView();
 
 		changeView($("#home-intro"));
 	});
@@ -4356,7 +4350,7 @@ function bind() {
 
 		changeView($("#my-transactions"));
 
-		buildTransactionsView();
+        buildVisibleView();
 	});
 
 
@@ -4367,11 +4361,11 @@ function bind() {
 		changeView($("#send-coins"));
 
 		//Easier to rebuild each time the view appears
-		buildSendTxView();
+        buildVisibleView();
 	});
 
 	$('#send-form-reset-btn').click(function() {
-		buildSendTxView();
+        buildVisibleView();
 	});
 
 	$('#send-adv').click(function() {		
@@ -4387,7 +4381,7 @@ function bind() {
 	});
 
 	$('#escrow-send-form-reset-btn').click(function() {
-		buildSendTxView();
+        buildVisibleView();
 	});
 
 	$("#escrow-send-tx-btn").click(function() {
@@ -4445,16 +4439,32 @@ function bind() {
 
 		changeView($("#receive-coins"));
 
-		buildReceiveCoinsView();
+        buildVisibleView();
 	});
 
 	$('#export-priv-format').change(function (e) {
 		$("#json-unencrypted-export").val(makeWalletJSON($('#export-priv-format').val()));
 	});
 
-	$('#export-tabs').bind('change', function (e) {
-		populateImportExportView();
+    $('#export-btn').click(function () {
+        showExportView();
 	});
+
+    $('#import-btn').click(function () {
+        showImportView();
+    });
+
+    $('#import-wallet-btn').click(function () {
+        showImportWalletView();
+    });
+
+    $('#export-unencrypted-btn').click(function () {
+        showExportUnencryptedView();
+    });
+
+    $('#paper-wallet-btn').click(function () {
+        showPaperWalletView();
+    });
 }
 
 
@@ -4578,6 +4588,9 @@ $(document).ready(function() {
 		return;
 	}
 
+    //Disable auotcomplete in firefox
+    $("input").attr("autocomplete","off");
+
 	if (!isSignup) {
 		//Add an addresses from the "Add to My Wallet" link
 		var map = extractKVFromHash();
@@ -4610,6 +4623,7 @@ $(document).ready(function() {
 	//Load data attributes from html
 	encrypted_wallet_data = $('#data-encrypted').text();
 	guid = $('#data-guid').text();
+    sharedKey = $('#data-sharedKey').text();
 	payload_checksum =  $('#data-checksum').text();
 
 	$('body').ajaxStart(function() {
@@ -4619,12 +4633,6 @@ $(document).ready(function() {
 	$('body').ajaxStop(function() {
 		$('.loading-indicator').fadeOut(200);
 	});
-
-	try {
-		$('.tabs').tabs();
-	} catch (e) {
-		console.log(e);
-	}
 
 	try {
 		if (guid.length == 0) {
@@ -4671,12 +4679,12 @@ function showCompressedPrivateKeyWarning(success, error) {
 		show: true
 	});
 
-	modal.find('.btn.secondary').unbind().click(function() {
+	modal.find('.btn.btn-secondary').unbind().click(function() {
 		success();
 		modal.modal('hide');
 	});
 
-	modal.find('.btn.primary').unbind().click(function() {
+	modal.find('.btn.btn-primary').unbind().click(function() {
 		error();
 		modal.modal('hide');
 	});
@@ -4702,11 +4710,11 @@ function showAddressModal(data) {
 
 	body.find('.code').text(data);
 
-	modal.find('.btn.secondary').unbind().click(function() {
+	modal.find('.btn.btn-secondary').unbind().click(function() {
 		modal.modal('hide');
 	});
 
-	modal.find('.btn.primary').unbind().click(function() {
+	modal.find('.btn.btn-primary').unbind().click(function() {
 		modal.modal('hide');
 		labelAddress(data);
 	});
@@ -4716,11 +4724,7 @@ function showAddressModal(data) {
 
 
 function internalArchive(addr) {
-	buildReceiveCoinsView();
-
-	buildSendTxView();
-
-	buildTransactionsView();
+	buildVisibleView();
 
 	if (archTimer != null) {
 		clearInterval(archTimer);
@@ -4769,10 +4773,6 @@ function archiveAddr(addr) {
 
 function buildReceiveCoinsView() {
 
-	//Only build when visible
-	if ("receive-coins" != cVisible.attr('id'))
-		return;
-
 	$('#enable_archived_checkbox').attr('checked', false);
 	$('#archived-delete').attr('disabled', true);
 	$('#archived-sweep').attr('disabled', true);
@@ -4792,13 +4792,13 @@ function buildReceiveCoinsView() {
 			noPrivateKey = ' <font color="red" class="extrapop" title="Watch Only" data-content="Watch Only means there is no private key associated with this bitcoin address. <br /><br /> Unless you have the private key stored elsewhere you do not own this address and can only observe it.">(Watch Only)</font>';
 		}	 
 
-		var balance = formatBTC(addr.balance) + ' <span class="can-hide">BTC</span>';	
+		var balance = formatBTC(addr.balance) + ' <span class="hidden-phone">BTC</span>';
 
 		var extra = '';
 		var label = addr.addr;
 		if (addr.label != null) {
 			label = addr.label;
-			extra = '<span class="can-hide"> - ' + addr.addr + '</span>';
+			extra = '<span class="hidden-phone"> - ' + addr.addr + '</span>';
 		}
 
 		var thtml = '<tr>';
@@ -4854,7 +4854,7 @@ function generateNewAddressAndKey() {
 
 		addresses[addr].tag = 1; //Mark as unsynced
 
-		buildReceiveCoinsView();
+		buildVisibleView();
 
 		makeNotice('info', 'new-address', 'Generated new bitcoin address ' + addr);
 
