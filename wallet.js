@@ -3882,11 +3882,15 @@ function bind() {
 		rng_seed_time();
 	});
 
-	$('#deposit').click(function() {
+	$('#deposit-sms').click(function() {
 		loadScript(resource + 'wallet/deposit/deposit.js', function() {			
 			showDepositModal(getPreferredAddress(), 'sms', 'Deposit Using Phone/SMS');
 		});
 	});
+
+    $('#deposit-sms2').click(function() {
+        $('#deposit-sms').trigger('click');
+    });
 
 	$('#payment-request').click(function() {
 		loadScript(resource + 'wallet/payment-request.js', function() {			
