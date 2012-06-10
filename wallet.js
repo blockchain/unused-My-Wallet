@@ -687,7 +687,7 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
 
 	var result = this.result;
 
-	var html = '<tr><td class="hidden-phone"><ul class="txul short-addr">';
+	var html = '<tr><td style="width:16px"><a target="new" href="'+root+'tx-index/'+this.txIndex+'/'+this.hash+'"><img src="'+resource+'info.png" /></a></td><td class="hidden-phone"><ul style="margin-left:0px;" class="short-addr">';
 
 	if (result > 0) {
 		if (this.inputs.length > 0) {
@@ -726,9 +726,9 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
     }
 
     if (this.confirmations == 0) {
-        html += ' <span class="label label-important">Unconfirmed Transaction!</sxpan> ';
+        html += ' <span class="label label-important pull-right">Unconfirmed Transaction!</sxpan> ';
     } else if (this.confirmations > 0) {
-        html += ' <span class="label label-info">' + this.confirmations + ' Confirmations</span> ';
+        html += ' <span class="label label-info pull-right">' + this.confirmations + ' Confirmations</span> ';
     }
 
     html += '</td>';
@@ -810,7 +810,7 @@ function buildTransactionsView() {
 	var txcontainer = $('#transactions').empty();
 
 	if (tx_display == 1) {
-		var table = $('<table class="table table-striped"><tr><th class="hidden-phone">To / From</th><th>Date</th><th>Amount</th><th class="hidden-phone">Balance</th></tr></table>');
+		var table = $('<table class="table table-striped"><tr><th style="width:16px"></th><th class="hidden-phone">To / From</th><th>Date</th><th>Amount</th><th class="hidden-phone">Balance</th></tr></table>');
 
 		txcontainer.append(table);
 		txcontainer = table;
