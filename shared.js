@@ -303,7 +303,7 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 		}
 		
 		if (this.confirmations == 0) {
-			html += '<button class="btn" style="padding-top:4px;padding-bottom:4px;padding-left:7px;padding-right:7px;" onclick="showInventoryModal(\''+this.hash+'\')"><img src="'+resource+'network.png" /></button> ';
+			html += '<button class="btn" style="padding-top:4px;padding-bottom:4px;padding-left:7px;padding-right:7px;margin:5px" onclick="showInventoryModal(\''+this.hash+'\')"><img src="'+resource+'network.png" /></button> ';
 		}
 	}
 	
