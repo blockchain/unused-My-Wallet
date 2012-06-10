@@ -608,7 +608,7 @@ public class WalletServlet extends BaseServlet {
 			} else if (guid.equals("deposit-methods")) {
 				getServletContext().getRequestDispatcher("/WEB-INF/wallet/bitcoin-wallet-deposit-methods.jsp").forward(req, res);
 				return;
-			}  else if (guid.equals("wallet.404.manifest")) {
+			}  else if (guid.equals("wallet.404.manifest") || guid.equals("wallet.index.manifest")) {
 				res.setStatus(404);
 				return;
 			} else if (guid.equals("wallet.manifest")) {
@@ -646,15 +646,6 @@ public class WalletServlet extends BaseServlet {
 
 				getServletContext().getRequestDispatcher("/WEB-INF/wallet/bitcoin-wallet-manifest.jsp").forward(req, res);
 
-				return;
-			} else if (guid.equals("wallet.index.manifest")) {
-
-				res.addHeader("Cache-Control", "max-age=0, no-cache, no-store, must-revalidate");
-				res.addHeader("Pragma", "no-cache");
-				res.addHeader("Expires", "Wed, 11 Jan 1984 05:00:00 GMT");
-				res.addHeader("Content-type", "text/cache-manifest");
-
-				getServletContext().getRequestDispatcher("/WEB-INF/wallet/bitcoin-wallet-index-manifest.jsp").forward(req, res);
 				return;
 			}  else if (guid.equals("iphone-view")) {
 				req.setAttribute("no_header", true);
