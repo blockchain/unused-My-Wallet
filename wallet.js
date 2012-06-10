@@ -35,7 +35,7 @@ $.fn.center = function () {
 };
 
 $(window).resize(function() {
-	$('.modal:visible').center();
+	$('.modal').center();
 });
 
 function setLoadingText(txt) {
@@ -1265,6 +1265,9 @@ function internalRestoreWallet() {
 
 function askToIncludeFee(success, error) {
 
+
+    $('#new-transaction-modal').hide();
+
 	var modal = $('#ask-for-fee');
 
 	modal.modal({
@@ -1284,6 +1287,10 @@ function askToIncludeFee(success, error) {
 
 		modal.modal('hide');
 	});
+
+    modal.on('hidden', function () {
+        $('#new-transaction-modal').show();
+    })
 
 	modal.center();
 }
@@ -1382,7 +1389,7 @@ function showPrivateKeyModal(success, error, addr) {
 
 		modal.center();
 
-		modal.bind('hidden', function () {
+		modal.on('hidden', function () {
 			clearInterval(interval);
 		});
 	} catch (e) {
@@ -1502,7 +1509,7 @@ function getReadyForOffline() {
 		modal.modal('hide');
 	});
 
-	modal.bind('hidden', function () {
+	modal.on('hidden', function () {
 		$("#restore-wallet-continue").removeAttr('disabled');
 	});
 
@@ -2941,7 +2948,7 @@ function deleteAddresses(addrs) {
 		}, 1000);
 	});
 
-	modal.bind('hidden', function () {
+	modal.on('hidden', function () {
 		if (interval) {
 			isCancelled = true;
 			clearInterval(interval);
@@ -3192,13 +3199,10 @@ function txConstructSecondPhase(toAddresses, fromAddresses, fees, unspent, missi
 		progress.find('.t').text(tx.ins.length);
 
 		signOne = function() {
-			setTimeout(function() {
+
+            setTimeout(function() {
 
 				try {
-					//If the modal has been hidden the the user has probably cancelled
-					if (!modal.is(":visible"))
-						return;
-
 					progress.find('.n').text(outputN+1);
 
 					//Try and sign the input
