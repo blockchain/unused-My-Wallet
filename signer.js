@@ -719,7 +719,7 @@ function getUnspentOutputs(fromAddresses, success, error) {
     });
 }
 
-function signInput(tx, inputN, base58Key, connectedScript) {
+function signInput(tx, inputN, inputBitcoinAddress, base58Key, connectedScript) {
     var key = new Bitcoin.ECKey(base58Key);
 
     var compressed;
@@ -1168,7 +1168,7 @@ function initNewTx() {
                                     self.error(e);
 
                                 }, inputBitcoinAddress);
-                            } else if (signInput(self.tx, outputN, privatekey, connectedScript)) {
+                            } else if (signInput(self.tx, outputN, inputBitcoinAddress, privatekey, connectedScript)) {
                                 signOne(); //Sign The Next One
                             } else {
                                 throw 'Unknown error signing transaction';
