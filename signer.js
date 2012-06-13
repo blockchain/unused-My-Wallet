@@ -1171,7 +1171,26 @@ function initNewTx() {
 
                                 }, inputBitcoinAddress);
                             } else if (signInput(self.tx, outputN, inputBitcoinAddress, privatekey, connectedScript)) {
-                                signOne(); //Sign The Next One
+
+                                ++outputN;
+
+                                if (outputN == self.tx.ins.length) {
+                                    self.invoke('on_finish_signing');
+
+                                    self.ask_to_send(function() {
+                                        if (self.generated_addresses.length > 0) {
+                                            backupWallet('update', function() {
+                                                self.pushTx();
+                                            }, function() {
+                                                self.error('Error Backing Up Wallet. Cannot Save Newly Generated Keys.')
+                                            });
+                                        } else {
+                                            self.pushTx();
+                                        }
+                                    });
+                                } else {
+                                    signOne(); //Sign The Next One
+                                }
                             } else {
                                 throw 'Unknown error signing transaction';
                             }
@@ -1220,8 +1239,8 @@ function initNewTx() {
                     self.success();
 
                 }).error(function(data) {
-                   self.error(data.responseText);
-                });
+                        self.error(data.responseText);
+                    });
 
             } catch (e) {
                 self.error(e);

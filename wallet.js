@@ -717,6 +717,7 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
 
     var html = '<tr><td style="width:16px" class="hidden-phone"><a target="new" href="'+root+'tx-index/'+this.txIndex+'/'+this.hash+'"><img src="'+resource+'info.png" /></a></td><td class="hidden-phone"><ul style="margin-left:0px;" class="short-addr">';
 
+    var all_from_self = true;
     if (result > 0) {
         if (this.inputs.length > 0) {
             for (var i = 0; i < this.inputs.length; i++) {
@@ -731,6 +732,7 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
                     if (my_addr && my_addr.tag != 2)
                         continue;
 
+                    all_from_self = false;
                     html += formatOutput(input.prev_out, myAddresses, addresses_book);
                 }
             }
@@ -745,11 +747,13 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
             if (this.out.length > 1 && this.out[i].type == 0 && my_addr && my_addr.tag != 2)
                 continue;
 
+            all_from_self = false;
             html += formatOutput(this.out[i], myAddresses, addresses_book);
         }
-    } else {
-        html += '<span class="label">Moved Between Wallet</info>';
     }
+
+    if (all_from_self)
+        html += '<span class="label">Moved Between Wallet</info>';
 
     html += '</ul></td><td>';
 
