@@ -522,7 +522,7 @@ function startTxUI(el, type) {
                                                 //Save The New Label
                                                 backupWallet();
 
-                                                makeNotice('success', email, 'Sent email confirmation');
+                                                makeNotice('success', self.email_data.email, 'Sent email confirmation');
                                             });
                                         } catch (e) {
                                             console.log(e);
