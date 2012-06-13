@@ -754,6 +754,8 @@ function signInput(tx, inputN, inputBitcoinAddress, base58Key, connectedScript) 
     }
 
     tx.ins[inputN].script = script;
+
+    return true;
 }
 
 function setReviewTransactionContent(modal, tx) {
