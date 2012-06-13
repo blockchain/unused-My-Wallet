@@ -3419,42 +3419,64 @@ function bind() {
                 cookie: true
             });
 
-            var did_login = false;
+            var loaded_contacts = false;
 
             var facebook_input = self.find(".recipient").find('input[name="send-to-facebook"]');
+            var send_button =  self.find('.send');
+
+            send_button.text('Facebook Login');
+            send_button.addClass("btn-primary");
+            send_button.removeClass("btn-success");
 
             facebook_input.attr('readonly', true);
 
             var fb_map = [];
+            function load_contacts() {
+                FB.api('/me/friends', function(response) {
+                    loaded_contacts = true;
+
+                    send_button.text('Send Payment');
+                    send_button.removeClass("btn-primary");
+                    send_button.addClass("btn-success");
+
+                    if (!response || response.error) {
+                        makeNotice('error', 'add-error', 'Unknown Facebook Error');
+                    } else {
+                        var data = [];
+                        for (var key in response.data) {
+                            data.push(response.data[key].name);
+                            fb_map[response.data[key].name] = response.data[key].id;
+                        }
+                        self.find(".recipient").find('input[name="send-to-facebook"]').typeahead({
+                            source : data
+                        });
+
+                        facebook_input.attr('readonly', false);
+                    }
+                });
+            };
+
             FB.getLoginStatus(function(response){
                 FB.login(function(response) {
                     if (response.authResponse) {
-                        did_login = true;
 
-                        FB.api('/me/friends', function(response) {
-                            if (!response || response.error) {
-                                makeNotice('error', 'add-error', 'Unknown Facebook Error');
-                            } else {
-                                var data = [];
-                                for (var key in response.data) {
-                                    data.push(response.data[key].name);
-                                    fb_map[response.data[key].name] = response.data[key].id;
-                                }
-                                self.find(".recipient").find('input[name="send-to-facebook"]').typeahead({
-                                    source : data
-                                });
-
-                                facebook_input.attr('readonly', false);
-                            }
-                        });
+                        load_contacts();
                     } else {
                         makeNotice('error', 'add-error', 'User cancelled login or did not fully authorize.');
                     }
                 });
             });
 
-            self.find('.send').unbind().click(function() {
-                if (did_login) {
+            send_button.unbind().click(function() {
+                if (!loaded_contacts) {
+                    FB.login(function(response) {
+                        if (response.authResponse) {
+                            load_contacts();
+                        } else {
+                            makeNotice('error', 'add-error', 'User cancelled login or did not fully authorize.');
+                        }
+                    });
+                } else {
                     var fb_id = fb_map[facebook_input.val()];
 
                     facebook_input.data('fb-id', fb_id);
