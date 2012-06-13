@@ -727,7 +727,9 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
                 } else {
 
                     //Don't Show sent from
-                    if (myAddresses[input.prev_out.addr] != null) continue;
+                    var my_addr = myAddresses[input.prev_out.addr];
+                    if (my_addr && my_addr.tag != 2)
+                        continue;
 
                     html += formatOutput(input.prev_out, myAddresses, addresses_book);
                 }
@@ -739,7 +741,9 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
         for (var i = 0; i < this.out.length; i++) {
 
             //Don't Show sent to self
-            if (this.out.length > 1 && this.out[i].type == 0 && myAddresses[this.out[i].addr] != null) continue;
+            var my_addr = myAddresses[this.out[i].addr];
+            if (this.out.length > 1 && this.out[i].type == 0 && my_addr && my_addr.tag != 2)
+                continue;
 
             html += formatOutput(this.out[i], myAddresses, addresses_book);
         }

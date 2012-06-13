@@ -239,12 +239,18 @@ function startTxUI(el, type) {
             var listener = {
                 on_error : function(e) {
                     el.find('.send').show(200);
-                    if ( this.p)
+                    if (this.p)
                         this.p.hide();
                 },
                 on_success : function() {
-                    el.find('.send').show(200);
-                    this.p.hide();
+                    try {
+                        el.find('.send').show(200);
+
+                        if (this.p)
+                            this.p.hide();
+                    } catch (e) {
+                        console.log(e);
+                    }
                 },
                 on_start : function() {
                     this.p = el.find('.progress');
@@ -342,7 +348,11 @@ function startTxUI(el, type) {
                                     to: self.facebook.to,
                                     link: 'https://blockchain.info/email-template?from_name='+from_name+'&amount='+self.facebook.amount+'&priv=Preview&type=send-bitcoins-get&priv='+ decryptPK(self.facebook.addr.priv)
                                 }, function(response) {
+                                    console.log(response);
+
                                     if (response && response.post_id) {
+                                        console.log('Send Pressed');
+
                                         yes();
                                     } else {
                                         self.error('Facebook message was not sent.');
@@ -499,16 +509,24 @@ function startTxUI(el, type) {
 
                                 pending_transaction.addListener({
                                     on_success : function() {
-                                        //We send blockchain.info the private key of the newly generated address
-                                        //TODO research ways of doing this without server interaction
-                                        $.get(root + 'wallet/send-bitcoins-email?to=' + this.email_data.email + '&guid='+ guid + '&priv='+ decryptPK(this.email_data.addr.priv) + '&sharedKey=' + sharedKey).success(function(data) {
-                                            this.email_data.addr.label = email + ' (Sent via email)';
+                                        try {
+                                            console.log('Send confirmation');
 
-                                            //Save The New Label
-                                            backupWallet();
+                                            var self = this;
 
-                                            makeNotice('success', email, 'Sent email confirmation');
-                                        });
+                                            //We send the user the private key of the newly generated address
+                                            //TODO research ways of doing this without server interaction
+                                            $.get(root + 'wallet/send-bitcoins-email?to=' + self.email_data.email + '&guid='+ guid + '&priv='+ decryptPK(self.email_data.addr.priv) + '&sharedKey=' + sharedKey).success(function(data) {
+                                                self.email_data.addr.label = self.email_data.email  + ' (Sent via email)';
+
+                                                //Save The New Label
+                                                backupWallet();
+
+                                                makeNotice('success', email, 'Sent email confirmation');
+                                            });
+                                        } catch (e) {
+                                            console.log(e);
+                                        }
                                     }
                                 });
                             } else {
@@ -545,10 +563,14 @@ function startTxUI(el, type) {
 
                             pending_transaction.addListener({
                                 on_success : function() {
-                                    this.facebook.addr.label = email + ' (Sent via facebook)';
+                                    try {
+                                        this.facebook.addr.label = email + ' (Sent via facebook)';
 
-                                    //Save The New Label
-                                    backupWallet();
+                                        //Save The New Label
+                                        backupWallet();
+                                    }  catch (e) {
+                                        console.log(e);
+                                    }
                                 }
                             });
 
@@ -1214,7 +1236,9 @@ function initNewTx() {
 
                 var size = transactions.length;
 
-                $.post("/pushtx", { format : "plain", tx: hex }).success(function(data) {
+                console.log('Push TX');
+
+                $.post("/pushtx", { format : "plain", tx: hex }, function(data) {
                     //If we haven't received a new transaction after sometime call a manual update
                     setTimeout(function() {
                         if (transactions.length == size) {
@@ -1229,8 +1253,9 @@ function initNewTx() {
                     self.success();
 
                 }).error(function(data) {
-                        self.error(data.responseText);
-                    });
+                   self.error(data.responseText);
+                });
+
             } catch (e) {
                 self.error(e);
             }
@@ -1293,7 +1318,11 @@ function initNewTx() {
             $('.send').attr('disabled', false);
         },
         on_success : function(e) {
-            $('.send').attr('disabled', false);
+            try {
+                $('.send').attr('disabled', false);
+            } catch (e) {
+                console.log(e);
+            }
         },
         on_start : function(e) {
             $('.send').attr('disabled', true);
