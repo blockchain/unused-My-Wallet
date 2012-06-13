@@ -733,7 +733,7 @@ function signInput(tx, inputN, inputBitcoinAddress, base58Key, connectedScript) 
 
     var hashType = parseInt(1); // SIGHASH_ALL
 
-    var hash = sendTx.hashTransactionForSignature(connectedScript, inputN, hashType);
+    var hash = tx.hashTransactionForSignature(connectedScript, inputN, hashType);
 
     var rs = key.sign(hash);
 
