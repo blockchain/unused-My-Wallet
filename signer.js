@@ -719,43 +719,13 @@ function getUnspentOutputs(fromAddresses, success, error) {
     });
 }
 
-
-function signInput(sendTx, extraPrivateKeys, missingPrivateKeys, selectedOuts, i) {
-
-    var pubKeyHash = selectedOuts[i].script.simpleOutPubKeyHash();
-    var inputBitcoinAddress = new Bitcoin.Address(pubKeyHash).toString();
-    var privatekey = null;
-
-    //Find the matching private key
-    var myAddr = addresses[inputBitcoinAddress];
-    if (myAddr != null) {
-        try {
-            if (myAddr.priv != null) {
-                privatekey = new Bitcoin.ECKey(decodePK(myAddr.priv));
-            }
-        } catch (e) {
-            console.log(e);
-        }
-    }
-
-    //If it is null then it is not in our main key pool, try look in the temporary keys
-    if (privatekey == null) {
-        var extraKey = extraPrivateKeys[inputBitcoinAddress];
-        if (extraKey) {
-            privatekey = new Bitcoin.ECKey(Base58.decode(extraKey));
-        }
-    }
-
-    //If it is still null then we need to ask the user for it
-    if (privatekey == null) {
-        missingPrivateKeys.push(inputBitcoinAddress);
-        return false;
-    }
+function signInput(tx, inputN, base58Key, connectedScript) {
+    var key = new Bitcoin.ECKey(base58Key);
 
     var compressed;
-    if (privatekey.getBitcoinAddress().toString() == inputBitcoinAddress.toString()) {
+    if (key.getBitcoinAddress().toString() == inputBitcoinAddress.toString()) {
         compressed = false;
-    } else if (privatekey.getBitcoinAddressCompressed().toString() == inputBitcoinAddress.toString()) {
+    } else if (key.getBitcoinAddressCompressed().toString() == inputBitcoinAddress.toString()) {
         compressed = true;
     } else {
         throw 'Private key does not match bitcoin address';
@@ -763,9 +733,9 @@ function signInput(sendTx, extraPrivateKeys, missingPrivateKeys, selectedOuts, i
 
     var hashType = parseInt(1); // SIGHASH_ALL
 
-    var hash = sendTx.hashTransactionForSignature(selectedOuts[i].script, i, hashType);
+    var hash = sendTx.hashTransactionForSignature(connectedScript, inputN, hashType);
 
-    var rs = privatekey.sign(hash);
+    var rs = key.sign(hash);
 
     var signature = Bitcoin.ECDSA.serializeSig(rs.r, rs.s);
 
@@ -775,17 +745,15 @@ function signInput(sendTx, extraPrivateKeys, missingPrivateKeys, selectedOuts, i
     var script;
 
     if (compressed)
-        script = Bitcoin.Script.createInputScript(signature, privatekey.getPubCompressed());
+        script = Bitcoin.Script.createInputScript(signature, key.getPubCompressed());
     else
-        script = Bitcoin.Script.createInputScript(signature, privatekey.getPub());
+        script = Bitcoin.Script.createInputScript(signature, key.getPub());
 
     if (script == null) {
         throw 'Error creating input script';
     }
 
-    sendTx.ins[i].script = script;
-
-    return true;
+    tx.ins[inputN].script = script;
 }
 
 function setReviewTransactionContent(modal, tx) {
@@ -1161,40 +1129,35 @@ function initNewTx() {
                         try {
                             self.invoke('on_sign_progress', outputN+1);
 
-                            //Try and sign the input
-                            if (signInput(self.tx, self.extra_private_keys, missingPrivateKeys, self.selected_outputs, outputN)) {
-                                ++outputN;
+                            var connectedScript = self.selected_outputs[i].script;
+                            var pubKeyHash = connectedScript.simpleOutPubKeyHash();
+                            var inputBitcoinAddress = new Bitcoin.Address(pubKeyHash).toString();
+                            var privatekey = null;
 
-                                if (outputN == self.tx.ins.length) {
-                                    self.invoke('on_finish_signing');
-
-                                    self.ask_to_send(function() {
-                                        if (self.generated_addresses.length > 0) {
-                                            backupWallet('update', function() {
-                                                self.pushTx();
-                                            }, function() {
-                                                self.error('Error Backing Up Wallet. Cannot Save Newly Generated Keys.')
-                                            });
-                                        } else {
-                                            self.pushTx();
-                                        }
-                                    });
-                                } else {
-                                    signOne();
+                            //Find the matching private key
+                            var myAddr = addresses[inputBitcoinAddress];
+                            if (myAddr != null) {
+                                try {
+                                    if (myAddr.priv != null) {
+                                        privatekey = decodePK(myAddr.priv);
+                                    }
+                                } catch (e) {
+                                    console.log(e);
                                 }
+                            }
 
-                                //If the input failed to sign then were probably missing a private key
-                                //Only ask for missing keys in offline mode
-                            } else if (missingPrivateKeys.length > 0) {
-                                var missing = missingPrivateKeys[0];
+                            //If it is null then it is not in our main key pool, try look in the temporary keys
+                            if (privatekey == null) {
+                                var extraKey = self.extra_private_keys[inputBitcoinAddress];
+                                if (extraKey) {
+                                    privatekey = Base58.decode(extraKey);
+                                }
+                            }
 
+                            if (privatekey == null) {
                                 self.ask_for_private_key(function (key) {
-                                    if (missing == key.getBitcoinAddress().toString() || missing == key.getBitcoinAddressCompressed().toString()) {
-                                        missingPrivateKeys.shift();
-
-                                        self.extra_private_keys[missing] = key;
-
-                                        progress.show();
+                                    if (inputBitcoinAddress == key.getBitcoinAddress().toString() || inputBitcoinAddress == key.getBitcoinAddressCompressed().toString()) {
+                                        self.extra_private_keys[inputBitcoinAddress] = Bitcoin.Base58.encode(key.priv);
 
                                         signOne(); //Continue signing
                                     } else {
@@ -1204,7 +1167,9 @@ function initNewTx() {
                                 }, function(e) {
                                     self.error(e);
 
-                                }, missing.addr);
+                                }, inputBitcoinAddress);
+                            } else if (signInput(self.tx, outputN, privatekey, connectedScript)) {
+                                signOne(); //Sign The Next One
                             } else {
                                 throw 'Unknown error signing transaction';
                             }

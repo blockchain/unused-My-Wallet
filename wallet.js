@@ -443,7 +443,7 @@ function buildSendForm(el, reset) {
             $(this).parent().find('.send-value-usd').html(formatSymbol($(this).val() *  100000000, symbol_local));
         });
 
-        $(this).parent().find('.remove-recipient').show(200);
+        el.find('.remove-recipient').show(200);
     });
 
 }
