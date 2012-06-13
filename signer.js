@@ -1129,7 +1129,7 @@ function initNewTx() {
                         try {
                             self.invoke('on_sign_progress', outputN+1);
 
-                            var connectedScript = self.selected_outputs[i].script;
+                            var connectedScript = self.selected_outputs[outputN].script;
                             var pubKeyHash = connectedScript.simpleOutPubKeyHash();
                             var inputBitcoinAddress = new Bitcoin.Address(pubKeyHash).toString();
                             var privatekey = null;
