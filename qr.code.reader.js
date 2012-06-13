@@ -57,9 +57,6 @@ function passLine(stringPixels) {
 
 function captureToCanvas() {
 	try {
-		
-		console.log($("#embedflash"));
-		
 	    flash = document.getElementById("embedflash");
 	   
 	    if(!flash)

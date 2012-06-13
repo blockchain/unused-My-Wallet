@@ -1309,13 +1309,9 @@ Bitcoin.Util = {
         var b = a.split("."),
             c = b[0],
             d = b[1] || "0";
-        
-	    console.log(d);
 
         d = d.substring(0, 8);
-        
-        console.log(d);
-        
+
         while (d.length < 8) d += "0";
         
         d = d.replace(/^0+/g, "");
