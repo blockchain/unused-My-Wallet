@@ -1076,7 +1076,7 @@ function showClaimModal(key) {
         $('#claim-manual').show(200);
 
         $('#claim-manual-send').unbind().click(function() {
-            loadScript(resource + 'wallet/signer.js', function() {
+            loadScript(resource + 'wallet/signer.min.js', function() {
                 var to_address = $('#claim-manual-address').val();
                 try {
                     new Bitcoin.Address(to_address);
@@ -1124,7 +1124,7 @@ function didDecryptWallet() {
     }
 
     if (privateKeyToSweep != null) {
-        loadScript(resource + 'wallet/signer.js', function() {
+        loadScript(resource + 'wallet/signer.min.js', function() {
 
             var address = privateKeyToSweep.getBitcoinAddress().toString();
 
@@ -2633,7 +2633,7 @@ function apiResolveFirstbits(addr, success, error) {
 
 function sweepAddresses(addresses) {
     getSecondPassword(function() {
-        loadScript(resource + 'wallet/signer.js', function() {
+        loadScript(resource + 'wallet/signer.min.js', function() {
             var obj = initNewTx();
 
             obj.from_addresses = addresses;
@@ -3244,7 +3244,7 @@ function bind() {
                                     makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr);
                                 }
                             }, function() {
-                                loadScript(resource + 'wallet/signer.js', function() {
+                                loadScript(resource + 'wallet/signer.min.js', function() {
                                     var obj = initNewTx();
 
                                     obj.from_addresses = [addr];
@@ -3348,12 +3348,13 @@ function bind() {
     });
 
     $('#send-quick').on('show', function(e, reset) {
+
         var self = $(this);
 
         buildSendForm(self, reset);
 
         self.find('.send').unbind().click(function() {
-            loadScript(resource + 'wallet/signer.js', function() {
+            loadScript(resource + 'wallet/signer.min.js', function() {
                 startTxUI(self, 'quick');
             });
         });
@@ -3365,7 +3366,7 @@ function bind() {
         buildSendForm(self, reset);
 
         self.find('.send').unbind().click(function() {
-            loadScript(resource + 'wallet/signer.js', function() {
+            loadScript(resource + 'wallet/signer.min.js', function() {
                 startTxUI(self, 'email');
             });
         });
