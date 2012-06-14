@@ -92,8 +92,6 @@ function websocketConnect() {
 
                     var tx = TransactionFromJSON(obj.x);
 
-                    if (!tx) return;
-
                     //Check if this is a duplicate
                     //Maybe should have a map_prev to check for possible double spends
                     for (var i = 0; i < transactions.length; ++i) {
@@ -856,10 +854,6 @@ function buildTransactionsView() {
 
             var tx = transactions[i];
 
-            if (tx == null) {
-                continue;
-            }
-
             if (tx.blockHeight != null && tx.blockHeight > 0 && latest_block != null) {
                 var confirmations = latest_block.height - tx.blockHeight + 1;
                 if (confirmations <= 100) {
@@ -976,8 +970,7 @@ function parseMultiAddressJSON(json) {
 
     for (var i = 0; i < obj.txs.length; ++i) {
         var tx = TransactionFromJSON(obj.txs[i]);
-        if (tx)
-            transactions.push(tx);
+        transactions.push(tx);
     }
 }
 
