@@ -1,0 +1,1 @@
+cd src && cat ./crypto-js/crypto.js ./crypto-js/sha256.js ./crypto-js/ripemd160.js ./jsbn/*.js ./bitcoin.js ./util.js ./base58.js ./address.js ./ecdsa.js ./eckey.js ./opcode.js ./eckey.js ./script.js ./transaction.js  > ../../bitcoinjs.js

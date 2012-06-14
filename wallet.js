@@ -26,7 +26,6 @@ var payload_checksum = null; //SHA256 hash of the current wallet.aes.json
 var addressToAdd = null; //a watch only address to add from #newaddr hash value (String)
 var privateKeyToSweep = null; //a private key to sweep from #newpriv hash value (ECKey)
 var isSignup = false; //Set when on new account signup page
-var Base58 = Bitcoin.Base58;
 var archTimer; //Delayed Backuop wallet timer
 
 $.fn.center = function () {
@@ -271,7 +270,7 @@ function base58ToSipa(x, addr) {
     var checksum = Crypto.SHA256(Crypto.SHA256(bytes, { asBytes: true }), { asBytes: true });
     bytes = bytes.concat(checksum.slice(0, 4));
 
-    var privWif = Base58.encode(bytes);
+    var privWif = B58.encode(bytes);
 
     return privWif;
 }
@@ -362,7 +361,7 @@ function buildSendTxView() {
 
 function buildSendForm(el, reset) {
 
-    function buildSelect(select) {
+    function buildSelect(select, zero_balance) {
         var old_val = select.val();
 
         select.empty();
@@ -379,7 +378,7 @@ function buildSendForm(el, reset) {
             if (label == null)
                 label = addr.addr;
 
-            if (addr.balance > 0) {
+            if (zero_balance || addr.balance > 0) {
                 //On the sent transactions page add the address to the from address options
                 select.prepend('<option value="'+addr.addr+'">' + label + ' - ' + formatBTC(addr.balance) + ' BTC </option>');
             }
@@ -391,9 +390,9 @@ function buildSendForm(el, reset) {
             select.val(old_val);
     }
 
-    buildSelect(el.find('select[name="from"]'));
+    buildSelect(el.find('select[name="from"]'), false);
 
-    buildSelect(el.find('select[name="change"]'));
+    buildSelect(el.find('select[name="change"]'), true);
 
     el.find('select[name="change"]').prepend('<option value="new">New Address</option>');
 
@@ -430,22 +429,21 @@ function buildSendForm(el, reset) {
     });
 
     el.find('.add-recipient').unbind().click(function() {
-        var el = recipient_container.find(".recipient:first-child").clone();
+        var recipient = recipient_container.find(".recipient:first-child").clone();
 
-        el.appendTo(recipient_container);
+        recipient.appendTo(recipient_container);
 
-        el.find('input[name="send-to-address"]').val('').typeahead({
+        recipient.find('input[name="send-to-address"]').val('').typeahead({
             source : getAllLabels()
         });
 
-        el.find('.send-value-usd').html('$0');
-        el.find('input[name="send-value"]').val('').keyup(function() {
+        recipient.find('.send-value-usd').html('$0');
+        recipient.find('input[name="send-value"]').val('').keyup(function() {
             $(this).parent().find('.send-value-usd').html(formatSymbol($(this).val() *  100000000, symbol_local));
         });
 
         el.find('.remove-recipient').show(200);
     });
-
 }
 
 function importPyWalletJSONObject(obj) {
@@ -1053,9 +1051,7 @@ function showClaimModal(key) {
         show: true
     });
 
-    modal.find('.modal-body').show();
-
-    modal.find('#claim-balance').empty();
+    modal.find('.balance').text('Loading...');
 
     var address = key.getBitcoinAddress().toString();
 
@@ -1066,20 +1062,27 @@ function showClaimModal(key) {
     });
 
     apiGetBalance([address], function(data) {
-        modal.find('#claim-balance').text('Amount: ' + formatBTC(data) + ' BTC');
+
+        if (data == 0) {
+            modal.find('.spent').show(200);
+        } else {
+            modal.find('.spent').hide(200);
+        }
+
+        modal.find('.balance').text('Amount: ' + formatBTC(data) + ' BTC');
     }, function() {
-        modal.find('#claim-balance').text('Error Fetching Balance');
+        modal.find('.balance').text('Error Fetching Balance');
     });
 
-    modal.find('.btn.btn-primary').unbind().click(function() {
+    modal.find('.create').unbind().click(function() {
         window.location = root + 'wallet/new' + window.location.hash;
     });
 
-    modal.find('.btn.btn-success').unbind().click(function() {
+    modal.find('.login').unbind().click(function() {
         modal.modal('hide');
     });
 
-    modal.find('.btn.btn-secondary').unbind().click(function() {
+    modal.find('.forward').unbind().click(function() {
 
         $('#claim-manual').show(200);
 
@@ -1100,7 +1103,7 @@ function showClaimModal(key) {
                 var obj = initNewTx();
 
                 obj.from_addresses = [from_address];
-                obj.extra_private_keys[from_address] = Base58.encode(privateKeyToSweep.priv);
+                obj.extra_private_keys[from_address] = B58.encode(privateKeyToSweep.priv);
 
                 obj.start();
 
@@ -1139,7 +1142,7 @@ function didDecryptWallet() {
             var obj = initNewTx();
 
             obj.from_addresses = [address];
-            obj.extra_private_keys[address] = Base58.encode(privateKeyToSweep.priv);
+            obj.extra_private_keys[address] = B58.encode(privateKeyToSweep.priv);
 
             obj.start();
         });
@@ -1841,7 +1844,7 @@ function encryptPK(base58) {
 }
 
 function encodePK(priv) {
-    var base58 = Base58.encode(priv);
+    var base58 = B58.encode(priv);
     return encryptPK(base58);
 }
 
@@ -1870,7 +1873,7 @@ function decryptPK(priv) {
 function decodePK(priv) {
     var decrypted = decryptPK(priv);
     if (decrypted != null) {
-        return Base58.decode(decrypted);
+        return B58.decode(decrypted);
     }
     return null;
 }
@@ -1966,7 +1969,7 @@ function setDoubleEncryption(value) {
                         var addr = addresses[key];
 
                         if (addr.priv != null) {
-                            addr.priv = encodePK(Base58.decode(addr.priv));
+                            addr.priv = encodePK(B58.decode(addr.priv));
                         }
                     }
 
@@ -2376,7 +2379,6 @@ function deleteAddresses(addrs) {
     modal.find('.btn.btn-primary').hide();
     modal.find('.btn.btn-danger').hide();
 
-    modal.find('.modal-body').show();
     $('#change-mind').hide();
 
     modal.find('#to-delete-address').html(addrs.join(' '));
@@ -3256,7 +3258,7 @@ function bind() {
                                     var obj = initNewTx();
 
                                     obj.from_addresses = [addr];
-                                    obj.extra_private_keys[addr] = Base58.encode(key.priv);
+                                    obj.extra_private_keys[addr] = B58.encode(key.priv);
 
                                     obj.start();
                                 });
@@ -3363,7 +3365,7 @@ function bind() {
 
         self.find('.send').unbind().click(function() {
             loadScript(resource + 'wallet/signer.min.js', function() {
-                startTxUI(self, 'quick');
+                startTxUI(self, 'quick', initNewTx());
             });
         });
     });
@@ -3375,7 +3377,7 @@ function bind() {
 
         self.find('.send').unbind().click(function() {
             loadScript(resource + 'wallet/signer.min.js', function() {
-                startTxUI(self, 'email');
+                startTxUI(self, 'email', initNewTx());
             });
         });
     });
@@ -3403,7 +3405,7 @@ function bind() {
 
         self.find('.send').unbind().click(function() {
             loadScript(resource + 'wallet/signer.min.js', function() {
-                startTxUI(self, 'custom');
+                startTxUI(self, 'custom', initNewTx());
             });
         });
 
@@ -3413,9 +3415,13 @@ function bind() {
     });
 
     $('#send-facebook').on('show', function(e, reset) {
-        var self = $(this);
+        if (reset)
+            return;
 
-        buildSendForm(self, reset);
+        var self = $(this);
+        var loaded_contacts;
+
+        buildSendForm(self);
 
         loadScript('https://connect.facebook.net/en_US/all.js', function() {
 
@@ -3426,8 +3432,6 @@ function bind() {
                 xfbml: false,
                 cookie: true
             });
-
-            var loaded_contacts = false;
 
             var facebook_input = self.find(".recipient").find('input[name="send-to-facebook"]');
             var send_button =  self.find('.send');
@@ -3455,6 +3459,7 @@ function bind() {
                             data.push(response.data[key].name);
                             fb_map[response.data[key].name] = response.data[key].id;
                         }
+
                         self.find(".recipient").find('input[name="send-to-facebook"]').typeahead({
                             source : data
                         });
@@ -3464,35 +3469,78 @@ function bind() {
                 });
             };
 
-            FB.getLoginStatus(function(response){
-                FB.login(function(response) {
-                    if (response.authResponse) {
-
+            if (!loaded_contacts) {
+                FB.getLoginStatus(function(response){
+                    if (response.status === 'connected') {
                         load_contacts();
                     } else {
-                        makeNotice('error', 'add-error', 'User cancelled login or did not fully authorize.');
+                        FB.login(function(response) {
+                            if (response.authResponse) {
+                                load_contacts();
+                            } else {
+                                makeNotice('error', 'add-error', 'User cancelled login or did not fully authorize.');
+                            }
+                        });
                     }
                 });
-            });
+            }
 
-            send_button.unbind().click(function() {
-                if (!loaded_contacts) {
-                    FB.login(function(response) {
-                        if (response.authResponse) {
-                            load_contacts();
-                        } else {
-                            makeNotice('error', 'add-error', 'User cancelled login or did not fully authorize.');
-                        }
-                    });
-                } else {
-                    var fb_id = fb_map[facebook_input.val()];
+            loadScript(resource + 'wallet/signer.min.js', function() {
+                send_button.unbind().click(function() {
+                    if (!loaded_contacts) {
+                        FB.login(function(response) {
+                            if (response.authResponse) {
+                                load_contacts();
+                            } else {
+                                makeNotice('error', 'add-error', 'User cancelled login or did not fully authorize.');
+                            }
+                        });
+                    } else {
+                        var fb_id = fb_map[facebook_input.val()];
 
-                    facebook_input.data('fb-id', fb_id);
+                        facebook_input.data('fb-id', fb_id);
 
-                    loadScript(resource + 'wallet/signer.min.js', function() {
-                        startTxUI(self, 'facebook');
-                    });
-                }
+                        var pending_transaction = initNewTx();
+
+                        pending_transaction.ask_to_send = function() { };
+
+                        pending_transaction.addListener({
+                            on_error : function(e) {
+                                if (pending_transaction.facebook && pending_transaction.facebook.ui)
+                                    window.open('', pending_transaction.facebook.ui.id).close();
+                            },
+
+                            on_start : function() {
+                                pending_transaction.facebook.ui = FB.ui({
+                                    display : 'popup',
+                                    method: 'send',
+                                    to: pending_transaction.facebook.to,
+                                    link: 'https://blockchain.info/wallet/claim#newpriv|'+ decryptPK(pending_transaction.facebook.addr.priv)
+                                }, function(response) {
+                                    console.log('response');
+
+                                   try {
+                                        if (response) {
+                                            if (pending_transaction.is_ready) {
+                                                pending_transaction.send();
+                                            } else {
+                                                pending_transaction.ask_to_send = function() {
+                                                    pending_transaction.send();
+                                                };
+                                            }
+                                        } else {
+                                            throw 'Facebook message was not sent.';
+                                        }
+                                    } catch (e) {
+                                        pending_transaction.error(e);
+                                    }
+                                });
+                            }
+                        });
+
+                        startTxUI(self, 'facebook', pending_transaction);
+                    }
+                });
             });
         });
     });
@@ -3530,10 +3578,9 @@ function bind() {
 
     $('#export-paper-btn').click(function() {
         getSecondPassword(function() {
+            var popup = window.open(null, null, "width=700,height=800");
+
             loadScript(resource + 'wallet/qr.code.creator.js', function() {
-
-                var popup = window.open(null, null, "width=700,height=800");
-
                 if (popup == null) {
                     makeNotice('error', 'misc-error', 'Failed to open popup window');
                     return;
@@ -3545,6 +3592,8 @@ function bind() {
                 container.empty();
 
                 var table = $('<table style="page-break-after:always;"></table>');
+
+                container.append(table);
 
                 var ii = 1;
                 for (var key in addresses) {
@@ -3680,7 +3729,7 @@ function privateKeyStringToKey(value, format) {
     var key_bytes = null;
 
     if (format == 'base58') {
-        key_bytes = Base58.decode(value);
+        key_bytes = B58.decode(value);
     } else if (format == 'base64') {
         key_bytes = Crypto.util.base64ToBytes(value);
     } else if (format == 'hex') {
@@ -3688,15 +3737,15 @@ function privateKeyStringToKey(value, format) {
     } else if (format == 'mini') {
         key_bytes = parseMiniKey(value);
     } else if (format == 'sipa') {
-        var tbytes = Base58.decode(value);
+        var tbytes = B58.decode(value);
         tbytes.shift();
         key_bytes = tbytes.slice(0, tbytes.length - 4);
     } else if (format == 'sipa') {
-        var tbytes = Base58.decode(value);
+        var tbytes = B58.decode(value);
         tbytes.shift();
         key_bytes = tbytes.slice(0, tbytes.length - 4);
     } else if (format == 'compsipa') {
-        var tbytes = Base58.decode(value);
+        var tbytes = B58.decode(value);
         tbytes.shift();
         tbytes.pop();
         key_bytes = tbytes.slice(0, tbytes.length - 4);
@@ -3765,14 +3814,15 @@ $(document).ready(function() {
 
     try {
         if (guid.length == 0) {
+            if (privateKeyToSweep)
+                showClaimModal(privateKeyToSweep);
+
             try {
                 //Make sure the last guid the user logged in the ame as this one, if not clear cache
                 var tguid = localStorage.getItem('guid');
 
                 if (tguid != null) {
                     $('#restore-guid').val(tguid);
-                } else if (privateKeyToSweep) {
-                    showClaimModal(privateKeyToSweep);
                 }
 
             } catch (e) {
@@ -3829,15 +3879,13 @@ function showAddressModal(data) {
         show: true
     });
 
-    var body = modal.find('.modal-body');
-
     loadScript(resource + 'wallet/qr.code.creator.js', function() {
         var canvas = makeQRCode(300,300,1, data);
 
         $('#qr-data').empty().append(canvas);
     });
 
-    body.find('.code').text(data);
+    modal.find('.code').text(data);
 
     modal.find('.btn.btn-secondary').unbind().click(function() {
         modal.modal('hide');

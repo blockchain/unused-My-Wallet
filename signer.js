@@ -1,3 +1,44 @@
+function exceptionToString(err) {
+    var vDebug = "";
+    for (var prop in err)  {
+        vDebug += "property: "+ prop+ " value: ["+ err[prop]+ "]\n";
+    }
+    return "toString(): " + " value: [" + err.toString() + "]";
+}
+
+//Init WebWoker
+//Window is not defined in WebWorker
+if (typeof window == "undefined") {
+    var window = {};
+
+    importScripts('/Resources/wallet/bitcoinjs.min.js');
+
+    self.addEventListener('message', function(e) {
+        var data = e.data;
+        switch (data.cmd) {
+            case 'sign_input':
+                try {
+                    var tx = new Bitcoin.Transaction(data.tx);
+
+                    var connected_script = new Bitcoin.Script(data.connected_script);
+
+                    var signed_script = signInput(tx, data.outputN, data.priv_to_use, connected_script);
+                    if (signed_script) {
+                        self.postMessage({cmd : 'on_sign', script : signed_script, outputN : data.outputN});
+                    } else {
+                        throw 'Unknown Error Signing Script ' + data.outputN;
+                    }
+
+                } catch (e) {
+                    self.postMessage({cmd : 'on_error', e : exceptionToString(e)});
+                }
+                break;
+            default:
+                self.postMessage({cmd : 'on_error', e : 'Unknown Command'});
+        };
+    }, false);
+}
+
 Bitcoin.Transaction.prototype.addOutputScript = function (script, value) {
     if (arguments[0] instanceof Bitcoin.TransactionOut) {
         this.outs.push(arguments[0]);
@@ -77,9 +118,7 @@ Bitcoin.Script.createMultiSigOutputScript = function (m, pubkeys)
 }
 
 //Check for inputs and get unspent for before signing
-function startTxUI(el, type) {
-    var pending_transaction = initNewTx();
-
+function startTxUI(el, type, pending_transaction) {
     try {
         var total_value = 0;
         el.find('input[name="send-value"]').each(function() {
@@ -173,7 +212,7 @@ function startTxUI(el, type) {
                 });
             };
 
-            pending_transaction.ask_to_send = function(yes) {
+            pending_transaction.ask_to_send = function() {
                 var self = this;
                 try {
                     if (privateKeyToSweep == null)
@@ -203,7 +242,7 @@ function startTxUI(el, type) {
 
                             self.modal.modal('hide');
 
-                            yes();
+                            self.send();
                         });
                     }).error(function(data) {
                             self.modal.find('.modal-header h3').html('Created Offline Transaction.');
@@ -275,7 +314,7 @@ function startTxUI(el, type) {
             pending_transaction.addListener(listener);
 
             if (type == 'email') {
-                pending_transaction.ask_to_send = function(yes) {
+                pending_transaction.ask_to_send = function() {
                     var self = this;
 
                     var modal = $('#send-email-modal');
@@ -309,7 +348,7 @@ function startTxUI(el, type) {
                                 });
 
                                 modal.find('.btn.btn-primary').unbind().click(function() {
-                                    yes();
+                                    self.send();
                                     modal.modal('hide');
                                 });
                             } catch (e) {
@@ -325,46 +364,6 @@ function startTxUI(el, type) {
                     } catch (e) {
                         modal.modal('hide');
 
-                        self.error(e);
-                    }
-                };
-            } else if (type == 'facebook') {
-                pending_transaction.ask_to_send = function(yes) {
-                    var self = this;
-
-                    try {
-                        $.post("/wallet", { guid: guid, sharedKey: sharedKey, method : 'get-info' },  function(data) {
-                            try {
-                                var from_name = data.alias;
-                                if (from_name == null)
-                                    from_name = data.email
-
-                                if (from_name == null)
-                                    from_name = 'Anonymous'
-
-                                FB.ui({
-                                    display : 'iframe',
-                                    method: 'send',
-                                    to: self.facebook.to,
-                                    link: 'https://blockchain.info/email-template?from_name='+from_name+'&amount='+self.facebook.amount+'&priv=Preview&type=send-bitcoins-get&priv='+ decryptPK(self.facebook.addr.priv)
-                                }, function(response) {
-                                    console.log(response);
-
-                                    if (response && response.post_id) {
-                                        console.log('Send Pressed');
-
-                                        yes();
-                                    } else {
-                                        self.error('Facebook message was not sent.');
-                                    }
-                                });
-                            } catch (e) {
-                                self.error(e);
-                            }
-                        }).error(function(e) {
-                                self.error('Error Getting Account Data');
-                            });
-                    } catch (e) {
                         self.error(e);
                     }
                 };
@@ -590,8 +589,8 @@ function startTxUI(el, type) {
     } catch (e) {
         pending_transaction.error(e);
     }
-    return pending_transaction;
 
+    return pending_transaction;
 };
 
 function readVarInt(buff) {
@@ -719,7 +718,12 @@ function getUnspentOutputs(fromAddresses, success, error) {
     });
 }
 
-function signInput(tx, inputN, inputBitcoinAddress, base58Key, connectedScript) {
+function signInput(tx, inputN, base58Key, connected_script) {
+
+    var pubKeyHash = connected_script.simpleOutPubKeyHash();
+
+    var inputBitcoinAddress = new Bitcoin.Address(pubKeyHash).toString();
+
     var key = new Bitcoin.ECKey(base58Key);
 
     var compressed;
@@ -728,12 +732,12 @@ function signInput(tx, inputN, inputBitcoinAddress, base58Key, connectedScript) 
     } else if (key.getBitcoinAddressCompressed().toString() == inputBitcoinAddress.toString()) {
         compressed = true;
     } else {
-        throw 'Private key does not match bitcoin address';
+        throw 'Private key does not match bitcoin address ' + inputBitcoinAddress.toString() + ' = ' + key.getBitcoinAddress().toString() + ' | '+ key.getBitcoinAddressCompressed().toString();
     }
 
     var hashType = parseInt(1); // SIGHASH_ALL
 
-    var hash = tx.hashTransactionForSignature(connectedScript, inputN, hashType);
+    var hash = tx.hashTransactionForSignature(connected_script, inputN, hashType);
 
     var rs = key.sign(hash);
 
@@ -753,9 +757,7 @@ function signInput(tx, inputN, inputBitcoinAddress, base58Key, connectedScript) 
         throw 'Error creating input script';
     }
 
-    tx.ins[inputN].script = script;
-
-    return true;
+    return script;
 }
 
 function setReviewTransactionContent(modal, tx) {
@@ -891,6 +893,7 @@ function initNewTx() {
         fee : BigInteger.ZERO,
         extra_private_keys : [],
         listeners : [],
+        is_cancelled : false,
         addListener : function(listener) {
             this.listeners.push(listener);
         },
@@ -1103,12 +1106,16 @@ function initNewTx() {
                     }, function() {
                         self.tx = sendTx;
 
-                        self.signInputs();
+                        self.determinePrivateKeys(function() {
+                            self.signInputs();
+                        });
                     });
                 } else {
                     self.tx = sendTx;
 
-                    self.signInputs();
+                    self.determinePrivateKeys(function() {
+                        self.signInputs();
+                    });
                 }
             } catch (e) {
                 this.error(e);
@@ -1117,93 +1124,175 @@ function initNewTx() {
         ask_for_fee : function(yes, no) {
             yes();
         },
+        determinePrivateKeys: function(success) {
+            var self = this;
+
+            try {
+                for (var i in self.selected_outputs) {
+                    var connected_script = self.selected_outputs[i].script;
+
+                    if (connected_script.priv_to_use == null) {
+                        var pubKeyHash = connected_script.simpleOutPubKeyHash();
+                        var inputBitcoinAddress = new Bitcoin.Address(pubKeyHash).toString();
+
+                        //Find the matching private key
+                        var myAddr = addresses[inputBitcoinAddress];
+                        if (myAddr != null) {
+                            if (myAddr.priv != null) {
+                                connected_script.priv_to_use = decodePK(myAddr.priv);
+                            }
+                        }
+
+                        //If it is null then it is not in our main key pool, try look in the temporary keys
+                        if (connected_script.priv_to_use == null) {
+                            var extraKey = self.extra_private_keys[inputBitcoinAddress];
+                            if (extraKey) {
+                                connected_script.priv_to_use = Base58.decode(extraKey);
+                            }
+                        }
+
+                        if (connected_script.priv_to_use == null) {
+                            self.ask_for_private_key(function (key) {
+                                if (inputBitcoinAddress == key.getBitcoinAddress().toString() || inputBitcoinAddress == key.getBitcoinAddressCompressed().toString()) {
+                                    self.extra_private_keys[inputBitcoinAddress] = Bitcoin.Base58.encode(key.priv);
+
+                                    self.determinePrivateKeys(success); //Try Again
+                                } else {
+                                    self.error('The private key you entered does not match the bitcoin address');
+                                }
+
+                            }, function(e) {
+                                self.error(e);
+                            }, inputBitcoinAddress);
+
+                            return false;
+                        }
+                    }
+                }
+
+                success();
+            } catch (e) {
+                self.error(e);
+            }
+        },
+        signWebWorker : function(success, error) {
+            try {
+                var self = this;
+                var outputN = 0;
+                var nSigned = 0;
+                var nWorkers = 2;
+
+                var worker = [];
+                for (var i = 0; i < nWorkers; ++i)  {
+                    worker[i] =  new Worker('/Resources/wallet/signer.min.js');
+
+                    worker[i].addEventListener('message', function(e) {
+                        var data = e.data;
+
+                        switch (data.cmd) {
+                            case 'on_sign':
+                                self.invoke('on_sign_progress', outputN+1);
+
+                                self.tx.ins[data.outputN].script  = new Bitcoin.Script(data.script);
+
+                                ++nSigned;
+
+                                if (nSigned == self.tx.ins.length) {
+                                    for (var ii = 0; ii < nWorkers; ++ii)  {
+                                        worker[ii].terminate();
+                                    }
+                                    success();
+                                }
+
+                                break;
+                            case 'on_error': {
+                                for (var ii = 0; ii < nWorkers; ++ii)  {
+                                    worker[ii].terminate();
+                                }
+                                error(data.e);
+                            }
+                        };
+                    }, false);
+                }
+
+                for (var outputN in self.selected_outputs) {
+                    var connected_script = self.selected_outputs[outputN].script;
+                    worker[outputN % nWorkers].postMessage({cmd : 'sign_input', tx : self.tx, outputN : outputN, priv_to_use : connected_script.priv_to_use, connected_script : connected_script});
+                }
+            } catch (e) {
+                error(e);
+            }
+        },
+        signNormal : function(success, error) {
+            var self = this;
+            var outputN = 0;
+
+            signOne = function() {
+                setTimeout(function() {
+                    try {
+                        self.invoke('on_sign_progress', outputN+1);
+
+                        var connected_script = self.selected_outputs[outputN].script;
+
+                        var signed_script = signInput(self.tx, outputN, connected_script.priv_to_use, connected_script);
+
+                        if (signed_script) {
+                            self.tx.ins[outputN].script = signed_script;
+
+                            ++outputN;
+
+                            if (outputN == self.tx.ins.length) {
+                                success();
+                            } else {
+                                signOne(); //Sign The Next One
+                            }
+                        } else {
+                            throw 'Unknown error signing transaction';
+                        }
+                    } catch (e) {
+                        error(e);
+                    }
+
+                }, 1);
+            };
+
+            signOne();
+        },
         signInputs : function() {
             var self = this;
 
             try {
                 self.invoke('on_begin_signing');
 
-                var outputN = 0;
-                var missingPrivateKeys = [];
-
-                signOne = function() {
-                    setTimeout(function() {
-                        try {
-                            self.invoke('on_sign_progress', outputN+1);
-
-                            var connectedScript = self.selected_outputs[outputN].script;
-                            var pubKeyHash = connectedScript.simpleOutPubKeyHash();
-                            var inputBitcoinAddress = new Bitcoin.Address(pubKeyHash).toString();
-                            var privatekey = null;
-
-                            //Find the matching private key
-                            var myAddr = addresses[inputBitcoinAddress];
-                            if (myAddr != null) {
-                                try {
-                                    if (myAddr.priv != null) {
-                                        privatekey = decodePK(myAddr.priv);
-                                    }
-                                } catch (e) {
-                                    console.log(e);
-                                }
-                            }
-
-                            //If it is null then it is not in our main key pool, try look in the temporary keys
-                            if (privatekey == null) {
-                                var extraKey = self.extra_private_keys[inputBitcoinAddress];
-                                if (extraKey) {
-                                    privatekey = Base58.decode(extraKey);
-                                }
-                            }
-
-                            if (privatekey == null) {
-                                self.ask_for_private_key(function (key) {
-                                    if (inputBitcoinAddress == key.getBitcoinAddress().toString() || inputBitcoinAddress == key.getBitcoinAddressCompressed().toString()) {
-                                        self.extra_private_keys[inputBitcoinAddress] = Bitcoin.Base58.encode(key.priv);
-
-                                        signOne(); //Continue signing
-                                    } else {
-                                        self.error('The private key you entered does not match the bitcoin address');
-                                    }
-
-                                }, function(e) {
-                                    self.error(e);
-
-                                }, inputBitcoinAddress);
-                            } else if (signInput(self.tx, outputN, inputBitcoinAddress, privatekey, connectedScript)) {
-
-                                ++outputN;
-
-                                if (outputN == self.tx.ins.length) {
-                                    self.invoke('on_finish_signing');
-
-                                    self.ask_to_send(function() {
-                                        if (self.generated_addresses.length > 0) {
-                                            backupWallet('update', function() {
-                                                self.pushTx();
-                                            }, function() {
-                                                self.error('Error Backing Up Wallet. Cannot Save Newly Generated Keys.')
-                                            });
-                                        } else {
-                                            self.pushTx();
-                                        }
-                                    });
-                                } else {
-                                    signOne(); //Sign The Next One
-                                }
-                            } else {
-                                throw 'Unknown error signing transaction';
-                            }
-                        } catch (e) {
-                            self.error(e);
-                        }
-
-                    }, 1);
+                var success = function() {
+                    self.invoke('on_finish_signing');
+                    self.is_ready = true;
+                    self.ask_to_send();
                 };
 
-                signOne();
+                self.signWebWorker(success, function(e) {
+                    console.log(e);
+                    self.signNormal(success, function(e){
+                        self.error(e);
+                    });
+                });
             } catch (e) {
                 self.error(e);
+            }
+        },
+        send : function() {
+            var self = this;
+
+            if (!self.is_cancelled && self.is_ready) {
+                if (self.generated_addresses.length > 0) {
+                    backupWallet('update', function() {
+                        self.pushTx();
+                    }, function() {
+                        self.error('Error Backing Up Wallet. Cannot Save Newly Generated Keys.')
+                    });
+                } else {
+                    self.pushTx();
+                }
             }
         },
         pushTx : function() {
@@ -1221,8 +1310,6 @@ function initNewTx() {
                 setLoadingText('Sending Transaction');
 
                 var size = transactions.length;
-
-                console.log('Push TX');
 
                 $.post("/pushtx", { format : "plain", tx: hex }, function(data) {
                     //If we haven't received a new transaction after sometime call a manual update
@@ -1250,7 +1337,7 @@ function initNewTx() {
             error('Cannot ask for private key without user interaction disabled');
         },
         //Debug Print
-        ask_to_send : function(yes) {
+        ask_to_send : function() {
             var self = this;
 
             for (var i = 0; i < self.tx.ins.length; ++i) {
@@ -1275,9 +1362,12 @@ function initNewTx() {
                 console.log('To: ' + formatAddresses(m, out_addresses) + ' => ' + val.toString());
             }
 
-            yes();
+            self.send();
         },
         error : function(error) {
+            if (self.is_cancelled) //Only call once
+                return;
+
             this.is_cancelled = true;
 
             if (this.generated_addresses.length > 0) {
@@ -1312,6 +1402,12 @@ function initNewTx() {
         },
         on_start : function(e) {
             $('.send').attr('disabled', true);
+        },
+        on_begin_signing : function() {
+            this.start = new Date().getTime();
+        },
+        on_finish_signing : function() {
+            console.log('Took ' + (new Date().getTime() - this.start) + 'ms');
         }
     };
 
