@@ -3666,14 +3666,14 @@ Script.prototype.extractAddresses = function (addresses)
 {
     switch (this.getOutType()) {
         case 'Address':
-            addresses.push(new Address(this.chunks[2]));
+            addresses.push(new Bitcoin.Address(this.chunks[2]));
             return 1;
         case 'Pubkey':
-            addresses.push(new Address(Util.sha256ripe160(this.chunks[0])));
+            addresses.push(new Bitcoin.Address(Util.sha256ripe160(this.chunks[0])));
             return 1;
         case 'Multisig':
             for (var i = 1; i < this.chunks.length-2; ++i) {
-                addresses.push(new Address(Util.sha256ripe160(this.chunks[i])));
+                addresses.push(new Bitcoin.Address(Util.sha256ripe160(this.chunks[i])));
             }
             return this.chunks[0] - OP_1 + 1;
         default:

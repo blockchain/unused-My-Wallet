@@ -6,38 +6,40 @@ function exceptionToString(err) {
     return "toString(): " + " value: [" + err.toString() + "]";
 }
 
+try {
 //Init WebWoker
 //Window is not defined in WebWorker
-if (typeof window == "undefined") {
-    var window = {};
+    if (typeof window == "undefined" || !window) {
+        var window = {};
 
-    importScripts('/Resources/wallet/bitcoinjs.min.js');
+        importScripts('/Resources/wallet/bitcoinjs.min.js');
 
-    self.addEventListener('message', function(e) {
-        var data = e.data;
-        switch (data.cmd) {
-            case 'sign_input':
-                try {
-                    var tx = new Bitcoin.Transaction(data.tx);
+        self.addEventListener('message', function(e) {
+            var data = e.data;
+            switch (data.cmd) {
+                case 'sign_input':
+                    try {
+                        var tx = new Bitcoin.Transaction(data.tx);
 
-                    var connected_script = new Bitcoin.Script(data.connected_script);
+                        var connected_script = new Bitcoin.Script(data.connected_script);
 
-                    var signed_script = signInput(tx, data.outputN, data.priv_to_use, connected_script);
-                    if (signed_script) {
-                        self.postMessage({cmd : 'on_sign', script : signed_script, outputN : data.outputN});
-                    } else {
-                        throw 'Unknown Error Signing Script ' + data.outputN;
+                        var signed_script = signInput(tx, data.outputN, data.priv_to_use, connected_script);
+                        if (signed_script) {
+                            self.postMessage({cmd : 'on_sign', script : signed_script, outputN : data.outputN});
+                        } else {
+                            throw 'Unknown Error Signing Script ' + data.outputN;
+                        }
+
+                    } catch (e) {
+                        self.postMessage({cmd : 'on_error', e : exceptionToString(e)});
                     }
-
-                } catch (e) {
-                    self.postMessage({cmd : 'on_error', e : exceptionToString(e)});
-                }
-                break;
-            default:
-                self.postMessage({cmd : 'on_error', e : 'Unknown Command'});
-        };
-    }, false);
-}
+                    break;
+                default:
+                    self.postMessage({cmd : 'on_error', e : 'Unknown Command'});
+            };
+        }, false);
+    }
+} catch (e) { }
 
 Bitcoin.Transaction.prototype.addOutputScript = function (script, value) {
     if (arguments[0] instanceof Bitcoin.TransactionOut) {
@@ -57,65 +59,6 @@ Bitcoin.Transaction.prototype.addOutputScript = function (script, value) {
     }
 };
 
-Bitcoin.Script.prototype.getOutType = function () {
-    if (this.chunks.length > 3 && this.chunks[this.chunks.length-1] == Bitcoin.Opcode.map.OP_CHECKMULTISIG) {
-        // Transfer to M-OF-N
-        return 'Multisig';
-    } else if (this.chunks.length == 5 &&
-        this.chunks[0] == Bitcoin.Opcode.map.OP_DUP &&
-        this.chunks[1] == Bitcoin.Opcode.map.OP_HASH160 &&
-        this.chunks[3] == Bitcoin.Opcode.map.OP_EQUALVERIFY &&
-        this.chunks[4] == Bitcoin.Opcode.map.OP_CHECKSIG) {
-        // Transfer to Bitcoin address
-        return 'Address';
-    } else if (this.chunks.length == 2 &&
-        this.chunks[1] == Bitcoin.Opcode.map.OP_CHECKSIG) {
-        // Transfer to IP address
-        return 'Pubkey';
-    } else {
-        return 'Strange';
-    }
-
-}
-
-//returns m
-Bitcoin.Script.prototype.extractAddresses = function (addresses)
-{
-    switch (this.getOutType()) {
-        case 'Address':
-            addresses.push(new Bitcoin.Address(this.chunks[2]));
-            return 1;
-        case 'Pubkey':
-            addresses.push(new Bitcoin.Address(Bitcoin.Util.sha256ripe160(this.chunks[0])));
-            return 1;
-        case 'Multisig':
-            for (var i = 1; i < this.chunks.length-2; ++i) {
-                addresses.push(new Bitcoin.Address(Bitcoin.Util.sha256ripe160(this.chunks[i])));
-            }
-            return this.chunks[0] - Bitcoin.Opcode.map.OP_1 + 1;
-        default:
-            throw new Error("Encountered non-standard scriptPubKey");
-    }
-};
-
-//Create an m-of-n script
-Bitcoin.Script.createMultiSigOutputScript = function (m, pubkeys)
-{
-    var script = new Bitcoin.Script();
-
-    script.writeOp(Bitcoin.Opcode.map.OP_1 + m - 1);
-
-    for (var i = 0; i < pubkeys.length; ++i) {
-        var pubkey = pubkeys[i];
-        script.writeBytes(pubkey);
-    }
-
-    script.writeOp(Bitcoin.Opcode.map.OP_1 + pubkeys.length - 1);
-
-    script.writeOp(Bitcoin.Opcode.map.OP_CHECKMULTISIG);
-
-    return script;
-}
 
 //Check for inputs and get unspent for before signing
 function startTxUI(el, type, pending_transaction) {
@@ -176,7 +119,7 @@ function startTxUI(el, type, pending_transaction) {
                     $('#tx-sign-progress').find('.n').text(i);
                 },
                 on_finish_signing : function() {
-                    $('#tx-sign-progress').hide(200);
+                    $('#tx-sign-progress').hide();
                 }
             };
 
@@ -185,7 +128,7 @@ function startTxUI(el, type, pending_transaction) {
             pending_transaction.ask_for_fee = function(yes, no) {
                 var self = this;
 
-                self.modal.hide(); //Hide the transaction progress modal
+                self.modal.modal('hide'); //Hide the transaction progress modal
 
                 var modal = $('#ask-for-fee');
 
@@ -208,7 +151,7 @@ function startTxUI(el, type, pending_transaction) {
                 });
 
                 modal.on('hidden', function () {
-                    self.modal.show();
+                    self.modal.modal('show'); //Show the progress modal again
                 });
             };
 
@@ -424,6 +367,12 @@ function startTxUI(el, type, pending_transaction) {
                     if (pending_transaction.to_addresses.length < recipients.length)
                         return;
 
+                    //Check that we have resolved all to addresses
+                    if (pending_transaction.to_addresses.length > recipients.length) {
+                        pending_transaction.error('We seem to have more recipients than required. Unknown error');
+                        return;
+                    }
+
                     //If we do have the correct number of recipients start the transaction
                     pending_transaction.start();
                 }
@@ -509,8 +458,6 @@ function startTxUI(el, type, pending_transaction) {
                                 pending_transaction.addListener({
                                     on_success : function() {
                                         try {
-                                            console.log('Send confirmation');
-
                                             var self = this;
 
                                             //We send the user the private key of the newly generated address
@@ -760,6 +707,32 @@ function signInput(tx, inputN, base58Key, connected_script) {
     return script;
 }
 
+
+function formatAddresses(m, faddresses, resolve_labels) {
+    var str = '';
+    if (faddresses.length == 1) {
+        var addr_string = faddresses[0].toString();
+
+        if (resolve_labels && addresses[addr_string] != null && addresses[addr_string].label != null)
+            str = addresses[addr_string].label;
+        else if (resolve_labels && address_book[addr_string] != null)
+            str = address_book[addr_string];
+        else
+            str = addr_string;
+
+    } else {
+        str = 'Escrow (<i>';
+        for (var i = 0; i < faddresses.length; ++i) {
+            str += faddresses[i].toString() + ', ';
+        }
+
+        str = str.substring(0, str.length-2);
+
+        str += '</i> - ' + m + ' Required)';
+    }
+    return str;
+}
+
 function setReviewTransactionContent(modal, tx) {
 
     $('#rtc-hash').html(Crypto.util.bytesToHex(tx.getHash()));
@@ -805,7 +778,7 @@ function setReviewTransactionContent(modal, tx) {
 
         var m = out.script.extractAddresses(out_addresses);
 
-        $('#rtc-to').append(formatAddresses(m, out_addresses) + ' <font color="green">' + formatBTC(val.toString()) + ' BTC </font><br />');
+       $('#rtc-to').append(formatAddresses(m, out_addresses) + ' <font color="green">' + formatBTC(val.toString()) + ' BTC </font><br />');
 
         total = total.add(val);
 
@@ -827,7 +800,7 @@ function setReviewTransactionContent(modal, tx) {
 
             //check if it's an address in our wallet
             //If it is then we don't need to subtract it from wallet effect
-        } else {
+        } else if (out_addresses.length > 0) {
             var address = out_addresses[0].toString();
             if (addresses[address] == null || addresses[address].tag == 2) {
                 //Our fees
@@ -945,7 +918,7 @@ function initNewTx() {
                 this.error(e);
             }
         },
-        //Select Outputs and Contract transaction
+        //Select Outputs and Construct transaction
         makeTransaction : function() {
             var self = this;
 
@@ -991,30 +964,32 @@ function initNewTx() {
 
                         if (this.from_addresses != null && this.from_addresses.length > 0 && $.inArray(addr.toString(), this.from_addresses) == -1) {
                             continue;
-                        }  else {
-                            availableValue = availableValue.add(out.value);
                         }
 
                         var hexhash = Crypto.util.hexToBytes(out.tx_hash);
 
                         var b64hash = Crypto.util.bytesToBase64(Crypto.util.hexToBytes(out.tx_hash));
 
+                        var new_in =  new Bitcoin.TransactionIn({outpoint: {hash: b64hash, hexhash: hexhash, index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295});
+
                         //If the output happens to be greater than tx value then we can make this transaction with one input only
                         //So discard the previous selected outs
                         if (out.value.compareTo(txValue) >= 0) {
-                            this.selected_outputs = [];
+                            this.selected_outputs = [new_in];
 
                             priority = out.value * out.confirmations;
 
                             availableValue = out.value;
 
-                            this.selected_outputs.push(new Bitcoin.TransactionIn({outpoint: {hash: b64hash, hexhash: hexhash, index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295}));
 
                             break;
                         } else {
-                            this.selected_outputs.push(new Bitcoin.TransactionIn({outpoint: {hash: b64hash, hexhash: hexhash, index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295}));
+                            //Otherwise we add the value of the selected output and continue looping if we don't have sufficient funds yet
+                            this.selected_outputs.push(new_in);
 
                             priority += out.value * out.confirmations;
+
+                            availableValue = availableValue.add(out.value);
 
                             if (!isSweep && availableValue.compareTo(txValue) >= 0)
                                 break;
@@ -1128,44 +1103,46 @@ function initNewTx() {
             var self = this;
 
             try {
+                var tmp_cache = {};
+
                 for (var i in self.selected_outputs) {
                     var connected_script = self.selected_outputs[i].script;
 
                     if (connected_script.priv_to_use == null) {
                         var pubKeyHash = connected_script.simpleOutPubKeyHash();
-                        var inputBitcoinAddress = new Bitcoin.Address(pubKeyHash).toString();
+                        var inputAddress = new Bitcoin.Address(pubKeyHash).toString();
 
                         //Find the matching private key
-                        var myAddr = addresses[inputBitcoinAddress];
-                        if (myAddr != null) {
-                            if (myAddr.priv != null) {
-                                connected_script.priv_to_use = decodePK(myAddr.priv);
-                            }
-                        }
-
-                        //If it is null then it is not in our main key pool, try look in the temporary keys
-                        if (connected_script.priv_to_use == null) {
-                            var extraKey = self.extra_private_keys[inputBitcoinAddress];
-                            if (extraKey) {
-                                connected_script.priv_to_use = Base58.decode(extraKey);
-                            }
+                        if (tmp_cache[inputAddress]) {
+                            connected_script.priv_to_use = tmp_cache[inputAddress];
+                        } else if (addresses[inputAddress] && addresses[inputAddress].priv) {
+                            connected_script.priv_to_use = decodePK(addresses[inputAddress].priv);
+                        } else if (self.extra_private_keys[inputAddress]) {
+                            connected_script.priv_to_use = Base58.decode(self.extra_private_keys[inputAddress]);
                         }
 
                         if (connected_script.priv_to_use == null) {
                             self.ask_for_private_key(function (key) {
-                                if (inputBitcoinAddress == key.getBitcoinAddress().toString() || inputBitcoinAddress == key.getBitcoinAddressCompressed().toString()) {
-                                    self.extra_private_keys[inputBitcoinAddress] = Bitcoin.Base58.encode(key.priv);
+                                try {
+                                    if (inputAddress == key.getBitcoinAddress().toString() || inputAddress == key.getBitcoinAddressCompressed().toString()) {
+                                        self.extra_private_keys[inputAddress] = Bitcoin.Base58.encode(key.priv);
 
-                                    self.determinePrivateKeys(success); //Try Again
-                                } else {
-                                    self.error('The private key you entered does not match the bitcoin address');
+                                        self.determinePrivateKeys(success); //Try Again
+                                    } else {
+                                        throw 'The private key you entered does not match the bitcoin address';
+                                    }
+                                } catch (e) {
+                                    self.error(e);
                                 }
-
                             }, function(e) {
                                 self.error(e);
-                            }, inputBitcoinAddress);
+                            }, inputAddress);
 
                             return false;
+                        } else {
+                            //Performance optimization
+                            //Only Decode the key once sand save it in a temporary cache
+                            tmp_cache[inputAddress] = connected_script.priv_to_use;
                         }
                     }
                 }
@@ -1178,9 +1155,8 @@ function initNewTx() {
         signWebWorker : function(success, error) {
             try {
                 var self = this;
-                var outputN = 0;
                 var nSigned = 0;
-                var nWorkers = 2;
+                var nWorkers = Math.min(3, self.tx.ins.length);
 
                 var worker = [];
                 for (var i = 0; i < nWorkers; ++i)  {
@@ -1191,7 +1167,7 @@ function initNewTx() {
 
                         switch (data.cmd) {
                             case 'on_sign':
-                                self.invoke('on_sign_progress', outputN+1);
+                                self.invoke('on_sign_progress', parseInt(data.outputN)+1);
 
                                 self.tx.ins[data.outputN].script  = new Bitcoin.Script(data.script);
 
@@ -1266,6 +1242,7 @@ function initNewTx() {
 
                 var success = function() {
                     self.invoke('on_finish_signing');
+
                     self.is_ready = true;
                     self.ask_to_send();
                 };

@@ -1306,6 +1306,13 @@ function getSecondPassword(success, error) {
 
     var input = modal.find('input[name="password"]');
 
+    input.keypress(function(e) {
+        if(e.keyCode == 13) { //Pressed the return key
+            e.preventDefault();
+            modal.find('.btn.btn-primary').click();
+        }
+    });
+
     input.val('');
 
     modal.find('.btn.btn-primary').unbind().click(function() {
@@ -1425,7 +1432,7 @@ function restoreWallet() {
     password = $("#restore-password").val();
 
     if (password.length == 0 || password.length < 8 || password.length > 255) {
-        makeNotice('error', 'misc-error', 'Password length must at least 10 characters');
+        makeNotice('error', 'misc-error', 'Password length must be between least 10  & 255 characters');
         return false;
     } else {
         hideNotice('password-error');
@@ -1472,13 +1479,10 @@ function restoreWallet() {
                 if (toffline)
                     $('#offline-mode-modal').modal('hide');
 
-                $("#restore-wallet-continue").removeAttr('disabled');
             }
 
         })
             .error(function(data) {
-                $("#restore-wallet-continue").removeAttr('disabled');
-
                 makeNotice('error', 'misc-error', data.responseText);
             });
     } else {
@@ -1492,8 +1496,6 @@ function restoreWallet() {
         } else {
             if (toffline)
                 $('#offline-mode-modal').modal('hide');
-
-            $("#restore-wallet-continue").removeAttr('disabled');
         }
     }
 
@@ -2545,31 +2547,6 @@ function getAllLabels() {
     return labels;
 }
 
-function formatAddresses(m, faddresses, resolve_labels) {
-    var str = '';
-    if (faddresses.length == 1) {
-        var addr_string = faddresses[0].toString();
-
-        if (resolve_labels && addresses[addr_string] != null && addresses[addr_string].label != null)
-            str = addresses[addr_string].label;
-        else if (resolve_labels && address_book[addr_string] != null)
-            str = address_book[addr_string];
-        else
-            str = addr_string;
-
-    } else {
-        str = 'Escrow (<i>';
-        for (var i = 0; i < faddresses.length; ++i) {
-            str += faddresses[i].toString() + ', ';
-        }
-
-        str = str.substring(0, str.length-2);
-
-        str += '</i> - ' + m + ' Required)';
-    }
-    return str;
-}
-
 function apiGetRejectionReason(hexhash, success, error) {
     $.get(root + 'q/rejected/'+hexhash).success(function(data) {
 
@@ -2654,6 +2631,7 @@ function sweepAddresses(addresses) {
 }
 
 function bind() {
+
     try {
         $(".pop").popover({
             offset: 10,
@@ -2792,6 +2770,11 @@ function bind() {
                 if (addr.tag != 2)
                     continue;
 
+                var noPrivateKey = '';
+                if (addr.priv == null) {
+                    noPrivateKey = ' <font color="red">(Watch Only)</font>';
+                }
+
                 var extra = '';
                 var label = addr.addr;
                 if (addr.label != null) {
@@ -2799,7 +2782,7 @@ function bind() {
                     extra = '<span class="hidden-phone"> - ' + addr.addr + '</span>';
                 }
 
-                var thtml = '<tr><td style="width:20px;"><input type="checkbox" class="archived_checkbox" value="'+addr.addr+'" disabled></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + '<div></td>';
+                var thtml = '<tr><td style="width:20px;"><input type="checkbox" class="archived_checkbox" value="'+addr.addr+'" disabled></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td>';
 
                 thtml += '<td>';
 
@@ -2871,6 +2854,7 @@ function bind() {
     $('body').keypress(function() {
         rng_seed_time();
     });
+
     $('#deposit-cash').click(function() {
         window.open('https://www.bitinstant.com');
     });
@@ -2917,6 +2901,8 @@ function bind() {
 
     $('#restore-password').keypress(function(e) {
         if(e.keyCode == 13) { //Pressed the return key
+            e.preventDefault();
+
             $('#restore-wallet-continue').click();
         }
     });
@@ -3098,7 +3084,7 @@ function bind() {
         window.location = root + 'wallet/' + 'login';
     });
 
-    $("#restore-wallet-continue").click(function(e) {
+    $("#restore-wallet-continue").unbind().click(function(e) {
         e.preventDefault();
 
         var tguid = $('#restore-guid').val();
@@ -3108,12 +3094,7 @@ function bind() {
             return;
         }
 
-        $(this).attr("disabled", true);
-
-        if (!restoreWallet()) {
-            $(this).attr("disabled", false);
-        }
-
+        restoreWallet();
     });
 
     $("#import-export-btn").click(function() {
@@ -3151,11 +3132,13 @@ function bind() {
                 var address = new Bitcoin.Address(value);
 
                 if (address.toString() != value) {
-                    makeNotice('error', 'misc-error', 'Inconsistency between addresses');
-                    return;
+                    throw 'Inconsistency between addresses';
                 }
 
                 if (internalAddKey(value)) {
+
+                    $('#import-address-address').val('');
+
                     makeNotice('success', 'added-address', 'Sucessfully Added Address ' + address);
 
                     //Rebuild the list
@@ -3166,14 +3149,13 @@ function bind() {
                         queryAPIMultiAddress();
                     });
                 } else {
-                    makeNotice('error', 'add-error', 'Error Adding Address ' + address);
+                    throw 'Internal Error ' + address;
                 }
 
             } catch (e) {
                 makeNotice('error', 'misc-error', 'Error importing address: ' + e);
                 return;
             }
-
         });
 
         $('#import-private-scan').unbind().click(function() {
@@ -3200,7 +3182,7 @@ function bind() {
 
                         makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr);
                     } else {
-                        makeNotice('error', 'misc-error', 'Unable to add private key for bitcoin address ' + addr);
+                        throw 'Unable to add private key for bitcoin address ' + addr;
                     }
 
                 }, function(e) {
@@ -3519,7 +3501,7 @@ function bind() {
                                 }, function(response) {
                                     console.log('response');
 
-                                   try {
+                                    try {
                                         if (response) {
                                             if (pending_transaction.is_ready) {
                                                 pending_transaction.send();
@@ -3581,68 +3563,71 @@ function bind() {
             var popup = window.open(null, null, "width=700,height=800");
 
             loadScript(resource + 'wallet/qr.code.creator.js', function() {
-                if (popup == null) {
-                    makeNotice('error', 'misc-error', 'Failed to open popup window');
-                    return;
-                }
-
-                popup.document.write('<!DOCTYPE html><html><head></head><body></body></html>');
-
-                var container = $("body", popup.document);
-                container.empty();
-
-                var table = $('<table style="page-break-after:always;"></table>');
-
-                container.append(table);
-
-                var ii = 1;
-                for (var key in addresses) {
-                    var addr = addresses[key];
-
-                    var mode = 'Online Mode';
-
-                    if (addr.tag == 1)
-                        mode = 'Offline Mode';
-
-                    if (addr.priv == null) {
-                        continue;
+                try {
+                    if (popup == null) {
+                        makeNotice('error', 'misc-error', 'Failed to open popup window');
+                        return;
                     }
 
-                    var pk = decryptPK(addr.priv);
+                    popup.document.write('<!DOCTYPE html><html><head></head><body></body></html>');
 
-                    if (pk == null)
-                        continue;
+                    var container = $('body', popup.document);
 
-                    var row = $('<tr></tr>');
+                    var table = $('<table style="page-break-after:always;"></table>', popup.document);
 
-                    //Add Address QR code
-                    var qrspan = $('<td><div style="height:225px;overflow:hidden"></div></td>');
+                    container.append(table);
 
-                    var qr = makeQRCode(250, 250, 1 , pk);
+                    var ii = 1;
+                    for (var key in addresses) {
+                        var addr = addresses[key];
 
-                    qrspan.children(":first").append(qr);
+                        var mode = 'Online Mode';
 
-                    row.append(qrspan);
+                        if (addr.tag == 1)
+                            mode = 'Offline Mode';
 
-                    var label = '';
-                    if (addr.label != null)
-                        label = addr.label + ' - ';
+                        if (addr.priv == null) {
+                            continue;
+                        }
 
-                    var body = $('<td style="padding-top:25px;"><h3>' + addr.addr + '</h3><br /><small><p><b>' + pk + '</b></p></small><br /><p>' + mode + '</p><br /><p>'+label+'Balance ' + formatBTC(addr.balance) + ' BTC</p> </td>');
+                        var pk = decryptPK(addr.priv);
 
-                    row.append(body);
+                        if (pk == null)
+                            continue;
 
-                    if (addr.balance > 0)
-                        table.prepend(row);
-                    else
-                        table.append(row);
+                        var row = $('<tr></tr>', popup.document);
 
-                    if (ii % 3 == 0) {
-                        table = $('<table style="page-break-after:always;"></table>');
-                        container.append(table);
+                        //Add Address QR code
+                        var qrspan = $('<td><div style="height:225px;overflow:hidden"></div></td>', popup.document);
+
+                        var qr = makeQRCode(250, 250, 1 , pk, popup.document);
+
+                        qrspan.children(":first").append(qr);
+
+                        row.append(qrspan);
+
+                        var label = '';
+                        if (addr.label != null)
+                            label = addr.label + ' - ';
+
+                        var body = $('<td style="padding-top:25px;"><h3>' + addr.addr + '</h3><br /><small><p><b>' + pk + '</b></p></small><br /><p>' + mode + '</p><br /><p>'+label+'Balance ' + formatBTC(addr.balance) + ' BTC</p> </td>', popup.document);
+
+                        row.append(body);
+
+                        if (addr.balance > 0)
+                            table.prepend(row);
+                        else
+                            table.append(row);
+
+                        if (ii % 3 == 0) {
+                            table = $('<table style="page-break-after:always;"></table>', popup.document);
+                            container.append(table);
+                        }
+
+                        ii++;
                     }
-
-                    ii++;
+                } catch (e) {
+                    makeNotice('error', 'error-paper', e);
                 }
             });
         });
@@ -3796,20 +3781,20 @@ $(document).ready(function() {
         }
     }
 
-    setTimeout(bind, 100);
-
     //Load data attributes from html
     encrypted_wallet_data = $('#data-encrypted').text();
     guid = $('#data-guid').text();
     sharedKey = $('#data-sharedKey').text();
     payload_checksum =  $('#data-checksum').text();
 
+    bind();
+
     $('body').ajaxStart(function() {
         $('.loading-indicator').fadeIn(200);
     });
 
     $('body').ajaxStop(function() {
-        $('.loading-indicator').fadeOut(200);
+        $('.loading-indicator').hide();
     });
 
     try {
@@ -3834,17 +3819,6 @@ $(document).ready(function() {
     cVisible = $("#restore-wallet");
 
     cVisible.show();
-
-    //Watch the cache manifest for changes
-    window.addEventListener('load', function(e) {
-        if (window.applicationCache) {
-            window.applicationCache.addEventListener('updateready', function(e) {
-                if (window.applicationCache.status == window.applicationCache.UPDATEREADY) {
-                    window.applicationCache.swapCache();
-                }
-            }, false);
-        }
-    }, false);
 });
 
 
