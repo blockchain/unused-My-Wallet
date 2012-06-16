@@ -1098,7 +1098,7 @@ function initNewTx() {
                         if (tmp_cache[inputAddress]) {
                             connected_script.priv_to_use = tmp_cache[inputAddress];
                         } else if (self.extra_private_keys[inputAddress]) {
-                            connected_script.priv_to_use = Base58.decode(self.extra_private_keys[inputAddress]);
+                            connected_script.priv_to_use = Bitcoin.Base58.decode(self.extra_private_keys[inputAddress]);
                         } else if (addresses[inputAddress] && addresses[inputAddress].priv) {
                             connected_script.priv_to_use = decodePK(addresses[inputAddress].priv);
                         }
