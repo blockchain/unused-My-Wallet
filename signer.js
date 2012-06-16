@@ -876,12 +876,13 @@ function initNewTx() {
                     this.listeners[key][cb].call(this, obj, ob2);
             }
         }, start : function() {
+            var self = this;
+
             try {
-                var self = this;
 
                 self.invoke('on_start');
 
-                getUnspentOutputs(this.from_addresses, function (obj) {
+                getUnspentOutputs(self.from_addresses, function (obj) {
                     try {
                         if (obj.unspent_outputs == null || obj.unspent_outputs.length == 0) {
                             throw 'No Free Outputs To Spend';
@@ -909,13 +910,13 @@ function initNewTx() {
 
                         self.makeTransaction();
                     } catch (e) {
-                        this.error(e);
+                        self.error(e);
                     }
                 }, function(e) {
-                    this.error(e);
+                    self.error(e);
                 });
             } catch (e) {
-                this.error(e);
+                self.error(e);
             }
         },
         //Select Outputs and Construct transaction
