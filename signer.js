@@ -483,7 +483,7 @@ function startTxUI(el, type, pending_transaction) {
                             var addr = addresses[generatedAddr.toString()];
 
                             addr.tag = 2;
-                            addr.label = send_to_facebook + ' (Via Facebook)';
+                            addr.label = send_to_facebook + ' (Sent Via Facebook)';
 
                             pending_transaction.generated_addresses.push(addr.addr);
 
@@ -1097,10 +1097,10 @@ function initNewTx() {
                         //Find the matching private key
                         if (tmp_cache[inputAddress]) {
                             connected_script.priv_to_use = tmp_cache[inputAddress];
-                        } else if (addresses[inputAddress] && addresses[inputAddress].priv) {
-                            connected_script.priv_to_use = decodePK(addresses[inputAddress].priv);
                         } else if (self.extra_private_keys[inputAddress]) {
                             connected_script.priv_to_use = Base58.decode(self.extra_private_keys[inputAddress]);
+                        } else if (addresses[inputAddress] && addresses[inputAddress].priv) {
+                            connected_script.priv_to_use = decodePK(addresses[inputAddress].priv);
                         }
 
                         if (connected_script.priv_to_use == null) {
