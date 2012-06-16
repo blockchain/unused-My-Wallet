@@ -3484,44 +3484,65 @@ function bind() {
 
                         var pending_transaction = initNewTx();
 
-                        pending_transaction.ask_to_send = function() { };
+                        pending_transaction.ask_to_send = function() {
+                            var self = this;
 
-                        pending_transaction.addListener({
+                            FB.ui({
+                                display : 'iframe',
+                                method: 'send',
+                                name: 'You have received bitcoins!',
+                                description: 'You have been sent ' + formatBTC(self.facebook.amount.toString()) + ' BTC. Click the link for instructions on how to claim them.',
+                                to: self.facebook.to,
+                                link: 'http://blockchain.co.uk/wallet/claim#newpriv|'+ decryptPK(self.facebook.addr.priv),
+                                picture: 'http://blockchain.info/Resources/Bitcoin-logo.png'
+                            }, function(response) {
+                                try {
+                                    if (response) {
+                                        self.send();
+                                    } else {
+                                        throw 'Facebook message was not sent.';
+                                    }
+                                } catch (e) {
+                                    self.error(e);
+                                }
+                            });
+                        };
+
+                        /*pending_transaction.addListener({
                             on_error : function(e) {
-                                if (pending_transaction.facebook && pending_transaction.facebook.ui)
-                                    window.open('', pending_transaction.facebook.ui.id).close();
+                                if (this.fb_window) {
+                                    window.open('', this.fb_window.id).close();
+                                }
                             },
 
-                            /* For some reason facebook will not send a message with blockchain.info in the url
-                               So as a workaround send a link to blockchain.co.uk instead which will redirect
-                             */
                             on_start : function() {
-                                pending_transaction.facebook.ui = FB.ui({
+                                var self = this;
+
+                                self.fb_window = FB.ui({
                                     display : 'popup',
                                     method: 'send',
-                                    to: pending_transaction.facebook.to,
-                                    link: 'http://blockchain.co.uk/wallet/claim#newpriv|'+ decryptPK(pending_transaction.facebook.addr.priv)
+                                    name: 'You have received bitcoins!',
+                                    description: 'You have been sent ' + formatBTC(self.facebook.amount.toString()) + ' BTC. Click the link for instructions on how to claim them.',
+                                    to: self.facebook.to,
+                                    link: 'http://blockchain.co.uk/wallet/claim#newpriv|'+ decryptPK(self.facebook.addr.priv),
+                                    picture: 'http://blockchain.info/Resources/Bitcoin-logo.png'
                                 }, function(response) {
-                                    console.log('response');
-
                                     try {
                                         if (response) {
-                                            if (pending_transaction.is_ready) {
-                                                pending_transaction.send();
+                                            if (self.is_ready) {
+                                                self.send();
                                             } else {
-                                                pending_transaction.ask_to_send = function() {
-                                                    pending_transaction.send();
-                                                };
+                                                self.ask_to_send =  self.send();
                                             }
                                         } else {
                                             throw 'Facebook message was not sent.';
                                         }
                                     } catch (e) {
-                                        pending_transaction.error(e);
+                                        self.error(e);
                                     }
                                 });
                             }
-                        });
+                        });*/
 
                         startTxUI(self, 'facebook', pending_transaction);
                     }

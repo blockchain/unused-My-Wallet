@@ -440,7 +440,7 @@ function startTxUI(el, type, pending_transaction) {
                                 var addr = addresses[generatedAddr.toString()];
 
                                 addr.tag = 2;
-                                addr.label = send_to_email + ' (Ready to send via email)';
+                                addr.label = send_to_email + ' (Sent Via Email)';
 
                                 pending_transaction.generated_addresses.push(addr.addr);
 
@@ -463,11 +463,6 @@ function startTxUI(el, type, pending_transaction) {
                                             //We send the user the private key of the newly generated address
                                             //TODO research ways of doing this without server interaction
                                             $.get(root + 'wallet/send-bitcoins-email?to=' + self.email_data.email + '&guid='+ guid + '&priv='+ decryptPK(self.email_data.addr.priv) + '&sharedKey=' + sharedKey).success(function(data) {
-                                                self.email_data.addr.label = self.email_data.email  + ' (Sent via email)';
-
-                                                //Save The New Label
-                                                backupWallet();
-
                                                 makeNotice('success', self.email_data.email, 'Sent email confirmation');
                                             });
                                         } catch (e) {
@@ -488,7 +483,7 @@ function startTxUI(el, type, pending_transaction) {
                             var addr = addresses[generatedAddr.toString()];
 
                             addr.tag = 2;
-                            addr.label = send_to_facebook + ' (Ready to send via facebook)';
+                            addr.label = send_to_facebook + ' (Via Facebook)';
 
                             pending_transaction.generated_addresses.push(addr.addr);
 
@@ -505,21 +500,7 @@ function startTxUI(el, type, pending_transaction) {
                                 to : to,
                                 addr : addresses[generatedAddr],
                                 amount : value
-                            }
-
-                            pending_transaction.addListener({
-                                on_success : function() {
-                                    try {
-                                        this.facebook.addr.label = email + ' (Sent via facebook)';
-
-                                        //Save The New Label
-                                        backupWallet();
-                                    }  catch (e) {
-                                        console.log(e);
-                                    }
-                                }
-                            });
-
+                            };
                         }
 
                     } catch (e) {
@@ -1263,6 +1244,8 @@ function initNewTx() {
 
             if (!self.is_cancelled && self.is_ready) {
                 if (self.generated_addresses.length > 0) {
+                    self.has_saved_addresses = true;
+
                     backupWallet('update', function() {
                         self.pushTx();
                     }, function() {
@@ -1343,7 +1326,7 @@ function initNewTx() {
             self.send();
         },
         error : function(error) {
-            if (self.is_cancelled) //Only call once
+            if (this.is_cancelled) //Only call once
                 return;
 
             this.is_cancelled = true;
@@ -1354,7 +1337,8 @@ function initNewTx() {
                     internalDeleteAddress(this.generated_addresses[key]);
                 }
 
-                backupWallet();
+                if (this.has_saved_addresses)
+                    backupWallet();
             }
 
             this.invoke('on_error', error);
