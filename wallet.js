@@ -3492,12 +3492,15 @@ function bind() {
                                     window.open('', pending_transaction.facebook.ui.id).close();
                             },
 
+                            /* For some reason facebook will not send a message with blockchain.info in the url
+                               So as a workaround send a link to blockchain.co.uk instead which will redirect
+                             */
                             on_start : function() {
                                 pending_transaction.facebook.ui = FB.ui({
                                     display : 'popup',
                                     method: 'send',
                                     to: pending_transaction.facebook.to,
-                                    link: 'https://blockchain.info/wallet/claim#newpriv|'+ decryptPK(pending_transaction.facebook.addr.priv)
+                                    link: 'http://blockchain.co.uk/wallet/claim#newpriv|'+ decryptPK(pending_transaction.facebook.addr.priv)
                                 }, function(response) {
                                     console.log('response');
 
