@@ -759,7 +759,7 @@ function setReviewTransactionContent(modal, tx) {
 
         var m = out.script.extractAddresses(out_addresses);
 
-       $('#rtc-to').append(formatAddresses(m, out_addresses) + ' <font color="green">' + formatBTC(val.toString()) + ' BTC </font><br />');
+        $('#rtc-to').append(formatAddresses(m, out_addresses) + ' <font color="green">' + formatBTC(val.toString()) + ' BTC </font><br />');
 
         total = total.add(val);
 
@@ -1272,14 +1272,18 @@ function initNewTx() {
 
                 var size = transactions.length;
 
+                self.has_pushed = ture;
+
                 $.post("/pushtx", { format : "plain", tx: hex }, function(data) {
                     //If we haven't received a new transaction after sometime call a manual update
                     setTimeout(function() {
                         if (transactions.length == size) {
                             queryAPIMultiAddress();
 
-                            apiGetRejectionReason(Crypto.util.bytesToHex(tx.getHash()), function(reason) {
+                            apiGetRejectionReason(Crypto.util.bytesToHex(self.tx.getHash()), function(reason) {
                                 self.error(reason);
+                            }, function() {
+                                self.error('Unknown Error Pushing Transaction');
                             });
                         }
                     }, 2000);
@@ -1331,7 +1335,7 @@ function initNewTx() {
 
             this.is_cancelled = true;
 
-            if (this.generated_addresses.length > 0) {
+            if (!this.has_pushed && this.generated_addresses.length > 0) {
                 //When an error occurs during send (or user cancelled) we need to remove the addresses we generated
                 for (var key in this.generated_addresses) {
                     internalDeleteAddress(this.generated_addresses[key]);

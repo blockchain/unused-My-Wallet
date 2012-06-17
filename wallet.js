@@ -1526,8 +1526,6 @@ function validateEmail(str) {
 //Get email address, secret phrase, yubikey etc.
 function getAccountInfo() {
 
-    if (!isInitialized || offline) return;
-
     setLoadingText('Getting Wallet Info');
 
     $.post("/wallet", { guid: guid, sharedKey: sharedKey, method : 'get-info' },  function(data) {
@@ -3808,7 +3806,7 @@ $(document).ready(function() {
     //Load data attributes from html
     encrypted_wallet_data = $('#data-encrypted').text();
     guid = $('#data-guid').text();
-    sharedKey = $('#data-sharedKey').text();
+    sharedKey = $('#data-sharedkey').text();
     payload_checksum =  $('#data-checksum').text();
 
     bind();
