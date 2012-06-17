@@ -1272,7 +1272,7 @@ function initNewTx() {
 
                 var size = transactions.length;
 
-                self.has_pushed = ture;
+                self.has_pushed = true;
 
                 $.post("/pushtx", { format : "plain", tx: hex }, function(data) {
                     //If we haven't received a new transaction after sometime call a manual update
