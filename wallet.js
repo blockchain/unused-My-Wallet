@@ -3484,40 +3484,9 @@ function bind() {
 
                         pending_transaction.ask_to_send = function() {
                             var self = this;
-
-                            FB.ui({
-                                display : 'iframe',
-                                method: 'send',
-                                name: 'You have received bitcoins!',
-                                description: 'You have been sent ' + formatBTC(self.facebook.amount.toString()) + ' BTC. Click the link for instructions on how to claim them.',
-                                to: self.facebook.to,
-                                link: 'http://blockchain.co.uk/wallet/claim#newpriv|'+ decryptPK(self.facebook.addr.priv),
-                                picture: 'http://blockchain.info/Resources/Bitcoin-logo.png'
-                            }, function(response) {
-                                try {
-                                    if (response) {
-                                        self.send();
-                                    } else {
-                                        throw 'Facebook message was not sent.';
-                                    }
-                                } catch (e) {
-                                    self.error(e);
-                                }
-                            });
-                        };
-
-                        /*pending_transaction.addListener({
-                            on_error : function(e) {
-                                if (this.fb_window) {
-                                    window.open('', this.fb_window.id).close();
-                                }
-                            },
-
-                            on_start : function() {
-                                var self = this;
-
-                                self.fb_window = FB.ui({
-                                    display : 'popup',
+                            try {
+                                FB.ui({
+                                    display : 'iframe',
                                     method: 'send',
                                     name: 'You have received bitcoins!',
                                     description: 'You have been sent ' + formatBTC(self.facebook.amount.toString()) + ' BTC. Click the link for instructions on how to claim them.',
@@ -3527,11 +3496,7 @@ function bind() {
                                 }, function(response) {
                                     try {
                                         if (response) {
-                                            if (self.is_ready) {
-                                                self.send();
-                                            } else {
-                                                self.ask_to_send =  self.send();
-                                            }
+                                            self.send();
                                         } else {
                                             throw 'Facebook message was not sent.';
                                         }
@@ -3539,8 +3504,10 @@ function bind() {
                                         self.error(e);
                                     }
                                 });
+                            } catch (e) {
+                                self.error(e);
                             }
-                        });*/
+                        };
 
                         startTxUI(self, 'facebook', pending_transaction);
                     }
