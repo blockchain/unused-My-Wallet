@@ -63,18 +63,22 @@ function doStuffTimer () {
 function webSocketConnect() {
     if (!isInitialized || offline) return;
 
-    if (window.WebSocket) {
-        _webSocketConnect();
-    } else {
-        makeNotice('info', 'misc-notice', 'Your Browser Does not support native WebSockets');
+    try {
+        if (window.WebSocket) {
+            _webSocketConnect();
+        } else {
+            makeNotice('info', 'misc-notice', 'Your Browser Does not support native WebSockets');
 
-        // Flash fall back for webscoket compatiability
-        window.WEB_SOCKET_SWF_LOCATION = resource + "wallet/WebSocketMain.swf";
-        loadScript(resource + 'wallet/swfobject.js', function() {
-            loadScript(resource + 'wallet/web_socket.js', function() {
-                _webSocketConnect();
+            // Flash fall back for webscoket compatiability
+            window.WEB_SOCKET_SWF_LOCATION = resource + "wallet/WebSocketMain.swf";
+            loadScript(resource + 'wallet/swfobject.js', function() {
+                loadScript(resource + 'wallet/web_socket.js', function() {
+                    _webSocketConnect();
+                });
             });
-        });
+        }
+    } catch (e) {
+        console.log(e);
     }
 }
 
