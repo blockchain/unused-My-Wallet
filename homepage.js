@@ -29,7 +29,7 @@ function updateTimes() {
 
 function connect() {
 	try {
-	    ws = new WebSocket("ws://api.blockchain.info:8335/inv");
+	    ws = new WebSocket(getWebSocketURL());
 
 		ws.onmessage = function(e) {
 						

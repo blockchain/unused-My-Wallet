@@ -28,7 +28,7 @@ $(document).ready(function() {
     });
 
     try {
-        var ws = new WebSocket("ws://api.blockchain.info:8335/inv");
+        var ws = new WebSocket(getWebSocketURL());
 
         ws.onmessage = function(e) {
             var obj = $.parseJSON(e.data);

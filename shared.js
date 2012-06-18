@@ -11,6 +11,11 @@ var root = '/';
 var resource = '/Resources/';
 var decimals = 8;
 
+
+function getWebSocketURL() {
+    return "ws://server1.blockchain.info:8335/inv";
+}
+
 function Transaction () { };
 function Block () { };
 

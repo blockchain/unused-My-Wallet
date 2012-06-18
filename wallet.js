@@ -85,12 +85,13 @@ function webSocketConnect() {
 function _webSocketConnect() {
 
     try {
-        ws = new WebSocket("ws://api.blockchain.info:8335/inv");
+        ws = new WebSocket(getWebSocketURL());
+
+        if (!ws) return;
 
         ws.onmessage = function(e) {
 
             try {
-
                 var obj = $.parseJSON(e.data);
 
                 if (obj.op == 'status') {
@@ -1234,7 +1235,6 @@ function getWallet() {
 
             buildVisibleView();
         }
-
     });
 }
 

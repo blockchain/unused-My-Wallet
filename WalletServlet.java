@@ -67,7 +67,6 @@ import com.yubico.client.v2.YubicoClient;
 import com.yubico.client.v2.YubicoResponse;
 import com.yubico.client.v2.YubicoResponseStatus;
 
-import piuk.api.RMIClient;
 import piuk.api.NotificationsManager;
 import piuk.beans.BitcoinAddress;
 import piuk.db.BitcoinDatabaseManager;
@@ -1744,7 +1743,7 @@ public class WalletServlet extends BaseServlet {
 						RMIClient api = RMIClient.conn();
 						try {
 							api.sendWalletDidChangeNotification(guid, req.getParameter("checksum"));
-						} finally { 
+						} finally {
 							RMIClient.close(api);
 						}
 
