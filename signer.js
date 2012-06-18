@@ -1047,19 +1047,22 @@ function initNewTx() {
 
                 priority /= estimatedSize;
 
-                var kilobytes = estimatedSize / 1024;
+                var kilobytes = parseInt(estimatedSize / 1024);
+
+                var fee_is_zero = !self.fee || self.fee.compareTo(BigInteger.ZERO) == 0;
 
                 //Priority under 57 million requires a 0.0005 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
-                if (forceFee && (this.fee == null || this.fee.intValue() == 0)) {
+                if (fee_is_zero && forceFee) {
                     //Forced Fee
                     self.fee = BigInteger.valueOf(50000);
 
                     self.makeTransaction();
-                } else if ((priority < 57600000 || kilobytes > 1 || isEscrow || askforfee) && self.fee.intValue() == 0) {
+                } else if (fee_is_zero && (priority < 57600000 || kilobytes > 1 || isEscrow || askforfee)) {
                     self.ask_for_fee(function() {
 
-                        if (kilobytes > 0)
-                            self.fee = BigInteger.valueOf(100000).multiply(BigInteger.valueOf(kilobytes)); //0.001 BTC * kilobytes
+                        var bi_kilobytes = BigInteger.valueOf(kilobytes);
+                        if (bi_kilobytes && bi_kilobytes.compareTo(BigInteger.ZERO) > 0)
+                            self.fee = BigInteger.valueOf(100000).multiply(bi_kilobytes); //0.001 BTC * kilobytes
                         else
                             self.fee = BigInteger.valueOf(50000); //0.0005 BTC
 
@@ -1278,7 +1281,8 @@ function initNewTx() {
 
                 self.has_pushed = true;
 
-                $.post("/pushtx", { format : "plain", tx: hex }, function(data) {
+                $.post("/pushtx", { format : "plain", tx: hex }, function(data) {                                                                                                 ƒmakeTr
+
                     //If we haven't received a new transaction after sometime call a manual update
                     setTimeout(function() {
                         if (transactions.length == size) {
