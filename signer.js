@@ -1281,28 +1281,31 @@ function initNewTx() {
 
                 self.has_pushed = true;
 
-                $.post("/pushtx", { format : "plain", tx: hex }, function(data) {                                                                                                 ƒmakeTr
+                $.post("/pushtx", { format : "plain", tx: hex }, function(data) {
+                    try {
 
-                    //If we haven't received a new transaction after sometime call a manual update
-                    setTimeout(function() {
-                        if (transactions.length == size) {
-                            queryAPIMultiAddress();
+                        //If we haven't received a new transaction after sometime call a manual update
+                        setTimeout(function() {
+                            if (transactions.length == size) {
+                                queryAPIMultiAddress();
 
-                            setTimeout(function() {
-                                if (transactions.length == size) {
-                                    apiGetRejectionReason(Crypto.util.bytesToHex(self.tx.getHash()), function(reason) {
-                                        self.error(reason);
-                                    }, function() {
-                                        self.error('Unknown Error Pushing Transaction');
-                                    });
-                                }
-                            }, 1000);
+                                setTimeout(function() {
+                                    if (transactions.length == size) {
+                                        apiGetRejectionReason(Crypto.util.bytesToHex(self.tx.getHash()), function(reason) {
+                                            self.error(reason);
+                                        }, function() {
+                                            self.error('Unknown Error Pushing Transaction');
+                                        });
+                                    }
+                                }, 1000);
 
-                        }
-                    }, 1000);
+                            }
+                        }, 1000);
 
-                    self.success();
-
+                        self.success();
+                    } catch (e) {
+                        self.error(e);
+                    }
                 }).error(function(data) {
                         self.error(data.responseText);
                     });
