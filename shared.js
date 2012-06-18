@@ -13,7 +13,7 @@ var decimals = 8;
 
 
 function getWebSocketURL() {
-    return "ws://server1.blockchain.info:8335/inv";
+    return "ws://api.blockchain.info:8335/inv";
 }
 
 function Transaction () { };
