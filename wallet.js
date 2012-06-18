@@ -53,15 +53,21 @@ function doStuffTimer () {
     try {
         if (WebSocket != null) {
             if ((!offline && isInitialized) && (ws == null || ws.readyState != WebSocket.OPEN))
-                webSocketConnect();
+                _webSocketConnect();
         }
-    } catch (e) {}
+    } catch (e) {
+        console.log(e);
+    }
 }
 
 function webSocketConnect() {
     if (!isInitialized || offline) return;
 
-    if (typeof(WebSocket) != "function" || !WebSocket) {
+    try {
+        _webSocketConnect();
+    } catch (e) {
+        console.log(e);
+
         makeNotice('info', 'misc-notice', 'Your Browser Does not support native WebSockets');
 
         // Flash fall back for webscoket compatiability
@@ -71,166 +77,160 @@ function webSocketConnect() {
                 _webSocketConnect();
             });
         });
-    } else {
-        _webSocketConnect();
     }
 }
 
 function _webSocketConnect() {
 
-    try {
-        ws = new WebSocket("ws://api.blockchain.info:8335/inv");
+    ws = new WebSocket("ws://api.blockchain.info:8335/inv");
 
-        ws.onmessage = function(e) {
+    ws.onmessage = function(e) {
 
-            try {
+        try {
 
-                var obj = $.parseJSON(e.data);
+            var obj = $.parseJSON(e.data);
 
-                if (obj.op == 'status') {
+            if (obj.op == 'status') {
 
-                    $('#status').html(obj.msg);
+                $('#status').html(obj.msg);
 
-                } else if (obj.op == 'on_change') {
-                    var old_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
-                    var new_checksum = obj.checksum;
+            } else if (obj.op == 'on_change') {
+                var old_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
+                var new_checksum = obj.checksum;
 
-                    console.log('On change old ' + old_checksum + ' ==  new '+ new_checksum);
+                console.log('On change old ' + old_checksum + ' ==  new '+ new_checksum);
 
-                    if (old_checksum != new_checksum) {
-                        updateCacheManifest();
+                if (old_checksum != new_checksum) {
+                    updateCacheManifest();
 
-                        //Fetch the updated wallet from the server
-                        setTimeout(getWallet, 250);
-                    }
+                    //Fetch the updated wallet from the server
+                    setTimeout(getWallet, 250);
+                }
 
-                } else if (obj.op == 'utx') {
+            } else if (obj.op == 'utx') {
 
-                    var tx = TransactionFromJSON(obj.x);
+                var tx = TransactionFromJSON(obj.x);
 
-                    //Check if this is a duplicate
-                    //Maybe should have a map_prev to check for possible double spends
-                    for (var i = 0; i < transactions.length; ++i) {
-                        if (transactions[i].txIndex == tx.txIndex)
-                            return;
-                    }
+                //Check if this is a duplicate
+                //Maybe should have a map_prev to check for possible double spends
+                for (var i = 0; i < transactions.length; ++i) {
+                    if (transactions[i].txIndex == tx.txIndex)
+                        return;
+                }
 
-                    playSound('beep');
+                playSound('beep');
 
-                    /* Calculate the result */
-                    var result = 0;
+                /* Calculate the result */
+                var result = 0;
 
-                    for (var i = 0; i < tx.inputs.length; i++) {
-                        var input = tx.inputs[i];
+                for (var i = 0; i < tx.inputs.length; i++) {
+                    var input = tx.inputs[i];
 
-                        //If it is our address then subtract the value
-                        var addr = addresses[input.prev_out.addr];
-                        if (addr) {
-                            var value = parseInt(input.prev_out.value);
+                    //If it is our address then subtract the value
+                    var addr = addresses[input.prev_out.addr];
+                    if (addr) {
+                        var value = parseInt(input.prev_out.value);
 
-                            if (addr.tag != 2) {
-                                result -= value;
-                                total_sent += value;
-                            }
-                            addr.balance -= value;
+                        if (addr.tag != 2) {
+                            result -= value;
+                            total_sent += value;
                         }
+                        addr.balance -= value;
                     }
+                }
 
 
-                    for (var i = 0; i < tx.out.length; i++) {
-                        var output = tx.out[i];
+                for (var i = 0; i < tx.out.length; i++) {
+                    var output = tx.out[i];
 
-                        var addr = addresses[output.addr];
-                        if (addr) {
-                            var value = parseInt(output.value);
+                    var addr = addresses[output.addr];
+                    if (addr) {
+                        var value = parseInt(output.value);
 
-                            if (addr.tag != 2) {
-                                result += value;
-                                total_received += value;
-                            }
-
-                            addr.balance += value;
+                        if (addr.tag != 2) {
+                            result += value;
+                            total_received += value;
                         }
+
+                        addr.balance += value;
                     }
+                }
 
 
-                    flashTitle('New Transaction');
+                flashTitle('New Transaction');
 
-                    tx.result = result;
+                tx.result = result;
 
-                    final_balance += result;
+                final_balance += result;
 
-                    n_tx++;
+                n_tx++;
 
-                    tx.setConfirmations(0);
+                tx.setConfirmations(0);
 
-                    if (tx_filter == 0 && tx_page == 0) {
+                if (tx_filter == 0 && tx_page == 0) {
 
-                        transactions.unshift(tx);
+                    transactions.unshift(tx);
 
-                        //Meed to update transactions list
-                        buildVisibleView();
-                    }
-
-                }  else if (obj.op == 'block') {
-                    flashTitle('New Block');
-
-                    //Very annoying
-                    //playSound('ding');
-
-                    //Check any transactions included in this block, if the match one our ours then set the block index
-                    for (var i = 0; i < obj.x.txIndexes.length; ++i) {
-                        for (var ii = 0; ii < transactions.length; ++ii) {
-                            if (transactions[ii].txIndex == obj.x.txIndexes[i]) {
-                                if (transactions[ii].blockHeight == null || transactions[ii].blockHeight == 0) {
-                                    transactions[ii].blockHeight = obj.x.height;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    setLatestBlock(BlockFromJSON(obj.x));
-
-                    //Need to update latest block
+                    //Meed to update transactions list
                     buildVisibleView();
                 }
 
-            } catch(e) {
-                console.log(e);
+            }  else if (obj.op == 'block') {
+                flashTitle('New Block');
 
-                console.log(e.data);
-            }
-        };
+                //Very annoying
+                //playSound('ding');
 
-        ws.onopen = function() {
-
-            $('#status').html('CONNECTED.');
-
-            var msg = '{"op":"blocks_sub"}';
-
-            if (guid != null)
-                msg += '{"op":"wallet_sub","guid":"'+guid+'"}';
-
-            try {
-                var addrs = getActiveAddresses();
-                for (var i = 0; i < addrs.length; ++i) {
-                    //Subscribe to tranactions updates through websockets
-                    msg += '{"op":"addr_sub", "addr":"'+ addrs[i] +'"}';
+                //Check any transactions included in this block, if the match one our ours then set the block index
+                for (var i = 0; i < obj.x.txIndexes.length; ++i) {
+                    for (var ii = 0; ii < transactions.length; ++ii) {
+                        if (transactions[ii].txIndex == obj.x.txIndexes[i]) {
+                            if (transactions[ii].blockHeight == null || transactions[ii].blockHeight == 0) {
+                                transactions[ii].blockHeight = obj.x.height;
+                                break;
+                            }
+                        }
+                    }
                 }
-            } catch (e) {
-                alert(e);
+
+                setLatestBlock(BlockFromJSON(obj.x));
+
+                //Need to update latest block
+                buildVisibleView();
             }
 
-            ws.send(msg);
-        };
+        } catch(e) {
+            console.log(e);
 
-        ws.onclose = function() {
-            $('#status').html('DISCONNECTED.');
-        };
-    } catch (e) {
-        console.log('Exception ' + e);
-    }
+            console.log(e.data);
+        }
+    };
+
+    ws.onopen = function() {
+
+        $('#status').html('CONNECTED.');
+
+        var msg = '{"op":"blocks_sub"}';
+
+        if (guid != null)
+            msg += '{"op":"wallet_sub","guid":"'+guid+'"}';
+
+        try {
+            var addrs = getActiveAddresses();
+            for (var i = 0; i < addrs.length; ++i) {
+                //Subscribe to tranactions updates through websockets
+                msg += '{"op":"addr_sub", "addr":"'+ addrs[i] +'"}';
+            }
+        } catch (e) {
+            alert(e);
+        }
+
+        ws.send(msg);
+    };
+
+    ws.onclose = function() {
+        $('#status').html('DISCONNECTED.');
+    };
 }
 
 function makeNotice(type, id, msg, timeout) {
