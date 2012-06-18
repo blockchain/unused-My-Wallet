@@ -51,16 +51,32 @@ setInterval ( "doStuffTimer()", 10000 );
 //Updates time last block was received and check for websocket connectivity
 function doStuffTimer () {
     try {
-
         if (WebSocket != null) {
             if ((!offline && isInitialized) && (ws == null || ws.readyState != WebSocket.OPEN))
-                websocketConnect();
+                webSocketConnect();
         }
     } catch (e) {}
 }
 
-function websocketConnect() {
+function webSocketConnect() {
     if (!isInitialized || offline) return;
+
+    if (typeof(WebSocket) != "function" || !WebSocket) {
+        makeNotice('info', 'misc-notice', 'Your Browser Does not support native WebSockets');
+
+        // Flash fall back for webscoket compatiability
+        window.WEB_SOCKET_SWF_LOCATION = resource + "wallet/WebSocketMain.swf";
+        loadScript(resource + 'wallet/swfobject.js', function() {
+            loadScript(resource + 'wallet/web_socket.js', function() {
+                _webSocketConnect();
+            });
+        });
+    } else {
+        _webSocketConnect();
+    }
+}
+
+function _webSocketConnect() {
 
     try {
         ws = new WebSocket("ws://api.blockchain.info:8335/inv");
@@ -1506,7 +1522,7 @@ function restoreWallet() {
 function setIsIntialized() {
     isInitialized = true;
 
-    websocketConnect();
+    webSocketConnect();
 
     $('#tech-faq').hide();
 

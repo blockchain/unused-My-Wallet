@@ -1057,7 +1057,11 @@ function initNewTx() {
                     self.makeTransaction();
                 } else if ((priority < 57600000 || kilobytes > 1 || isEscrow || askforfee) && self.fee.intValue() == 0) {
                     self.ask_for_fee(function() {
-                        self.fee = BigInteger.valueOf(50000);
+
+                        if (kilobytes > 0)
+                            self.fee = BigInteger.valueOf(100000).multiply(BigInteger.valueOf(kilobytes)); //0.001 BTC * kilobytes
+                        else
+                            self.fee = BigInteger.valueOf(50000); //0.0005 BTC
 
                         self.makeTransaction();
                     }, function() {
@@ -1280,13 +1284,18 @@ function initNewTx() {
                         if (transactions.length == size) {
                             queryAPIMultiAddress();
 
-                            apiGetRejectionReason(Crypto.util.bytesToHex(self.tx.getHash()), function(reason) {
-                                self.error(reason);
-                            }, function() {
-                                self.error('Unknown Error Pushing Transaction');
-                            });
+                            setTimeout(function() {
+                                if (transactions.length == size) {
+                                    apiGetRejectionReason(Crypto.util.bytesToHex(self.tx.getHash()), function(reason) {
+                                        self.error(reason);
+                                    }, function() {
+                                        self.error('Unknown Error Pushing Transaction');
+                                    });
+                                }
+                            }, 1000);
+
                         }
-                    }, 2000);
+                    }, 1000);
 
                     self.success();
 
