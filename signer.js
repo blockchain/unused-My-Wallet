@@ -60,6 +60,22 @@ Bitcoin.Transaction.prototype.addOutputScript = function (script, value) {
 };
 
 
+function apiResolveFirstbits(addr, success, error) {
+
+    setLoadingText('Getting Firstbits');
+
+    $.get(root + 'q/resolvefirstbits/'+addr).success(function(data) {
+
+        if (data == null || data.length == 0)
+            error();
+        else
+            success(data);
+
+    }).error(function(data) {
+            error();
+        });
+}
+
 //Check for inputs and get unspent for before signing
 function startTxUI(el, type, pending_transaction) {
     try {
@@ -109,7 +125,8 @@ function startTxUI(el, type, pending_transaction) {
                     this.modal.find('.btn.btn-primary').text('Send Transaction');
 
                     this.modal.find('.btn.btn-secondary').unbind().click(function() {
-                        self.error('User Cancelled');
+                        self.cancel();
+                        self.modal.modal('hide');
                     });
                 },
                 on_begin_signing : function() {
@@ -210,8 +227,6 @@ function startTxUI(el, type, pending_transaction) {
                             });
 
                             self.modal.center();
-
-                            self.error('Cannot Push Transaction Offline');
                         });
                 } catch (e) {
                     self.error(e);
@@ -286,7 +301,7 @@ function startTxUI(el, type, pending_transaction) {
                                 modal.find('.frame').html('<iframe frameBorder="0" style="box-sizing:border-box;width:100%;height:100%" src="'+root+'email-template?from_name='+from_name+'&amount='+self.email_data.amount+'&priv=Preview&type=send-bitcoins-get"></iframe>');
 
                                 modal.find('.btn.btn-secondary').unbind().click(function() {
-                                    self.error('User Cancelled');
+                                    self.cancel();
                                     modal.modal('hide');
                                 });
 
@@ -1147,42 +1162,46 @@ function initNewTx() {
                 var nSigned = 0;
                 var nWorkers = Math.min(3, self.tx.ins.length);
 
-                var worker = [];
+                self.worker = [];
                 for (var i = 0; i < nWorkers; ++i)  {
-                    worker[i] =  new Worker('/Resources/wallet/signer.min.js');
+                    self.worker[i] =  new Worker('/Resources/wallet/signer.min.js');
 
-                    worker[i].addEventListener('message', function(e) {
+                    self.worker[i].addEventListener('message', function(e) {
                         var data = e.data;
 
-                        switch (data.cmd) {
-                            case 'on_sign':
-                                self.invoke('on_sign_progress', parseInt(data.outputN)+1);
+                        try {
+                            switch (data.cmd) {
+                                case 'on_sign':
+                                    self.invoke('on_sign_progress', parseInt(data.outputN)+1);
 
-                                self.tx.ins[data.outputN].script  = new Bitcoin.Script(data.script);
+                                    self.tx.ins[data.outputN].script  = new Bitcoin.Script(data.script);
 
-                                ++nSigned;
+                                    ++nSigned;
 
-                                if (nSigned == self.tx.ins.length) {
-                                    for (var ii = 0; ii < nWorkers; ++ii)  {
-                                        worker[ii].terminate();
+                                    if (nSigned == self.tx.ins.length) {
+                                        self.terminateWorkers();
+                                        success();
                                     }
-                                    success();
-                                }
 
-                                break;
-                            case 'on_error': {
-                                for (var ii = 0; ii < nWorkers; ++ii)  {
-                                    worker[ii].terminate();
+                                    break;
+                                case 'on_error': {
+                                    throw data.e;
                                 }
-                                error(data.e);
-                            }
-                        };
+                            };
+                        } catch (e) {
+                            self.terminateWorkers();
+                            self.error(e);
+                        }
                     }, false);
+
+                    self.worker[i].addEventListener('error', function(e) {
+                        error(e);
+                    });
                 }
 
                 for (var outputN in self.selected_outputs) {
                     var connected_script = self.selected_outputs[outputN].script;
-                    worker[outputN % nWorkers].postMessage({cmd : 'sign_input', tx : self.tx, outputN : outputN, priv_to_use : connected_script.priv_to_use, connected_script : connected_script});
+                    self.worker[outputN % nWorkers].postMessage({cmd : 'sign_input', tx : self.tx, outputN : outputN, priv_to_use : connected_script.priv_to_use, connected_script : connected_script});
                 }
             } catch (e) {
                 error(e);
@@ -1194,6 +1213,9 @@ function initNewTx() {
 
             signOne = function() {
                 setTimeout(function() {
+                    if (self.is_cancelled)
+                        return;
+
                     try {
                         self.invoke('on_sign_progress', outputN+1);
 
@@ -1246,24 +1268,48 @@ function initNewTx() {
                 self.error(e);
             }
         },
-        send : function() {
-            var self = this;
-
-            if (!self.is_cancelled && self.is_ready) {
-                if (self.generated_addresses.length > 0) {
-                    self.has_saved_addresses = true;
-
-                    backupWallet('update', function() {
-                        self.pushTx();
-                    }, function() {
-                        self.error('Error Backing Up Wallet. Cannot Save Newly Generated Keys.')
-                    });
-                } else {
-                    self.pushTx();
+        terminateWorkers : function() {
+            if (this.worker) {
+                for (var i in this.worker)  {
+                    this.worker[i].terminate();
                 }
             }
         },
+        cancel : function() {
+            if (!this.has_pushed) {
+                this.terminateWorkers();
+                this.error('Transaction Cancelled');
+            }
+        },
+        send : function() {
+            var self = this;
+
+            if (self.is_cancelled) {
+                self.error('This transaction has already been cancelled');
+                return;
+            }
+
+            if (!self.is_ready) {
+                self.error('Transaction is not ready to send yet');
+                return;
+            }
+
+            if (self.generated_addresses.length > 0) {
+                self.has_saved_addresses = true;
+
+                backupWallet('update', function() {
+                    self.pushTx();
+                }, function() {
+                    self.error('Error Backing Up Wallet. Cannot Save Newly Generated Keys.')
+                });
+            } else {
+                self.pushTx();
+            }
+        },
         pushTx : function() {
+            if (this.is_cancelled) //Only call once
+                return;
+
             var self = this;
 
             try {

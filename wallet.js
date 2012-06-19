@@ -2451,8 +2451,6 @@ function deleteAddresses(addrs) {
             if (isCancelled)
                 return;
 
-            console.log('Change mind');
-
             playSound('beep');
 
             ++i;
@@ -2620,23 +2618,6 @@ function apiGetBalance(addresses, success, error) {
             error(data.responseText);
         });
 }
-
-function apiResolveFirstbits(addr, success, error) {
-
-    setLoadingText('Getting Firstbits');
-
-    $.get(root + 'q/resolvefirstbits/'+addr).success(function(data) {
-
-        if (data == null || data.length == 0)
-            error();
-        else
-            success(data);
-
-    }).error(function(data) {
-            error();
-        });
-}
-
 
 function sweepAddresses(addresses) {
     getSecondPassword(function() {

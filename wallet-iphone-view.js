@@ -1,9 +1,7 @@
-$(document).ready(function() {		
-	setTimeout(function() {
-		
-		console.log('guid ' + guid );
-		console.log('sharedKey ' + sharedKey);
+$(document).ready(function() {
+    isInitialized = true;
 
+    setTimeout(function() {
 		getAccountInfo();
 	}, 100);
 });
