@@ -75,7 +75,7 @@ function dateToString(d) {
 
 function formatBTC(value) {
     if (value == null)
-        return '';
+        return '0.00';
 
     var neg = '';
     if (value < 0) {

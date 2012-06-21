@@ -1443,28 +1443,3 @@ function initNewTx() {
 
     return pending_transaction;
 }
-
-function signMessage(addressString, strMessage) {
-    var strMessageMagic = 'Bitcoin Signed Message:\n';
-
-    var addr = addresses[addressString];
-
-    if (addr.priv == null) {
-        makeNotice('error', 'add-error', 'Cannot sign a message with a watch only address', 0);
-        return;
-    }
-
-    var eckey = new Bitcoin.ECKey(decodePK(addr.priv));
-
-    var concenated = strMessageMagic + strMessage;
-
-    console.log(concenated);
-
-    var rs = eckey.sign(Crypto.SHA256(concenated, { asBytes: true }));
-
-    console.log(rs);
-
-    var signature = Bitcoin.ECDSA.serializeSig(rs.r, rs.s);
-
-    return Crypto.util.bytesToBase64(signature);
-}

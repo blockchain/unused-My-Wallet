@@ -372,11 +372,10 @@ function makeWalletJSON(format) {
 function deleteAddressBook(addr) {
     delete address_book[addr];
 
-    backupWallet();
+    backupWalletDelayed();
 
-    buildVisibleView();
+    $('#send-coins').find('.tab-pane').trigger('show', true);
 }
-
 
 function buildSendTxView() {
     $('#send-coins').find('.tab-pane.active').trigger('show', true);
@@ -807,7 +806,6 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
     return html;
 };
 
-
 function buildVisibleView() {
     //Only build when visible
     var id = cVisible.attr('id');
@@ -819,6 +817,7 @@ function buildVisibleView() {
         buildReceiveCoinsView()
     else if ("my-transactions" == id)
         buildTransactionsView();
+
 
     //Update the account balance
     if (final_balance == null) {
@@ -1139,22 +1138,21 @@ function showClaimModal(key) {
 }
 
 function didDecryptWallet() {
-
     //Add and address form #newaddr K=V tag
     if (addressToAdd != null) {
 
         if (walletIsFull())
             return;
 
-        console.log('Add Watch Only');
+        showWatchOnlyWarning(addressToAdd, function() {
+            if (internalAddKey(addressToAdd)) {
+                makeNotice('success', 'added-addr', 'Added Watch Only Address ' + addressToAdd);
 
-        if (internalAddKey(addressToAdd)) {
-            makeNotice('success', 'added-addr', 'Added Watch Only Address ' + addressToAdd);
-
-            backupWalletDelayed();
-        } else {
-            makeNotice('error', 'error-addr', 'Error Adding Bitcoin Address ' + addressToAdd);
-        }
+                backupWalletDelayed();
+            } else {
+                makeNotice('error', 'error-addr', 'Error Adding Bitcoin Address');
+            }
+        });
     }
 
     if (privateKeyToSweep != null) {
@@ -1537,6 +1535,95 @@ function setIsIntialized() {
     $('#large-summary').show();
 
     $('#status-container').show();
+}
+
+function importPrivateKeyUI(value, label, success) {
+    getSecondPassword(function() {
+        try {
+            if (!value || value.length == 0) {
+                throw 'You must enter a private key to import';
+            }
+
+            if (walletIsFull())
+                return;
+
+            var format = detectPrivateKeyFormat(value);
+            var key = privateKeyStringToKey(value, format);
+
+            if (format == 'compsipa') {
+                var addr = key.getBitcoinAddressCompressed().toString();
+
+                showCompressedPrivateKeyWarning(function() {
+                    if (addr == null || addr.length == 0 || addr == 'undefined')
+                        throw 'Unable to decode bitcoin addresses from private key';
+
+                    if (internalAddKey(addr, encodePK(key.priv))) {
+
+                        //Mark as unsynced
+                        addresses[addr].tag = 1;
+
+                        if (label && label.length > 0)
+                            addresses[addr].label = label;
+
+                        //Rebuild the My-address list
+                        buildVisibleView();
+
+                        //Perform a wallet backup
+                        backupWallet('update', function() {
+                            queryAPIMultiAddress();
+                        });
+
+                        if (success) success();
+
+                        makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr);
+                    }
+                }, function() {
+                    //Sweep the address
+                    loadScript(resource + 'wallet/signer.min.js', function() {
+                        var obj = initNewTx();
+
+                        obj.from_addresses = [addr];
+                        obj.extra_private_keys[addr] = B58.encode(key.priv);
+
+                        obj.start();
+                    });
+                });
+
+            } else {
+                var addr = key.getBitcoinAddress().toString();
+
+                if (addr == null || addr.length == 0 || addr == 'undefined')
+                    throw 'Unable to decode bitcoin addresses from private key';
+
+                if (internalAddKey(addr, encodePK(key.priv))) {
+
+                    //Mark as unsynced
+                    addresses[addr].tag = 1;
+
+                    if (label && label.length > 0)
+                        addresses[addr].label = label;
+
+                    //Rebuild the My-address list
+                    buildVisibleView();
+
+                    //Perform a wallet backup
+                    backupWallet('update', function() {
+                        queryAPIMultiAddress();
+                    });
+
+                    if (success) success();
+
+                    makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr);
+                } else {
+                    throw 'Unable to add private key for bitcoin address ' + addr;
+                }
+            }
+
+
+        } catch (e) {
+            makeNotice('error', 'misc-error', 'Error importing private key: ' + e);
+        }
+    });
 }
 
 function validateEmail(str) {
@@ -2377,16 +2464,13 @@ function addAddressBookEntry() {
 
         backupWalletDelayed();
 
-        buildSendForm($('#send-coins'), true);
-
-        buildVisibleView();
+        $('#send-coins').find('.tab-pane').trigger('show', true);
     });
 
     modal.find('.btn.btn-secondary').unbind().click(function() {
         modal.modal('hide');
     });
 }
-
 
 function deleteAddresses(addrs) {
 
@@ -2409,7 +2493,12 @@ function deleteAddresses(addrs) {
 
     var dbalance = modal.find('#delete-balance');
 
-    apiGetBalance(addrs, function(data) {
+    var addrs_with_priv = [];
+    for (var i in addrs) {
+        if (addresses[addrs[i]] && addresses[addrs[i]].priv)
+            addrs_with_priv.push(addrs[i]);
+    }
+    apiGetBalance(addrs_with_priv, function(data) {
 
         modal.find('.btn.btn-primary').show(200);
         modal.find('.btn.btn-danger').show(200);
@@ -2451,8 +2540,6 @@ function deleteAddresses(addrs) {
             if (isCancelled)
                 return;
 
-            playSound('beep');
-
             ++i;
 
             changeMind();
@@ -2490,16 +2577,12 @@ function deleteAddresses(addrs) {
             if (isCancelled)
                 return;
 
-            playSound('beep');
-
             ++i;
 
             changeMind();
 
             if (i == 5) {
-
                 try {
-
                     //Really delete address
                     $('#delete-address-modal').modal('hide');
 
@@ -2598,11 +2681,7 @@ function apiGetBalances(_addresses, success, error) {
     setLoadingText('Getting Balances');
 
     $.post("/multiaddr", {'active' : _addresses.join('|'), 'simple' : true, 'format' : 'json' },  function(obj) {
-        for (var key in obj) {
-            addresses[key].balance = obj[key].final_balance;
-        }
-
-        success();
+        success(obj);
     }).error(function(data) {
             error(data.responseText);
         });
@@ -2737,8 +2816,6 @@ function bind() {
                 noPrivateKey = ' <font color="red" class="extrapop" title="Watch Only" data-content="Watch Only means there is no private key associated with this bitcoin address. <br /><br /> Unless you have the private key stored elsewhere you do not own this address and can only observe it.">(Watch Only)</font>';
             }
 
-            var balance = formatBTC(addr.balance) + ' <span class="hidden-phone">BTC</span>';
-
             var extra = '';
             var label = addr.addr;
             if (addr.label != null) {
@@ -2746,7 +2823,7 @@ function bind() {
                 extra = '<span class="hidden-phone"> - ' + addr.addr + '</span>';
             }
 
-            var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'" onclick="showAddressModal(\'' + addr.addr +'\')" src="'+resource+'info.png" /></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span id="'+addr.addr+'" style="color:green">' + balance +'</span></td><td style="width:16px"><img src="'+resource+'archive.png" onclick="archiveAddr(\''+addr.addr+'\')" /></td></tr>';
+            var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'" onclick="showAddressModal(\'' + addr.addr +'\')" src="'+resource+'info.png" /></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatBTC(addr.balance) + '<span class="hidden-phone"> BTC</span></span></td><td style="width:16px"><img src="'+resource+'archive.png" onclick="archiveAddr(\''+addr.addr+'\')" /></td></tr>';
 
             table.append(thtml);
         }
@@ -2783,26 +2860,27 @@ function bind() {
                     extra = '<span class="hidden-phone"> - ' + addr.addr + '</span>';
                 }
 
-                var thtml = '<tr><td style="width:20px;"><input type="checkbox" class="archived_checkbox" value="'+addr.addr+'" disabled></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td>';
+                var thtml = '<tr><td style="width:20px;"><input type="checkbox" class="archived_checkbox" value="'+addr.addr+'" disabled></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatBTC(addr.balance) + '<span class="hidden-phone"> BTC</span></span></td><td style="width:16px"><img src="'+resource+'unarchive.png" onclick="unArchiveAddr(\''+addr.addr+'\')" /></td></tr>';
 
-                thtml += '<td>';
-
-                if (addr.balance != null)  {
-                    var balance = formatBTC(addr.balance) + ' <span class="hidden-phone">BTC</span>';
-
-                    thtml += '<span id="'+addr.addr+'" style="color:green">' + balance +'</span>';
+                if (addr.balance > 0)  {
+                    table.prepend(thtml);
+                } else {
+                    table.append(thtml);
                 }
-
-                thtml += '</td><td style="width:16px"><img src="'+resource+'unarchive.png" onclick="unArchiveAddr(\''+addr.addr+'\')" /></td></tr>';
-
-                table.append(thtml);
             }
         }
 
         build();
 
-        apiGetBalances(archived, function() {
+
+        apiGetBalances(archived, function(obj) {
+            for (var key in obj) {
+                addresses[key].balance = obj[key].final_balance;
+            }
+
             build();
+        }, function(e) {
+            makeNotice('error', 'misc-error', e);
         });
     });
 
@@ -3117,7 +3195,6 @@ function bind() {
             $(this).attr("disabled", false);
         });
 
-
         $('#import-address-btn').unbind().click(function() {
             var value = $.trim($('#import-address-address').val());
 
@@ -3136,23 +3213,24 @@ function bind() {
                     throw 'Inconsistency between addresses';
                 }
 
-                if (internalAddKey(value)) {
+                $('#import-address-address').val('');
 
-                    $('#import-address-address').val('');
+                showWatchOnlyWarning(value, function() {
+                    if (internalAddKey(value)) {
 
-                    makeNotice('success', 'added-address', 'Sucessfully Added Address ' + address);
+                        makeNotice('success', 'added-address', 'Sucessfully Added Address ' + address);
 
-                    //Rebuild the list
-                    buildVisibleView();
+                        //Rebuild the list
+                        buildVisibleView();
 
-                    //Backup
-                    backupWallet('update', function() {
-                        queryAPIMultiAddress();
-                    });
-                } else {
-                    throw 'Internal Error ' + address;
-                }
-
+                        //Backup
+                        backupWallet('update', function() {
+                            queryAPIMultiAddress();
+                        });
+                    } else {
+                        throw 'Internal Error ' + address;
+                    }
+                });
             } catch (e) {
                 makeNotice('error', 'misc-error', 'Error importing address: ' + e);
                 return;
@@ -3192,97 +3270,19 @@ function bind() {
             });
         });
 
-
         $('#import-private-btn').unbind().click(function() {
             if (!isInitialized)
                 return;
 
-            var value = $('#import-private-key').val();
+            var input = $('#import-private-key');
 
             try {
-
-                if (value.length == 0) {
-                    throw 'You must enter a private key to import';
-                }
-
-                if (walletIsFull())
-                    return;
-
-                getSecondPassword(function() {
-                    try {
-
-                        var format = detectPrivateKeyFormat(value);
-                        var key = privateKeyStringToKey(value, format);
-
-                        if (format == 'compsipa') {
-                            var addr = key.getBitcoinAddressCompressed().toString();
-
-                            showCompressedPrivateKeyWarning(function() {
-                                if (addr == null || addr.length == 0 || addr == 'undefined')
-                                    throw 'Unable to decode bitcoin addresses from private key';
-
-                                if (internalAddKey(addr, encodePK(key.priv))) {
-
-                                    //Mark as unsynced
-                                    addresses[addr].tag = 1;
-
-                                    //Rebuild the My-address list
-                                    buildVisibleView();
-
-                                    //Perform a wallet backup
-                                    backupWallet('update', function() {
-                                        queryAPIMultiAddress();
-                                    });
-
-                                    makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr);
-                                }
-                            }, function() {
-                                loadScript(resource + 'wallet/signer.min.js', function() {
-                                    var obj = initNewTx();
-
-                                    obj.from_addresses = [addr];
-                                    obj.extra_private_keys[addr] = B58.encode(key.priv);
-
-                                    obj.start();
-                                });
-                            });
-
-                        } else {
-                            var addr = key.getBitcoinAddress().toString();
-
-                            if (addr == null || addr.length == 0 || addr == 'undefined')
-                                throw 'Unable to decode bitcoin addresses from private key';
-
-                            if (internalAddKey(addr, encodePK(key.priv))) {
-
-                                //Mark as unsynced
-                                addresses[addr].tag = 1;
-
-                                //Rebuild the My-address list
-                                buildVisibleView();
-
-                                //Perform a wallet backup
-                                backupWallet('update', function() {
-                                    queryAPIMultiAddress();
-                                });
-
-                                makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr);
-                            } else {
-                                throw 'Unable to add private key for bitcoin address ' + addr;
-                            }
-                        }
-
-
-                    } catch (e) {
-                        makeNotice('error', 'misc-error', 'Error importing private key: ' + e);
-                    }
-                });
-
+                importPrivateKeyUI(input.val());
             } catch(e) {
                 makeNotice('error', 'misc-error', 'Error importing private key: ' + e);
             }
 
-            form.find('input[name="key"]').val('');
+            input.val('');
         });
 
 
@@ -3550,6 +3550,34 @@ function bind() {
         });
     });
 
+    $('#sync-bitcoind').on('show', function() {
+        $('#rpc-step-1').hide();
+        $('#rpc-step-2').hide();
+        $('#rpc-body').hide();
+
+        loadScript(resource + 'wallet/bitcoindrpc.js', function() {
+            checkForExtension(function(data) {
+                $('#rpc-step-2').show(200);
+
+                syncWallet(function() {
+                    $('#rpc-step-2').hide();
+                    $('#rpc-body').show();
+                });
+            }, function(e) {
+                $('#rpc-step-1').show(200);
+            });
+
+            $("#sync-bitcoind-btn").unbind().click(function() {
+                syncWallet();
+            });
+
+            $("#rpc-continue-btn").unbind().click(function() {
+                $('#rpc-step-2').hide();
+                $('#rpc-body').show(200);
+            });
+        });
+    });
+
     $('#export-paper-btn').click(function() {
         getSecondPassword(function() {
             var popup = window.open(null, null, "width=700,height=800");
@@ -3738,13 +3766,9 @@ function privateKeyStringToKey(value, format) {
 
 $(document).ready(function() {
 
-    if (window.location.protocol == 'http:') {
-        makeNotice('error', 'add-error', 'You must use https:// not http://. Please update your link', 0);
-        return;
-    }
 
     //Disable auotcomplete in firefox
-    $("input").attr("autocomplete","off");
+    $("input, button").attr("autocomplete","off");
 
     if (!isSignup) {
         //Add an addresses from the "Add to My Wallet" link
@@ -3814,6 +3838,30 @@ $(document).ready(function() {
 });
 
 
+function showWatchOnlyWarning(address, success) {
+    var modal = $('#watch-only-modal');
+
+    modal.modal({
+        keyboard: true,
+        backdrop: "static",
+        show: true
+    });
+
+    console.log(address);
+
+    modal.find('.address').text(address);
+
+    modal.find('.btn.btn-secondary').unbind().click(function() {
+        modal.modal('hide');
+    });
+
+    modal.find('.btn.btn-primary').unbind().click(function() {
+        success();
+
+        modal.modal('hide');
+    });
+}
+
 
 function showCompressedPrivateKeyWarning(success, error) {
     var modal = $('#compressed-private-key-modal');
@@ -3835,6 +3883,46 @@ function showCompressedPrivateKeyWarning(success, error) {
     });
 }
 
+
+/*
+
+ //Doesn't work due to lack of SignCompact
+ function signMessage(addressString, strMessage) {
+
+ var concenated = String.fromCharCode(24);
+
+ var strMessageMagic = 'Bitcoin Signed Message:' + String.fromCharCode(10) + String.fromCharCode(4);
+
+ concenated += strMessageMagic;
+ concenated += strMessage;
+
+ var hash1 =  Crypto.SHA256(concenated, { asBytes: true });
+
+ var hash2 = Crypto.SHA256(hash1, { asBytes: true });
+
+ hash2 = hash2.reverse();
+
+ console.log('concenated ' + concenated);
+ console.log('hash1 ' +  Crypto.util.bytesToHex(hash1));
+ console.log('hash2 ' +  Crypto.util.bytesToHex(hash2));
+
+ var addr = addresses[addressString];
+
+ if (addr.priv == null) {
+ makeNotice('error', 'add-error', 'Cannot sign a message with a watch only address', 0);
+ return;
+ }
+
+ var eckey = new Bitcoin.ECKey(decodePK(addr.priv));
+
+ var rs = eckey.sign(Crypto.SHA256(concenated, { asBytes: true }));
+
+ console.log(rs);
+
+ var signature = Bitcoin.ECDSA.serializeSig(rs.r, rs.s);
+
+ return Crypto.util.bytesToBase64(signature);
+ } */
 
 function showAddressModal(data) {
     var modal = $('#qr-code-modal');
