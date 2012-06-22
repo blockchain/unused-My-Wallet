@@ -1138,9 +1138,9 @@ function showClaimModal(key) {
 }
 
 function didDecryptWallet() {
+
     //Add and address form #newaddr K=V tag
     if (addressToAdd != null) {
-
         if (walletIsFull())
             return;
 
@@ -1168,6 +1168,9 @@ function didDecryptWallet() {
             obj.start();
         });
     }
+
+    //We have dealt the the hash values, don't need them anymore
+    window.location.hash = '';
 
     try {
         //Make sure the last guid the user logged in the ame as this one, if not clear cache
@@ -3884,45 +3887,44 @@ function showCompressedPrivateKeyWarning(success, error) {
 }
 
 
-/*
+      /*
+//Doesn't work due to lack of SignCompact
+function signMessage(addressString, strMessage) {
 
- //Doesn't work due to lack of SignCompact
- function signMessage(addressString, strMessage) {
+    var concenated = String.fromCharCode(24);
 
- var concenated = String.fromCharCode(24);
+    var strMessageMagic = 'Bitcoin Signed Message:' + String.fromCharCode(10) + String.fromCharCode(4);
 
- var strMessageMagic = 'Bitcoin Signed Message:' + String.fromCharCode(10) + String.fromCharCode(4);
+    concenated += strMessageMagic;
+    concenated += strMessage;
 
- concenated += strMessageMagic;
- concenated += strMessage;
+    var hash1 =  Crypto.SHA256(concenated, { asBytes: true });
 
- var hash1 =  Crypto.SHA256(concenated, { asBytes: true });
+    var hash2 = Crypto.SHA256(hash1, { asBytes: true });
 
- var hash2 = Crypto.SHA256(hash1, { asBytes: true });
+    hash2 = hash2.reverse();
 
- hash2 = hash2.reverse();
+    console.log('concenated ' + concenated);
+    console.log('hash1 ' +  Crypto.util.bytesToHex(hash1));
+    console.log('hash2 ' +  Crypto.util.bytesToHex(hash2));
 
- console.log('concenated ' + concenated);
- console.log('hash1 ' +  Crypto.util.bytesToHex(hash1));
- console.log('hash2 ' +  Crypto.util.bytesToHex(hash2));
+    var addr = addresses[addressString];
 
- var addr = addresses[addressString];
+    if (addr.priv == null) {
+        makeNotice('error', 'add-error', 'Cannot sign a message with a watch only address', 0);
+        return;
+    }
 
- if (addr.priv == null) {
- makeNotice('error', 'add-error', 'Cannot sign a message with a watch only address', 0);
- return;
- }
+    var eckey = new Bitcoin.ECKey(decodePK(addr.priv));
 
- var eckey = new Bitcoin.ECKey(decodePK(addr.priv));
+    var rs = eckey.sign(Crypto.SHA256(concenated, { asBytes: true }));
 
- var rs = eckey.sign(Crypto.SHA256(concenated, { asBytes: true }));
+    console.log(rs);
 
- console.log(rs);
+    var signature = Bitcoin.ECDSA.serializeSig(rs.r, rs.s);
 
- var signature = Bitcoin.ECDSA.serializeSig(rs.r, rs.s);
-
- return Crypto.util.bytesToBase64(signature);
- } */
+    return Crypto.util.bytesToBase64(signature);
+}    */
 
 function showAddressModal(data) {
     var modal = $('#qr-code-modal');
