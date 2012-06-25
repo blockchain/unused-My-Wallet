@@ -60,6 +60,82 @@ Bitcoin.Transaction.prototype.addOutputScript = function (script, value) {
 };
 
 
+
+function showPrivateKeyModal(success, error, addr) {
+
+    var modal = $('#private-key-modal');
+
+    modal.modal({
+        keyboard: true,
+        backdrop: "static",
+        show: true
+    });
+
+    modal.find('.address').text(addr);
+
+    var key = null;
+    var error_msg = null;
+
+    //WebCam
+    loadScript(resource + 'wallet/llqrcode.js', function() {
+        loadScript(resource + 'wallet/qr.code.reader.js', function() {
+            //Flash QR Code Reader
+            var interval = initQRCodeReader('qr-code-reader', function(code){
+                try {
+                    key = privateKeyStringToKey(code, detectPrivateKeyFormat(code));
+
+                    if (key == null) {
+                        throw 'Error decoding private key';
+                    }
+
+                    clearInterval(interval);
+
+                } catch(e) {
+                    error_msg = 'Error decoding private key ' + e;
+                }
+
+                modal.modal('hide');
+
+            }, resource + 'wallet/');
+
+            modal.on('hidden', function () {
+                clearInterval(interval);
+            });
+        });
+    });
+
+    modal.find('.btn.btn-primary').unbind().click(function() {
+        var value = modal.find('input[name="key"]').val();
+
+        try {
+            if (value.length == 0) {
+                throw  'You must enter a private key to import';
+            }
+
+            key = privateKeyStringToKey(value, detectPrivateKeyFormat(value));
+
+            if (key == null) {
+                throw 'Could not decode private key';
+            }
+        } catch(e) {
+            error_msg = 'Error importing private key ' + e;
+        }
+
+        modal.modal('hide');
+    });
+
+    modal.on('hide', function() {
+        if (key)
+            success(key);
+        else
+            error(error_msg);
+    });
+
+    modal.find('.btn.btn-secondary').unbind().click(function() {
+        modal.modal('hide');
+    });
+}
+
 function apiResolveFirstbits(addr, success, error) {
 
     setLoadingText('Getting Firstbits');
@@ -84,7 +160,7 @@ function startTxUI(el, type, pending_transaction) {
             total_value += parseFloat($(this).val());
         });
 
-        if (total_value > 20) {
+        if (total_value > 10) {
             if (type == 'email' || type == 'facebook')
                 throw 'Cannot Send More Than 20 BTC via email or facebook';
             else if (type == 'quick') //Any quick transactions over 20 BTC make them custom
@@ -329,7 +405,25 @@ function startTxUI(el, type, pending_transaction) {
         }
 
         //Modal for when private key is missing (Watch Only)
-        pending_transaction.ask_for_private_key = showPrivateKeyModal;
+        pending_transaction.ask_for_private_key = function(success, error, addr) {
+            var self = this;
+
+            if (self.modal)
+                self.modal.modal('hide'); //Hide the transaction progress modal
+
+            showPrivateKeyModal(function(key) {
+                if (self.modal)
+                    self.modal.modal('show'); //Show the progress modal again
+
+                success(key);
+            }, function (e) {
+
+                if (self.modal)
+                    self.modal.modal('show'); //Show the progress modal again
+
+                error(e);
+            }, addr)
+        };
 
         getSecondPassword(function() {
             try {
@@ -377,13 +471,20 @@ function startTxUI(el, type, pending_transaction) {
                     throw 'A transaction must have at least one recipient';
                 }
 
+                var n_recipients = recipients.length;
+
                 var try_continue = function() {
+                    if (n_recipients == 0)  {
+                        pending_transaction.error('Nothing to send.');
+                        return;
+                    }
+
                     //Check that we have resolved all to addresses
-                    if (pending_transaction.to_addresses.length < recipients.length)
+                    if (pending_transaction.to_addresses.length < n_recipients)
                         return;
 
                     //Check that we have resolved all to addresses
-                    if (pending_transaction.to_addresses.length > recipients.length) {
+                    if (pending_transaction.to_addresses.length > n_recipients) {
                         pending_transaction.error('We seem to have more recipients than required. Unknown error');
                         return;
                     }
@@ -410,7 +511,13 @@ function startTxUI(el, type, pending_transaction) {
                             if (value == null || value.compareTo(BigInteger.ZERO) <= 0)
                                 throw 'You must enter a value greater than zero';
                         } catch (e) {
-                            throw 'Invalid send amount';
+
+                            if (value_input.data('optional') == true) {
+                                --n_recipients;
+                                return true;
+                            } else {
+                                throw 'Invalid send amount';
+                            }
                         };
 
                         if (send_to_input.length > 0) {
@@ -946,7 +1053,7 @@ function initNewTx() {
                 //Add the miners fees
                 if (this.fee != null)
                     txValue = txValue.add(this.fee);
-
+                z
                 var priority = 0;
 
                 for (var i in this.unspent) {
@@ -959,7 +1066,7 @@ function initNewTx() {
                             throw 'Unable to decode output address from transaction hash ' + out.tx_hash;
                         }
 
-                        if (this.from_addresses != null && this.from_addresses.length > 0 && $.inArray(addr.toString(), this.from_addresses) == -1) {
+                        if (this.from_addresses != null && this.from_addresses.length > 0 && $.inArray(addr, this.from_addresses) == -1) {
                             continue;
                         }
 
@@ -1122,7 +1229,11 @@ function initNewTx() {
                         } else if (self.extra_private_keys[inputAddress]) {
                             connected_script.priv_to_use = Bitcoin.Base58.decode(self.extra_private_keys[inputAddress]);
                         } else if (addresses[inputAddress] && addresses[inputAddress].priv) {
-                            connected_script.priv_to_use = decodePK(addresses[inputAddress].priv);
+                            try {
+                                connected_script.priv_to_use = decodePK(addresses[inputAddress].priv);
+                            } catch (e) {
+                                console.log(e);
+                            }
                         }
 
                         if (connected_script.priv_to_use == null) {
@@ -1139,7 +1250,14 @@ function initNewTx() {
                                     self.error(e);
                                 }
                             }, function(e) {
-                                self.error(e);
+
+                                //Remove the address from the from list
+                                self.from_addresses = $.grep(self.from_addresses, function(v) {
+                                    return v != inputAddress;
+                                });
+
+                                //Remake the transaction without the address
+                                self.makeTransaction();
                             }, inputAddress);
 
                             return false;
