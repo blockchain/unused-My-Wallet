@@ -3083,11 +3083,13 @@ function bind() {
         setFilter($(this).val());
     });
 
+
+
     $('#tx_display').change(function(){
         SetCookie("tx_display", $(this).val());
 
         buildVisibleView();
-    });
+    }).val(parseInt(getCookie('tx_display')));
 
     $('#update-password-btn').click(function() {
         updatePassword();
