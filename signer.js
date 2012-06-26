@@ -262,6 +262,9 @@ function startTxUI(el, type, pending_transaction) {
 
                     setReviewTransactionContent(self.modal, self.tx);
 
+                    self.modal.center();
+
+
                     //We have the transaction ready to send, check if were online or offline
                     var btn = self.modal.find('.btn.btn-primary');
 
@@ -1394,7 +1397,9 @@ function initNewTx() {
         terminateWorkers : function() {
             if (this.worker) {
                 for (var i in this.worker)  {
-                    this.worker[i].terminate();
+                    try {
+                        this.worker[i].terminate();
+                    } catch (e) { }
                 }
             }
         },

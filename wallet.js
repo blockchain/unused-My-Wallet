@@ -416,7 +416,7 @@ function buildSendForm(el, reset) {
 
     buildSelect(el.find('select[name="change"]'), true);
 
-    el.find('select[name="change"]').prepend('<option value="new" selected>New Address</option>');
+    el.find('select[name="change"]').prepend('<option value="new">New Address</option>').val('new');
 
     if (reset) {
         el.find('input').val('');
@@ -3652,11 +3652,15 @@ function bind() {
         $("#json-unencrypted-export").val(makeWalletJSON($('#export-priv-format').val()));
     });
 
+    $('.show_adv').click(function() {
+        console.log('Center');
+
+        $('.modal:visible').center();
+    });
+
     $('.modal').on('show', function() {
         $(this).center();
-    })
-
-    $('.modal').on('shown', function() {
+    }).on('shown', function() {
         $(this).center();
     })
 }
