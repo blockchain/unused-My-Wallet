@@ -3,7 +3,9 @@
 function buildForm() {
     var form = $('#send-satoshi-dice');
 
-    $.get('/satoshidice').success(function(obj) {
+    setLoadingText('Loading Betting Table');
+
+    $.get(root + 'satoshidice').success(function(obj) {
 
         var container = form.find('.recipient-container');
 
@@ -21,6 +23,13 @@ function buildForm() {
             }
         }
 
+        function setWinAmount(el) {
+            if (el.val() > 0)
+                el.parent().find('.send-win-amount').html('Win Amount: ' + (parseFloat(el.val()) *  parseFloat(el.data('multiplier'))).toFixed(4) + ' BTC');
+            else
+                el.parent().find('.send-win-amount').html('No Bet');
+        }
+
         container.find('input[name="send-value"]').change(function() {
             if ($(this).val() > $(this).data('maxbet')) {
                 $(this).val($(this).data('maxbet'));
@@ -35,13 +44,12 @@ function buildForm() {
 
                 makeNotice('error', 'misc-error', 'The Minimum Bet is '+ $(this).data('minbet') + ' BTC');
             }
+
+            setWinAmount($(this));
         });
 
         container.find('input[name="send-value"]').keyup(function() {
-             if ($(this).val() > 0)
-                $(this).parent().find('.send-win-amount').html('Win Amount: ' + parseFloat($(this).val()) *  parseFloat($(this).data('multiplier')) + ' BTC');
-            else
-                $(this).parent().find('.send-win-amount').html('No Bet');
+            setWinAmount($(this));
         });
 
         form.find('.send').unbind().click(function() {
@@ -49,5 +57,7 @@ function buildForm() {
                 startTxUI(form, 'quick', initNewTx());
             });
         });
-    });
+    }).error(function() {
+            makeNotice('error', 'misc-error', 'Error Downloading SatoshiDICE Bets')
+        });
 }

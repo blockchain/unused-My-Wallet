@@ -406,9 +406,9 @@ function buildSendForm(el, reset) {
             }
         }
 
-        select.prepend('<option value="any">Any Address</option>');
+        select.prepend('<option value="any" selected>Any Address</option>');
 
-        if (!reset)
+        if (!reset && old_val)
             select.val(old_val);
     }
 
@@ -416,7 +416,7 @@ function buildSendForm(el, reset) {
 
     buildSelect(el.find('select[name="change"]'), true);
 
-    el.find('select[name="change"]').prepend('<option value="new">New Address</option>');
+    el.find('select[name="change"]').prepend('<option value="new" selected>New Address</option>');
 
     if (reset) {
         el.find('input').val('');
@@ -432,7 +432,7 @@ function buildSendForm(el, reset) {
     }
 
     recipient_container.find(".recipient").find('input[name="send-to-address"]').typeahead({
-        source : getAllLabels()
+        source : getActiveLabels()
     });
 
     recipient_container.find(".recipient").find('input[name="send-value"]').unbind().keyup(function() {
@@ -456,7 +456,7 @@ function buildSendForm(el, reset) {
         recipient.appendTo(recipient_container);
 
         recipient.find('input[name="send-to-address"]').val('').typeahead({
-            source : getAllLabels()
+            source : getActiveLabels()
         });
 
         recipient.find('.send-value-usd').html('$0');
@@ -807,6 +807,12 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
 };
 
 function buildVisibleView() {
+
+    //Hide any popovers as they can get stuck whent the element is re-drawn
+    try {
+        cVisible.find('.pop').popover('hide');
+    } catch (e) {}
+
     //Only build when visible
     var id = cVisible.attr('id');
     if ("send-coins" == id)
@@ -862,7 +868,7 @@ function buildTransactionsView() {
 
     var txcontainer = $('#transactions').empty();
 
-    if (tx_display == 1) {
+    if (tx_display == 0) {
         var table = $('<table class="table table-striped table-condensed"><tr><th style="width:16px" class="hidden-phone"></th><th class="hidden-phone">To / From</th><th>Date</th><th>Amount</th><th class="hidden-phone">Balance</th></tr></table>');
 
         txcontainer.append(table);
@@ -885,7 +891,7 @@ function buildTransactionsView() {
                 tx.setConfirmations(0);
             }
 
-            if (tx_display == 1) {
+            if (tx_display == 0) {
                 html += tx.getCompactHTML(addresses, address_book);
             } else {
                 html += tx.getHTML(addresses, address_book);
@@ -1329,7 +1335,7 @@ function getSecondPassword(success, error) {
 
     var input = modal.find('input[name="password"]');
 
-    input.keypress(function(e) {
+    input.unbind().keypress(function(e) {
         if(e.keyCode == 13) { //Pressed the return key
             e.preventDefault();
             modal.find('.btn.btn-primary').click();
@@ -2565,14 +2571,15 @@ function resolveLabel(label) {
     return null;
 }
 
-function getAllLabels() {
+function getActiveLabels() {
     var labels = [];
     for (var key in address_book) {
         labels.push(address_book[key]);
     }
     for (var key in addresses) {
-        if (addresses[key].label)
-            labels.push(addresses[key].label);
+        var addr =  addresses[key];
+        if (addr.tag != 2 && addr.label)
+            labels.push(addr.label);
     }
     return labels;
 }
@@ -2639,15 +2646,34 @@ function sweepAddresses(addresses) {
     });
 }
 
-function bind() {
-
+function buildPopovers() {
     try {
         $(".pop").popover({
             offset: 10,
             placement : 'bottom'
         });
     } catch(e) {}
+}
 
+function bind() {
+
+    $('.dropdown-toggle').dropdown();
+
+    $('#chord-diagram').click(function() {
+        window.open(root + 'taint/' + getAllAddresses().join('|'), null, "width=850,height=850");
+    });
+
+    $('#group-received').click(function() {
+        loadScript(resource + 'wallet/taint_grouping.min.js', function() {
+            try{
+                loadTaintData();
+            } catch (e) {
+                 makeNotice('error', 'misc-error', 'Unable To Load Taint Grouping Data');
+            }
+        });
+    });
+
+    buildPopovers();
 
     $('#download-backup-btn').click(function() {
         window.open(root + 'wallet/wallet.aes.json?guid=' + guid + '&sharedKey=' + sharedKey);
@@ -2726,9 +2752,11 @@ function bind() {
 
 
     $('#active-addresses').on('show', function() {
-        var table = $(this).find('tbody');
+        var table = $(this).find('table');
 
-        table.empty();
+        table.find('tbody').remove();
+
+        var tbody = $('<tbody></tbody>').appendTo(table);
 
         for (var key in addresses) {
             var addr = addresses[key];
@@ -2740,9 +2768,9 @@ function bind() {
             var noPrivateKey = '';
 
             if (addr.tag == 1) {
-                noPrivateKey = ' <font color="red" class="extrapop" title="Not Synced" data-content="This is a new address which has not yet been synced with our the server. Do not used this address yet.">(Not Synced)</font>';
+                noPrivateKey = ' <font color="red" class="pop" title="Not Synced" data-content="This is a new address which has not yet been synced with our the server. Do not used this address yet.">(Not Synced)</font>';
             } else if (addr.priv == null) {
-                noPrivateKey = ' <font color="red" class="extrapop" title="Watch Only" data-content="Watch Only means there is no private key associated with this bitcoin address. <br /><br /> Unless you have the private key stored elsewhere you do not own the funds at this address and can only observe the transactions.">(Watch Only)</font>';
+                noPrivateKey = ' <font color="red" class="pop" title="Watch Only" data-content="Watch Only means there is no private key associated with this bitcoin address. <br /><br /> Unless you have the private key stored elsewhere you do not own the funds at this address and can only observe the transactions.">(Watch Only)</font>';
             }
 
             var extra = '';
@@ -2752,10 +2780,12 @@ function bind() {
                 extra = '<span class="hidden-phone"> - ' + addr.addr + '</span>';
             }
 
-            var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'" onclick="showAddressModal(\'' + addr.addr +'\')" src="'+resource+'info.png" /></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatBTC(addr.balance) + '<span class="hidden-phone"> BTC</span></span></td><td style="width:16px"><img src="'+resource+'archive.png" class="extrapop" title="Archive Address" data-content="Click this button to hide the address from the main view. You can restore or delete later by finding it in the Archived addresses tab. " onclick="archiveAddr(\''+addr.addr+'\')" /></td></tr>';
+            var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'" onclick="showAddressModal(\'' + addr.addr +'\')" src="'+resource+'info.png" /></td><td><div class="short-addr"><a class="pop" title="Your Addresses" data-content="These are your personal bitcoin addresses. Share these with people and they can send you bitcoins." href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatBTC(addr.balance) + '<span class="hidden-phone"> BTC</span></span></td><td style="width:16px"><img src="'+resource+'archive.png" class="pop" title="Archive Address" data-content="Click this button to hide the address from the main view. You can restore or delete later by finding it in the Archived addresses tab. " onclick="archiveAddr(\''+addr.addr+'\')" /></td></tr>';
 
-            table.append(thtml);
+            tbody.append(thtml);
         }
+
+        buildPopovers();
     });
 
     $('#archived-addresses').on('show', function() {
@@ -2800,7 +2830,6 @@ function bind() {
         }
 
         build();
-
 
         apiGetBalances(archived, function(obj) {
             for (var key in obj) {
@@ -3323,6 +3352,16 @@ function bind() {
             });
         });
 
+        self.find('select[name="from"]').unbind().change(function() {
+            var values = $(this).val();
+            for (var i in values) {
+                if (values[i] == 'any') {
+                    $(this).val('any');
+                    break;
+                }
+            }
+        });
+
         self.find('.reset').unbind().click(function() {
             buildSendForm(self, true);
         });
@@ -3333,8 +3372,12 @@ function bind() {
         if (reset)
             return;
 
-        loadScript(resource + 'wallet/satoshidice.js', function() {
-            buildForm();
+        loadScript(resource + 'wallet/satoshidice.min.js', function() {
+            try {
+                buildForm();
+            } catch (e) {
+                makeNotice('error', 'misc-error', 'Unable To Load Satoshi Dice Bets');
+            }
         });
     });
 
@@ -3521,7 +3564,7 @@ function bind() {
 
     $('#export-paper-btn').click(function() {
         getSecondPassword(function() {
-            var popup = window.open(null, null, "width=700,height=800");
+            var popup = window.open(null, null, "width=700,height=800,toolbar=1");
 
             loadScript(resource + 'wallet/qr.code.creator.js', function() {
                 try {
@@ -3927,14 +3970,7 @@ function archiveAddr(addr) {
 }
 
 function buildReceiveCoinsView() {
-    $('.extrapop').popover('hide');
-
     $('#receive-coins').find('.tab-pane.active').trigger('show');
-
-    $('.extrapop').popover({
-        offset: 10,
-        placement : 'bottom'
-    });
 
     setupToggle();
 }

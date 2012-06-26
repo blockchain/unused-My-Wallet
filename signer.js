@@ -430,9 +430,12 @@ function startTxUI(el, type, pending_transaction) {
                 var silentReturn = false;
 
                 //Get the from address, if any
-                var fromval = el.find('select[name="from"]').val();
+                var from_select = el.find('select[name="from"]');
+                var fromval = from_select.val();
                 if (fromval == null || fromval == 'any') {
                     pending_transaction.from_addresses = getActiveAddresses();
+                } else if (from_select.attr('multiple') == 'multiple') {
+                    pending_transaction.from_addresses = fromval;
                 } else {
                     pending_transaction.from_addresses = [fromval];
                 }
@@ -1053,8 +1056,9 @@ function initNewTx() {
                 //Add the miners fees
                 if (this.fee != null)
                     txValue = txValue.add(this.fee);
-                z
+
                 var priority = 0;
+                var addresses_used = [];
 
                 for (var i in this.unspent) {
                     var out = this.unspent[i];
@@ -1080,16 +1084,17 @@ function initNewTx() {
                         //So discard the previous selected outs
                         if (out.value.compareTo(txValue) >= 0) {
                             this.selected_outputs = [new_in];
+                            addresses_used = [addr];
 
                             priority = out.value * out.confirmations;
 
                             availableValue = out.value;
 
-
                             break;
                         } else {
                             //Otherwise we add the value of the selected output and continue looping if we don't have sufficient funds yet
                             this.selected_outputs.push(new_in);
+                            addresses_used.push(addr);
 
                             priority += out.value * out.confirmations;
 
@@ -1134,11 +1139,11 @@ function initNewTx() {
                 //Now deal with the change
                 var	changeValue = availableValue.subtract(txValue);
                 if (changeValue.compareTo(BigInteger.ZERO) > 0) {
-                    if (this.change_address != null) //If chenge address speicified return to that
+                    if (this.change_address != null) //If change address speicified return to that
                         sendTx.addOutput(this.change_address, changeValue);
-                    else if (!isSweep && this.from_addresses != null && this.from_addresses.length > 0) //Else return to the from address if specified
-                        sendTx.addOutput(new Bitcoin.Address(this.from_addresses[0]), changeValue);
-                    else { //Otherwise return to random unarchived
+                    else if (!isSweep && addresses_used.length > 0) { //Else return to a random from address if specified
+                        sendTx.addOutput(new Bitcoin.Address(addresses_used[Math.floor(Math.random() * addresses_used.length)]), changeValue);
+                    } else { //Otherwise return to random unarchived
                         sendTx.addOutput(new Bitcoin.Address(getPreferredAddress()), changeValue);
                     }
                 }
