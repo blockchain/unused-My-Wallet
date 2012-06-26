@@ -505,20 +505,8 @@ function loadScript(src, callback) {
     head.appendChild(s);
 }
 
-function SetCookie() {
-    if(arguments.length < 2) { return; }
-    var n = arguments[0];
-    var v = arguments[1];
-    var d = 0;
-    if(arguments.length > 2) { d = parseInt(arguments[2]); }
-    var exp = '';
-    if(d > 0) {
-        var now = new Date();
-        then = now.getTime() + (d * 24 * 60 * 60 * 1000);
-        now.setTime(then);
-        exp = '; expires=' + now.toGMTString();
-    }
-    document.cookie = n + "=" + escape(String(v)) + '; path=/' + exp;
+function SetCookie(key, value) {
+    document.cookie = key + "=" + encodeURI(value.toString()) + '; path=/';
 }
 
 function getCookie(c_name) {
@@ -528,7 +516,7 @@ function getCookie(c_name) {
             c_start = c_start + c_name.length + 1;
             c_end = document.cookie.indexOf(";", c_start);
             if (c_end == -1) c_end = document.cookie.length;
-            return unescape(document.cookie.substring(c_start, c_end));
+            return decodeURI(document.cookie.substring(c_start, c_end));
         }
     }
     return "";
