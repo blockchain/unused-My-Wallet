@@ -1584,9 +1584,18 @@ function getAccountInfo() {
         $('.two-factor').hide();
         $('.two-factor.t'+data.auth_type).show(200);
 
-        $('#notifications-type').val(data.notifications_type);
-        $('.notifications-type').hide(200);
-        $('.notifications-type.t'+data.notifications_type).show(200);
+        var notifications_type_el = $('#notifications-type');
+
+        notifications_type_el.find(':checkbox').prop("checked", false);
+        notifications_type_el.find('[class^="type"]').hide();
+
+        for (var i in data.notifications_type) {
+            var type = data.notifications_type[i];
+            console.log(type);
+
+            notifications_type_el.find(':checkbox[value="'+type+'"]').prop("checked", true);
+            notifications_type_el.find('.type-'+type).show();
+        }
 
         $('#notifications-confirmations').val(data.notifications_confirmations);
         $('#notifications-on').val(data.notifications_on);
@@ -2183,12 +2192,12 @@ function changeView(id) {
         if ($('#' + cVisible.attr('id') + '-btn').length > 0)
             $('#' + cVisible.attr('id') + '-btn').parent().attr('class', '');
 
-        cVisible.hide(200);
+        cVisible.hide();
     }
 
     cVisible = id;
 
-    cVisible.show(200);
+    cVisible.show();
 
     if ($('#' + cVisible.attr('id') + '-btn').length > 0)
         $('#' + cVisible.attr('id') + '-btn').parent().attr('class', 'active');
@@ -2956,13 +2965,17 @@ function bind() {
         window.open(root + 'charts/balance?show_header=false&address='+getActiveAddresses().join('|'), null, "scroll=0,status=0,location=0,toolbar=0,width=1000,height=700");
     });
 
-    $('#notifications-type').change(function() {
-        var val = parseInt($(this).val());
+    var notifications_type_el = $('#notifications-type');
+    notifications_type_el.find(':checkbox').change(function() {
 
-        updateKV('Updating Notifications Type', 'update-notifications-type', val);
+        var val = [];
+        notifications_type_el.find(':checkbox:checked').each(function () {
+            val.push($(this).val());
+        });
 
-        $('.notifications-type').hide(200);
-        $('.notifications-type.t'+val).show(200);
+        updateKV('Updating Notifications Type', 'update-notifications-type', val.join('|'));
+
+        notifications_type_el.find('.type-'+$(this).val()).toggle();
 
         //Backup the wallet to syn the pub keys
         backupWallet();
