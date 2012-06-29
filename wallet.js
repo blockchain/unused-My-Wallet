@@ -1416,7 +1416,7 @@ function restoreWallet() {
         var auth_key = $('#restore-auth-key').val();
 
         if (auth_key == null || auth_key.length == 0 || auth_key.length > 255) {
-            makeNotice('error', 'misc-error', 'You must enter a Yubikey or Email confirmation code');
+            makeNotice('error', 'misc-error', 'You must enter a Two Factor authetication code');
             return false;
         }
 
@@ -1629,14 +1629,22 @@ function getAccountInfo() {
         $('#wallet-http-url').val(data.http_url);
         $('#wallet-skype').val(data.skype_username);
         $('#wallet-yubikey').val(data.yubikey);
+        $('#wallet-sms').val(data.sms_number);
 
         if (data.email_verified == 0) {
             $('#verify-email').show();
             $('#email-verified').hide();
         } else {
-
             $('#verify-email').hide();
             $('#email-verified').show();
+        }
+
+        if (data.sms_verified == 0) {
+            $('#sms-unverified').show();
+            $('#sms-verified').hide();
+        } else {
+            $('#sms-verified').show();
+            $('#sms-unverified').hide();
         }
 
     })
@@ -1658,31 +1666,6 @@ function emailBackup() {
         });
 }
 
-function verifyEmail(code) {
-    if (!isInitialized || offline) return;
-
-    if (code == null || code.length == 0 || code.length > 255) {
-        makeNotice('error', 'misc-error', 'You must enter a code to verify');
-        return;
-    }
-
-    code = $.trim(code);
-
-    setLoadingText('Verifying Email');
-
-    $.post("/wallet", { guid: guid, payload: code, sharedKey: sharedKey, length : code.length, method : 'verify-email' },  function(data) {
-        makeNotice('success', 'email-success', data);
-
-        $('#verify-email').hide();
-        $('#email-verified').show(200);
-    })
-        .error(function(data) {
-            makeNotice('error', 'misc-error', data.responseText);
-            $('#verify-email').show(200);
-            $('#email-verified').hide();
-        });
-}
-
 function updateKV(txt, method, value, success, error) {
     if (!isInitialized || offline) return;
 
@@ -1700,7 +1683,7 @@ function updateKV(txt, method, value, success, error) {
 
     setLoadingText(txt);
 
-    $.post("/wallet", { guid: guid, sharedKey: sharedKey, length : (value+'').length, payload : value+'', method : method },  function(data) {
+    $.post("/wallet", { guid: guid, sharedKey: sharedKey, length : (value+'').length, payload : value+'', method : method, format : 'plain' },  function(data) {
         makeNotice('success', method + '-success', data);
 
         if (success) success();
@@ -3054,7 +3037,60 @@ function bind() {
     });
 
     $('#wallet-email-code').change(function(e) {
-        verifyEmail($(this).val());
+        if (!isInitialized || offline) return;
+
+        var code = $(this).val();
+
+        if (code == null || code.length == 0 || code.length > 255) {
+            makeNotice('error', 'misc-error', 'You must enter a code to verify');
+            return;
+        }
+
+        code = $.trim(code);
+
+        setLoadingText('Verifying Email');
+
+        $.post("/wallet", { guid: guid, payload: code, sharedKey: sharedKey, length : code.length, method : 'verify-email' },  function(data) {
+            makeNotice('success', 'misc-success', data);
+
+            $('#verify-email').hide();
+            $('#email-verified').show(200);
+        }).error(function(data) {
+                makeNotice('error', 'misc-error', data.responseText);
+                $('#verify-email').show(200);
+                $('#email-verified').hide();
+         });
+    });
+
+    $('#wallet-sms-code').change(function(e) {
+        var code = $(this).val();
+
+        if (code == null || code.length == 0 || code.length > 255) {
+            makeNotice('error', 'misc-error', 'You must enter an SMS code to verify');
+            return;
+        }
+
+        code = $.trim(code);
+
+        setLoadingText('Verifying SMS Code');
+
+        $.post("/wallet", { guid: guid, payload: code, sharedKey: sharedKey, length : code.length, method : 'verify-sms' },  function(data) {
+            makeNotice('success', 'misc-success', data);
+
+            $('#sms-unverified').hide();
+            $('#sms-verified').show(200);
+        }).error(function(data) {
+                makeNotice('error', 'misc-error', data.responseText);
+                $('#sms-verified').hide();
+                $('#sms-unverified').show(200);
+            });
+    });
+
+    $('#wallet-sms').change(function(e) {
+        updateKV('Updating Cell Number', 'update-sms', $(this).val());
+
+        $('#sms-unverified').show(200);
+        $('#sms-verified').hide();
     });
 
     $('#wallet-yubikey').change(function(e) {
