@@ -161,7 +161,7 @@ function startTxUI(el, type, pending_transaction) {
         });
 
         if (total_value > 10) {
-            if (type == 'email' || type == 'facebook')
+            if (type == 'email' || type == 'facebook' || type == 'sms' || type == 'twitter')
                 throw 'Cannot Send More Than 20 BTC via email or facebook';
             else if (type == 'quick') //Any quick transactions over 20 BTC make them custom
                 type = 'custom';
@@ -311,7 +311,7 @@ function startTxUI(el, type, pending_transaction) {
                     self.error(e);
                 }
             };
-        } else if (type == 'quick' || type == 'email' || type == 'facebook') {
+        } else if (type == 'quick' || type == 'email' || type == 'facebook' || type == 'sms' || type == 'twitter') {
             var listener = {
                 on_error : function(e) {
                     el.find('.send').show(200);
@@ -385,7 +385,17 @@ function startTxUI(el, type, pending_transaction) {
                                 });
 
                                 modal.find('.btn.btn-primary').unbind().click(function() {
-                                    self.send();
+                                    try {
+                                        $.get(root + 'send-via?type=email&format=plain&to=' + self.email_data.email + '&guid='+ guid + '&priv='+ decryptPK(self.email_data.addr.priv) + '&sharedKey=' + sharedKey+'&hash='+Crypto.util.bytesToHex(self.tx.getHash().reverse())).success(function(data) {
+                                            self.send();
+                                        }).error(function(data) {
+                                                self.error(data.responseText);
+                                            });
+
+                                    } catch (e) {
+                                        self.error(e);
+                                    }
+
                                     modal.modal('hide');
                                 });
                             } catch (e) {
@@ -509,6 +519,8 @@ function startTxUI(el, type, pending_transaction) {
                         var send_to_input = child.find('input[name="send-to-address"]');
                         var send_to_email_input = child.find('input[name="send-to-email"]');
                         var send_to_facebook_input = child.find('input[name="send-to-facebook"]');
+                        var send_to_sms_input = child.find('input[name="send-to-sms"]');
+                        var send_to_twitter_input = child.find('input[name="send-to-twitter"]');
 
                         var value = 0;
                         try {
@@ -556,51 +568,6 @@ function startTxUI(el, type, pending_transaction) {
                                     }
                                 };
                             }
-                        } else if (send_to_email_input.length > 0) {
-                            var send_to_email = $.trim(send_to_email_input.val());
-
-                            if (validateEmail(send_to_email)) {
-
-                                //Send to email address
-                                var generatedAddr = generateNewAddressAndKey();
-
-                                //Fetch the newly generated address
-                                var addr = addresses[generatedAddr.toString()];
-
-                                addr.tag = 2;
-                                addr.label = send_to_email + ' (Sent Via Email)';
-
-                                pending_transaction.generated_addresses.push(addr.addr);
-
-                                pending_transaction.to_addresses.push({address: generatedAddr, value : value});
-
-                                if (pending_transaction.email)
-                                    throw 'Cannot send to more than one email recipient at a time';
-
-                                pending_transaction.email_data = {
-                                    email : send_to_email,
-                                    addr : addresses[generatedAddr],
-                                    amount : value
-                                }
-
-                                pending_transaction.addListener({
-                                    on_success : function() {
-                                        try {
-                                            var self = this;
-
-                                            //We send the user the private key of the newly generated address
-                                            //TODO research ways of doing this without server interaction
-                                            $.get(root + 'wallet/send-bitcoins-email?to=' + self.email_data.email + '&guid='+ guid + '&priv='+ decryptPK(self.email_data.addr.priv) + '&sharedKey=' + sharedKey).success(function(data) {
-                                                makeNotice('success', self.email_data.email, 'Sent email confirmation');
-                                            });
-                                        } catch (e) {
-                                            console.log(e);
-                                        }
-                                    }
-                                });
-                            } else {
-                                throw 'Invalid Email Address';
-                            }
                         } else if (send_to_facebook_input.length > 0) {
                             var send_to_facebook = $.trim(send_to_facebook_input.val());
 
@@ -626,12 +593,126 @@ function startTxUI(el, type, pending_transaction) {
 
                             pending_transaction.facebook = {
                                 to : to,
-                                addr : addresses[generatedAddr],
+                                addr : addr,
                                 amount : value
                             };
+                        } else if (send_to_sms_input.length > 0) {
+                            var mobile_number = $.trim(send_to_sms_input.val());
+
+                            if (mobile_number.charAt(0) == '0')
+                                mobile_number = mobile_number.substring(1);
+
+                            if (mobile_number.charAt(0) != '+')
+                                mobile_number = '+' + child.find('select[name="sms-country-code"]').val() + mobile_number;
+
+                            //Send to email address
+                            var miniKeyAddrobj = generateNewMiniPrivateKey();
+
+                            //Fetch the newly generated address
+                            var addr = addresses[miniKeyAddrobj.addr.toString()];
+
+                            addr.tag = 2;
+                            addr.label = mobile_number + ' (Sent Via SMS)';
+
+                            pending_transaction.generated_addresses.push(addr.addr);
+
+                            pending_transaction.to_addresses.push({address: miniKeyAddrobj.addr, value : value});
+
+                            if (pending_transaction.sms)
+                                throw 'Cannot send to more than one SMS recipient at a time';
+
+                            pending_transaction.sms = {
+                                number : mobile_number,
+                                miniKey:  miniKeyAddrobj.miniKey,
+                                addr : addr,
+                                amount : value
+                            };
+
+                            pending_transaction.ask_to_send = function() {
+                                try {
+                                    var self = this;
+
+                                    $.get(root + 'send-via?type=sms&format=plain&to=' + encodeURIComponent(self.sms.number) + '&guid='+ guid + '&priv='+ self.sms.miniKey + '&sharedKey=' + sharedKey+'&hash='+Crypto.util.bytesToHex(self.tx.getHash().reverse())).success(function(data) {
+                                        self.send();
+                                    }).error(function(data) {
+                                            self.error(data.responseText);
+                                        });
+                                } catch (e) {
+                                    self.error(e);
+                                }
+                            };
+                        } else if (send_to_email_input.length > 0) {
+                            var send_to_email = $.trim(send_to_email_input.val());
+
+                            if (validateEmail(send_to_email)) {
+
+                                //Send to email address
+                                var generatedAddr = generateNewAddressAndKey();
+
+                                //Fetch the newly generated address
+                                var addr = addresses[generatedAddr.toString()];
+
+                                addr.tag = 2;
+                                addr.label = send_to_email + ' (Sent Via Email)';
+
+                                pending_transaction.generated_addresses.push(addr.addr);
+
+                                pending_transaction.to_addresses.push({address: generatedAddr, value : value});
+
+                                if (pending_transaction.email)
+                                    throw 'Cannot send to more than one email recipient at a time';
+
+                                pending_transaction.email_data = {
+                                    email : send_to_email,
+                                    addr : addr,
+                                    amount : value
+                                }
+                            } else {
+                                throw 'Invalid Email Address';
+                            }
+                        } else if (send_to_twitter_input.length > 0) {
+                            var twitter_username = $.trim(send_to_twitter_input.val());
+
+                            //Send to email address
+                            var generatedAddr = generateNewAddressAndKey();
+
+                            //Fetch the newly generated address
+                            var addr = addresses[generatedAddr.toString()];
+
+                            addr.tag = 2;
+                            addr.label = mobile_number + ' (Sent Via Twitter)';
+
+                            pending_transaction.generated_addresses.push(addr.addr);
+
+                            pending_transaction.to_addresses.push({address: generatedAddr, value : value});
+
+                            if (pending_transaction.twitter)
+                                throw 'Cannot send to more than one Twitter recipient at a time';
+
+                            pending_transaction.twitter = {
+                                username : twitter_username,
+                                addr : addr,
+                                amount : value
+                            };
+
+                            pending_transaction.ask_to_send = function() {
+                                try {
+                                    var self = this;
+
+                                    $.get(root + 'send-via?type=twitter&format=plain&to=' + encodeURIComponent(self.twitter.username) + '&guid='+ guid + '&priv='+ decryptPK(self.twitter.addr.priv)+ '&sharedKey=' + sharedKey+'&hash='+Crypto.util.bytesToHex(self.tx.getHash().reverse())).success(function(data) {
+                                        self.send();
+                                    }).error(function(data) {
+                                            self.error(data.responseText);
+                                        });
+                                } catch (e) {
+                                    self.error(e);
+                                }
+                            }
                         }
 
                     } catch (e) {
+                        console.log(e);
+
                         pending_transaction.error(e);
                     }
                 });
@@ -648,6 +729,35 @@ function startTxUI(el, type, pending_transaction) {
 
     return pending_transaction;
 };
+
+
+function apiGetPubKey(addr, success, error) {
+    setLoadingText('Getting Pub Key');
+
+    $.get(root + 'q/pubkeyaddr/'+addr).success(function(data) {
+
+        if (data == null || data.length == 0)
+            error();
+        else
+            success(Crypto.util.hexToBytes(data));
+
+    }).error(function(data) {
+            error();
+        });
+}
+
+function apiGetRejectionReason(hexhash, success, error) {
+    $.get(root + 'q/rejected/'+hexhash).success(function(data) {
+
+        if (data == null || data.length == 0)
+            error();
+        else
+            success(data);
+
+    }).error(function(data) {
+            if (error) error();
+        });
+}
 
 function readVarInt(buff) {
     var tbyte, tbytes;
@@ -1457,7 +1567,6 @@ function initNewTx() {
 
                 $.post("/pushtx", { format : "plain", tx: hex }, function(data) {
                     try {
-
                         //If we haven't received a new transaction after sometime call a manual update
                         setTimeout(function() {
                             if (transactions.length == size) {
@@ -1465,16 +1574,16 @@ function initNewTx() {
 
                                 setTimeout(function() {
                                     if (transactions.length == size) {
-                                        apiGetRejectionReason(Crypto.util.bytesToHex(self.tx.getHash()), function(reason) {
+                                        apiGetRejectionReason(Crypto.util.bytesToHex(self.tx.getHash().reverse()), function(reason) {
                                             self.error(reason);
                                         }, function() {
                                             self.error('Unknown Error Pushing Transaction');
                                         });
                                     }
-                                }, 1000);
+                                }, 2000);
 
                             }
-                        }, 1000);
+                        }, 2000);
 
                         self.success();
                     } catch (e) {

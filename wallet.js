@@ -1049,26 +1049,6 @@ function queryAPIMultiAddress() {
     });
 }
 
-
-//Extract a set of key = value from the #hash window tag e.g. /wallet#key|value
-function extractKVFromHash() {
-
-    //Check if we have any addresses to add
-    var hash = decodeURI(window.location.hash.replace("#", ""));
-    var map = [];
-
-    if (hash != null && hash.length > 0) {
-        var components = hash.split("|");
-        for (var i = 0; i < components.length; i += 2) {
-            var key = components[i];
-            var value = components[i+1];
-            map[key] = value;
-        }
-    }
-
-    return map;
-}
-
 function showClaimModal(key) {
 
     var modal = $('#claim-modal');
@@ -1646,6 +1626,13 @@ function getAccountInfo() {
             $('#sms-verified').show();
             $('#sms-unverified').hide();
         }
+
+
+        $.get(resource + 'wallet/country_codes.html').success(function(data) {
+            $('#wallet-sms-country-codes').html(data);
+        }).error(function () {
+                makeNotice('error', 'misc-error', 'Error Downloading SMS Country Codes')
+            });
 
     })
         .error(function(data) {
@@ -2576,34 +2563,6 @@ function getActiveLabels() {
     return labels;
 }
 
-function apiGetRejectionReason(hexhash, success, error) {
-    $.get(root + 'q/rejected/'+hexhash).success(function(data) {
-
-        if (data == null || data.length == 0)
-            error();
-        else
-            success(data);
-
-    }).error(function(data) {
-            if (error) error();
-        });
-}
-
-function apiGetPubKey(addr, success, error) {
-    setLoadingText('Getting Pub Key');
-
-    $.get(root + 'q/pubkeyaddr/'+addr).success(function(data) {
-
-        if (data == null || data.length == 0)
-            error();
-        else
-            success(Crypto.util.hexToBytes(data));
-
-    }).error(function(data) {
-            error();
-        });
-}
-
 //Get the balances of multi addresses (Used for archived)
 function apiGetBalances(_addresses, success, error) {
     setLoadingText('Getting Balances');
@@ -2660,7 +2619,7 @@ function bind() {
             try{
                 loadTaintData();
             } catch (e) {
-                 makeNotice('error', 'misc-error', 'Unable To Load Taint Grouping Data');
+                makeNotice('error', 'misc-error', 'Unable To Load Taint Grouping Data');
             }
         });
     });
@@ -3059,7 +3018,7 @@ function bind() {
                 makeNotice('error', 'misc-error', data.responseText);
                 $('#verify-email').show(200);
                 $('#email-verified').hide();
-         });
+            });
     });
 
     $('#wallet-sms-code').change(function(e) {
@@ -3087,7 +3046,20 @@ function bind() {
     });
 
     $('#wallet-sms').change(function(e) {
-        updateKV('Updating Cell Number', 'update-sms', $(this).val());
+
+        var val = $.trim($(this).val());
+
+        if (val == null || val.length == 0) {
+            return;
+        }
+
+        if (val.charAt(0) == '0')
+            val = val.substring(1);
+
+        if (val.charAt(0) != '+')
+            val = '+' + $('#wallet-sms-country-codes').val() + val;
+
+        updateKV('Updating Cell Number', 'update-sms',val);
 
         $('#sms-unverified').show(200);
         $('#sms-verified').hide();
@@ -3376,6 +3348,18 @@ function bind() {
         });
     });
 
+    $('#send-twitter').on('show', function(e, reset) {
+        var self = $(this);
+
+        buildSendForm(self, reset);
+
+        self.find('.send').unbind().click(function() {
+            loadScript(resource + 'wallet/signer.min.js', function() {
+                startTxUI(self, 'twitter', initNewTx());
+            });
+        });
+    });
+
     $('#send-qr').on('show', function() {
         //WebCam
         loadScript(resource + 'wallet/llqrcode.js', function() {
@@ -3429,6 +3413,30 @@ function bind() {
             } catch (e) {
                 makeNotice('error', 'misc-error', 'Unable To Load Satoshi Dice Bets');
             }
+        });
+    });
+
+
+    $('#send-sms').on('show', function(e, reset) {
+        if (reset)
+            return;
+
+        var self = $(this);
+
+        buildSendForm(self);
+
+        $.get(resource + 'wallet/country_codes.html').success(function(data) {
+            self.find('select[name="sms-country-code"]').html(data);
+        }).error(function () {
+                makeNotice('error', 'misc-error', 'Error Downloading SMS Country Codes')
+            });
+
+        self.find('.send').unbind().click(function() {
+            loadScript(resource + 'wallet/signer.min.js', function() {
+                var pending_transaction = initNewTx();
+
+                startTxUI(self, 'sms', pending_transaction);
+            });
         });
     });
 
@@ -3491,14 +3499,6 @@ function bind() {
                 FB.getLoginStatus(function(response){
                     if (response.status === 'connected') {
                         load_contacts();
-                    } else {
-                        FB.login(function(response) {
-                            if (response.authResponse) {
-                                load_contacts();
-                            } else {
-                                makeNotice('error', 'add-error', 'User cancelled login or did not fully authorize.');
-                            }
-                        });
                     }
                 });
             }
@@ -3529,7 +3529,7 @@ function bind() {
                                     name: 'You have received bitcoins!',
                                     description: 'You have been sent ' + formatBTC(self.facebook.amount.toString()) + ' BTC. Click the link for instructions on how to claim them.',
                                     to: self.facebook.to,
-                                    link: 'http://blockchain.co.uk/wallet/claim#newpriv|'+ decryptPK(self.facebook.addr.priv),
+                                    link: 'http://blockchain.co.uk/wallet/claim#'+ decryptPK(self.facebook.addr.priv),
                                     picture: 'http://blockchain.info/Resources/Bitcoin-logo.png'
                                 }, function(response) {
                                     try {
@@ -3710,8 +3710,8 @@ function bind() {
     $('.modal').on('show', function() {
         $(this).center();
     }).on('shown', function() {
-        $(this).center();
-    })
+            $(this).center();
+        })
 }
 
 function parseMiniKey(miniKey) {
@@ -3809,32 +3809,54 @@ $(document).ready(function() {
     //Disable auotcomplete in firefox
     $("input, button").attr("autocomplete","off");
 
-    if (!isSignup) {
-        //Add an addresses from the "Add to My Wallet" link
-        var map = extractKVFromHash();
+    try {
+        if (!isSignup) {
+            //Add an addresses from the "Add to My Wallet" link
+            //Check if we have any addresses to add
+            var hash = decodeURI(window.location.hash.replace("#", ""));
+            var map = {};
 
-        var newAddrVal = map['newaddr'];
-        if (newAddrVal != null && addresses[newAddrVal] == null) {
-            try {
-                //Will throw format exception if invalid
-                addressToAdd = new Bitcoin.Address(newAddrVal).toString();
-                console.log(addressToAdd);
+            if (hash != null && hash.length > 0) {
+                var components = hash.split("|");
+                for (var i = 0; i < components.length; i += 2) {
+                    var key = components[i];
+                    var value = components[i+1];
+                    if (key && value)
+                        map[key] = value;
+                }
+            }
 
-            } catch (e) {
-                makeNotice('error', 'error-addr', 'Could not add Address ' + e);
+            if (nKeys(map) == 0 && hash.length > 0) {
+                try {
+                    privateKeyToSweep = privateKeyStringToKey(hash, detectPrivateKeyFormat(hash));
+                } catch (e) {
+                    makeNotice('error', 'error-addr', 'Error Decoding Private Key. Could not claim bitcoins.');
+                }
+            }
+
+            var newAddrVal = map['newaddr'];
+            if (newAddrVal != null && addresses[newAddrVal] == null) {
+                try {
+                    //Will throw format exception if invalid
+                    addressToAdd = new Bitcoin.Address(newAddrVal).toString();
+                    console.log(addressToAdd);
+
+                } catch (e) {
+                    makeNotice('error', 'error-addr', 'Could not add Address ' + e);
+                }
+            }
+
+            //Add a private key to sweep (from email links)
+            var newPriv = map['newpriv'];
+            if (newPriv != null) {
+                try {
+                    privateKeyToSweep = privateKeyStringToKey(newPriv, detectPrivateKeyFormat(newPriv));
+                } catch (e) {
+                    makeNotice('error', 'error-addr', 'Error Decoding Private Key. Could not claim bitcoins.');
+                }
             }
         }
-
-        //Add a private key to sweep (from email links)
-        var newPriv = map['newpriv'];
-        if (newPriv != null) {
-            try {
-                privateKeyToSweep = privateKeyStringToKey(newPriv, detectPrivateKeyFormat(newPriv));
-            } catch (e) {
-                makeNotice('error', 'error-addr', 'Error Decoding Private Key');
-            }
-        }
-    }
+    } catch (e) { console.log(e); }
 
     //Load data attributes from html
     encrypted_wallet_data = $('#data-encrypted').text();
@@ -4030,17 +4052,18 @@ function buildReceiveCoinsView() {
     setupToggle();
 }
 
-function generateNewAddressAndKey() {
+
+function _addPrivateKey(key) {
     if (walletIsFull())
         return false;
-
-    var key = new Bitcoin.ECKey(false);
 
     if (key == null ) {
         throw 'Unable to generate a new bitcoin address.';
     }
 
     var addr = key.getBitcoinAddress();
+
+    console.log('Add Address ' + addr);
 
     if (addr == null) {
         throw 'Generated invalid bitcoin address.';
@@ -4061,4 +4084,33 @@ function generateNewAddressAndKey() {
     }
 
     return addr;
+}
+
+function generateNewMiniPrivateKey() {
+
+    while (true) {
+        //Use a normal ECKey to generate random bytes
+        var key = new Bitcoin.ECKey(false);
+
+        //Make Candidate Mini Key
+        var minikey = 'S' + Bitcoin.Base58.encode(key.priv).substr(0, 21);
+
+        //Append ? & hash it again
+        var bytes_appended = Crypto.SHA256(minikey + '?', {asBytes: true});
+
+        //If zero byte then the key is valid
+        if (bytes_appended[0] == 0) {
+
+            //SHA256
+            var bytes = Crypto.SHA256(minikey, {asBytes: true});
+
+            return {addr : _addPrivateKey(new Bitcoin.ECKey(bytes)), miniKey : minikey};
+        }
+    }
+}
+
+function generateNewAddressAndKey() {
+    var key = new Bitcoin.ECKey(false);
+
+    return _addPrivateKey(key);
 }
