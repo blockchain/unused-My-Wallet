@@ -1197,6 +1197,7 @@ function initNewTx() {
                         //So discard the previous selected outs
                         if (!isSweep && out.value.compareTo(txValue) >= 0) {
                             this.selected_outputs = [new_in];
+
                             addresses_used = [addr];
 
                             priority = out.value * out.confirmations;
@@ -1207,6 +1208,7 @@ function initNewTx() {
                         } else {
                             //Otherwise we add the value of the selected output and continue looping if we don't have sufficient funds yet
                             this.selected_outputs.push(new_in);
+
                             addresses_used.push(addr);
 
                             priority += out.value * out.confirmations;
