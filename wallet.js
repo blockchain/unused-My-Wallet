@@ -3034,7 +3034,7 @@ function bind() {
 
         setLoadingText('Verifying SMS Code');
 
-        $.post("/wallet", { guid: guid, payload: code, sharedKey: sharedKey, length : code.length, method : 'verify-sms' },  function(data) {
+        $.post("/wallet", { guid: guid, payload: code, sharedKey : sharedKey, length : code.length, method : 'verify-sms' },  function(data) {
             makeNotice('success', 'misc-success', data);
 
             $('#sms-unverified').hide();
