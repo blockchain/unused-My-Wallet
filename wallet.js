@@ -2808,6 +2808,7 @@ function bind() {
             toSweep.push(addr.addr);
         });
 
+
         if (toSweep.length == 0)
             return;
 

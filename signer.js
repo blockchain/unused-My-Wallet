@@ -1195,7 +1195,7 @@ function initNewTx() {
 
                         //If the output happens to be greater than tx value then we can make this transaction with one input only
                         //So discard the previous selected outs
-                        if (out.value.compareTo(txValue) >= 0) {
+                        if (!isSweep && out.value.compareTo(txValue) >= 0) {
                             this.selected_outputs = [new_in];
                             addresses_used = [addr];
 
