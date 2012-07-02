@@ -1199,7 +1199,7 @@ public class WalletServlet extends BaseServlet {
 		try {
 			smt = conn.prepareStatement("select email, alias from bitcoin_wallets where guid = ? and shared_key = ?");
 
-			address.calculateTxResults(conn);
+			address.calculateTxResults();
 
 			amount = address.getFinalBalance();
 

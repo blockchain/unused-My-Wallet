@@ -136,6 +136,29 @@ function showPrivateKeyModal(success, error, addr) {
     });
 }
 
+
+function resolveAddress(label) {
+    label = $.trim(label.toLowerCase());
+
+    try {
+       return new Bitcoin.Address(label).toString();
+    } catch (e) {}
+
+    for (var key in address_book) {
+        var a_label = address_book[key];
+        if (a_label.toLowerCase() == label) {
+            return key;
+        }
+    }
+    for (var key in addresses) {
+        var a_label = addresses[key].label;
+        if (a_label && a_label.toLowerCase() == label)
+            return key;
+    }
+    return null;
+}
+
+
 function apiResolveFirstbits(addr, success, error) {
 
     setLoadingText('Getting Firstbits');
@@ -161,7 +184,7 @@ function startTxUI(el, type, pending_transaction) {
         });
 
         if (total_value > 10) {
-            if (type == 'email' || type == 'facebook' || type == 'sms' || type == 'twitter')
+            if (type == 'email' || type == 'facebook' || type == 'sms' || type == 'anonymous')
                 throw 'Cannot Send More Than 20 BTC via email or facebook';
             else if (type == 'quick') //Any quick transactions over 20 BTC make them custom
                 type = 'custom';
@@ -311,7 +334,11 @@ function startTxUI(el, type, pending_transaction) {
                     self.error(e);
                 }
             };
-        } else if (type == 'quick' || type == 'email' || type == 'facebook' || type == 'sms' || type == 'twitter') {
+        } else if (type == 'anonymous') {
+
+            pending_transaction.ask_to_send = function() { };
+
+        } else if (type == 'quick' || type == 'email' || type == 'facebook' || type == 'sms') {
             var listener = {
                 on_error : function(e) {
                     el.find('.send').show(200);
@@ -389,7 +416,7 @@ function startTxUI(el, type, pending_transaction) {
                                         $.get(root + 'send-via?type=email&format=plain&to=' + self.email_data.email + '&guid='+ guid + '&priv='+ decryptPK(self.email_data.addr.priv) + '&sharedKey=' + sharedKey+'&hash='+Crypto.util.bytesToHex(self.tx.getHash().reverse())).success(function(data) {
                                             self.send();
                                         }).error(function(data) {
-                                                self.error(data.responseText);
+                                                self.error(data ? data.responseText : null);
                                             });
 
                                     } catch (e) {
@@ -520,7 +547,6 @@ function startTxUI(el, type, pending_transaction) {
                         var send_to_email_input = child.find('input[name="send-to-email"]');
                         var send_to_facebook_input = child.find('input[name="send-to-facebook"]');
                         var send_to_sms_input = child.find('input[name="send-to-sms"]');
-                        var send_to_twitter_input = child.find('input[name="send-to-twitter"]');
 
                         var value = 0;
                         try {
@@ -544,15 +570,32 @@ function startTxUI(el, type, pending_transaction) {
                             if (send_to_address == null || send_to_address.length == 0) {
                                 throw 'You must enter a bitcoin address for each recipient';
                             }  else {
-                                try {
-                                    pending_transaction.to_addresses.push({address: new Bitcoin.Address(send_to_address), value : value});
-                                } catch (e) {
+                                var address = resolveAddress(send_to_address);
 
-                                    //Try and Resolve Label
-                                    var resolved = resolveLabel(send_to_address);
+                                if (type == 'anonymous') {
 
-                                    if (resolved != null) {
-                                        pending_transaction.to_addresses.push({address: new Bitcoin.Address(resolved), value : value});
+                                    if (!address) {
+                                       throw 'Invalid Bitcoin Address';
+                                    }
+
+                                    $.post("/forwrder", { action : "create-mix", address : address }, function(obj) {
+                                        if (obj.destination != address) {
+                                            return pending_transaction.error('Mismatch between requested and returned destination address');
+                                        }
+
+                                        //Add Label For obj.input_address and obj.input_address
+                                        pending_transaction.to_addresses.push({address: new Bitcoin.Address(obj.input_address), value : value});
+
+                                        //Call again now we have got the forwarding address
+                                        try_continue();
+
+                                    }).error(function(data) {
+                                            pending_transaction.error(data ? data.responseText : null);
+                                    });
+                                } else {
+
+                                    if (address) {
+                                        pending_transaction.to_addresses.push({address: new Bitcoin.Address(address), value : value});
                                     } else {
                                         //Try and Resolve firstbits
                                         apiResolveFirstbits(send_to_address, function(data) {
@@ -566,7 +609,7 @@ function startTxUI(el, type, pending_transaction) {
 
                                         return false;
                                     }
-                                };
+                                }
                             }
                         } else if (send_to_facebook_input.length > 0) {
                             var send_to_facebook = $.trim(send_to_facebook_input.val());
@@ -635,7 +678,7 @@ function startTxUI(el, type, pending_transaction) {
                                     $.get(root + 'send-via?type=sms&format=plain&to=' + encodeURIComponent(self.sms.number) + '&guid='+ guid + '&priv='+ self.sms.miniKey + '&sharedKey=' + sharedKey+'&hash='+Crypto.util.bytesToHex(self.tx.getHash().reverse())).success(function(data) {
                                         self.send();
                                     }).error(function(data) {
-                                            self.error(data.responseText);
+                                            self.error(data ? data.responseText : null);
                                         });
                                 } catch (e) {
                                     self.error(e);
@@ -670,46 +713,7 @@ function startTxUI(el, type, pending_transaction) {
                             } else {
                                 throw 'Invalid Email Address';
                             }
-                        } else if (send_to_twitter_input.length > 0) {
-                            var twitter_username = $.trim(send_to_twitter_input.val());
-
-                            //Send to email address
-                            var generatedAddr = generateNewAddressAndKey();
-
-                            //Fetch the newly generated address
-                            var addr = addresses[generatedAddr.toString()];
-
-                            addr.tag = 2;
-                            addr.label = mobile_number + ' (Sent Via Twitter)';
-
-                            pending_transaction.generated_addresses.push(addr.addr);
-
-                            pending_transaction.to_addresses.push({address: generatedAddr, value : value});
-
-                            if (pending_transaction.twitter)
-                                throw 'Cannot send to more than one Twitter recipient at a time';
-
-                            pending_transaction.twitter = {
-                                username : twitter_username,
-                                addr : addr,
-                                amount : value
-                            };
-
-                            pending_transaction.ask_to_send = function() {
-                                try {
-                                    var self = this;
-
-                                    $.get(root + 'send-via?type=twitter&format=plain&to=' + encodeURIComponent(self.twitter.username) + '&guid='+ guid + '&priv='+ decryptPK(self.twitter.addr.priv)+ '&sharedKey=' + sharedKey+'&hash='+Crypto.util.bytesToHex(self.tx.getHash().reverse())).success(function(data) {
-                                        self.send();
-                                    }).error(function(data) {
-                                            self.error(data.responseText);
-                                        });
-                                } catch (e) {
-                                    self.error(e);
-                                }
-                            }
                         }
-
                     } catch (e) {
                         console.log(e);
 
@@ -748,7 +752,6 @@ function apiGetPubKey(addr, success, error) {
 
 function apiGetRejectionReason(hexhash, success, error) {
     $.get(root + 'q/rejected/'+hexhash).success(function(data) {
-
         if (data == null || data.length == 0)
             error();
         else
@@ -756,7 +759,7 @@ function apiGetRejectionReason(hexhash, success, error) {
 
     }).error(function(data) {
             if (error) error();
-        });
+    });
 }
 
 function readVarInt(buff) {
@@ -1572,9 +1575,7 @@ function initNewTx() {
                         //If we haven't received a new transaction after sometime call a manual update
                         setTimeout(function() {
                             if (transactions.length == size) {
-                                queryAPIMultiAddress();
-
-                                setTimeout(function() {
+                                queryAPIMultiAddress(function() {
                                     if (transactions.length == size) {
                                         apiGetRejectionReason(Crypto.util.bytesToHex(self.tx.getHash().reverse()), function(reason) {
                                             self.error(reason);
@@ -1582,18 +1583,17 @@ function initNewTx() {
                                             self.error('Unknown Error Pushing Transaction');
                                         });
                                     }
-                                }, 2000);
-
+                                });
                             }
-                        }, 2000);
+                        }, 3000);
 
                         self.success();
                     } catch (e) {
                         self.error(e);
                     }
                 }).error(function(data) {
-                        self.error(data.responseText);
-                    });
+                        self.error(data ? data.responseText : null);
+                });
 
             } catch (e) {
                 self.error(e);

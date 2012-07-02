@@ -1003,7 +1003,7 @@ function parseMultiAddressJSON(json) {
 }
 
 //Get the list of transactions from the http API, after that it will update through websocket
-function queryAPIMultiAddress() {
+function queryAPIMultiAddress(success) {
     if (!isInitialized || offline) return;
 
     setLoadingText('Loading transactions');
@@ -1032,6 +1032,8 @@ function queryAPIMultiAddress() {
                 } catch (e) {
 
                 }
+
+                if (success) success();
 
             } catch (e) {
                 console.log(data);
@@ -2533,23 +2535,6 @@ function deleteAddresses(addrs) {
     });
 }
 
-function resolveLabel(label) {
-    label = $.trim(label.toLowerCase());
-
-    for (var key in address_book) {
-        var a_label = address_book[key];
-        if (a_label.toLowerCase() == label) {
-            return key;
-        }
-    }
-    for (var key in addresses) {
-        var a_label = addresses[key].label;
-        if (a_label && a_label.toLowerCase() == label)
-            return key;
-    }
-    return null;
-}
-
 function getActiveLabels() {
     var labels = [];
     for (var key in address_book) {
@@ -2611,7 +2596,7 @@ function bind() {
     $('.dropdown-toggle').dropdown();
 
     $('#chord-diagram').click(function() {
-        window.open(root + 'taint/' + getAllAddresses().join('|'), null, "width=850,height=850");
+        window.open(root + 'taint/' + getActiveAddresses().join('|'), null, "width=850,height=850");
     });
 
     $('#group-received').click(function() {
@@ -3349,14 +3334,14 @@ function bind() {
         });
     });
 
-    $('#send-twitter').on('show', function(e, reset) {
+    $('#send-anonymous').on('show', function(e, reset) {
         var self = $(this);
 
         buildSendForm(self, reset);
 
         self.find('.send').unbind().click(function() {
             loadScript(resource + 'wallet/signer.min.js', function() {
-                startTxUI(self, 'twitter', initNewTx());
+                startTxUI(self, 'anonymous', initNewTx());
             });
         });
     });
