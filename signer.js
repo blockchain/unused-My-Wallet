@@ -138,11 +138,13 @@ function showPrivateKeyModal(success, error, addr) {
 
 
 function resolveAddress(label) {
-    label = $.trim(label.toLowerCase());
+    label = $.trim(label);
 
     try {
        return new Bitcoin.Address(label).toString();
     } catch (e) {}
+
+    label = label.toLowerCase();
 
     for (var key in address_book) {
         var a_label = address_book[key];
@@ -571,6 +573,7 @@ function startTxUI(el, type, pending_transaction) {
                             if (send_to_address == null || send_to_address.length == 0) {
                                 throw 'You must enter a bitcoin address for each recipient';
                             }  else {
+
                                 var address = resolveAddress(send_to_address);
 
                                 if (type == 'anonymous') {
