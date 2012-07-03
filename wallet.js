@@ -2901,6 +2901,9 @@ function bind() {
             val.push($(this).val());
         });
 
+        //If Empty Add Zero Val
+        if (!val.length) val.push(0);
+
         updateKV('Updating Notifications Type', 'update-notifications-type', val.join('|'));
 
         notifications_type_el.find('.type-'+$(this).val()).toggle();
