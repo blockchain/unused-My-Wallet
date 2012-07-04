@@ -103,11 +103,15 @@ function formatBTC(value) {
 }
 
 
+function convert(x, conversion) {
+    return (x / conversion).toFixed(2).toString().replace(/(\d)(?=(\d\d\d)+(?!\d))/g, "$1,");
+}
+
 function formatSymbol(x, symbol) {
     var str;
 
     if (symbol.code != 'BTC') {
-        str = symbol.symbol + ' ' + (x / symbol.conversion).toFixed(2).toString().replace(/(\d)(?=(\d\d\d)+(?!\d))/g, "$1,");
+        str = symbol.symbol + ' ' +  convert(x, symbol.conversion);
     } else {
         str = formatBTC(x) + ' ' + symbol.symbol;
     }

@@ -377,7 +377,26 @@ function deleteAddressBook(addr) {
     $('#send-coins').find('.tab-pane').trigger('show', true);
 }
 
+function apiGetTicker() {
+    $.get(root + 'ticker').success(function(data) {
+        console.log(data);
+
+        var container = $('#send-ticker ul').empty();
+
+        container.append('<li class="nav-header">Exchange Rates</li>');
+
+        for (var code in data) {
+            container.append('<li><div style="width:35px;padding-left:10px;font-weight:bold;display:inline-block">'+code+'</div>  <i class="icon-user" style="background-image:url('+ resource + ((data[code].last >= data[code].avg24hr) ? 'up_green.png' : 'down_red.png') + ');width:14px;background-position:0px"></i>' + convert(satoshi, data[code].last) +'</li>');
+        }
+
+        container.append('<li style="font-size:10px;padding-left:10px;">Delayed By Up To 15 minutes</li>')
+    });
+}
+
 function buildSendTxView() {
+
+    apiGetTicker();
+
     $('#send-coins').find('.tab-pane.active').trigger('show', true);
 }
 
@@ -1206,7 +1225,7 @@ function getWallet() {
 
     console.log('Get wallet with checksum ' + payload_checksum);
 
-    $.get(root + 'wallet/wallet.aes.json?guid='+guid+'&sharedKey='+sharedKey+'&checksum='+payload_checksum).success(function(data) {
+    $.get(root + 'wallet/wallet.aes.json?guid='+guid+'&sharedKey='+sharedKey+'&checksum='+payload_checksum+'&format=plain').success(function(data) {
         if (data == null || data.length == 0)
             return;
 
@@ -1221,6 +1240,8 @@ function getWallet() {
             payload_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
 
             internalRestoreWallet();
+
+            queryAPIMultiAddress();
 
             buildVisibleView();
         }
@@ -1402,7 +1423,7 @@ function restoreWallet() {
             return false;
         }
 
-        $.post("/wallet", { guid: guid, payload: auth_key, length : auth_key.length,  method : 'get-wallet' },  function(data) {
+        $.post("/wallet", { guid: guid, payload: auth_key, length : auth_key.length,  method : 'get-wallet', format : 'plain' },  function(data) {
 
             encrypted_wallet_data = data;
 
@@ -1553,7 +1574,7 @@ function emailBackup() {
 
     setLoadingText('Sending email backup');
 
-    $.post("/wallet", { guid: guid, sharedKey: sharedKey, method : 'email-backup' },  function(data) {
+    $.post("/wallet", { guid: guid, sharedKey: sharedKey, method : 'email-backup', format : 'plain' },  function(data) {
         makeNotice('success', 'backup-success', data);
     })
         .error(function(data) {
@@ -2311,7 +2332,7 @@ function apiGetBalances(_addresses, success, error) {
 function apiGetBalance(addresses, success, error) {
     setLoadingText('Getting Balance');
 
-    $.get(root + 'q/addressbalance/'+addresses.join('|')).success(function(data) {
+    $.get(root + 'q/addressbalance/'+addresses.join('|')+'?format=plain').success(function(data) {
         success(data);
     }).error(function(data) {
             error(data.responseText);

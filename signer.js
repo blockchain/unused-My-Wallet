@@ -141,7 +141,7 @@ function resolveAddress(label) {
     label = $.trim(label);
 
     try {
-       return new Bitcoin.Address(label).toString();
+        return new Bitcoin.Address(label).toString();
     } catch (e) {}
 
     label = label.toLowerCase();
@@ -193,7 +193,7 @@ function startTxUI(el, type, pending_transaction) {
         }
 
         var listener = {};
-        if (type == 'custom') {
+        if (type == 'custom' || type == 'anonymous') {
             var listener = {
                 on_error : function(e) {
                     if (this.modal)
@@ -336,10 +336,6 @@ function startTxUI(el, type, pending_transaction) {
                     self.error(e);
                 }
             };
-        } else if (type == 'anonymous') {
-
-            pending_transaction.ask_to_send = function() { };
-
         } else if (type == 'quick' || type == 'email' || type == 'facebook' || type == 'sms') {
             var listener = {
                 on_error : function(e) {
@@ -578,21 +574,28 @@ function startTxUI(el, type, pending_transaction) {
 
                                 if (type == 'anonymous') {
 
-                                    if (!address) {
-                                       throw 'Invalid Bitcoin Address';
+                                    if (!el.find('input[name="disclaimer"]').is(':checked')) {
+                                        throw 'You Must Agree To The Disclaimer.';
                                     }
 
-                                    $.post("/forwrder", { action : "create-mix", address : address }, function(obj) {
-                                        if (obj.destination != address) {
-                                            return pending_transaction.error('Mismatch between requested and returned destination address');
+                                    if (!address) {
+                                        throw 'Invalid Bitcoin Address';
+                                    }
+
+                                    $.post("/forwarder", { action : "create-mix", address : address }, function(obj) {
+                                        try {
+                                            if (obj.destination != address) {
+                                                throw 'Mismatch between requested and returned destination address';
+                                            }
+
+                                            //Add Label For obj.input_address and obj.input_address
+                                            pending_transaction.to_addresses.push({address: new Bitcoin.Address(obj.input_address), value : value});
+
+                                            //Call again now we have got the forwarding address
+                                            try_continue();
+                                        } catch (e) {
+                                            pending_transaction.error(e);
                                         }
-
-                                        //Add Label For obj.input_address and obj.input_address
-                                        pending_transaction.to_addresses.push({address: new Bitcoin.Address(obj.input_address), value : value});
-
-                                        //Call again now we have got the forwarding address
-                                        try_continue();
-
                                     }).error(function(data) {
                                             pending_transaction.error(data ? data.responseText : null);
                                     });
@@ -603,10 +606,14 @@ function startTxUI(el, type, pending_transaction) {
                                     } else {
                                         //Try and Resolve firstbits
                                         apiResolveFirstbits(send_to_address, function(data) {
-                                            pending_transaction.to_addresses.push({address: new Bitcoin.Address(data), value : value});
+                                            try {
+                                                pending_transaction.to_addresses.push({address: new Bitcoin.Address(data), value : value});
 
-                                            //Call again now we have resolved the address
-                                            try_continue();
+                                                //Call again now we have resolved the address
+                                                try_continue();
+                                            } catch (e) {
+                                                pending_transaction.error(e);
+                                            }
                                         }, function() {
                                             pending_transaction.error('Invalid to address: ' + send_to_address);
                                         });
@@ -763,7 +770,7 @@ function apiGetRejectionReason(hexhash, success, error) {
 
     }).error(function(data) {
             if (error) error();
-    });
+        });
 }
 
 function readVarInt(buff) {
@@ -1281,7 +1288,7 @@ function initNewTx() {
                     var val =  new BigInteger(array);
 
                     //If less than 0.0005 BTC force fee
-                    if (val.compareTo(BigInteger.valueOf(50000)) < 0) {
+                    if (val.compareTo(BigInteger.valueOf(100000)) < 0) {
                         forceFee = true;
                     } else if (val.compareTo(BigInteger.valueOf(1000000)) < 0) { //If less than 0.01 BTC show warning
                         askforfee = true;
@@ -1597,7 +1604,7 @@ function initNewTx() {
                     }
                 }).error(function(data) {
                         self.error(data ? data.responseText : null);
-                });
+                    });
 
             } catch (e) {
                 self.error(e);
