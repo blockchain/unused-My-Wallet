@@ -2443,6 +2443,12 @@ function bind() {
         window.location.reload();
     });
 
+    $('#refresh').click(function () {
+        getWallet();
+
+        queryAPIMultiAddress();
+    });
+
     $('#enable_archived_checkbox').change(function() {
         var enabled = $(this).is(':checked');
 
