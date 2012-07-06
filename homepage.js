@@ -38,7 +38,7 @@ function connect() {
 			if (obj.op == 'minitx') {									
 				var tx = obj.x;
 										
-				$('<tr><td><div><a href="${root}tx-index/'+tx.txIndex+'/'+tx.hash+'">'+tx.hash.substring(0, 25)+'...</a></div></td><td class="hidden-phone" data-time="'+tx.time+'"><div>< 1 minute</div></td><td><div><button class="btn btn-success" onclick="toggleSymbol()">'+ formatMoney(tx.value, true) +'</button></div></td></tr>').insertAfter($('#txs tr:first')).find('div').hide().slideDown('slow');
+				$('<tr><td><div><a href="'+root+'tx-index/'+tx.txIndex+'/'+tx.hash+'">'+tx.hash.substring(0, 25)+'...</a></div></td><td class="hidden-phone" data-time="'+tx.time+'"><div>< 1 minute</div></td><td><div><button class="btn btn-success" onclick="toggleSymbol()">'+ formatMoney(tx.value, true) +'</button></div></td></tr>').insertAfter($('#txs tr:first')).find('div').hide().slideDown('slow');
 				
 			    $('#txs tr:last-child').remove();
 			} else if (obj.op == 'block') {					
@@ -51,7 +51,7 @@ function connect() {
 					foundByTxt = '<a href="'+block.foundBy.link+'">'+block.foundBy.description+'</a>';
 				}
 				
-				$('<tr><td><div><a href="${root}/block-index/'+block.blockIndex+'/'+block.hash+'">'+block.height+'</a></div></td><td data-time="'+block.time+'"><div>< 1 minute</div></td><td class="hidden-phone"><div>'+block.txIndex.length+'</div></td><td class="hidden-phone"><div>'+formatMoney(block.totalBTCSent, true)+'</div></td><td><div>'+foundByTxt+'</div></td><td class="hidden-phone"><div>'+parseInt(block.size / 1024)+'</div></td></tr>').insertAfter($('#blocks tr:first')).find('div').hide().slideDown('slow');
+				$('<tr><td><div><a href="'+root+'block-index/'+block.blockIndex+'/'+block.hash+'">'+block.height+'</a></div></td><td data-time="'+block.time+'"><div>< 1 minute</div></td><td class="hidden-phone"><div>'+block.txIndex.length+'</div></td><td class="hidden-phone"><div>'+formatMoney(block.totalBTCSent, true)+'</div></td><td><div>'+foundByTxt+'</div></td><td class="hidden-phone"><div>'+parseInt(block.size / 1024)+'</div></td></tr>').insertAfter($('#blocks tr:first')).find('div').hide().slideDown('slow');
 
 			    $('#blocks tr:last-child').remove();
 			}

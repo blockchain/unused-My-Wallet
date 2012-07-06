@@ -379,8 +379,6 @@ function deleteAddressBook(addr) {
 
 function apiGetTicker() {
     $.get(root + 'ticker').success(function(data) {
-        console.log(data);
-
         var container = $('#send-ticker ul').empty();
 
         container.append('<li class="nav-header">Exchange Rates</li>');
@@ -772,6 +770,7 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
                         continue;
 
                     all_from_self = false;
+
                     html += formatOutput(input.prev_out, myAddresses, addresses_book);
                 }
             }
@@ -787,6 +786,7 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
                 continue;
 
             all_from_self = false;
+
             html += formatOutput(this.out[i], myAddresses, addresses_book);
         }
     }
@@ -1280,7 +1280,7 @@ function internalRestoreWallet() {
 
             var key = obj.keys[i];
             if (key.addr == null || key.addr.length == 0 || key.addr == 'undefined') {
-                makeNotice('error', 'null-error', 'Your wallet contains an undefined address. This is a sign of possible curruption, please double check all your BTC is acounted for. Backup your wallet to remove this error.', 15000);
+                makeNotice('error', 'null-error', 'Your wallet contains an undefined address. This is a sign of possible corruption, please double check all your BTC is accounted for. Backup your wallet to remove this error.', 15000);
                 continue;
             }
 
@@ -2928,9 +2928,20 @@ function bind() {
 
         self.find('.send').unbind().click(function() {
             loadScript(resource + 'wallet/signer.min.js', function() {
-                startTxUI(self, 'anonymous', initNewTx());
+                var pending_tx = startTxUI(self, 'anonymous', initNewTx());
+
+                //Always include a decent miners fee with anonymous transactions
+                pending_tx.fee = BigInteger.valueOf(50000);
             });
         });
+
+        self.find('.anonymous-fees').text('0.00');
+        self.find('input[name="send-value"]').keyup(function() {
+            if ($(this).val() < 0.5)
+                self.find('.anonymous-fees').text('0.00');
+            else
+                self.find('.anonymous-fees').text((($(this).val()/100)*98.5 - 0.0002 - 0.0005).toFixed(4));
+        })
     });
 
     $('#send-qr').on('show', function() {
@@ -3307,6 +3318,21 @@ function parseMiniKey(miniKey) {
     }
 };
 
+function getSelectionText() {
+    var sel, html = "";
+    if (window.getSelection) {
+        sel = window.getSelection();
+        if (sel.rangeCount) {
+            var frag = sel.getRangeAt(0).cloneContents();
+            var el = document.createElement("div");
+            el.appendChild(frag);
+            html = el.innerText;
+        }
+    } else if (document.selection && document.selection.type == "Text") {
+        html = document.selection.createRange().htmlText;
+    }
+    return html;
+}
 
 function detectPrivateKeyFormat(key) {
     // 51 characters base58, always starts with a '5'
@@ -3377,6 +3403,7 @@ function privateKeyStringToKey(value, format) {
 }
 
 $(document).ready(function() {
+
 
 
     //Disable auotcomplete in firefox
@@ -3469,6 +3496,32 @@ $(document).ready(function() {
     cVisible = $("#restore-wallet");
 
     cVisible.show();
+
+
+    //Show a warnign when the Users copies a tch only address to the clipboard
+    var ctrlDown = false;
+    var ctrlKey = 17, vKey = 86, cKey = 67, appleKey = 67;
+    $(document).keydown(function(e) {
+        try {
+            if (e.keyCode == ctrlKey || e.keyCode == appleKey)
+                ctrlDown = true;
+
+            if (ctrlDown &&  e.keyCode == cKey) {
+                var selection = $.trim(getSelectionText());
+
+                var addr = addresses[selection];
+
+                if (addr != null && addr.priv == null) {
+                    $('#watch-only-copy-warning-modal').modal('show');
+                }
+            }
+        } catch (e) {
+            console.log(e);
+        }
+    }).keyup(function(e) {
+            if (e.keyCode == ctrlKey || e.keyCode == appleKey)
+                ctrlDown = false;
+        });
 });
 
 
@@ -3599,7 +3652,7 @@ function unArchiveAddr(addr) {
 
         internalArchive();
     } else {
-        makeNotice('error', 'add-error', 'Cannot unarchive this address');
+        makeNotice('error', 'add-error', 'Cannot Unarchive This Address');
     }
 }
 
@@ -3615,7 +3668,7 @@ function archiveAddr(addr) {
         internalArchive();
 
     } else {
-        makeNotice('error', 'add-error', 'Cannot archive this address');
+        makeNotice('error', 'add-error', 'Cannot Archive This Address');
     }
 }
 
@@ -3624,7 +3677,6 @@ function buildReceiveCoinsView() {
 
     setupToggle();
 }
-
 
 function _addPrivateKey(key) {
     if (walletIsFull())
@@ -3643,7 +3695,6 @@ function _addPrivateKey(key) {
     }
 
     if (internalAddKey(addr, encodePK(key.priv))) {
-
         addresses[addr].tag = 1; //Mark as unsynced
 
         makeNotice('info', 'new-address', 'Generated new bitcoin address ' + addr);

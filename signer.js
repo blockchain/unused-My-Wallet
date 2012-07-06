@@ -190,6 +190,8 @@ function startTxUI(el, type, pending_transaction) {
                 throw 'Cannot Send More Than 20 BTC via email or facebook';
             else if (type == 'quick') //Any quick transactions over 20 BTC make them custom
                 type = 'custom';
+        } else if ( type == 'anonymous' && total_value < 0.5) {
+              throw 'The Minimum Amount You Can Send Anonymously is 0.5 BTC';
         }
 
         var listener = {};
@@ -588,7 +590,6 @@ function startTxUI(el, type, pending_transaction) {
                                                 throw 'Mismatch between requested and returned destination address';
                                             }
 
-                                            //Add Label For obj.input_address and obj.input_address
                                             pending_transaction.to_addresses.push({address: new Bitcoin.Address(obj.input_address), value : value});
 
                                             //Call again now we have got the forwarding address
@@ -598,7 +599,7 @@ function startTxUI(el, type, pending_transaction) {
                                         }
                                     }).error(function(data) {
                                             pending_transaction.error(data ? data.responseText : null);
-                                    });
+                                        });
                                 } else {
 
                                     if (address) {
@@ -1090,6 +1091,7 @@ function setReviewTransactionContent(modal, tx) {
  on_error : function
  on_success : function
  on_ready_to_send : function
+ on_before_send : function
  }
  */
 function initNewTx() {
@@ -1287,7 +1289,7 @@ function initNewTx() {
                     array.reverse();
                     var val =  new BigInteger(array);
 
-                    //If less than 0.0005 BTC force fee
+                    //If less than 0.001 BTC force fee
                     if (val.compareTo(BigInteger.valueOf(100000)) < 0) {
                         forceFee = true;
                     } else if (val.compareTo(BigInteger.valueOf(1000000)) < 0) { //If less than 0.01 BTC show warning
@@ -1547,6 +1549,8 @@ function initNewTx() {
                 self.error('Transaction is not ready to send yet');
                 return;
             }
+
+            self.invoke('on_before_send');
 
             if (self.generated_addresses.length > 0) {
                 self.has_saved_addresses = true;
