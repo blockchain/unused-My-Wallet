@@ -2679,6 +2679,7 @@ function bind() {
         SetCookie("tx_display", $(this).val());
 
         buildVisibleView();
+
     }).val(parseInt(getCookie('tx_display')));
 
     $('#update-password-btn').click(function() {
