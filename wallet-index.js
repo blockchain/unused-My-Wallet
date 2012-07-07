@@ -6,15 +6,13 @@ $(document).ready(function() {
 
     try {
         //Popovers!
-        $(function () {
-            $("a[rel=popover]")
-                .popover({
-                    offset: 10
-                })
-                .click(function(e) {
-                    e.preventDefault()
-                });
-        });
+        $("a[rel=popover]")
+            .popover({
+                offset: 10
+            })
+            .click(function(e) {
+                e.preventDefault()
+            });
     } catch(err) {}
 
     $('#sms-depost-button').click(function() {

@@ -2937,11 +2937,17 @@ function bind() {
         });
 
         self.find('.anonymous-fees').text('0.00');
-        self.find('input[name="send-value"]').keyup(function() {
+        self.find('input[name="send-before-fees"]').unbind().bind('keyup change', function() {
+            var real_tx_value = parseFloat(($(this).val()/100)*101.5 + 0.0002);
+
             if ($(this).val() < 0.5)
                 self.find('.anonymous-fees').text('0.00');
             else
-                self.find('.anonymous-fees').text((($(this).val()/100)*98.5 - 0.0002 - 0.0005).toFixed(4));
+                self.find('.anonymous-fees').text(real_tx_value.toFixed(4));
+
+            console.log(real_tx_value);
+
+            self.find('input[name="send-value"]').val(real_tx_value).trigger('keyup');
         })
     });
 
