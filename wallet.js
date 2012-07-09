@@ -398,40 +398,40 @@ function buildSendTxView() {
     $('#send-coins').find('.tab-pane.active').trigger('show', true);
 }
 
-function buildSendForm(el, reset) {
+function buildSelect(select, zero_balance, reset) {
+    var old_val = select.val();
 
-    function buildSelect(select, zero_balance) {
-        var old_val = select.val();
+    select.empty();
 
-        select.empty();
+    for (var key in addresses) {
+        var addr = addresses[key];
 
-        for (var key in addresses) {
-            var addr = addresses[key];
+        //Don't include archived addresses
+        if (addr.tag == 2)
+            continue;
 
-            //Don't include archived addresses
-            if (addr.tag == 2)
-                continue;
+        var label = addr.label;
 
-            var label = addr.label;
+        if (label == null)
+            label = addr.addr.substring(0, 15) + '...';
 
-            if (label == null)
-                label = addr.addr;
-
-            if (zero_balance || addr.balance > 0) {
-                //On the sent transactions page add the address to the from address options
-                select.prepend('<option value="'+addr.addr+'">' + label + ' - ' + formatBTC(addr.balance) + ' BTC </option>');
-            }
+        if (zero_balance || addr.balance > 0) {
+            //On the sent transactions page add the address to the from address options
+            select.prepend('<option value="'+addr.addr+'">' + label + ' - ' + formatBTC(addr.balance) + ' BTC</option>');
         }
-
-        select.prepend('<option value="any" selected>Any Address</option>');
-
-        if (!reset && old_val)
-            select.val(old_val);
     }
 
-    buildSelect(el.find('select[name="from"]'), false);
+    select.prepend('<option value="any" selected>Any Address</option>');
 
-    buildSelect(el.find('select[name="change"]'), true);
+    if (!reset && old_val)
+        select.val(old_val);
+}
+
+function buildSendForm(el, reset) {
+
+    buildSelect(el.find('select[name="from"]'), false, reset);
+
+    buildSelect(el.find('select[name="change"]'), true, reset);
 
     el.find('select[name="change"]').prepend('<option value="new">New Address</option>').val('new');
 
@@ -2341,12 +2341,37 @@ function apiGetBalance(addresses, success, error) {
 
 function sweepAddresses(addresses) {
     getSecondPassword(function() {
-        loadScript(resource + 'wallet/signer.min.js', function() {
-            var obj = initNewTx();
+        var modal = $('#sweep-address-modal');
 
-            obj.from_addresses = addresses;
+        modal.modal('show');
 
-            obj.start();
+        apiGetBalance(addresses, function(data) {
+            modal.find('.balance').text('Amount: ' + formatBTC(data) + ' BTC');
+        }, function() {
+            modal.find('.balance').text('Error Fetching Balance');
+        });
+
+        var sweepSelect = modal.find('select[name="change"]');
+
+        buildSelect(sweepSelect, true);
+
+        modal.find('.btn.btn-primary').unbind().click(function() {
+            loadScript(resource + 'wallet/signer.min.js', function() {
+                var obj = initNewTx();
+
+                obj.from_addresses = addresses;
+                if (sweepSelect.val() != 'any') {
+                  obj.change_address = new Bitcoin.Address(sweepSelect.val());
+                }
+
+                obj.start();
+            });
+
+            modal.modal('hide');
+        });
+
+        modal.find('.btn.btn-secondary').unbind().click(function() {
+            modal.modal('hide');
         });
     });
 }

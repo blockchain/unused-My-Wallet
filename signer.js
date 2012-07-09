@@ -480,7 +480,7 @@ function startTxUI(el, type, pending_transaction) {
                     pending_transaction.from_addresses = [fromval];
                 }
 
-                var changeAddressVal = el.find('select[name="change-addr"]').val();
+                var changeAddressVal = el.find('select[name="change"]').val();
 
                 if (changeAddressVal != null) {
                     if (changeAddressVal == 'new') {
@@ -488,7 +488,7 @@ function startTxUI(el, type, pending_transaction) {
 
                         pending_transaction.change_address = generatedAddr;
 
-                        pending_transaction.generated_addresses.push(change_address);
+                        pending_transaction.generated_addresses.push(generatedAddr);
 
                     } else if (changeAddressVal != 'any') {
                         try {
