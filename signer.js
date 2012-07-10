@@ -1591,9 +1591,9 @@ function initNewTx() {
                     try {
                         //If we haven't received a new transaction after sometime call a manual update
                         setTimeout(function() {
-                            if (transactions[0] == first_tx) {
+                            if (transactions.length == 0 || transactions[0] == first_tx) {
                                 queryAPIMultiAddress(function() {
-                                    if (transactions[0] == first_tx) {
+                                    if (transactions.length == 0 || transactions[0] == first_tx) {
                                         apiGetRejectionReason(Crypto.util.bytesToHex(self.tx.getHash().reverse()), function(reason) {
                                             self.error(reason);
                                         }, function() {
