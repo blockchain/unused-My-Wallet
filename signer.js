@@ -488,7 +488,7 @@ function startTxUI(el, type, pending_transaction) {
 
                         pending_transaction.change_address = generatedAddr;
 
-                        pending_transaction.generated_addresses.push(generatedAddr);
+                        pending_transaction.generated_addresses.push(generatedAddr.toString());
 
                     } else if (changeAddressVal != 'any') {
                         try {
@@ -1581,7 +1581,9 @@ function initNewTx() {
 
                 setLoadingText('Sending Transaction');
 
-                var size = transactions.length;
+                //Record the first transactions we know if it doesn't change then our new transactions wasn't push out propoerly
+                if (transactions.length > 0)
+                    var first_tx = transactions[0];
 
                 self.has_pushed = true;
 
@@ -1589,9 +1591,9 @@ function initNewTx() {
                     try {
                         //If we haven't received a new transaction after sometime call a manual update
                         setTimeout(function() {
-                            if (transactions.length == size) {
+                            if (transactions[0] == first_tx) {
                                 queryAPIMultiAddress(function() {
-                                    if (transactions.length == size) {
+                                    if (transactions[0] == first_tx) {
                                         apiGetRejectionReason(Crypto.util.bytesToHex(self.tx.getHash().reverse()), function(reason) {
                                             self.error(reason);
                                         }, function() {

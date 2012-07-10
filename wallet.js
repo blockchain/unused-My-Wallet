@@ -407,12 +407,12 @@ function buildSelect(select, zero_balance, reset) {
         var addr = addresses[key];
 
         //Don't include archived addresses
-        if (addr.tag == 2)
+        if (!addr || addr.tag == 2)
             continue;
 
         var label = addr.label;
 
-        if (label == null)
+        if (!label)
             label = addr.addr.substring(0, 15) + '...';
 
         if (zero_balance || addr.balance > 0) {
@@ -1185,18 +1185,20 @@ function didDecryptWallet() {
 
         if (local_guid != guid) {
             localStorage.clear();
+
+            console.log('Set GUID ' + guid);
+
+            localStorage.setItem('guid', guid);
+        } else {
+            //Restore the balance cache
+            var multiaddrjson = localStorage.getItem('multiaddr');
+
+            if (multiaddrjson != null) {
+                parseMultiAddressJSON(multiaddrjson);
+
+                buildVisibleView();
+            }
         }
-
-        //Restore the balance cache
-        var multiaddrjson = localStorage.getItem('multiaddr');
-
-        if (multiaddrjson != null) {
-            parseMultiAddressJSON(multiaddrjson);
-
-            buildVisibleView();
-        }
-
-        localStorage.setItem('guid', guid);
 
     } catch (e) { } //Don't care - cache is optional
 
@@ -1698,8 +1700,8 @@ function backupWallet(method, successcallback, errorcallback, extra) {
             return false;
         }
 
-        //SHA256 checksum verified by server in case of curruption during transit
-        var checksum = Crypto.util.bytesToHex(Crypto.SHA256(crypted, {asBytes: true}));
+        //SHA256 new_checksum verified by server in case of curruption during transit
+        var new_checksum = Crypto.util.bytesToHex(Crypto.SHA256(crypted, {asBytes: true}));
 
         setLoadingText('Saving wallet');
 
@@ -1711,7 +1713,7 @@ function backupWallet(method, successcallback, errorcallback, extra) {
         $.ajax({
             type: "POST",
             url: root + 'wallet' + extra,
-            data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: checksum, method : method },
+            data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: new_checksum, old_checksum : payload_checksum,  method : method },
             converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
             success: function(data) {
 
@@ -1728,7 +1730,8 @@ function backupWallet(method, successcallback, errorcallback, extra) {
                         buildVisibleView();
                 }
 
-                payload_checksum = checksum;
+                //Update to the new payload new_checksum
+                payload_checksum = new_checksum;
 
                 makeNotice('success', 'misc-success', data);
 
@@ -2680,6 +2683,25 @@ function bind() {
         window.open(root + 'charts/balance?show_header=false&address='+getActiveAddresses().join('|'), null, "scroll=0,status=0,location=0,toolbar=0,width=1000,height=700");
     });
 
+    $('#anonymous-address').click(function() {
+        $.post("/forwarder", { action : "create-mix", address : getPreferredAddress(), guid : guid, sharedKey : sharedKey }, function(obj) {
+            try {
+                if (obj.destination != address) {
+                    throw 'Mismatch between requested and returned destination address';
+                }
+
+                pending_transaction.to_addresses.push({address: new Bitcoin.Address(obj.input_address), value : value});
+
+                //Call again now we have got the forwarding address
+                try_continue();
+            } catch (e) {
+                pending_transaction.error(e);
+            }
+        }).error(function(data) {
+                pending_transaction.error(data ? data.responseText : null);
+            });
+    });
+
     $("#new-addr").click(function() {
         try {
             getSecondPassword(function() {
@@ -3436,8 +3458,6 @@ function privateKeyStringToKey(value, format) {
 
 $(document).ready(function() {
 
-
-
     //Disable auotcomplete in firefox
     $("input, button").attr("autocomplete","off");
 
@@ -3726,7 +3746,7 @@ function _addPrivateKey(key) {
         throw 'Generated invalid bitcoin address.';
     }
 
-    if (internalAddKey(addr, encodePK(key.priv))) {
+    if (internalAddKey(addr.toString(), encodePK(key.priv))) {
         addresses[addr].tag = 1; //Mark as unsynced
 
         makeNotice('info', 'new-address', 'Generated new bitcoin address ' + addr);
