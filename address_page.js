@@ -6,7 +6,7 @@ $(document).ready(function() {
 
     $('#deposit').click(function() {
         loadScript(resource + 'wallet/deposit/deposit.js', function() {
-            showDepositModal(address, 'sms', 'Instant Deposit By Phone / SMS');
+            showDepositModal(address, 'bitinstant', 'Deposit Using Cash');
         });
     });
 

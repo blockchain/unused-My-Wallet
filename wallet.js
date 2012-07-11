@@ -2182,9 +2182,11 @@ function deleteAddresses(addrs) {
 
     var addrs_with_priv = [];
     for (var i in addrs) {
-        if (addresses[addrs[i]] && addresses[addrs[i]].priv)
+        var address_string = addrs[i];
+        if (addresses[address_string] && addresses[address_string].priv)
             addrs_with_priv.push(addrs[i]);
     }
+
     apiGetBalance(addrs_with_priv, function(data) {
 
         modal.find('.btn.btn-primary').show(200);
@@ -2364,7 +2366,7 @@ function sweepAddresses(addresses) {
 
                 obj.from_addresses = addresses;
                 if (sweepSelect.val() != 'any') {
-                  obj.change_address = new Bitcoin.Address(sweepSelect.val());
+                    obj.change_address = new Bitcoin.Address(sweepSelect.val());
                 }
 
                 obj.start();
@@ -2489,13 +2491,19 @@ function bind() {
         $('#archived-delete').attr('disabled', !enabled);
     });
 
+    $('#anonymous-addresses').on('show', function() {
+        var self = $(this);
+        loadScript(resource + 'wallet/anonymous-addresses.min.js', function() {
+            buildAnonymousTable(self);
+        });
+    });
 
     $('#active-addresses').on('show', function() {
-        var table = $(this).find('table');
+        var table = $(this).find('table:first');
 
-        table.find('tbody').remove();
+        table.find("tbody:gt(0)").remove();
 
-        var tbody = $('<tbody></tbody>').appendTo(table);
+        var tbody = table.find('tbody').empty();
 
         for (var key in addresses) {
             var addr = addresses[key];
@@ -2633,7 +2641,9 @@ function bind() {
     });
 
     $('#deposit-cash').click(function() {
-        window.open('https://www.bitinstant.com');
+        loadScript(resource + 'wallet/deposit/deposit.js', function() {
+            showDepositModal(getPreferredAddress(), 'bitinstant', 'Deposit Using Cash');
+        });
     });
 
     $('#deposit-sms').click(function() {
@@ -2681,25 +2691,6 @@ function bind() {
 
     $('#summary-balance-chart').click(function() {
         window.open(root + 'charts/balance?show_header=false&address='+getActiveAddresses().join('|'), null, "scroll=0,status=0,location=0,toolbar=0,width=1000,height=700");
-    });
-
-    $('#anonymous-address').click(function() {
-        $.post("/forwarder", { action : "create-mix", address : getPreferredAddress(), guid : guid, sharedKey : sharedKey }, function(obj) {
-            try {
-                if (obj.destination != address) {
-                    throw 'Mismatch between requested and returned destination address';
-                }
-
-                pending_transaction.to_addresses.push({address: new Bitcoin.Address(obj.input_address), value : value});
-
-                //Call again now we have got the forwarding address
-                try_continue();
-            } catch (e) {
-                pending_transaction.error(e);
-            }
-        }).error(function(data) {
-                pending_transaction.error(data ? data.responseText : null);
-            });
     });
 
     $("#new-addr").click(function() {
@@ -2899,6 +2890,7 @@ function bind() {
             return;
 
         loadScript(resource + 'wallet/account.min.js', function() {
+
             setDoubleEncryptionButton();
 
             bindAccountButtons();
@@ -2906,6 +2898,8 @@ function bind() {
             getAccountInfo();
 
             changeView($("#my-account"));
+        }, function (e) {
+            makeNotice('error', 'misc-error', e);
         });
     });
 
@@ -3051,6 +3045,8 @@ function bind() {
             } catch (e) {
                 makeNotice('error', 'misc-error', 'Unable To Load Satoshi Dice Bets');
             }
+        }, function (e) {
+            makeNotice('error', 'misc-error', e);
         });
     });
 

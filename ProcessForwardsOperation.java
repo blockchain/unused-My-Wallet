@@ -21,6 +21,8 @@ import piuk.website.TaintServlet;
 import piuk.website.admin.ProcessForwardsOperation.Forwarding;
 
 import java.io.UnsupportedEncodingException;
+import java.lang.Override;
+import java.lang.String;
 import java.math.BigInteger;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
@@ -55,6 +57,11 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
 
             return false;
         }
+
+        @Override
+        public String toString() {
+            return "Process Forwards Block Listener";
+        }
     };
 
     public static final TxEventListener txListener = new TxEventListener() {
@@ -77,6 +84,12 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
             } catch (AddressFormatException e) {
                 e.printStackTrace();
             }
+        }
+
+
+        @Override
+        public String toString() {
+            return "Process Forwards Tx Listener";
         }
     };
 
@@ -109,7 +122,7 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
         }
 
         public ECKey getECKey() throws InvalidKeySpecException, NoSuchAlgorithmException, UnsupportedEncodingException, AddressFormatException {
-            return MyWallet.decodeUnencryptedPK(MyWallet.decrypt(input_priv, AdminServlet.ForwardingsEncryptionPassword));
+            return MyWallet.decodeUnencryptedPK(MyWallet.decrypt(input_priv, piuk.admin.Settings.instance().getString("forwardings_encryption_password")));
         }
 
         public long getPending(long totalReceived, long totalSent) {
@@ -234,7 +247,7 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
         }
 
         public boolean remove(Connection conn) throws SQLException {
-           if (BaseServlet.log) System.out.println("Remove forwarding " + input_address);
+            if (BaseServlet.log) System.out.println("Remove forwarding " + input_address);
 
             PreparedStatement stmt = conn.prepareStatement("insert into bitcoin_forwards_copy (input_address, input_priv, output_address, taint, fee_percent, confirmations, time) values (?, ?, ?, ?, ?, ?, ?)");
             try {
@@ -282,12 +295,12 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
 
         String base58 = Base58.encode(bytes);
 
-        String encrypted = MyWallet.encrypt(base58, AdminServlet.ForwardingsEncryptionPassword);
+        String encrypted = MyWallet.encrypt(base58, piuk.admin.Settings.instance().getString("forwardings_encryption_password"));
 
         if (encrypted == null || encrypted.length() == 0)
             throw new InvalidKeySpecException("Error Encrypting Generate Key");
 
-        String checkDecrypted = MyWallet.decrypt(encrypted, AdminServlet.ForwardingsEncryptionPassword);
+        String checkDecrypted = MyWallet.decrypt(encrypted, piuk.admin.Settings.instance().getString("forwardings_encryption_password"));
 
         byte[] checkBytes = Base58.decode(checkDecrypted);
 
@@ -907,7 +920,7 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
         } catch (Exception e) {
             e.printStackTrace();
 
-            NotificationsManager.sendMail(AdminServlet.ADMIN_EMAIL, "Exception Caught ProcessingForwards()",  e.getLocalizedMessage());
+            NotificationsManager.sendMail(Settings.instance().getString("admin_email"), "Exception Caught ProcessingForwards()",  e.getLocalizedMessage());
 
             throw e;
         }

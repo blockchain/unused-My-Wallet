@@ -1752,7 +1752,7 @@ public class WalletServlet extends BaseServlet {
 						e.printStackTrace();
 					}
 				} else {
-					throw new Exception("Wallet was updated, however checksum did not validate on re-read! This is a serious error, please contact " + AdminServlet.ADMIN_EMAIL);	
+					throw new Exception("Wallet was updated, however checksum did not validate on re-read! This is a serious error, please contact " + Settings.instance().getString("admin_email"));
 				}
 
 			} else if (method.equals("update-notifications-type") || method.equals("update-notifications-on") || method.equals("update-notifications-confirmations")) {

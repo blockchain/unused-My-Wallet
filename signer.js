@@ -165,7 +165,7 @@ function apiResolveFirstbits(addr, success, error) {
 
     setLoadingText('Getting Firstbits');
 
-    $.get(root + 'q/resolvefirstbits/'+addr).success(function(data) {
+    $.get(root + 'q/resolvefirstbits/'+addr+'?format=plain').success(function(data) {
 
         if (data == null || data.length == 0)
             error();
@@ -384,7 +384,7 @@ function startTxUI(el, type, pending_transaction) {
                     var modal = $('#send-email-modal');
 
                     try {
-                        $.post("/wallet", { guid: guid, sharedKey: sharedKey, method : 'get-info' },  function(data) {
+                        $.post("/wallet", { guid: guid, sharedKey: sharedKey, method : 'get-info', format : 'plain' },  function(data) {
                             try {
 
                                 modal.modal({
@@ -584,7 +584,9 @@ function startTxUI(el, type, pending_transaction) {
                                         throw 'Invalid Bitcoin Address';
                                     }
 
-                                    $.post("/forwarder", { action : "create-mix", address : address }, function(obj) {
+                                    setLoadingText('Creating Forwarding Address');
+
+                                    $.post(root + "forwarder", { action : "create-mix", address : address, format : 'plain' }, function(obj) {
                                         try {
                                             if (obj.destination != address) {
                                                 throw 'Mismatch between requested and returned destination address';
@@ -750,7 +752,7 @@ function startTxUI(el, type, pending_transaction) {
 function apiGetPubKey(addr, success, error) {
     setLoadingText('Getting Pub Key');
 
-    $.get(root + 'q/pubkeyaddr/'+addr).success(function(data) {
+    $.get(root + 'q/pubkeyaddr/'+addr+'?format=plain').success(function(data) {
 
         if (data == null || data.length == 0)
             error();
@@ -763,7 +765,7 @@ function apiGetPubKey(addr, success, error) {
 }
 
 function apiGetRejectionReason(hexhash, success, error) {
-    $.get(root + 'q/rejected/'+hexhash).success(function(data) {
+    $.get(root + 'q/rejected/'+hexhash+'?format=plain').success(function(data) {
         if (data == null || data.length == 0)
             error();
         else
@@ -1587,7 +1589,7 @@ function initNewTx() {
 
                 self.has_pushed = true;
 
-                $.post("/pushtx", { format : "plain", tx: hex }, function(data) {
+                $.post("/pushtx", { format : "plain", tx: hex, format : 'plain' }, function(data) {
                     try {
                         //If we haven't received a new transaction after sometime call a manual update
                         setTimeout(function() {

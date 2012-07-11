@@ -494,17 +494,19 @@ function flashTitle(msg, til) {
 }
 
 //Async load a script, at the moment this is only jquery.qrcode.js
-function loadScript(src, callback) {
+function loadScript(src, success, error) {
     if ($('script[src="'+src+'"]').length > 0) {
-        callback();
+        success();
         return;
     }
 
+    var error_fired = false;
     var s = document.createElement('script');
     s.type = "text/javascript";
     s.async = true;
     s.src = src;
-    s.addEventListener('load', function (e) { callback(); }, false);
+    s.addEventListener('error', function(e){ error_fired = true;  if (error) error('Error Loading Script. Are You Offline?'); }, false);
+    s.addEventListener('load', function (e) { if (error_fired) return; success(); }, false);
     var head = document.getElementsByTagName('head')[0];
     head.appendChild(s);
 }
