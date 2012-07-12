@@ -1,3 +1,14 @@
+
+$.fn.center = function () {
+    this.css("top", Math.max(( $(window).height() - this.height() ) / 2+$(window).scrollTop(), 10) + "px");
+    this.css("left", Math.max(( $(window).width() - this.width() ) / 2+$(window).scrollLeft(), 10) + "px");
+    return this;
+};
+
+$(window).resize(function() {
+    $('.modal:visible').center();
+});
+
 function showDepositModal(address, method, title) {
 	loadScript(resource + 'wallet/bootstrap.min.js', function () {
 
@@ -22,10 +33,8 @@ function showDepositModal(address, method, title) {
 			modal.modal('hide');
 		});
 
-
         //Center
-        modal.css("top", ( $(parent).height() - modal.height() ) / 2+$(parent).scrollTop() + "px");
-        modal.css("left", ( $(parent).width() - modal.width() ) / 2+$(parent).scrollLeft() + "px");
+        modal.center();
 
 		$('#deposit-frame').attr('src', '/deposit?address='+address+'&ptype='+method);
 	});

@@ -29,8 +29,8 @@ var isSignup = false; //Set when on new account signup page
 var archTimer; //Delayed Backuop wallet timer
 
 $.fn.center = function () {
-    this.css("top", ( $(window).height() - this.height() ) / 2+$(window).scrollTop() + "px");
-    this.css("left", ( $(window).width() - this.width() ) / 2+$(window).scrollLeft() + "px");
+    this.css("top", Math.max(( $(window).height() - this.height() ) / 2+$(window).scrollTop(), 10) + "px");
+    this.css("left", Math.max(( $(window).width() - this.width() ) / 2+$(window).scrollLeft(), 10) + "px");
     return this;
 };
 

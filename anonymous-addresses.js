@@ -67,14 +67,13 @@ function buildAnonymousTable(el) {
                 else
                     var expires = milliToStr(time_left);
 
-                forward_tbody.append('<tr><td><a href="'+root+'address/'+forward.input_address+'" target="new">'+forward.input_address+'</a></td><td>'+desintation_desc+'</td><td>'+ expires +' <a class="pull-right" onclick="extendForwarding(\''+forward.input_address+'\')">(extend)</a></td></tr>');
+                forward_tbody.append('<tr><td><a class="short-addr" href="'+root+'address/'+forward.input_address+'" target="new">'+forward.input_address+'</a></td><td class="hidden-phone">'+desintation_desc+'</td><td>'+ expires +' <a class="pull-right hidden-phone" onclick="extendForwarding(\''+forward.input_address+'\')">(extend)</a></td></tr>');
             }
         } else {
             forward_tbody.append('<tr><td colspan="3">No Anonymous Addresses</td></tr>')
         }
 
     }).error(function(data) {
-
             makeNotice('error', 'misc-error', data.responseText);
 
             forward_tbody.empty().append('<tr><td colspan="3">No Anonymous Addresses</td></tr>')
