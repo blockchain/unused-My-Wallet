@@ -178,7 +178,8 @@ function apiResolveFirstbits(addr, success, error) {
 }
 
 //Check for inputs and get unspent for before signing
-function startTxUI(el, type, pending_transaction) {
+function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
+
     try {
         var total_value = 0;
         el.find('input[name="send-value"]').each(function() {
@@ -192,6 +193,40 @@ function startTxUI(el, type, pending_transaction) {
                 type = 'custom';
         } else if ( type == 'anonymous' && total_value < 0.5) {
               throw 'The Minimum Amount You Can Send Anonymously is 0.5 BTC';
+        }
+
+        if (coins_are_needed && (type == 'custom' || type == 'quick') && total_value >= 5 && getCookie('anonymous-never-ask') != 'true' && !dont_ask_for_anon) {
+            var modal = $('#ask-for-anonymous');
+
+            var delay_span = modal.find('.delay');
+            if (total_value <= 10)
+                delay_span.text('20 Seconds');
+            else if (total_value <= 25)
+                delay_span.text('10 Minutes');
+            else if (total_value <= 250)
+                delay_span.text('20 Minutes');
+            else
+                delay_span.text('1 hour');
+
+            modal.modal({
+                keyboard: false,
+                backdrop: "static",
+                show: true
+            });
+
+            modal.find('.btn.btn-primary').unbind().click(function() {
+                startTxUI(el, 'anonymous', pending_transaction)
+
+                modal.modal('hide');
+            });
+
+            modal.find('.btn.btn-secondary').unbind().click(function() {
+                startTxUI(el, type, pending_transaction, true)
+
+                modal.modal('hide');
+            });
+
+            return;
         }
 
         var listener = {};
@@ -244,6 +279,7 @@ function startTxUI(el, type, pending_transaction) {
             };
 
             pending_transaction.addListener(listener);
+
 
             pending_transaction.ask_for_fee = function(yes, no) {
                 var self = this;
@@ -576,7 +612,8 @@ function startTxUI(el, type, pending_transaction) {
 
                                 if (type == 'anonymous') {
 
-                                    if (!el.find('input[name="disclaimer"]').is(':checked')) {
+                                    var disclaimer_input = el.find('input[name="disclaimer"]');
+                                    if (disclaimer_input.length != 0 && !disclaimer_input.is(':checked')) {
                                         throw 'You Must Agree To The Disclaimer.';
                                     }
 
@@ -588,6 +625,8 @@ function startTxUI(el, type, pending_transaction) {
 
                                     $.post(root + "forwarder", { action : "create-mix", address : address, format : 'plain' }, function(obj) {
                                         try {
+                                            console.log('Generated Forwarding Address ' + obj.input_address);
+
                                             if (obj.destination != address) {
                                                 throw 'Mismatch between requested and returned destination address';
                                             }
@@ -1104,6 +1143,7 @@ function initNewTx() {
         extra_private_keys : [],
         listeners : [],
         is_cancelled : false,
+        ask_to_send_anonymously : false,
         addListener : function(listener) {
             this.listeners.push(listener);
         },

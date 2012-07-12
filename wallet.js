@@ -27,6 +27,7 @@ var addressToAdd = null; //a watch only address to add from #newaddr hash value 
 var privateKeyToSweep = null; //a private key to sweep from #newpriv hash value (ECKey)
 var isSignup = false; //Set when on new account signup page
 var archTimer; //Delayed Backuop wallet timer
+var coins_are_needed = false;
 
 $.fn.center = function () {
     this.css("top", Math.max(( $(window).height() - this.height() ) / 2+$(window).scrollTop(), 10) + "px");
@@ -200,7 +201,7 @@ function _webSocketConnect() {
                     setLatestBlock(BlockFromJSON(obj.x));
 
                     //Need to update latest block
-                    buildVisibleView();
+                    buildTransactionsView();
                 }
 
             } catch(e) {
@@ -992,6 +993,8 @@ function parseMultiAddressJSON(json) {
     } else {
         symbol_local = new_symbol_local;
     }
+
+    coins_are_needed = obj.coins_are_needed;
 
     transactions = [];
 
@@ -2623,6 +2626,10 @@ function bind() {
             return;
 
         deleteAddresses(toDelete);
+    });
+
+    $('#anonymous-never-ask').click(function() {
+        SetCookie('anonymous-never-ask', $(this).is(':checked'));
     });
 
     $('#local_currency').click(function() {
