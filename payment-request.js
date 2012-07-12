@@ -1,3 +1,14 @@
+
+$.fn.center = function () {
+    this.css("top", Math.max(( $(window).height() - this.height() ) / 2+$(window).scrollTop(), 10) + "px");
+    this.css("left", Math.max(( $(window).width() - this.width() ) / 2+$(window).scrollLeft(), 10) + "px");
+    return this;
+};
+
+$(window).resize(function() {
+    $('.modal:visible').center();
+});
+
 function showPaymentRequestModal(address, title) {
 	loadScript(resource + 'wallet/bootstrap.min.js', function () {
 
@@ -22,8 +33,7 @@ function showPaymentRequestModal(address, title) {
 			modal.modal('hide');
 		});
 
-		if (modal.center)
-			modal.center();
+	    modal.center();
 		
 		$('#request-payment-frame').attr('src', '/payment_request?address='+address);
 	});
