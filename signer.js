@@ -187,8 +187,8 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
         });
 
         if (total_value > 10) {
-            if (type == 'email' || type == 'facebook' || type == 'sms' || type == 'anonymous')
-                throw 'Cannot Send More Than 20 BTC via email or facebook';
+            if (type == 'email' || type == 'facebook' || type == 'sms')
+                throw 'Cannot Send More Than 10 BTC via email or facebook';
             else if (type == 'quick') //Any quick transactions over 20 BTC make them custom
                 type = 'custom';
         } else if ( type == 'anonymous' && total_value < 0.5) {
