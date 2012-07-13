@@ -2975,6 +2975,16 @@ function bind() {
 
         buildSendForm(self, reset);
 
+
+        if (coins_are_needed) {
+            self.find('.send-anonymous-fees').hide();
+            self.find('.send-anonymous-bonus').show();
+        } else {
+            self.find('.send-anonymous-fees').show();
+            self.find('.send-anonymous-bonus').hide();
+
+        }
+
         self.find('.send').unbind().click(function() {
             loadScript(resource + 'wallet/signer.min.js', function() {
                 var pending_tx = startTxUI(self, 'anonymous', initNewTx());
@@ -2986,7 +2996,12 @@ function bind() {
 
         self.find('.anonymous-fees').text('0.00');
         self.find('input[name="send-before-fees"]').unbind().bind('keyup change', function() {
-            var real_tx_value = parseFloat(($(this).val()/100)*101.5 + 0.0002);
+
+            if (coins_are_needed)
+                var real_tx_value = parseFloat($(this).val() + 0.0002);
+            else
+                var real_tx_value = parseFloat(($(this).val()/100)*101.5 + 0.0002);
+
 
             if ($(this).val() < 0.5)
                 self.find('.anonymous-fees').text('0.00');
