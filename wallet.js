@@ -27,7 +27,7 @@ var addressToAdd = null; //a watch only address to add from #newaddr hash value 
 var privateKeyToSweep = null; //a private key to sweep from #newpriv hash value (ECKey)
 var isSignup = false; //Set when on new account signup page
 var archTimer; //Delayed Backuop wallet timer
-var coins_are_needed = false;
+var mixer_fee = 1.5; //Default mixer fee 1.5%
 
 $.fn.center = function () {
     this.css("top", Math.max(( $(window).height() - this.height() ) / 2+$(window).scrollTop(), 10) + "px");
@@ -994,7 +994,7 @@ function parseMultiAddressJSON(json) {
         symbol_local = new_symbol_local;
     }
 
-    coins_are_needed = obj.coins_are_needed;
+    mixer_fee = obj.mixer_fee;
 
     transactions = [];
 
@@ -2975,14 +2975,15 @@ function bind() {
 
         buildSendForm(self, reset);
 
+        self.find('.mixer_fee').text(mixer_fee);
 
-        if (coins_are_needed) {
-            self.find('.send-anonymous-fees').hide();
-            self.find('.send-anonymous-bonus').show();
+        self.find('.fees,.free,.bonus').show();
+        if (mixer_fee < 0) {
+            self.find('.fees,.free').hide();
+        } else if (mixer_fee == 0) {
+            self.find('.fees,.bonus').hide();
         } else {
-            self.find('.send-anonymous-fees').show();
-            self.find('.send-anonymous-bonus').hide();
-
+            self.find('.free,.bonus').hide();
         }
 
         self.find('.send').unbind().click(function() {
@@ -2996,19 +2997,21 @@ function bind() {
 
         self.find('.anonymous-fees').text('0.00');
         self.find('input[name="send-before-fees"]').unbind().bind('keyup change', function() {
+            var input_value = parseFloat($.trim($(this).val()));
+            var real_tx_value = 0;
 
-            if (coins_are_needed)
-                var real_tx_value = parseFloat($(this).val() + 0.0002);
-            else
-                var real_tx_value = parseFloat(($(this).val()/100)*101.5 + 0.0002);
+            if (mixer_fee > 0) {
+                real_tx_value = parseFloat((input_value / 100) * (100 + mixer_fee) + 0.0002);
+            } else {
+                real_tx_value = parseFloat(input_value + 0.0002);
 
+                self.find('.bonus-value').text(Math.min(1, - ($(this).val() / 100) * mixer_fee));
+            }
 
             if ($(this).val() < 0.5)
                 self.find('.anonymous-fees').text('0.00');
             else
                 self.find('.anonymous-fees').text(real_tx_value.toFixed(4));
-
-            console.log(real_tx_value);
 
             self.find('input[name="send-value"]').val(real_tx_value).trigger('keyup');
         })

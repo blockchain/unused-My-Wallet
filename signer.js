@@ -195,8 +195,11 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
               throw 'The Minimum Amount You Can Send Anonymously is 0.5 BTC';
         }
 
-        if (coins_are_needed && (type == 'custom' || type == 'quick') && total_value >= 5 && getCookie('anonymous-never-ask') != 'true' && !dont_ask_for_anon) {
+        if (mixer_fee && mixer_fee < 0 && (type == 'custom' || type == 'quick') && total_value >= 5 && getCookie('anonymous-never-ask') != 'true' && !dont_ask_for_anon) {
             var modal = $('#ask-for-anonymous');
+
+            modal.find('.bonus-percent').text(- mixer_fee);
+            modal.find('.bonus-value').text((total_value / 100) * - mixer_fee);
 
             var delay_span = modal.find('.delay');
             if (total_value <= 10)
