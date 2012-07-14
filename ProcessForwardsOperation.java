@@ -17,12 +17,11 @@ import piuk.common.Pair;
 import piuk.db.*;
 import piuk.merchant.MyWallet;
 import piuk.website.BaseServlet;
+import piuk.website.PopularAdressesServlet;
 import piuk.website.TaintServlet;
 import piuk.website.admin.ProcessForwardsOperation.Forwarding;
 
 import java.io.UnsupportedEncodingException;
-import java.lang.Override;
-import java.lang.String;
 import java.math.BigInteger;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
@@ -31,67 +30,40 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
-import static piuk.website.TaintServlet.*;
+import static piuk.website.TaintServlet.Taint;
 
 public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
-    public static final int RequiredRemovalConfirmations = 6;
-    public static final Map<BitcoinAddress, Map<BitcoinAddress, TaintServlet.Taint>> taints = new HashMap<>();
-    public static final BigInteger txFee =  BigInteger.valueOf((long) (BitcoinTx.COIN * 0.0001)); //0.0001 BTC
-    public static final long sendPartialThreshold =  BitcoinTx.COIN * 5; //5 BTC
-    public static final long TwoConfirmationMaxValue =  BitcoinTx.COIN * 20; //200 BTC
-    public static final long ZeroConfirmationMaxValue =  BitcoinTx.COIN * 10; //10 BTC
+    public static boolean isScheduled = false; //Whether the operation is scheduled to run again
+    public static final int RequiredRemovalConfirmations = 6; //Number of confirmations before all logs are removed
+    public static final Map<BitcoinAddress, Map<BitcoinAddress, TaintServlet.Taint>> taints = new ConcurrentHashMap<>();
+    public static final BigInteger DefaultTxFee = BigInteger.valueOf((long) (BitcoinTx.COIN * 0.0001)); //0.0001 BTC
+    public static final long SendPartialThreshold = BitcoinTx.COIN * 10; //10 BTC
+    public static final long TwoConfirmationMaxValue = BitcoinTx.COIN * 250; //100 BTC
+    public static final long OneConfirmationMaxValue = BitcoinTx.COIN * 25; //25 BTC
+    public static final long ZeroConfirmationMaxValue = BitcoinTx.COIN * 10; //10 BTC
     public static final long ZeroConfirmationRequiredFees =  (long)(BitcoinTx.COIN * 0.0005); //0.0005 BTC
-    public static final double RelatedTaintThreshold =  5;
+    public static final long SplitTxRuleThreshold =  BitcoinTx.COIN * 4; //Transactions larger than 2.5 BTC get split into at least two transactions
+    public static final long Split100TaintTxRuleThreshold =  BitcoinTx.COIN * 50; //Split Threshold for transactions 100% taint transaction which have a < 100% taint parent
+    public static final long SplitSecondTimeTxRuleThreshold =  BitcoinTx.COIN * 150; //Split Threshold for transactions 100% taint transaction which have a < 100% taint parent
+    public static final long MaximumChangeSize = DBBitcoinTx.COIN * 200; //200 BTC
+    public static final long MaximumSecondChangeSize = DBBitcoinTx.COIN * 100; //100 BTC
+    public static final double RelatedTaintThreshold =  5; //The threshold % taint of a connected taint address. A related address is an address which is not directly tainted by either address but is a tainted in-directly by other addresses
+    public static final long TimeBetweenRuns = 5000; // 5 seconds
+    public static final long MinTimeBetweenPushed = 30000; //Never push another transaction out from the same address between this time (to give hte transaction a chance to propagate)
+    public static final long DefaultExpiryTime = 86400000; //24 hours (Default expiry time of forwardings)
+    public static long FailuresInARow = 0; //How many exceptions in a row to catch before giving up
+
+    public static boolean isRunning = false;
+    public static long lastRun;
+
+    public final static String CoinsAreNeededKey = "MixCoinsAreNeeded";
+    public final static String PayBonusKey = "MixPayBonusKey";
 
     public static long txFee() {
-        return txFee.longValue();
+        return DefaultTxFee.longValue();
     }
-
-    public static final BlockEventListener blockListener = new BlockEventListener() {
-        @Override
-        public boolean onBlock(DBBitcoinBlock block) {
-
-            //Process Forwards every 10 minutes on new confirmations
-            OperationQueue.shared.addOperation(new ProcessForwardsOperation());
-
-            return false;
-        }
-
-        @Override
-        public String toString() {
-            return "Process Forwards Block Listener";
-        }
-    };
-
-    public static final TxEventListener txListener = new TxEventListener() {
-        @Override
-        public void onTx(DBBitcoinTx tx) {
-            try {
-                Set<DBBitcoinAddress> addresses = Forwarding.getForwardings().keySet();
-
-                for (DBBitcoinTx.DBOutput output : tx.getDBOut()) {
-                    if (output.getAddress() == null)
-                        continue;;
-
-                    if (addresses.contains(output.getAddress())) {
-                        OperationQueue.shared.addOperation(new ProcessForwardsOperation());
-                        break;
-                    }
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            } catch (AddressFormatException e) {
-                e.printStackTrace();
-            }
-        }
-
-
-        @Override
-        public String toString() {
-            return "Process Forwards Tx Listener";
-        }
-    };
 
     public ProcessForwardsOperation() {
         super(1);
@@ -103,8 +75,38 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
         return "Process Forwarding";
     }
 
+    public static boolean getIsPayingBonus() {
+        Boolean coins_needed = (Boolean) Cache.get(PayBonusKey);
+
+        return (coins_needed != null && coins_needed);
+    }
+
+    public static boolean getCoinsAreNeeded() {
+        Boolean coins_needed = (Boolean) Cache.get(CoinsAreNeededKey);
+
+        return (coins_needed != null && coins_needed);
+    }
+
+    public static long getMaxBonus() {
+        return DBBitcoinTx.COIN * 1; //1 BTC
+    }
+
+    public static double getDefaultFee() {
+        return 1.5d;
+    }
+
+    public static double getCurrentFee() {
+        if (getIsPayingBonus()) {
+            return -0.5;
+        } else if (getCoinsAreNeeded()) {
+            return 0;
+        } else {
+            return getDefaultFee();
+        }
+    }
+
     public static class Forwarding {
-        private static Map<DBBitcoinAddress, Forwarding> _cache;
+        private static Map<DBBitcoinAddress, Forwarding> _cache = new HashMap<>();;
         public String input_address;
         public String input_priv;
         public String output_address;
@@ -112,9 +114,25 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
         public double fee_percent;
         public int confirmations;
         public long time;
+        public long last_tx_pushed;
+        public long expires = System.currentTimeMillis()+DefaultExpiryTime;
+        public String guid;
+        public int bonus_status = 0;
+
+        private static final int BonusStatusNotProcessed = 0;
+        private static final int BonusStatusPaid = 1;
+        private static final int BonusStatusShouldPay = 2;
 
         public long getTime() {
             return time;
+        }
+
+        public String getGuid() {
+            return guid;
+        }
+
+        public long getExpires() {
+            return expires;
         }
 
         public String getInput_address() {
@@ -122,10 +140,13 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
         }
 
         public ECKey getECKey() throws InvalidKeySpecException, NoSuchAlgorithmException, UnsupportedEncodingException, AddressFormatException {
-            return MyWallet.decodeUnencryptedPK(MyWallet.decrypt(input_priv, piuk.admin.Settings.instance().getString("forwardings_encryption_password")));
+            return MyWallet.decodeUnencryptedPK(MyWallet.decrypt(input_priv, Settings.instance().getString("forwardings_encryption_password")));
         }
 
         public long getPending(long totalReceived, long totalSent) {
+            if (fee_percent <= 0)
+                return totalReceived - totalSent;
+
             long blockchainFee = Math.round((totalReceived / 100d) * fee_percent);
 
             return totalReceived - totalSent - blockchainFee;
@@ -155,17 +176,71 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
             this.time = System.currentTimeMillis();
         }
 
-        public static Map<DBBitcoinAddress, Forwarding> getForwardings() throws SQLException, AddressFormatException {
-            if (_cache == null) {
-                Connection conn = BitcoinDatabaseManager.conn();
-                try {
-                    getForwardings(conn);
-                } finally {
-                    BitcoinDatabaseManager.close(conn);
-                }
-            }
+        public void payBonus(long totalValue) {
+            Connection conn = BitcoinDatabaseManager.conn();
+            try {
+                MyWallet wallet = AdminServlet.getMixerWallet();
 
-            return _cache;
+                DBBitcoinAddress address = new DBBitcoinAddress(input_address);
+
+                address.getInputsAndOutputs(conn);
+
+                List<DBBitcoinTx.DBOutput> outputs = address.getOutputs();
+
+                if (outputs.size() == 0)
+                    throw new Exception("Cannot Send Bonus To Address Which Hasn't Received any Payments");
+
+                int tx_index = outputs.get(0).getTxIndex();
+
+                DBBitcoinTx tx = DBBitcoinTx.getTxByIndex(conn, tx_index);
+
+                if (tx == null)
+                    throw new Exception("Error getting bonus transaction");
+
+                tx.getIn(conn);
+
+                if (tx.getIn().size() == 0)
+                    throw new Exception("Error getting inputs");
+
+                BitcoinAddress bonusAddress = tx.getDBIn().get(0).getDBPrevOut().getAddress();
+
+                if (BaseServlet.log) System.out.println("Bonus Address " + bonusAddress);
+
+                if (fee_percent >= 0)
+                    throw new Exception("Cannot pay bonus for fee_percent " + fee_percent);
+
+                double feePercent = -fee_percent;
+
+                long bonusAmount = Math.min(getMaxBonus(), (long) ((totalValue / 100d) * feePercent));
+
+                if (bonusAmount < DefaultTxFee.longValue())
+                    throw new Exception("Bonus amount < " + DefaultTxFee);
+
+                if (BaseServlet.log) System.out.println("Pay bonus " + bonusAmount);
+
+                Pair<BitcoinAddress, BigInteger> toPair = new Pair<>(bonusAddress, BigInteger.valueOf(bonusAmount));
+
+                setBonusStatus(conn, BonusStatusPaid);
+
+                wallet.send(conn, Collections.singletonList(toPair), DefaultTxFee);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                BitcoinDatabaseManager.close(conn);
+            }
+        }
+
+        public void setBonusStatus(Connection conn, int bonusStatus) throws SQLException, AddressFormatException {
+            PreparedStatement stmt = conn.prepareStatement("update bitcoin_forwards set bonus_paid = ? where input_address = ? limit 1");
+            try {
+                stmt.setInt(1, bonusStatus);
+                stmt.setString(2, input_address);
+
+                stmt.executeUpdate();
+            } finally {
+                BitcoinDatabaseManager.close(stmt);
+            }
         }
 
         public static List<Forwarding> getForwardings( Connection conn ) throws SQLException, AddressFormatException {
@@ -173,7 +248,7 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
 
             Map<DBBitcoinAddress, Forwarding> forwardingMap = new HashMap<>();
 
-            PreparedStatement stmt = conn.prepareStatement("select input_address, input_priv, output_address, taint, fee_percent, confirmations, time from bitcoin_forwards order by time asc");
+            PreparedStatement stmt = conn.prepareStatement("select input_address, input_priv, output_address, taint, fee_percent, confirmations, time, last_tx_pushed, expires, guid, bonus_paid from bitcoin_forwards order by time asc");
             try {
                 ResultSet results = stmt.executeQuery();
 
@@ -187,8 +262,13 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
                     forward.fee_percent = results.getDouble(5);
                     forward.confirmations = results.getInt(6);
                     forward.time = results.getLong(7);
+                    forward.last_tx_pushed = results.getLong(8);
+                    forward.expires = results.getLong(9);
+                    forward.guid = results.getString(10);
+                    forward.bonus_status = results.getInt(11);
 
                     data.add(forward);
+
                     forwardingMap.put(new DBBitcoinAddress(forward.input_address), forward);
                 }
             } finally {
@@ -209,9 +289,10 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
 
         public boolean insert(Connection conn) throws SQLException, AddressFormatException {
             {
-                PreparedStatement stmt = conn.prepareStatement("select count(*) from bitcoin_forwards where output_address = ? and taint != 100");
+                PreparedStatement stmt = conn.prepareStatement("select count(*) from bitcoin_forwards where (output_address = ? and taint < 100) or input_address = ?");
                 try {
                     stmt.setString(1, output_address);
+                    stmt.setString(2, output_address);
 
                     ResultSet results = stmt.executeQuery();
 
@@ -225,7 +306,7 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
                 }
             }
 
-            PreparedStatement stmt = conn.prepareStatement("insert into bitcoin_forwards (input_address, input_priv, output_address, taint, fee_percent, confirmations, time) values (?, ?, ?, ?, ?, ?, ?)");
+            PreparedStatement stmt = conn.prepareStatement("insert into bitcoin_forwards (input_address, input_priv, output_address, taint, fee_percent, confirmations, time, last_tx_pushed, expires, guid) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             try {
                 stmt.setString(1, input_address);
                 stmt.setString(2, input_priv);
@@ -234,10 +315,13 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
                 stmt.setDouble(5, fee_percent);
                 stmt.setInt(6, confirmations);
                 stmt.setLong(7, time);
+                stmt.setLong(8, last_tx_pushed);
+                stmt.setLong(9, expires);
+                stmt.setString(10, guid);
 
                 boolean inserted =  stmt.executeUpdate() == 1;
 
-                if (inserted && _cache != null)
+                if (inserted)
                     _cache.put(new DBBitcoinAddress(input_address), this);
 
                 return inserted;
@@ -246,42 +330,59 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
             }
         }
 
+
         public boolean remove(Connection conn) throws SQLException {
-            if (BaseServlet.log) System.out.println("Remove forwarding " + input_address);
+            conn.setAutoCommit(false);
 
-            PreparedStatement stmt = conn.prepareStatement("insert into bitcoin_forwards_copy (input_address, input_priv, output_address, taint, fee_percent, confirmations, time) values (?, ?, ?, ?, ?, ?, ?)");
             try {
-                stmt.setString(1, input_address);
-                stmt.setString(2, input_priv);
-                stmt.setString(3, output_address);
-                stmt.setDouble(4, taint);
-                stmt.setDouble(5, fee_percent);
-                stmt.setInt(6, confirmations);
-                stmt.setLong(7, time);
+                {
+                    PreparedStatement select_stmt = conn.prepareStatement("select count(*) from bitcoin_forwards where output_address = ? limit 1");
+                    try {
+                        select_stmt.setString(1, input_address);
 
-                if (stmt.executeUpdate() != 1) {
-                    return false;
+                        ResultSet results = select_stmt.executeQuery();
+
+                        if (results.next()) {
+                            int count = results.getInt(1);
+
+                            if (count >= 1) {
+                                throw new SQLException("Cannot Delete Forwarding " + input_address + " As it has a dependant parent");
+                            }
+                        }
+                    } finally {
+                        BitcoinDatabaseManager.close(select_stmt);
+                    }
                 }
-            } finally {
-                BitcoinDatabaseManager.close(stmt);
-            }
 
-            PreparedStatement delete_stmt = conn.prepareStatement("delete from bitcoin_forwards where input_address = ?");
-            try {
-                delete_stmt.setString(1, input_address.toString());
+                if (BaseServlet.log) System.out.println("Remove forwarding " + input_address);
 
-                //Remove any cached Taints
+                PreparedStatement delete_stmt = conn.prepareStatement("delete from bitcoin_forwards where input_address = ? limit 1");
                 try {
-                    if (_cache != null) _cache.remove(new BitcoinAddress(input_address));
-                    if (taints != null) taints.remove(new BitcoinAddress(input_address));
-                } catch (AddressFormatException e) {
-                    e.printStackTrace();
-                }
+                    delete_stmt.setString(1, input_address.toString());
 
-                return delete_stmt.executeUpdate() == 1;
+                    //Remove any cached Taints
+                    try {
+                        _cache.remove(new BitcoinAddress(input_address));
+                        taints.remove(new BitcoinAddress(input_address));
+                    } catch (AddressFormatException e) {
+                        e.printStackTrace();
+                    }
+
+                    if (delete_stmt.executeUpdate() == 1) {
+                        conn.commit();
+                        return true;
+                    }
+                } finally {
+                    BitcoinDatabaseManager.close(delete_stmt);
+                }
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
             } finally {
-                BitcoinDatabaseManager.close(delete_stmt);
+                conn.setAutoCommit(true);
             }
+
+            return false;
         }
     }
 
@@ -295,12 +396,12 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
 
         String base58 = Base58.encode(bytes);
 
-        String encrypted = MyWallet.encrypt(base58, piuk.admin.Settings.instance().getString("forwardings_encryption_password"));
+        String encrypted = MyWallet.encrypt(base58, Settings.instance().getString("forwardings_encryption_password"));
 
         if (encrypted == null || encrypted.length() == 0)
             throw new InvalidKeySpecException("Error Encrypting Generate Key");
 
-        String checkDecrypted = MyWallet.decrypt(encrypted, piuk.admin.Settings.instance().getString("forwardings_encryption_password"));
+        String checkDecrypted = MyWallet.decrypt(encrypted, Settings.instance().getString("forwardings_encryption_password"));
 
         byte[] checkBytes = Base58.decode(checkDecrypted);
 
@@ -311,41 +412,90 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
     }
 
     public static void setupListeners() {
-        ChainManager.instance().addBlockListener(blockListener);
-        ChainManager.instance().addTxListener(txListener);
+
+        if (isRunning)
+            return;
+
+        isRunning = true;
+
+        ChainManager.instance().addBlockListener(new BlockEventListener() {
+            @Override
+            public boolean onBlock(DBBitcoinBlock block) {
+
+                if (!isRunning)
+                    return true;
+
+                //Process Forwards every 10 minutes on new confirmations
+                OperationQueue.shared.addOperation(new ProcessForwardsOperation());
+
+                return false;
+            }
+        });
+
+        ChainManager.instance().addTxListener(new TxEventListener() {
+            @Override
+            public boolean onTx(DBBitcoinTx tx) {
+
+                if (!isRunning)
+                    return true;
+
+                for (DBBitcoinTx.DBOutput output : tx.getDBOut()) {
+                    if (output.getAddress() == null)
+                        continue;
+
+                    if (Forwarding._cache.containsKey(output.getAddress())) {
+
+                        //Clear the taint cache
+                        taints.remove(output.getAddress());
+
+                        OperationQueue.shared.addOperation(new ProcessForwardsOperation());
+                        break;
+                    }
+                }
+
+                return false;
+            }
+        });
     }
 
     public static void removeListeners() {
-        ChainManager.instance().removeBlockListener(blockListener);
-        ChainManager.instance().removeTxListener(txListener);
+        isRunning = false;
     }
 
     public static boolean isRunning() {
-        return ChainManager.instance().getBlockListeners().contains(blockListener) && ChainManager.instance().getTxListeners().contains(txListener);
+        return isRunning;
     }
 
-    public boolean sendForwarding(Forwarding input, List<ECKey> from, long amount, MyWallet.GetChangeAddress changeAddress) throws Exception {
+    public static synchronized boolean sendForwarding(Forwarding input, List<ECKey> from, long amount, MyWallet.GetChangeAddress changeAddress) throws Exception {
 
         final BigInteger originalAmount = BigInteger.valueOf(amount);
 
-        if (originalAmount.compareTo(txFee) <= 0) {
+        if (originalAmount.compareTo(DefaultTxFee) <= 0) {
             throw new Exception("amount Less than or equal to DefaultTxFee");
         }
 
         List<Pair<BitcoinAddress, BigInteger>> toAddresses = new ArrayList<>();
 
-        BigInteger amountMinusMinersFee = originalAmount.subtract(txFee);
+        BigInteger amountMinusMinersFee = originalAmount.subtract(DefaultTxFee);
 
         //If we can't afford the miners fee throw an error
         if (amountMinusMinersFee.compareTo(BigInteger.ZERO) <= 0) {
             throw new Exception("Cannot afford Transaction Fee");
         }
 
-        toAddresses.add(new Pair<>(new BitcoinAddress(input.output_address), amountMinusMinersFee));
+        BitcoinAddress toAddress = new BitcoinAddress(input.output_address);
+
+        //Clear the taint cache of this address
+        taints.remove(toAddress);
+
+        toAddresses.add(new Pair<>(toAddress, amountMinusMinersFee));
 
         List<Pair<BitcoinAddress, ECKey>> fromList = new ArrayList<>();
         for (ECKey key : from) {
             BitcoinAddress fromAddress = new BitcoinAddress(key.toAddress(NetworkParameters.prodNet()).toString());
+
+            //Clear the taint cache of this address
+            taints.remove(fromAddress);
 
             fromList.add(new Pair<>(fromAddress, key));
         }
@@ -354,15 +504,27 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
 
         Connection conn = BitcoinDatabaseManager.conn();
         try {
-            Transaction tx = MyWallet.sendFrom(conn, fromList, toAddresses, txFee, changeAddress, false);
 
-            return  (tx != null);
+            PreparedStatement stmt = conn.prepareStatement("update bitcoin_forwards set last_tx_pushed = ? where input_address = ? and (last_tx_pushed = 0 or last_tx_pushed < ?)");
+            try {
+                stmt.setLong(1, System.currentTimeMillis());
+                stmt.setString(2, input.input_address);
+                stmt.setLong(3, System.currentTimeMillis()-MinTimeBetweenPushed);
+
+                if (stmt.executeUpdate() != 1) {
+                    throw new Exception("Error updated bitcoin_forwards last_tx_pushed");
+                }
+            } finally {
+                BitcoinDatabaseManager.close(stmt);
+            }
+
+            Transaction tx = MyWallet.sendFrom(conn, fromList, toAddresses, DefaultTxFee, changeAddress, false);
+
+            return (tx != null);
         } finally {
             BitcoinDatabaseManager.close(conn);
         }
     }
-
-
 
     //Create A Forwarder to a specific address
     public Pair<BitcoinAddress, BitcoinAddress> createSimpleForwarding(BitcoinAddress toAddress, double taint, int confirmations, double fee_percent) throws Exception {
@@ -407,538 +569,660 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
         }
     }
 
+    public  piuk.website.TaintServlet.Settings getDefaultTaintSettings() {
+
+        //More in depth search than regular taint analysis
+        piuk.website.TaintServlet.Settings settings = new piuk.website.TaintServlet.Settings();
+
+        settings.maxInitialOutputs = 5000;
+        settings.maxQueryCount = 1500;
+        settings.maxDepth = 500;
+
+        return settings;
+    }
+
+    public void scheduleJobAgainSoon(final long milli) {
+        if (isScheduled) {
+
+            if (BaseServlet.log)
+                System.out.println("Not running becuase it was already scheduled");
+
+            return;
+        }
+
+        new Thread() {
+            @Override
+            public void run() {
+
+                if (BaseServlet.log)
+                    System.out.println("Schedule Job Again Sleep " + milli);
+
+                isScheduled = true;
+
+                try {
+                    Thread.sleep(milli);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                isScheduled = false;
+
+                if (BaseServlet.log)
+                    System.out.println("Schedule Done");
+
+                OperationQueue.shared.addOperation(new ProcessForwardsOperation());
+            }
+        }.start();
+    }
+
     @Override
     public void process(List<Forwarding> forwards) throws Exception {
 
-        Map<DBBitcoinAddress, Forwarding> forwardingMap = Forwarding.getForwardings();
+        if (BaseServlet.log)  System.out.println("ProcessForwardsOperation()");
 
-        DBBitcoinWallet dbwallet = new DBBitcoinWallet();
+        synchronized (ProcessForwardsOperation.class) {
+            long timeBetweenLastRun =  System.currentTimeMillis() - lastRun;
+            if (timeBetweenLastRun < TimeBetweenRuns) {
 
-        for (Forwarding forward : forwards) {
-            dbwallet.addAddress(new DBBitcoinAddress(forward.input_address));
+                scheduleJobAgainSoon(TimeBetweenRuns + 1000);
 
-            if (forward.taint < 100)
-                dbwallet.addAddress(new DBBitcoinAddress(forward.output_address));
-        }
-
-        boolean shouldRunJobAgainAfterFinish = false;
-        try {
-            if (BaseServlet.log)
-                System.out.println("Process Forwarding() " + dbwallet.getAddresses());
-
-            int currentHeight = ChainManager.instance().getLatestBlock().getHeight();
-
-            Map<Integer, Integer> txToBlockHeight = null;
-            {
-                //Get the inputs & outputs at 2 confirmations
-                Connection conn = BitcoinDatabaseManager.conn();
-                try {
-                    dbwallet.getInputsAndOutputs(conn);
-
-                    Set<Integer> txIndexes = dbwallet.getTxIndexes();
-
-                    txToBlockHeight = ChainManager.instance().filterConfirmedIndexes(dbwallet.getConfirmedBlockIndexes(conn, txIndexes), 0, null);
-
-                    dbwallet.calculateTxResults();
-
-                } finally {
-                    BitcoinDatabaseManager.close(conn);
-                }
+                if (BaseServlet.log) System.out.println("CannotProceed process() forwards because it was run " + timeBetweenLastRun + " ms ago");
+                return;
             }
+            lastRun = System.currentTimeMillis();
 
-            for (final Forwarding forwarding : forwards) {
-                DBBitcoinAddress address = dbwallet.getAddress(forwarding.input_address);
+            boolean shouldRunJobAgainAfterFinish = false;
 
-                if (BaseServlet.log) System.out.println("\n\n--------------- Process Address " + address.toString() + " ---------------");
+            try {
+                Map<DBBitcoinAddress, Forwarding> forwardingMap = Forwarding._cache;
 
-                if (address.getTotalReceived() == 0) {
-                    if (BaseServlet.log) System.out.println("Forwarding address totalReceived == 0 " + forwarding);
-                    continue;
+                DBBitcoinWallet dbwallet = new DBBitcoinWallet();
+
+                for (Forwarding forward : forwards) {
+                    dbwallet.addAddress(new DBBitcoinAddress(forward.input_address));
+
+                    if (forward.taint < 100)
+                        dbwallet.addAddress(new DBBitcoinAddress(forward.output_address));
                 }
 
-                if (BaseServlet.log) System.out.println("Process Forwarding " + forwarding);
+                try {
+                    if (BaseServlet.log)
+                        System.out.println("Process Forwarding() " + dbwallet.getAddresses());
 
-                //Keep track of the addresses we have used as using them again could result in double spends
-                HashSet<DBBitcoinAddress> used = new HashSet<>();
+                    int currentHeight = ChainManager.instance().getLatestBlock().getHeight();
 
-                int newestTx = 0;
-                int confirmationsOfNewestTx = -1;
-                Collection<Integer> txIndexes =  address.getReceivedTxIndexes();
-                for (Integer txIndex : txIndexes)  {
-                    Integer blockHeight = txToBlockHeight.get(txIndex);
+                    //Calculate the wallet balance and transactions
+                    Map<Integer, Integer> txToBlockHeight = null;  {
+                        Connection conn = BitcoinDatabaseManager.conn();
+                        try {
+                            dbwallet.getInputsAndOutputs(conn);
 
-                    if (BaseServlet.log) System.out.println("Block height of " + txIndex + " " + blockHeight);
+                            Set<Integer> txIndexes = dbwallet.getTxIndexes();
 
-                    if (blockHeight == null) {
-                        newestTx = txIndex;
-                        confirmationsOfNewestTx = 0;
-                        break;
-                    }
+                            txToBlockHeight = ChainManager.instance().filterConfirmedIndexes(dbwallet.getConfirmedBlockIndexes(conn, txIndexes), 0, null);
 
-                    int confirmations =  currentHeight - blockHeight + 1;
-                    if (confirmationsOfNewestTx == -1 || confirmations < confirmationsOfNewestTx) {
-                        confirmationsOfNewestTx = confirmations;
-                        newestTx = txIndex;
-                    }
-                }
+                            dbwallet.calculateTxResults();
 
-                //If the taint is 100 then there is no mixing and we can simply forward directly from this address
-                if (forwarding.taint == 100) {
-                    if (forwarding.confirmations > 0) {
-                        if (confirmationsOfNewestTx < forwarding.confirmations) {
-                            if (BaseServlet.log) System.out.println("Received Transaction Does not meet confirmation requirements " + forwarding + " txIndex " + newestTx);
-                            continue;
+                        } finally {
+                            BitcoinDatabaseManager.close(conn);
                         }
                     }
 
-                    //Simply Forward Any balance
-                    if (address.getFinalBalance() > 0) {
+                    for (final Forwarding forwarding : forwards) {
+                        DBBitcoinAddress address = dbwallet.getAddress(forwarding.input_address);
 
-                        //We collect the very small outputs left. there is no point in sending them as they will never get confirmed
-                        if (address.getFinalBalance() <= txFee.longValue()) {
-                            if (BaseServlet.log) System.out.println(address.getFinalBalance() + " less than transaction fee " + forwarding);
-                        } else {
-                            ECKey key = forwarding.getECKey();
+                        if (BaseServlet.log) System.out.println("\n\n--------------- Process Address " + address.toString() + " ---------------");
 
-                            used.add(address);
-
-                            boolean sent = sendForwarding(forwarding, Collections.singletonList(key), address.finalBalance, new MyWallet.GetChangeAddress() {
-                                //Return change tot he forwarding output address
-                                //There should very rarely be any change, but it could happen if a new transactions is received between when we fetched the last balance and now
-                                @Override
-                                public BitcoinAddress getChangeAddress(Set<BitcoinAddress> addressesUsed) throws Exception {
-                                    if (forwarding.fee_percent == 0) {
-                                        return new BitcoinAddress(forwarding.output_address);
-                                    } else {
-                                        //We Create Another forwarding for the change
-                                        Pair<BitcoinAddress, BitcoinAddress> changeForwarding = AdminServlet.getMixerWallet().createForwardingAddress(100, 0, 0);
-
-                                        return changeForwarding.getFirst();
-                                    }
-                                }
-                            });
-
-                            if (sent) shouldRunJobAgainAfterFinish = true;
-
-                            if (BaseServlet.log) {
-                                if (sent)
-                                    System.out.println("Sent " + forwarding);
-                                else
-                                    System.out.println("Error Sending " + forwarding);
-                            }
-                        }
-                    }
-                } else {
-
-                    //If the Taint is 100% then there should be another forwarding pair in the database
-                    //Used for the purpose of tracking how much we have forwarded and for increased anonymity
-                    Forwarding childForwarding =  forwardingMap.get(new BitcoinAddress(forwarding.output_address));
-
-                    if (childForwarding == null) {
-                        if (BaseServlet.log) System.out.println("Missing childForwarding " + forwarding + ". This shouldn't Happen!");
-                    }
-
-                    DBBitcoinAddress secondAddress = dbwallet.getAddress(forwarding.output_address);
-
-                    if (secondAddress == null) {
-                        if (BaseServlet.log) System.out.println("Second Address Null [" + forwarding + " => " + childForwarding + "]. This shouldn't Happen!");
-                        continue;
-                    }
-
-                    long amountToSend = forwarding.getPending(address.getTotalReceived(), dbwallet.calculateSentTo(forwarding.output_address, true));
-
-                    if (amountToSend < 0) {
-                        throw new Exception("We have sent more than we received! " + forwarding + " => " + childForwarding);
-                    }
-
-                    if (amountToSend == 0) {
-                        if (BaseServlet.log) System.out.println("Nothing to send" + forwarding);
-                        continue;
-                    } else {
-                        if (BaseServlet.log) System.out.println(amountToSend + " outstanding for forwarding " + forwarding);
-                    }
-
-                    if (amountToSend <= txFee.longValue()) {
-                        if (BaseServlet.log) System.out.println(amountToSend + " less than transaction fee, add to sweep list " + forwarding);
-                        continue;
-                    }
-
-                    boolean meetsConfirmationRequirements = false;
-
-
-                    if (BaseServlet.log)  System.out.println("confirmationsOfNewestTx " + confirmationsOfNewestTx);
-
-                    //Auto decide confirmation requirements
-                    if (forwarding.confirmations == 0) {
-                        //If the transaction is low value we will consider sending it with zero confirmations
-                        if (confirmationsOfNewestTx == 0 && amountToSend < ZeroConfirmationMaxValue) {
-                            Connection conn = BitcoinDatabaseManager.conn();
-                            try {
-                                DBBitcoinTx tx = DBBitcoinTx.getTxByIndex(conn, newestTx);
-
-                                tx.getIn(conn);
-                                tx.getOut(conn);
-
-                                if (tx != null && tx.getFees() >= ZeroConfirmationRequiredFees) {
-
-                                    //Wait until the transaction is at least 30 seconds old
-                                    if (tx.getTime() > (System.currentTimeMillis() / 1000)-30000) {
-
-                                        //Only if the fee is above a certain threshold
-                                        if (!tx.isDoubleSpend(conn)) {
-                                            InventoryInfo info = InventoryManager.getInventoryInfo(tx.getHash());
-                                            if (info != null && info.getRelayedIpv4().size() > 2500) {
-                                                //If relayed by more than 2500 nodes we will accept it
-                                                meetsConfirmationRequirements = true;
-                                            } else {
-                                                if (BaseServlet.log) System.out.println("Does not meet confirmation requirements because not enough nodes have relayed it");
-                                            }
-                                        } else {
-                                            if (BaseServlet.log) System.out.println("Does not meet confirmation requirements because it is a double spend");
-                                        }
-                                    }  else {
-                                        if (BaseServlet.log) System.out.println("Does not meet confirmation requirements because it is too new " + newestTx + " time " + tx.getTime());
-
-                                        shouldRunJobAgainAfterFinish = true;
-                                    }
-                                } else {
-                                    if (BaseServlet.log) System.out.println("Does not meet confirmation requirements because it does not include the correct fees " + newestTx);
-                                }
-                            } finally {
-                                BitcoinDatabaseManager.close(conn);
-                            }
-                        } else if (confirmationsOfNewestTx >= 2 && amountToSend < TwoConfirmationMaxValue) {
-                            meetsConfirmationRequirements = true; //Amounts under 200 BTC send with 2 confirmations
-                        } else if (confirmationsOfNewestTx >= 6) {
-                            meetsConfirmationRequirements = true;
-                        }
-                    } else if (confirmationsOfNewestTx >= forwarding.confirmations) {
-                        meetsConfirmationRequirements = true;
-                    }
-
-                    if (!meetsConfirmationRequirements) {
-                        if (BaseServlet.log) System.out.println("Received Transaction Does not meet confirmation requirements " + forwarding + " txIndex " + newestTx);
-                        continue;
-                    }
-
-                    //find a suitable address
-                    Map<BitcoinAddress, Taint> addressTaints = taints.get(address);
-                    if (addressTaints == null || addressTaints.size() == 0) {
-
-                        if (BaseServlet.log) System.out.println("Fetching Taints For " + address);
-
-                        addressTaints = TaintServlet.getTaints(address, new Settings());
-
-                        //save it the cached global taints map
-                        taints.put(address, addressTaints);
-                    }
-
-                    if (addressTaints == null)
-                        throw new Exception("Unable to Get Taints For Address " + address);
-
-                    //Get a List Of Possible Addresses We Can Use
-                    List<DBBitcoinAddress> possibleAddresses = new ArrayList<>(dbwallet.getAddresses());
-
-                    List<ECKey> selectedKeys = new ArrayList<>();
-
-                    long amountSelected = 0;
-                    for (DBBitcoinAddress candidateAddress : possibleAddresses) {
-                        Forwarding candidateForwarding = forwardingMap.get(candidateAddress);
-
-                        if (candidateForwarding == null) {
-                            if (BaseServlet.log) System.out.println("candidateForwarding Null. this shouldn't happen");
+                        if (address.getTotalReceived() == 0) {
+                            if (BaseServlet.log) System.out.println("Forwarding address totalReceived == 0 " + forwarding);
                             continue;
                         }
 
-                        //Never include self
-                        if (candidateAddress.equals(address))
-                            continue;
+                        if (BaseServlet.log) System.out.println("Process Forwarding " + forwarding);
 
-                        //Don't include addresses we have already used
-                        if (used.contains(candidateAddress)) {
-                            if (BaseServlet.log) System.out.println("Cannot use candidateAddress " + candidateAddress + " because we have used it previously");
-                            continue;
-                        }
+                        //Keep track of the addresses we have used as using them again could result in double spends
+                        HashSet<DBBitcoinAddress> used = new HashSet<>();
 
-                        //Can't send from addresses with zero balance
-                        if (candidateAddress.finalBalance == 0) {
-                            if (BaseServlet.log) System.out.println("Cannot use candidateAddress " + candidateAddress + " because the balance is zero");
-                            continue;
-                        }
+                        int newestTx = 0;
+                        int confirmationsOfNewestTx = -1;
+                        Collection<Integer> txIndexes =  address.getReceivedTxIndexes();
+                        for (Integer txIndex : txIndexes)  {
+                            Integer blockHeight = txToBlockHeight.get(txIndex);
 
-                        //Don't include addresses which should not be mixed
-                        if (candidateForwarding.taint == 100) {
-                            if (BaseServlet.log) System.out.println("Cannot use candidateAddress " + candidateAddress + " because the taint is 100%");
-                            continue;
-                        }
+                            if (BaseServlet.log) System.out.println("Block height of " + txIndex + " " + blockHeight);
 
-                        Taint taint = addressTaints.get(candidateAddress);
-
-                        //If the taint is null or the amount of taint is less than the minimum required forward it
-                        if (taint == null || taint.getTaint() <= forwarding.taint) {
-
-                            if (BaseServlet.log) System.out.println("Suitable Untainted address " + candidateAddress);
-
-                            amountSelected += candidateAddress.finalBalance;
-
-                            //Use the untainted address as the from address
-                            ECKey key = candidateForwarding.getECKey();
-
-                            used.add(address);
-
-                            selectedKeys.add(key);
-
-                            if (amountSelected >= amountToSend)
+                            if (blockHeight == null) {
+                                newestTx = txIndex;
+                                confirmationsOfNewestTx = 0;
                                 break;
-                        }
-                    }
+                            }
 
-                    if (amountSelected < amountToSend) {
-                        if (BaseServlet.log) System.out.println("Checking Blockchain.info wallet for " + forwarding + " amountSelected < amountToSend (" + amountSelected + " < " + amountToSend+")");
-
-                        //If we don't have enough fund in the shared wallet look in blockchain.info's personal wallet for suitable untainted addresses
-
-                        MyWallet blockchainWallet = AdminServlet.getMixerWallet();
-
-                        DBBitcoinWallet blockchainDBWallet = new DBBitcoinWallet();
-
-                        for (BitcoinAddress taddress : blockchainWallet.getActiveAddresses()) {
-                            blockchainDBWallet.addAddress(new DBBitcoinAddress(taddress));
-                        }
-                        {
-                            Connection conn = BitcoinDatabaseManager.conn();
-                            try {
-                                blockchainDBWallet.getInputsAndOutputs(conn);
-                            } finally {
-                                BitcoinDatabaseManager.close(conn);
+                            int confirmations =  currentHeight - blockHeight + 1;
+                            if (confirmationsOfNewestTx == -1 || confirmations < confirmationsOfNewestTx) {
+                                confirmationsOfNewestTx = confirmations;
+                                newestTx = txIndex;
                             }
                         }
-                        blockchainDBWallet.calculateTxResults();
 
-                        for (DBBitcoinAddress candidateAddress : blockchainDBWallet.getAddresses()) {
-                            //Never include self
-                            if (candidateAddress.equals(address))
-                                continue;
+                        if (forwarding.last_tx_pushed > System.currentTimeMillis()-MinTimeBetweenPushed) {
+                            if (BaseServlet.log) System.out.println("Cannot process this forwarding as we pushed a transaction more than 30 seconds ago");
+                            scheduleJobAgainSoon(TimeBetweenRuns);
+                            continue;
+                        }
 
-                            //Don't include addresses we have already used
-                            if (used.equals(candidateAddress)) {
-                                if (BaseServlet.log) System.out.println("Cannot use candidateAddress " + candidateAddress + " because we have used it previously");
-                                continue;
-                            }
 
-                            //Can't send from addresses with zero balance
-                            if (candidateAddress.finalBalance == 0) {
-                                if (BaseServlet.log) System.out.println("Cannot use candidateAddress " + candidateAddress + " because the balance is zero");
-                                continue;
-                            }
+                        if (forwarding.taint == 101) {
+                            //If the taints is 101 then this it is a change forwarding, do nothing
 
-                            //Don't include addresses we have already used
-                            if (used.contains(candidateAddress)) {
-                                if (BaseServlet.log) System.out.println("Cannot use candidateAddress " + candidateAddress + " because we have used it previously");
-                                continue;
-                            }
-
-                            Taint taint = addressTaints.get(candidateAddress);
-
-                            //If the taint is null or the amount of taint is less than the minimum required forward it
-                            if (taint == null || taint.getTaint() <= forwarding.taint) {
-
-                                //find a suitable address
-                                Map<BitcoinAddress, Taint> candidateTaints = taints.get(candidateAddress);
-                                if (candidateTaints == null || candidateTaints.size() == 0) {
-                                    if (BaseServlet.log) System.out.println("Fetching Taints For " + candidateAddress);
-
-                                    candidateTaints = TaintServlet.getTaints(address, new Settings());
-
-                                    //save it the cached global taints map
-                                    taints.put(candidateAddress, candidateTaints);
-                                } else {
-                                    if (BaseServlet.log) System.out.println("Candidate Taints Null " + candidateAddress);
+                            continue;
+                        } else if (forwarding.taint == 100) {   //If the taint is 100 then there is no mixing and we can simply forward directly from this address
+                            if (forwarding.confirmations > 0) {
+                                if (confirmationsOfNewestTx < forwarding.confirmations) {
+                                    if (BaseServlet.log) System.out.println("Received Transaction Does not meet confirmation requirements " + forwarding + " txIndex " + newestTx);
+                                    continue;
                                 }
+                            }
 
-                                boolean containsRelatedAddress = false;
-                                if (candidateTaints != null) {
-                                    for (Map.Entry<BitcoinAddress, Taint> pair : candidateTaints.entrySet()) {
-                                        if (addressTaints.containsKey(pair.getKey()) && pair.getValue().getTaint() >= RelatedTaintThreshold) {
-                                            if (BaseServlet.log) System.out.println("Cannot use candidateAddress " + candidateAddress + " because is contains a related tainted address: " + pair.getKey());
-                                            containsRelatedAddress = true;
+                            if (forwarding.fee_percent > 0) {
+                                throw new Exception("Fee currently not supported for 100% taint transactions");
+                            }
+
+                            //Simply Forward Any balance
+                            if (address.getFinalBalance() > 0) {
+
+                                //We collect the very small outputs left. there is no point in sending them as they will never get confirmed
+                                if (address.getFinalBalance() <= DefaultTxFee.longValue()) {
+                                    if (BaseServlet.log) System.out.println(address.getFinalBalance() + " less than transaction fee " + forwarding);
+                                } else {
+
+                                    final long amountToSend = address.finalBalance;
+                                    long actualAmountToSend = amountToSend;
+
+                                    Forwarding parentForwarding = null;
+                                    for (Forwarding possible_parent : forwards) {
+                                        if (possible_parent.output_address.equals(forwarding.input_address)) {
+                                            parentForwarding = possible_parent;
                                             break;
                                         }
                                     }
+
+                                    if (BaseServlet.log) System.out.println("Found Parent " + parentForwarding + " of 100% Taint " + forwarding);
+
+                                    //If this is a relay of a < 100% tainted transaction we split the transaction one final time if over a certain value
+                                    if (parentForwarding != null && parentForwarding.taint < 100) {
+                                        double RandomSplitAtPercent = 100d *  ((Math.random() * 0.8d) + 0.2d);  //Minimum 20% - Maximum 80%
+
+                                        //Split only if greater than SplitTxRuleThreshold and 75% of the time
+                                        if (amountToSend >= Split100TaintTxRuleThreshold && Math.random() < 0.75d) {
+                                            actualAmountToSend = (long)((amountToSend / 100d) * RandomSplitAtPercent);
+                                        }
+                                    }
+
+                                    if (actualAmountToSend > amountToSend)
+                                        throw new Exception("actualAmountToSend > ("+actualAmountToSend+") > amountToSend " + amountToSend + " this should never happen");
+
+                                    if (BaseServlet.log && actualAmountToSend < amountToSend) {
+                                        if (BaseServlet.log) System.out.println("Split 100% Taint transaction amountToSend " + amountToSend + " actualAmountToSend " + actualAmountToSend);
+                                    }
+
+                                    ECKey key = forwarding.getECKey();
+
+                                    used.add(address);
+
+                                    final long finalActualAmountToSend = actualAmountToSend;
+                                    if (sendForwarding(forwarding, Collections.singletonList(key), actualAmountToSend, new MyWallet.GetChangeAddress() {
+                                        //Return change tot he forwarding output address
+                                        //There should very rarely be any change, but it could happen if a new transactions is received between when we fetched the last balance and now
+                                        @Override
+                                        public BitcoinAddress getChangeAddress(Set<BitcoinAddress> addressesUsed) throws Exception {
+                                            if (finalActualAmountToSend == amountToSend) {
+                                                throw new Exception("There shouldn't be any change");
+                                            } else {
+                                                //Return the change to a new forwarding to the output address
+                                                Pair<BitcoinAddress, BitcoinAddress> changeForwarding = createSimpleForwarding(new DBBitcoinAddress(forwarding.output_address), 100, 0, 0);
+
+                                                //Send to the new input which will forward onto the original output
+                                                return changeForwarding.getFirst();
+                                            }
+                                        }
+                                    })) {
+                                        if (BaseServlet.log) System.out.println("Sent 100% Taint " + forwarding);
+                                    } else {
+                                        if (BaseServlet.log) System.out.println("Error Sending " + forwarding);
+                                    };
+
+                                    scheduleJobAgainSoon(TimeBetweenRuns);
+
+                                    return;
+                                }
+                            }
+                        } else if (forwarding.taint < 100) {
+                            //If the Taint is 100% then there should be another forwarding pair in the database
+                            //Used for the purpose of tracking how much we have forwarded and for increased anonymity
+                            Forwarding childForwarding =  forwardingMap.get(new BitcoinAddress(forwarding.output_address));
+
+                            if (childForwarding == null) {
+                                if (BaseServlet.log) System.out.println("Missing childForwarding " + forwarding + ". This shouldn't Happen!");
+                            }
+
+                            DBBitcoinAddress secondAddress = dbwallet.getAddress(forwarding.output_address);
+
+                            if (secondAddress == null) {
+                                if (BaseServlet.log) System.out.println("Second Address Null [" + forwarding + " => " + childForwarding + "]. This shouldn't Happen!");
+                                continue;
+                            }
+
+                            final long totalSentAlready =  dbwallet.calculateSentTo(forwarding.output_address, true);
+
+                            long amountToSend = forwarding.getPending(address.getTotalReceived(), totalSentAlready);
+
+                            if (amountToSend < 0) {
+                                throw new Exception("We have sent more than we received! " + forwarding + " => " + childForwarding);
+                            }
+
+                            if (amountToSend == 0) {
+                                if (BaseServlet.log) System.out.println("Nothing to send" + forwarding);
+                                continue;
+                            } else {
+                                if (BaseServlet.log) System.out.println(amountToSend + " outstanding for forwarding " + forwarding);
+                            }
+
+                            if (amountToSend <= DefaultTxFee.longValue()) {
+                                if (BaseServlet.log) System.out.println(amountToSend + " less than transaction fee, add to sweep list " + forwarding);
+                                continue;
+                            }
+
+                            boolean meetsConfirmationRequirements = false;
+
+                            if (BaseServlet.log)  System.out.println("confirmationsOfNewestTx " + confirmationsOfNewestTx);
+
+                            //Auto decide confirmation requirements
+                            if (forwarding.confirmations == 0) {
+
+                                //If the transaction is low value we will consider sending it with zero confirmations
+                                if (confirmationsOfNewestTx == 0 && amountToSend < ZeroConfirmationMaxValue) {
+                                    Connection conn = BitcoinDatabaseManager.conn();
+                                    try {
+                                        DBBitcoinTx tx = DBBitcoinTx.getTxByIndex(conn, newestTx);
+
+                                        tx.getIn(conn);
+                                        tx.getOut(conn);
+
+                                        if (tx != null && tx.getFees() >= ZeroConfirmationRequiredFees) {
+                                            //Wait until the transaction is at least 30 seconds old
+                                            if (tx.getTime() > (System.currentTimeMillis() / 1000)-MinTimeBetweenPushed) {
+
+                                                //Only if the fee is above a certain threshold
+                                                if (!tx.isDoubleSpend(conn)) {
+                                                    InventoryInfo info = InventoryManager.getInventoryInfo(tx.getHash());
+                                                    if (info != null && info.getRelayedIpv4().size() > 2500) {
+                                                        //If relayed by more than 2500 nodes we will accept it
+                                                        meetsConfirmationRequirements = true;
+                                                    } else {
+                                                        if (BaseServlet.log) System.out.println("Does not meet confirmation requirements because not enough nodes have relayed it");
+
+                                                        //Only re-try if younger than 2 minutes
+                                                        //Older than two minutes could indicate a problem
+                                                        if (tx.getTime() < (System.currentTimeMillis() / 1000)-120)
+                                                            shouldRunJobAgainAfterFinish = true;
+                                                    }
+                                                } else {
+                                                    if (BaseServlet.log) System.out.println("Does not meet confirmation requirements because it is a double spend");
+                                                }
+                                            }  else {
+                                                if (BaseServlet.log) System.out.println("Does not meet confirmation requirements because it is too new " + newestTx + " time " + tx.getTime());
+
+                                                shouldRunJobAgainAfterFinish = true;
+                                            }
+                                        } else {
+                                            if (BaseServlet.log) System.out.println("Does not meet confirmation requirements because it does not include the correct fees " + newestTx);
+                                        }
+                                    } finally {
+                                        BitcoinDatabaseManager.close(conn);
+                                    }
+                                } else if (confirmationsOfNewestTx >= 1 && amountToSend < OneConfirmationMaxValue) {
+                                    meetsConfirmationRequirements = true; //Amounts under 25 BTC send with 1 confirmation even if it doesn't meet other requirements
+                                } else if (confirmationsOfNewestTx >= 2 && amountToSend < TwoConfirmationMaxValue) {
+                                    meetsConfirmationRequirements = true; //Amounts under 100 BTC send with 2 confirmations
+                                } else if (confirmationsOfNewestTx >= 6) {
+                                    meetsConfirmationRequirements = true;
+                                } else {
+                                    if (BaseServlet.log) System.out.println("Does not meet confirmation requirements because we have fallen through confirmationsOfNewestTx: " + confirmationsOfNewestTx + " amountToSend: " + amountToSend);
                                 }
 
-                                if (containsRelatedAddress) {
+                            } else if (confirmationsOfNewestTx >= forwarding.confirmations) {
+                                meetsConfirmationRequirements = true;
+                            }
+
+                            if (!meetsConfirmationRequirements) {
+                                if (BaseServlet.log) System.out.println("Received Transaction Does not meet confirmation requirements " + forwarding + " txIndex " + newestTx);
+                                continue;
+                            }
+
+                            //find a suitable address
+                            Map<BitcoinAddress, Taint> addressTaints = taints.get(address);
+                            if (addressTaints == null || addressTaints.size() == 0) {
+
+                                if (BaseServlet.log) System.out.println("Fetching Taints For " + address);
+
+                                addressTaints = TaintServlet.getTaints(address, getDefaultTaintSettings());
+
+                                //save it the cached global taints map
+                                taints.put(address, addressTaints);
+                            }
+
+                            if (addressTaints == null || addressTaints.size() == 0) {
+                                if (BaseServlet.log) System.out.println("Unable to Get Taints For Address " + address);
+                                continue;
+                            }
+
+                            //Get a List Of Possible Addresses We Can Use
+                            List<DBBitcoinAddress> possibleAddresses = new ArrayList<>(dbwallet.getAddresses());
+
+                            List<ECKey> selectedKeys = new ArrayList<>();
+
+                            long splitAmount = amountToSend;
+                            if (totalSentAlready == 0 && amountToSend > SplitTxRuleThreshold || amountToSend > SplitSecondTimeTxRuleThreshold) {
+
+                                //For the first transaction we split it into two
+                                //Or if the transaction size > SplitSecondTimeTxRuleThreshold
+                                double RandomSplitAtPercent = 100d *  ((Math.random() * 0.8d) + 0.2d);  //Minimum 10% - Maximum 90%
+
+                                //Split the amount to send at the random percent
+                                splitAmount = (long)((amountToSend / 100d) * RandomSplitAtPercent);
+
+                                //Limit maximum transaction size to RandomSplitPercent of 350 BTC
+                                splitAmount = Math.min(splitAmount, (long)(((BitcoinTx.COIN * 350) / 100d) * RandomSplitAtPercent));
+                            }
+
+                            Set<Forwarding> forwardsUsedThisTx = new HashSet<>();
+
+                            long amountSelected = 0;
+                            boolean selected_enough = false;
+                            for (DBBitcoinAddress candidateAddress : possibleAddresses) {
+                                Forwarding candidateForwarding = forwardingMap.get(candidateAddress);
+
+                                if (candidateForwarding == null) {
                                     continue;
                                 }
 
-                                if (BaseServlet.log) System.out.println("Suitable Untainted address " + candidateAddress);
+                                //Never include self
+                                if (candidateAddress.equals(address))
+                                    continue;
 
-                                amountSelected += candidateAddress.finalBalance;
+                                //Don't include addresses we have already used
+                                if (used.contains(candidateAddress)) {
+                                    if (BaseServlet.log) System.out.println("Cannot use candidateAddress " + candidateAddress + " because we have used it previously");
+                                    continue;
+                                }
 
-                                //Use the untainted address as the from address
-                                ECKey key = blockchainWallet.getECKey(candidateAddress.toString());
+                                //Can't send from addresses with zero balance
+                                if (candidateAddress.finalBalance == 0) {
+                                    if (BaseServlet.log) System.out.println("Cannot use candidateAddress " + candidateAddress + " because the balance is zero");
+                                    continue;
+                                }
 
-                                used.add(address);
+                                //Don't include addresses which should not be mixed if the final balance is greater than the minimum send or it is newer than 24 hours old
+                                if (candidateForwarding.taint == 100 && (candidateAddress.finalBalance > DefaultTxFee.longValue() || candidateForwarding.time > System.currentTimeMillis()-86400000)) {
+                                    if (BaseServlet.log) System.out.println("Cannot use candidateAddress " + candidateAddress + " because the taint is 100%");
+                                    continue;
+                                }
 
-                                selectedKeys.add(key);
+                                Taint taint = addressTaints.get(candidateAddress);
 
+                                //If the taint is null or the amount of taint is less than the minimum required forward it
+                                if (taint == null || taint.getTaint() <= forwarding.taint) {
 
-                                if (amountSelected >= amountToSend)
-                                    break;
-                            } else {
-                                if (BaseServlet.log) System.out.println("Cannot use candidateAddress " + candidateAddress + " because it is tainted " + taint.getTaint());
-                            }
-                        }
-                    }
+                                    //Check Related Taints
+                                    //find a suitable address
+                                    Map<BitcoinAddress, Taint> candidateTaints = taints.get(candidateAddress);
+                                    if (candidateTaints == null || candidateTaints.size() == 0) {
+                                        if (BaseServlet.log) System.out.println("Fetching candidateTaints For " + candidateAddress);
 
-                    if (amountSelected < amountToSend) {
-                        if (amountSelected > sendPartialThreshold) {
-                            if (BaseServlet.log) System.out.println("amountSelected < amountToSend but amountSelected > sendPartialThreshold so sending partial");
-                        } else {
-                            if (BaseServlet.log) System.out.println("Not Sending " + forwarding + " Because amountSelected < amountToSend (" + amountSelected + " < " + amountToSend+")");
+                                        candidateTaints = TaintServlet.getTaints(candidateAddress, getDefaultTaintSettings());
 
-                            //Here is where we ask for untainted coins
-                            /* Map<BitcoinAddress, String> bitcoinAddressGUIDMap = new HashMap<>();
-                            {
-                                Connection conn = BitcoinDatabaseManager.conn();
-                                PreparedStatement stmt = null;
-                                try {
-                                    stmt = conn.prepareStatement("select hash, guid from bitcoin_wallet_keys");
-
-                                    ResultSet results = stmt.executeQuery();
-                                    while (results.next()) {
-                                        bitcoinAddressGUIDMap.put(new BitcoinAddress(new Hash(results.getBytes(1)), (short)1), results.getString(2));
+                                        //save it the cached global taints map
+                                        taints.put(candidateAddress, candidateTaints);
                                     }
-                                } finally {
-                                    BitcoinDatabaseManager.close(conn);
+
+                                    if (candidateTaints == null || candidateTaints.size() == 0) {
+                                        if (BaseServlet.log) System.out.println("Unable to Get Taints For Address " + candidateAddress);
+                                        continue;
+                                    }
+
+                                    boolean containsRelatedAddress = false;
+                                    if (candidateTaints != null) {
+                                        for (Map.Entry<BitcoinAddress, Taint> pair : candidateTaints.entrySet()) {
+                                            Taint connectingTaint = addressTaints.get(pair.getKey());
+
+                                            if (connectingTaint != null && connectingTaint.getTaint() >= RelatedTaintThreshold && pair.getValue().getTaint() >= RelatedTaintThreshold && !PopularAdressesServlet.getPopularAddresses().contains(pair.getKey())) {
+                                                if (BaseServlet.log) System.out.println("Cannot use candidateAddress " + candidateAddress + " because is contains a related tainted address: " + pair.getKey() + " " + pair.getValue().getTaint());
+                                                containsRelatedAddress = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+
+                                    if (containsRelatedAddress) {
+                                        continue;
+                                    }
+
+                                    if (BaseServlet.log) System.out.println("Suitable Untainted address " + candidateAddress);
+
+                                    amountSelected += candidateAddress.finalBalance;
+
+                                    //Use the untainted address as the from address
+                                    ECKey key = candidateForwarding.getECKey();
+
+                                    used.add(candidateAddress);
+
+                                    forwardsUsedThisTx.add(candidateForwarding);
+
+                                    selectedKeys.add(key);
+
+                                    if (amountSelected >= amountToSend || amountSelected >= splitAmount) {
+                                        selected_enough = true;
+                                        break;
+                                    }
                                 }
                             }
 
-                            //Remove All the tained addresses
-                            bitcoinAddressGUIDMap.keySet().removeAll(addressTaints.keySet());
+                            if (!selected_enough) {
+                                if (amountSelected >= SendPartialThreshold) {
+                                    if (BaseServlet.log)
+                                        System.out.println("amountSelected < amountToSend ("+amountToSend+") but amountSelected ("+amountSelected+")> SendPartialThreshold so sending partial");
+                                } else {
 
-                            System.out.println("bitcoinAddressGUIDMap size " + bitcoinAddressGUIDMap.size());
-                            */
+                                    //Here is where we request new funds
+                                    if (BaseServlet.log)
+                                        System.out.println("Not Sending " + forwarding + " Because amountSelected < amountToSend (" + amountSelected + " < " + amountToSend+") SendPartialThreshold: " + SendPartialThreshold);
 
+                                    continue;
+                                }
+                            }
+
+                            used.add(address);
+
+                            long realAmountToSend = Math.min(amountToSend, Math.min(splitAmount, amountSelected));
+
+                            if (sendForwarding(forwarding, selectedKeys, realAmountToSend, new MyWallet.GetChangeAddress() {
+                                //Return change to a new forwarding to the mixer global wallet
+                                //If we returned change back to the original address it would mess with the total received
+                                //Filtering the true total received is expensive
+
+                                //For Large Amounts of change (Over 250 BTC) we slit the change into chunks
+                                @Override
+                                public List<Pair<BitcoinAddress, BigInteger>> getMultiChangeAddress(Set<BitcoinAddress> addressesUsed, BigInteger amount) throws Exception {
+                                    if (BaseServlet.log) System.out.println("getMultiChangeAddress() " + forwarding + " Change " + amount);
+
+                                    long realMaxChangeSize = (totalSentAlready == 0) ? MaximumChangeSize : MaximumSecondChangeSize;
+
+                                    List<Pair<BitcoinAddress, BigInteger>> data = new ArrayList<>();
+
+                                    long amountLeft = amount.longValue();
+                                    while(amountLeft > 0) {
+
+                                        //We Create Another forwarding for the change with a special 101% taint which means never to forward it
+                                        BitcoinAddress address =  AdminServlet.getMixerWallet().getRandomActiveAddress();
+
+                                        Pair<BitcoinAddress, BitcoinAddress> changeForwarding = createSimpleForwarding(address, 101, 0, 0);
+
+                                        long changeValue = Math.min(realMaxChangeSize, amountLeft);
+                                        if (changeValue >= realMaxChangeSize) {
+                                            double RandomSplitAtPercent = 100d * ((Math.random() * 0.8d) + 0.2d);  //Minimum 20% - Maximum 80%
+
+                                            changeValue = (long)((changeValue / 100d) * RandomSplitAtPercent);
+                                        }
+
+                                        if (changeValue == 0 || changeValue < 0 || changeValue > amountLeft || changeValue > realMaxChangeSize)
+                                            throw new Exception("Erroneous Change Value " + changeValue);
+
+                                        if (BaseServlet.log) System.out.println("Change to " + changeForwarding.getFirst() + " Value " + changeValue);
+
+                                        data.add(new Pair<>(changeForwarding.getFirst(), BigInteger.valueOf(changeValue)));
+
+                                        amountLeft -= changeValue;
+                                    }
+
+                                    return data;
+                                }
+
+                            })) {
+                                if (BaseServlet.log) {
+                                    System.out.println("Sent " + forwarding);
+                                }
+
+                                //If this is a free paying transaction then we pay bonuses for transactions which helped it move thorugh
+                                if (forwarding.fee_percent > 0) {
+                                    //Mark the bonuses of any transactions used
+                                    for (Forwarding used_forward : forwardsUsedThisTx) {
+                                        //If the forwarding is used within 5 minutes then we consider it clean and the bonus is paid
+                                        if (used_forward.fee_percent < 0 && used_forward.bonus_status == Forwarding.BonusStatusNotProcessed) {
+                                            if (BaseServlet.log) System.out.println("Marking to pay bonus For " + used_forward);
+
+                                            {
+                                                //Don't send yet though as the transaction may not confirm, just mark as due to be paid when the transaction is confirmed
+                                                Connection conn = BitcoinDatabaseManager.conn();
+                                                try {
+                                                    used_forward.setBonusStatus(conn, Forwarding.BonusStatusShouldPay);
+                                                } finally {
+                                                    BitcoinDatabaseManager.close(conn);
+                                                }
+                                            }
+                                        } else {
+                                            if (BaseServlet.log) System.out.println("Marking to pay bonus For " + used_forward + " fee_percent " + used_forward.fee_percent + " bonus_status " + used_forward.bonus_status);
+                                        }
+                                    }
+                                } else {
+                                    if (BaseServlet.log) System.out.println("Not Paying bonus For " + forwarding + " as it is not a fee paying transaction");
+                                }
+
+                                //If this forwarding was marked as needing a bonus then pay it now that its processed
+                                if (forwarding.bonus_status == Forwarding.BonusStatusShouldPay) {
+                                    if (BaseServlet.log) System.out.println("Really Paying bonus For " + forwarding );
+
+                                    forwarding.payBonus(amountToSend);
+                                }
+
+                                scheduleJobAgainSoon(TimeBetweenRuns);
+
+                                return;
+                            } else {
+                                System.out.println("Error Sending " + forwarding);
+                            }
+                        }
+                    }
+
+                    for (Forwarding forwarding : forwards) {
+                        DBBitcoinAddress address = dbwallet.getAddress(forwarding.input_address);
+
+                        boolean isExpired = (forwarding.expires == 0 && forwarding.time <= System.currentTimeMillis()-DefaultExpiryTime) || (forwarding.expires <= System.currentTimeMillis());
+
+                        //Don't delete addresses which haven't been used
+                        if (address.totalReceived == 0 && !isExpired) {
+                            if (BaseServlet.log) System.out.println("Cannot remove "+forwarding+" because totalReceived == 0 ");
                             continue;
                         }
+
+                        //Don't delete addresses with a final balance
+                        if (address.finalBalance > 0) {
+                            if (BaseServlet.log) System.out.println("Cannot remove "+forwarding+" because final balance > 0 ");
+                            continue;
+                        }
+
+                        boolean allFullyConfirmed = true;
+                        for (Integer txIndex : address.getTxIndexes())  {
+
+                            Integer blockHeight = txToBlockHeight.get(txIndex);
+
+                            if (blockHeight == null)  {
+                                allFullyConfirmed = false;
+                                break;
+                            }
+
+                            int confirmations =  currentHeight - blockHeight + 1;
+                            if (confirmations <= RequiredRemovalConfirmations) {
+                                allFullyConfirmed = false;
+                                break;
+                            }
+                        }
+
+                        if (!allFullyConfirmed) {
+                            if (BaseServlet.log) System.out.println("Cannot remove "+forwarding+" because allFullyConfirmed is not true ");
+                            continue;
+                        }
+
+                        boolean hasDepending = false;
+                        for (Forwarding parentForwarding : forwards) {
+                            if (parentForwarding.output_address.equals(forwarding.input_address)) {
+                                hasDepending = true;
+                                break;
+                            }
+                        }
+
+                        if (hasDepending) {
+                            if (BaseServlet.log) System.out.println("Cannot remove "+forwarding+" because it has a dependant parent ");
+                            continue;
+                        }
+
+                        if (forwarding.taint < 100) {
+                            long amountToSend = forwarding.getPending(address.getTotalReceived(), dbwallet.calculateSentTo(forwarding.output_address, true));
+                            if (amountToSend > DefaultTxFee.longValue()) {
+                                if (BaseServlet.log) System.out.println("Cannot remove "+forwarding+" because address.totalReceived ("+address.totalReceived+") - totalForwarded ("+amountToSend+") > DefaultTxFee ");
+                                continue;
+                            }
+                        }
+
+                        Connection conn = BitcoinDatabaseManager.conn();
+                        try {
+                            if (!forwarding.remove(conn)) {
+                                System.out.println("Error Removing " + forwarding);
+                            }
+                        } finally {
+                            BitcoinDatabaseManager.close(conn);
+                        }
                     }
 
-                    if (sendForwarding(forwarding, selectedKeys, amountToSend, new MyWallet.GetChangeAddress() {
-                        //Return change to a new forwarding to the mixer global wallet
-                        //If we returned change back to the original address it would mess with the total received
-                        //Filtering the true total received is expensive
-                        @Override
-                        public BitcoinAddress getChangeAddress(Set<BitcoinAddress> addressesUsed) throws Exception {
-                            //We Create Another forwarding for the change
-                            Pair<BitcoinAddress, BitcoinAddress> changeForwarding = AdminServlet.getMixerWallet().createForwardingAddress(100, 0, 0);
+                    FailuresInARow = 0;
 
-                            return changeForwarding.getFirst();
-                        }
-                    })) {
+                } catch (Exception e) {
+                    //If the number of failures is less that 3 retry the job again
+                    if (FailuresInARow <= 3)
                         shouldRunJobAgainAfterFinish = true;
 
-                        if (BaseServlet.log) {
-                            System.out.println("Sent " + forwarding);
-                        }
-                    } else {
-                        System.out.println("Error Sending " + forwarding);
-                    }
+                    ++FailuresInARow;
+
+                    NotificationsManager.sendMail(Settings.instance().getString("admin_email"), "Exception Caught ProcessingForwards()",  e.getLocalizedMessage());
+
+                    throw e;
                 }
+            } finally {
+                //If we sent out a forwarding we re-run the job again after a short delay
+                if (shouldRunJobAgainAfterFinish) {
+                    scheduleJobAgainSoon(TimeBetweenRuns);
+                }
+
+                lastRun = System.currentTimeMillis();
             }
-
-            for (Forwarding forwarding : forwards) {
-                DBBitcoinAddress address = dbwallet.getAddress(forwarding.input_address);
-
-
-                //Don't delete addresses which haven't been used
-                if (address.totalReceived == 0 && forwarding.time > System.currentTimeMillis()-86400000) {
-                    if (BaseServlet.log) System.out.println("Cannot remove "+forwarding+" because totalReceived == 0 ");
-                    continue;
-                }
-
-                //Don't delete addresses with a final balance
-                if (address.finalBalance > 0) {
-                    if (BaseServlet.log) System.out.println("Cannot remove "+forwarding+" because final balance > 0 ");
-                    continue;
-                }
-
-                boolean allFullyConfirmed = true;
-                for (Integer txIndex : address.getTxIndexes())  {
-
-                    Integer blockHeight = txToBlockHeight.get(txIndex);
-
-                    if (blockHeight == null)  {
-                        allFullyConfirmed = false;
-                        break;
-                    }
-
-                    int confirmations =  currentHeight - blockHeight + 1;
-                    if (confirmations <= RequiredRemovalConfirmations) {
-                        allFullyConfirmed = false;
-                        break;
-                    }
-                }
-
-                if (!allFullyConfirmed) {
-                    if (BaseServlet.log) System.out.println("Cannot remove "+forwarding+" because allFullyConfirmed is not true ");
-                    continue;
-                }
-
-                boolean hasDepending = false;
-                for (Forwarding parentForwarding : forwards) {
-                    if (parentForwarding.input_address.equals(forwarding.output_address)) {
-                        hasDepending = true;
-                        break;
-                    }
-                }
-
-                if (hasDepending) {
-                    if (BaseServlet.log) System.out.println("Cannot remove "+forwarding+" because it has a dependant forwarding ");
-                    continue;
-                }
-
-                if (forwarding.taint < 100) {
-
-                    long amountToSend = forwarding.getPending(address.getTotalReceived(), dbwallet.calculateSentTo(forwarding.output_address, true));
-                    if (amountToSend > txFee.longValue()) {
-                        if (BaseServlet.log) System.out.println("Cannot remove "+forwarding+" because address.totalReceived ("+address.totalReceived+") - totalForwarded ("+amountToSend+") > DefaultTxFee ");
-                        continue;
-                    }
-                }
-
-                Connection conn = BitcoinDatabaseManager.conn();
-                try {
-                    if (!forwarding.remove(conn)) {
-                        System.out.println("Error Removing " + forwarding);
-                    }
-                } finally {
-                    BitcoinDatabaseManager.close(conn);
-                }
-
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-
-            NotificationsManager.sendMail(Settings.instance().getString("admin_email"), "Exception Caught ProcessingForwards()",  e.getLocalizedMessage());
-
-            throw e;
-        }
-
-        //If we sent out a forwarding we re-run the job again after a short delay
-        if (shouldRunJobAgainAfterFinish) {
-            new Thread() {
-                @Override
-                public void run() {
-                    try {
-                        Thread.sleep(10000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-
-                    OperationQueue.shared.addOperation(new ProcessForwardsOperation());
-                }
-            }.start();
         }
     }
 }
