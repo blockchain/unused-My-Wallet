@@ -976,7 +976,7 @@ function setPage(i) {
     queryAPIMultiAddress();
 }
 
-function parseMultiAddressJSON(json) {
+function parseMultiAddressJSON(json, cached) {
     var obj = $.parseJSON(json);
 
     $('#nodes-connected').html(obj.info.nconnected);
@@ -994,7 +994,10 @@ function parseMultiAddressJSON(json) {
         symbol_local = new_symbol_local;
     }
 
-    mixer_fee = obj.mixer_fee;
+    if (!cached) {
+        mixer_fee = obj.mixer_fee;
+        $('#bonus-notice').toggle(obj.mixer_fee < 0);
+    }
 
     transactions = [];
 
@@ -1042,7 +1045,7 @@ function queryAPIMultiAddress(success) {
             }
 
             try {
-                parseMultiAddressJSON(data);
+                parseMultiAddressJSON(data, false);
 
                 //Rebuild the my-addresses list with the new updated balances (Only if visible)
                 buildVisibleView();
@@ -1197,7 +1200,7 @@ function didDecryptWallet() {
             var multiaddrjson = localStorage.getItem('multiaddr');
 
             if (multiaddrjson != null) {
-                parseMultiAddressJSON(multiaddrjson);
+                parseMultiAddressJSON(multiaddrjson, true);
 
                 buildVisibleView();
             }

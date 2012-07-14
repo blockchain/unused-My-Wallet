@@ -329,7 +329,7 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
         final BigInteger originalAmount = BigInteger.valueOf(amount);
 
         if (originalAmount.compareTo(txFee) <= 0) {
-            throw new Exception("amount Less than or equal to txFee");
+            throw new Exception("amount Less than or equal to DefaultTxFee");
         }
 
         List<Pair<BitcoinAddress, BigInteger>> toAddresses = new ArrayList<>();
@@ -902,7 +902,7 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
 
                     long amountToSend = forwarding.getPending(address.getTotalReceived(), dbwallet.calculateSentTo(forwarding.output_address, true));
                     if (amountToSend > txFee.longValue()) {
-                        if (BaseServlet.log) System.out.println("Cannot remove "+forwarding+" because address.totalReceived ("+address.totalReceived+") - totalForwarded ("+amountToSend+") > txFee ");
+                        if (BaseServlet.log) System.out.println("Cannot remove "+forwarding+" because address.totalReceived ("+address.totalReceived+") - totalForwarded ("+amountToSend+") > DefaultTxFee ");
                         continue;
                     }
                 }

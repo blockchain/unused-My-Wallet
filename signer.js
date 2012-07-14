@@ -192,44 +192,55 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
             else if (type == 'quick') //Any quick transactions over 20 BTC make them custom
                 type = 'custom';
         } else if ( type == 'anonymous' && total_value < 0.5) {
-              throw 'The Minimum Amount You Can Send Anonymously is 0.5 BTC';
+            throw 'The Minimum Amount You Can Send Anonymously is 0.5 BTC';
         }
 
         if (mixer_fee && mixer_fee < 0 && (type == 'custom' || type == 'quick') && total_value >= 5 && getCookie('anonymous-never-ask') != 'true' && !dont_ask_for_anon) {
-            var modal = $('#ask-for-anonymous');
 
-            modal.find('.bonus-percent').text(- mixer_fee);
-            modal.find('.bonus-value').text((total_value / 100) * - mixer_fee);
+            var last_accepted_time = getCookie('anonymous-accepted-time');
+            if (!last_accepted_time || parseInt(last_accepted_time) < new Date().getTime()-43200000) {
+                var modal = $('#ask-for-anonymous');
 
-            var delay_span = modal.find('.delay');
-            if (total_value <= 10)
-                delay_span.text('20 Seconds');
-            else if (total_value <= 25)
-                delay_span.text('10 Minutes');
-            else if (total_value <= 250)
-                delay_span.text('20 Minutes');
-            else
-                delay_span.text('1 hour');
+                modal.find('.bonus-percent').text(- mixer_fee);
+                modal.find('.bonus-value').text((total_value / 100) * - mixer_fee);
 
-            modal.modal({
-                keyboard: false,
-                backdrop: "static",
-                show: true
-            });
+                var delay_span = modal.find('.delay');
+                if (total_value <= 10)
+                    delay_span.text('20 Seconds');
+                else if (total_value <= 25)
+                    delay_span.text('10 Minutes');
+                else if (total_value <= 250)
+                    delay_span.text('20 Minutes');
+                else
+                    delay_span.text('1 hour');
 
-            modal.find('.btn.btn-primary').unbind().click(function() {
-                startTxUI(el, 'anonymous', pending_transaction)
+                modal.modal({
+                    keyboard: false,
+                    backdrop: "static",
+                    show: true
+                });
 
-                modal.modal('hide');
-            });
+                modal.find('.btn.btn-primary').unbind().click(function() {
+                   var anon_pending = startTxUI(el, 'anonymous', pending_transaction);
 
-            modal.find('.btn.btn-secondary').unbind().click(function() {
-                startTxUI(el, type, pending_transaction, true)
+                    anon_pending.addListener({
+                        on_success : function() {
+                            //Set a cookie to not ask again within 12 hours
+                            SetCookie('anonymous-accepted-time', new Date().getTime());
+                        }
+                    });
 
-                modal.modal('hide');
-            });
+                    modal.modal('hide');
+                });
 
-            return;
+                modal.find('.btn.btn-secondary').unbind().click(function() {
+                    startTxUI(el, type, pending_transaction, true)
+
+                    modal.modal('hide');
+                });
+
+                return;
+            }
         }
 
         var listener = {};
