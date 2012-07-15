@@ -100,7 +100,6 @@ public class ForwardingServlet extends BaseServlet {
                     JSONObject obj = new JSONObject();
 
                     obj.put("input_address", input_generated.getFirst().toString());
-                    obj.put("output_address", output_generated.getFirst().toString());
                     obj.put("destination", destinationAddress);
 
                     res.setContentType("text/json");
