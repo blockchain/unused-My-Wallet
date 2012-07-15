@@ -35,8 +35,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import static piuk.website.TaintServlet.Taint;
 
 public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
-    public static boolean isScheduled = false; //Whether the operation is scheduled to run again
-    public static final int RequiredRemovalConfirmations = 6; //Number of confirmations before all logs are removed
+    public static boolean isScheduled = false;
+    public static final int RequiredRemovalConfirmations = 6;
     public static final Map<BitcoinAddress, Map<BitcoinAddress, TaintServlet.Taint>> taints = new ConcurrentHashMap<>();
     public static final BigInteger DefaultTxFee = BigInteger.valueOf((long) (BitcoinTx.COIN * 0.0001)); //0.0001 BTC
     public static final long SendPartialThreshold = BitcoinTx.COIN * 10; //10 BTC
@@ -44,15 +44,15 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
     public static final long OneConfirmationMaxValue = BitcoinTx.COIN * 25; //25 BTC
     public static final long ZeroConfirmationMaxValue = BitcoinTx.COIN * 10; //10 BTC
     public static final long ZeroConfirmationRequiredFees =  (long)(BitcoinTx.COIN * 0.0005); //0.0005 BTC
-    public static final long SplitTxRuleThreshold =  BitcoinTx.COIN * 4; //Transactions larger than 2.5 BTC get split into at least two transactions
+    public static final long SplitFirstTxRuleThreshold =  BitcoinTx.COIN * 2; //Transactions larger than this get split into at least two transactions
+    public static final long SplitAgainTxRuleThreshold =  BitcoinTx.COIN * 50; //Transactions larger this get split get split repeatedly subsequent times
     public static final long Split100TaintTxRuleThreshold =  BitcoinTx.COIN * 50; //Split Threshold for transactions 100% taint transaction which have a < 100% taint parent
-    public static final long SplitSecondTimeTxRuleThreshold =  BitcoinTx.COIN * 150; //Split Threshold for transactions 100% taint transaction which have a < 100% taint parent
     public static final long MaximumChangeSize = DBBitcoinTx.COIN * 200; //200 BTC
     public static final long MaximumSecondChangeSize = DBBitcoinTx.COIN * 100; //100 BTC
-    public static final double RelatedTaintThreshold =  5; //The threshold % taint of a connected taint address. A related address is an address which is not directly tainted by either address but is a tainted in-directly by other addresses
+    public static final double RelatedTaintThreshold =  0.5; //The threshold % taint of a connected taint address. A related address is an address which is not directly tainted by either address but is a tainted in-directly by other addresses
     public static final long TimeBetweenRuns = 5000; // 5 seconds
     public static final long MinTimeBetweenPushed = 30000; //Never push another transaction out from the same address between this time (to give hte transaction a chance to propagate)
-    public static final long DefaultExpiryTime = 86400000; //24 hours (Default expiry time of forwardings)
+    public static final long DefaultExpiryTime = 28800000; //8 hours (Default expiry time of unused forwards)
     public static long FailuresInARow = 0; //How many exceptions in a row to catch before giving up
 
     public static boolean isRunning = false;
@@ -574,8 +574,8 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
         //More in depth search than regular taint analysis
         piuk.website.TaintServlet.Settings settings = new piuk.website.TaintServlet.Settings();
 
-        settings.maxInitialOutputs = 5000;
-        settings.maxQueryCount = 1500;
+        settings.maxInitialOutputs = 50000;
+        settings.maxQueryCount = 2000;
         settings.maxDepth = 500;
 
         return settings;
@@ -921,7 +921,7 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
                             List<ECKey> selectedKeys = new ArrayList<>();
 
                             long splitAmount = amountToSend;
-                            if (totalSentAlready == 0 && amountToSend > SplitTxRuleThreshold || amountToSend > SplitSecondTimeTxRuleThreshold) {
+                            if ((totalSentAlready == 0 && amountToSend > SplitFirstTxRuleThreshold) || amountToSend > SplitAgainTxRuleThreshold)  {
 
                                 //For the first transaction we split it into two
                                 //Or if the transaction size > SplitSecondTimeTxRuleThreshold
@@ -930,8 +930,8 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
                                 //Split the amount to send at the random percent
                                 splitAmount = (long)((amountToSend / 100d) * RandomSplitAtPercent);
 
-                                //Limit maximum transaction size to RandomSplitPercent of 350 BTC
-                                splitAmount = Math.min(splitAmount, (long)(((BitcoinTx.COIN * 350) / 100d) * RandomSplitAtPercent));
+                                //Limit maximum transaction size to RandomSplitPercent of 250 BTC
+                                splitAmount = Math.min(splitAmount, (long)(((BitcoinTx.COIN * 250) / 100d) * RandomSplitAtPercent));
                             }
 
                             Set<Forwarding> forwardsUsedThisTx = new HashSet<>();
@@ -1019,25 +1019,22 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
 
                                     selectedKeys.add(key);
 
-                                    if (amountSelected >= amountToSend || amountSelected >= splitAmount) {
-                                        selected_enough = true;
+                                    if (amountSelected >= amountToSend) {
                                         break;
                                     }
                                 }
                             }
 
-                            if (!selected_enough) {
-                                if (amountSelected >= SendPartialThreshold) {
-                                    if (BaseServlet.log)
-                                        System.out.println("amountSelected < amountToSend ("+amountToSend+") but amountSelected ("+amountSelected+")> SendPartialThreshold so sending partial");
-                                } else {
+                            if (amountSelected >= amountToSend || amountSelected >= SendPartialThreshold) {
+                                if (BaseServlet.log)
+                                    System.out.println("amountSelected < amountToSend ("+amountToSend+") but amountSelected ("+amountSelected+")> SendPartialThreshold so sending partial");
+                            } else {
 
-                                    //Here is where we request new funds
-                                    if (BaseServlet.log)
-                                        System.out.println("Not Sending " + forwarding + " Because amountSelected < amountToSend (" + amountSelected + " < " + amountToSend+") SendPartialThreshold: " + SendPartialThreshold);
+                                //Here is where we request new funds
+                                if (BaseServlet.log)
+                                    System.out.println("Not Sending " + forwarding + " Because amountSelected < amountToSend (" + amountSelected + " < " + amountToSend+") SendPartialThreshold: " + SendPartialThreshold);
 
-                                    continue;
-                                }
+                                continue;
                             }
 
                             used.add(address);
