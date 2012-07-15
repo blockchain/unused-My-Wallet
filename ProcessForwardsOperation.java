@@ -49,7 +49,7 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
     public static final long Split100TaintTxRuleThreshold =  BitcoinTx.COIN * 50; //Split Threshold for transactions 100% taint transaction which have a < 100% taint parent
     public static final long MaximumChangeSize = DBBitcoinTx.COIN * 200; //200 BTC
     public static final long MaximumSecondChangeSize = DBBitcoinTx.COIN * 100; //100 BTC
-    public static final double RelatedTaintThreshold =  0.5; //The threshold % taint of a connected taint address. A related address is an address which is not directly tainted by either address but is a tainted in-directly by other addresses
+    public static final double RelatedTaintThreshold =  1; //The threshold % taint of a connected taint address. A related address is an address which is not directly tainted by either address but is a tainted in-directly by other addresses
     public static final long TimeBetweenRuns = 5000; // 5 seconds
     public static final long MinTimeBetweenPushed = 30000; //Never push another transaction out from the same address between this time (to give hte transaction a chance to propagate)
     public static final long DefaultExpiryTime = 28800000; //8 hours (Default expiry time of unused forwards)
