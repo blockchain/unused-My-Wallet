@@ -3007,7 +3007,7 @@ function bind() {
             } else {
                 real_tx_value = parseFloat(input_value + 0.0002);
 
-                self.find('.bonus-value').text(Math.min(1, - ($(this).val() / 100) * mixer_fee));
+                self.find('.bonus-value').text(- (Math.min($(this).val(), 200) / 100) * mixer_fee);
             }
 
             if ($(this).val() < 0.5)
