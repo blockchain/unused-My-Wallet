@@ -996,7 +996,6 @@ function parseMultiAddressJSON(json, cached) {
 
     if (!cached) {
         mixer_fee = obj.mixer_fee;
-        $('#bonus-notice').toggle(obj.mixer_fee < 0);
     }
 
     transactions = [];
