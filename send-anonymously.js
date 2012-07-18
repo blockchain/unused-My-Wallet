@@ -22,6 +22,21 @@ $(document).ready(function() {
 
             forwarding_result.find('.input_address').text(obj.input_address);
             forwarding_result.find('.output_address').text(obj.destination);
+            forwarding_result.find('.fee_percent').text(obj.fee_percent);
+
+            $('.bonus,.fee,.free').hide();
+
+            if (obj.fee_percent < 0) {
+                $('.bonus').show();
+            }
+
+            if (obj.fee_percent > 0) {
+                $('.fee').show();
+            }
+
+            if (obj.fee_percent > 0) {
+                $('.free').show();
+            }
 
         }).error(function(data) {
                 button.text('Create New Forwarding Address').attr('disabled', false);

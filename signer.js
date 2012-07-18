@@ -645,6 +645,12 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                                 throw 'Mismatch between requested and returned destination address';
                                             }
 
+                                            if (obj.fee_percent != mixer_fee) {
+                                                queryAPIMultiAddress();
+
+                                                throw 'The mixer fee may have changed';
+                                            }
+
                                             pending_transaction.to_addresses.push({address: new Bitcoin.Address(obj.input_address), value : value});
 
                                             //Call again now we have got the forwarding address
