@@ -1,35 +1,19 @@
 package piuk.website;
 
 
-import com.google.bitcoin.core.AddressFormatException;
-import com.google.bitcoin.core.Base58;
-import com.google.bitcoin.core.ECKey;
-import com.google.bitcoin.core.NetworkParameters;
 import org.json.JSONObject;
-import piuk.api.ChainManager;
 import piuk.beans.BitcoinAddress;
 import piuk.common.Pair;
 import piuk.db.BitcoinDatabaseManager;
-import piuk.db.DBBitcoinBlock;
-import piuk.db.DBBitcoinTx;
-import piuk.merchant.MyWallet;
-import piuk.website.admin.ProcessForwardsOperation;
+import piuk.website.admin.operations.ProcessForwardsOperation;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
 
 @WebServlet({ HomeServlet.ROOT + "forwarder" })
 public class ForwardingServlet extends BaseServlet {

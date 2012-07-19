@@ -1,7 +1,6 @@
 package piuk.website.admin;
 
 
-import com.google.bitcoin.core.*;
 import piuk.api.ChainManager;
 import piuk.api.ChainManager.BlockEventListener;
 import piuk.api.ChainManager.TxEventListener;
@@ -10,16 +9,14 @@ import piuk.api.InventoryManager;
 import piuk.api.NotificationsManager;
 import piuk.beans.BitcoinAddress;
 import piuk.beans.BitcoinTx;
-import piuk.beans.Hash;
 import piuk.common.Operation;
 import piuk.common.OperationQueue;
 import piuk.common.Pair;
-import piuk.db.*;
 import piuk.merchant.MyWallet;
 import piuk.website.BaseServlet;
 import piuk.website.PopularAdressesServlet;
 import piuk.website.TaintServlet;
-import piuk.website.admin.ProcessForwardsOperation.Forwarding;
+import piuk.website.admin.operations.ProcessForwardsOperation.Forwarding;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
@@ -29,7 +26,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static piuk.website.TaintServlet.Taint;
