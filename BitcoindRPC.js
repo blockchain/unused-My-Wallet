@@ -33,7 +33,7 @@ document.body.addEventListener('ExtensionResponse', function() {
         } else if (obj.data.status == 401) {
             requests[request_id].error('Authorization Failed Please Check Your Username & Password');
         } else {
-            requests[request_id].error('Server Returned Unknown Status ' + obj.data.status);
+            requests[request_id].error('Server Returned Unknown BitcoindStatus ' + obj.data.status);
         }
     }
 });
