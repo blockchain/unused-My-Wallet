@@ -434,7 +434,7 @@ function buildSendForm(el, reset) {
 
     buildSelect(el.find('select[name="change"]'), true, reset);
 
-    el.find('select[name="change"] option').append('<option value="new">New Address</option>').val('new');
+    el.find('select[name="change"]').prepend('<option value="new">New Address</option>');
 
     if (reset) {
         el.find('input').val('');
