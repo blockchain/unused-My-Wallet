@@ -1,9 +1,9 @@
 package piuk.website.admin;
 
 
-import piuk.api.ChainManager;
-import piuk.api.ChainManager.BlockEventListener;
-import piuk.api.ChainManager.TxEventListener;
+import piuk.db.ChainManager;
+import piuk.db.ChainManager.BlockEventListener;
+import piuk.db.ChainManager.TxEventListener;
 import piuk.api.InventoryInfo;
 import piuk.api.InventoryManager;
 import piuk.api.NotificationsManager;
@@ -462,7 +462,7 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
         return isRunning;
     }
 
-    public static synchronized boolean sendForwarding(Forwarding input, List<ECKey> from, long amount, MyWallet.GetChangeAddress changeAddress) throws Exception {
+    public static synchronized boolean sendForwarding(Forwarding input, List<ECKey> from, long amount, MyWallet.TransactionOverride changeAddress) throws Exception {
 
         final BigInteger originalAmount = BigInteger.valueOf(amount);
 
@@ -654,7 +654,7 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
 
                             Set<Integer> txIndexes = dbwallet.getTxIndexes();
 
-                            txToBlockHeight = ChainManager.instance().filterConfirmedIndexes(dbwallet.getConfirmedBlockIndexes(conn, txIndexes), 0, null);
+                            txToBlockHeight = address.getMainChainConfirmedBlockHeights(conn, txIndexes, ChainManager.instance());
 
                             dbwallet.calculateTxResults();
 
@@ -765,7 +765,7 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
                                     used.add(address);
 
                                     final long finalActualAmountToSend = actualAmountToSend;
-                                    if (sendForwarding(forwarding, Collections.singletonList(key), actualAmountToSend, new MyWallet.GetChangeAddress() {
+                                    if (sendForwarding(forwarding, Collections.singletonList(key), actualAmountToSend, new MyWallet.TransactionOverride() {
                                         //Return change tot he forwarding output address
                                         //There should very rarely be any change, but it could happen if a new transactions is received between when we fetched the last balance and now
                                         @Override
@@ -1037,7 +1037,7 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
 
                             long realAmountToSend = Math.min(amountToSend, Math.min(splitAmount, amountSelected));
 
-                            if (sendForwarding(forwarding, selectedKeys, realAmountToSend, new MyWallet.GetChangeAddress() {
+                            if (sendForwarding(forwarding, selectedKeys, realAmountToSend, new MyWallet.TransactionOverride() {
                                 //Return change to a new forwarding to the mixer global wallet
                                 //If we returned change back to the original address it would mess with the total received
                                 //Filtering the true total received is expensive

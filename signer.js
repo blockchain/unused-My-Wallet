@@ -337,7 +337,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                     self.modal.find('#review-tx').show();
 
-                    setReviewTransactionContent(self.modal, self.tx);
+                    setReviewTransactionContent(self.modal, self.tx, self.type);
 
                     self.modal.center();
 
@@ -514,6 +514,8 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                 error(e);
             }, addr)
         };
+
+        pending_transaction.type = type;
 
         getSecondPassword(function() {
             try {
@@ -1028,7 +1030,7 @@ function formatAddresses(m, faddresses, resolve_labels) {
     return str;
 }
 
-function setReviewTransactionContent(modal, tx) {
+function setReviewTransactionContent(modal, tx, type) {
 
     $('#rtc-hash').html(Crypto.util.bytesToHex(tx.getHash()));
     $('#rtc-version').html(tx.version);
@@ -1104,7 +1106,11 @@ function setReviewTransactionContent(modal, tx) {
                         basic_str += ' and ';
                     }
 
-                    basic_str += '<b>' + formatBTC(val.toString())  + ' BTC</b> to ' + formatAddresses(1, [address], true);
+                    if (type && type == 'anonymous') {
+                        basic_str += '<b>' + formatBTC(val.toString())  + ' BTC</b> Anonymously';
+                    } else {
+                        basic_str += '<b>' + formatBTC(val.toString())  + ' BTC</b> to ' + formatAddresses(1, [address], true);
+                    }
 
                     all_txs_to_self = false;
                 }
