@@ -2990,10 +2990,7 @@ function bind() {
 
         self.find('.send').unbind().click(function() {
             loadScript(resource + 'wallet/signer.min.js', function() {
-                var pending_tx = startTxUI(self, 'anonymous', initNewTx());
-
-                //Always include a decent miners fee with anonymous transactions
-                pending_tx.fee = BigInteger.valueOf(50000);
+                startTxUI(self, 'anonymous', initNewTx());
             });
         });
 
