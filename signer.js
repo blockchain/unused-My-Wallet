@@ -149,7 +149,7 @@ function resolveAddress(label) {
     for (var key in address_book) {
         var a_label = address_book[key];
         if (a_label.toLowerCase() == label) {
-            return key;
+            return $.trim(key);
         }
     }
     for (var key in addresses) {

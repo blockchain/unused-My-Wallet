@@ -2118,9 +2118,9 @@ function addAddressBookEntry() {
 
         modal.modal('hide');
 
-        var label = labelField.val();
+        var label = $.trim(labelField.val());
 
-        var bitcoinAddress = addrField.val();
+        var bitcoinAddress = $.trim(addrField.val());
 
         if (label.length == 0) {
             makeNotice('error', 'misc-error', 'you must enter a label for the address book entry');
@@ -2135,7 +2135,7 @@ function addAddressBookEntry() {
         var addr;
 
         try {
-            addr = new Bitcoin.Address($.trim(bitcoinAddress));
+            addr = new Bitcoin.Address(bitcoinAddress);
 
             if (addr == null)
                 throw 'Null address';
