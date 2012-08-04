@@ -31,11 +31,6 @@ $(document).ready(function() {
         window.location = root + 'wallet/forgot-identifier?email='+ $('#forgot-email').val();
     });
 
-    //Uservoice
-    setTimeout(function() {
-        $('head').append('<script type="text/javascript" src="https://widget.uservoice.com/4wr7K1dKGPbvxshWQTrTg.js"></script>');
-    }, 1000);
-
     $('#download-instructions-btn').click(function () {
         $('#download-instructions').toggle(400);
     });

@@ -221,7 +221,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                 });
 
                 modal.find('.btn.btn-primary').unbind().click(function() {
-                   var anon_pending = startTxUI(el, 'anonymous', pending_transaction);
+                    var anon_pending = startTxUI(el, 'anonymous', pending_transaction);
 
                     anon_pending.addListener({
                         on_success : function() {
@@ -507,7 +507,6 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                 success(key);
             }, function (e) {
-
                 if (self.modal)
                     self.modal.modal('show'); //Show the progress modal again
 
@@ -1182,11 +1181,15 @@ function initNewTx() {
             var self = this;
 
             try {
-
                 self.invoke('on_start');
 
                 getUnspentOutputs(self.from_addresses, function (obj) {
+
                     try {
+                        if (self.is_cancelled) {
+                            throw 'Transaction Cancelled';
+                        }
+
                         if (obj.unspent_outputs == null || obj.unspent_outputs.length == 0) {
                             throw 'No Free Outputs To Spend';
                         }
@@ -1201,6 +1204,7 @@ function initNewTx() {
                                 makeNotice('error', 'misc-error', 'Error decoding script: ' + e); //Not a fatal error
                                 continue;
                             }
+
                             var out = {script : script,
                                 value : BigInteger.fromByteArrayUnsigned(Crypto.util.hexToBytes(obj.unspent_outputs[i].value_hex)),
                                 tx_output_n : obj.unspent_outputs[i].tx_output_n,
@@ -1227,6 +1231,10 @@ function initNewTx() {
             var self = this;
 
             try {
+                if (self.is_cancelled) {
+                    throw 'Transaction Cancelled';
+                }
+
                 this.selected_outputs = [];
 
                 var txValue = BigInteger.ZERO;
@@ -1256,15 +1264,34 @@ function initNewTx() {
 
                 var priority = 0;
                 var addresses_used = [];
+                var unspent_watch_only = [];
+                var looping_array = this.unspent;
 
-                for (var i in this.unspent) {
-                    var out = this.unspent[i];
+                for (var i = 0; i < looping_array.length; ++i) {
+                    var out = looping_array[i];
 
                     try {
                         var addr = new Bitcoin.Address(out.script.simpleOutPubKeyHash()).toString();
 
                         if (addr == null) {
                             throw 'Unable to decode output address from transaction hash ' + out.tx_hash;
+                        }
+
+                        if (addresses[addr] == null) {
+                            throw 'Unknown recognized address ' + addr;
+                        }
+
+                        if (looping_array != unspent_watch_only) {
+                            //When we have reached the last one element add the watch only addresses back in
+                            if (i == looping_array.length-1) {
+                                //Change the looping array to loop over the watch only
+                                looping_array = unspent_watch_only;
+
+                                i = -1;
+                            } else if (addresses[addr].priv == null)  {
+                                unspent_watch_only.push(out); //Skip watch only addresses first
+                                continue;
+                            }
                         }
 
                         if (this.from_addresses != null && this.from_addresses.length > 0 && $.inArray(addr, this.from_addresses) == -1) {
@@ -1302,7 +1329,6 @@ function initNewTx() {
                             if (!isSweep && availableValue.compareTo(txValue) >= 0)
                                 break;
                         }
-
                     } catch (e) {
                         //An error, but probably recoverable
                         makeNotice('info', 'tx-error', e);
@@ -1418,6 +1444,10 @@ function initNewTx() {
             var self = this;
 
             try {
+                if (self.is_cancelled) {
+                    throw 'Transaction Cancelled';
+                }
+
                 var tmp_cache = {};
 
                 for (var i in self.selected_outputs) {
@@ -1462,6 +1492,7 @@ function initNewTx() {
 
                                 //Remake the transaction without the address
                                 self.makeTransaction();
+
                             }, inputAddress);
 
                             return false;
@@ -1535,8 +1566,10 @@ function initNewTx() {
 
             signOne = function() {
                 setTimeout(function() {
-                    if (self.is_cancelled)
+                    if (self.is_cancelled) {
+                        error();
                         return;
+                    }
 
                     try {
                         self.invoke('on_sign_progress', outputN+1);
@@ -1748,6 +1781,8 @@ function initNewTx() {
         on_success : function(e) {
             try {
                 $('.send').attr('disabled', false);
+
+                buildVisibleView(true);
             } catch (e) {
                 console.log(e);
             }

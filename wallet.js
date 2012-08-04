@@ -392,11 +392,15 @@ function apiGetTicker() {
     });
 }
 
-function buildSendTxView() {
+function buildSendTxView(reset) {
 
     apiGetTicker();
 
-    $('#send-coins').find('.tab-pane.active').trigger('show', true);
+    $('#send-coins').find('.tab-pane.active').trigger('show', reset);
+
+    if (reset) {
+        $('.send').attr('disabled', false);
+    }
 }
 
 function buildSelect(select, zero_balance, reset) {
@@ -512,40 +516,30 @@ function importPyWalletJSONObject(obj) {
     makeNotice('success', 'misc-success', 'Imported ' + i + ' private keys');
 }
 
-function parseMultiBit(str) {
-    //Any better way to auto detect?
-    //Multibit Wallets start with a comment #
+function parsePrivateKeysFromText(input_text) {
+
+    var components = input_text.split(/\s+/g);
+
     try {
-
         var addedOne = false;
-        var lines = str.split('\n');
-
-        for (var i = 0; i < lines.length; ++i) {
-            var line = lines[i];
-
-            if (line == null || line.length == 0 | line.charAt(0) == '#')
-                continue;
-
-            var components = line.split(' ');
-
-            var sipa = components[0];
-
-            if (sipa == null)
-                continue;
+        for (var i in components) {
+            var word = components[i];
 
             if (walletIsFull())
-                continue;
+                break;
 
-            var format = detectPrivateKeyFormat(sipa);
+            try {
+                var format = detectPrivateKeyFormat(word);
 
-            var key = privateKeyStringToKey(sipa, format);
+                var key = privateKeyStringToKey(word, format);
 
-            if (format == 'compsipa')
-                internalAddKey(key.getBitcoinAddressCompressed().toString(), encodePK(key.priv));
-            else
-                internalAddKey(key.getBitcoinAddress().toString(), encodePK(key.priv));
+                if (format == 'compsipa')
+                    internalAddKey(key.getBitcoinAddressCompressed().toString(), encodePK(key.priv));
+                else
+                    internalAddKey(key.getBitcoinAddress().toString(), encodePK(key.priv));
 
-            addedOne = true;
+                addedOne = true;
+            } catch (e) { }
         }
 
         if (addedOne) {
@@ -566,31 +560,22 @@ function parseMultiBit(str) {
 
 function importJSON() {
 
-    var json = $('#import-json').val();
+    var input_text = $('#import-json').val();
 
-    if (json == null || json.length == 0) {
+    if (input_text == null || input_text.length == 0) {
         throw 'No import data provided!';
     }
 
-    //Any better way to auto detect?
-    //Multibit Wallets start with a comment #
-    if (json.charAt(0) == '#') {
-        if (parseMultiBit(json)) {
-            return true;
-        }
-    }
-
     var obj = null;
-
     try {
         //First try a simple decode
-        obj = $.parseJSON(json);
+        obj = $.parseJSON(input_text);
 
         if (obj == null)
-            throw 'null json';
+            throw 'null input_text';
     } catch(e) {
         //Maybe it's encrypted?
-        decrypt(json, password, function(decrypted) {
+        decrypt(input_text, password, function(decrypted) {
             try {
                 obj = $.parseJSON(decrypted);
 
@@ -601,16 +586,23 @@ function importJSON() {
         });
     }
 
-    if (obj == null) {
-        throw 'Could not decode import data';
-    }
-
-    if (obj == null || obj.keys == null || obj.keys.length == 0) {
-        throw 'No keys imported. Incorrect format?';
-    }
-
     getSecondPassword(function() {
         try {
+            if (obj == null) {
+                console.log('Error Parsing JSON. Trying Plain Text import.');
+
+                //Not JSON Try plain Text
+                if (parsePrivateKeysFromText(input_text)) {
+                    return true;
+                } else {
+                    throw 'Could not decode import data';
+                }
+            }
+
+            if (obj == null || obj.keys == null || obj.keys.length == 0) {
+                throw 'No keys imported. Incorrect format?';
+            }
+
             //Pywallet contains hexsec
             if (obj.keys[0].hexsec != null) {
                 importPyWalletJSONObject(obj);
@@ -672,7 +664,7 @@ function importJSON() {
             checkAllKeys();
 
             //Clear the old value
-            $('#import-json').val('');
+            $('#import-input_text').val('');
 
             //Perform a wallet backup
             backupWallet('update', function() {
@@ -826,7 +818,7 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
     return html;
 };
 
-function buildVisibleView() {
+function buildVisibleView(reset) {
 
     //Hide any popovers as they can get stuck whent the element is re-drawn
     try {
@@ -836,14 +828,13 @@ function buildVisibleView() {
     //Only build when visible
     var id = cVisible.attr('id');
     if ("send-coins" == id)
-        buildSendTxView();
+        buildSendTxView(reset);
     else if ("home-intro" == id)
-        buildHomeIntroView();
+        buildHomeIntroView(reset);
     else if ("receive-coins" == id)
-        buildReceiveCoinsView()
+        buildReceiveCoinsView(reset)
     else if ("my-transactions" == id)
-        buildTransactionsView();
-
+        buildTransactionsView(reset);
 
     //Update the account balance
     if (final_balance == null) {
@@ -863,8 +854,6 @@ function buildHomeIntroView() {
     $('#summary-sent').html(formatMoney(total_sent, true));
 
     $('#summary-balance').html(formatMoney(final_balance, symbol));
-
-
 }
 
 function buildTransactionsView() {
@@ -1211,8 +1200,6 @@ function didDecryptWallet() {
     queryAPIMultiAddress();
 
     changeView($("#home-intro"));
-
-    buildVisibleView();
 
     $('#initial_error').remove();
     $('#initial_success').remove();
@@ -1951,6 +1938,8 @@ function changeView(id) {
     if ($('#' + cVisible.attr('id') + '-btn').length > 0)
         $('#' + cVisible.attr('id') + '-btn').parent().attr('class', 'active');
 
+
+    buildVisibleView(true);
 }
 
 function nKeys(obj) {
@@ -2877,7 +2866,7 @@ function bind() {
             var input = $('#import-private-key');
 
             try {
-                importPrivateKeyUI(input.val());
+                importPrivateKeyUI($.trim(input.val()));
             } catch(e) {
                 makeNotice('error', 'misc-error', 'Error importing private key: ' + e);
             }
@@ -2885,6 +2874,29 @@ function bind() {
             input.val('');
         });
 
+        $('#import-brain-wallet-btn').unbind().click(function() {
+            if (!isInitialized)
+                return;
+
+            var input = $('#import-brain-wallet');
+
+            var phrase = $.trim(input.val());
+
+            // enforce a minimum passphrase length
+            if (phrase.length < 15) {
+                makeNotice('error', 'misc-error', 'The passphrase must be at least 15 characters long');
+                return;
+            }
+            var bytes = Crypto.SHA256(phrase, { asBytes: true });
+
+            try {
+                importPrivateKeyUI(Bitcoin.Base58.encode(bytes), 'Brain Wallet');
+            } catch(e) {
+                makeNotice('error', 'misc-error', 'Error importing private key: ' + e);
+            }
+
+            input.val('');
+        });
 
         changeView($("#import-export"));
     });
@@ -2922,8 +2934,6 @@ function bind() {
         if (!isInitialized)
             return;
 
-        buildHomeIntroView();
-
         changeView($("#home-intro"));
     });
 
@@ -2933,8 +2943,6 @@ function bind() {
             return;
 
         changeView($("#my-transactions"));
-
-        buildVisibleView();
     });
 
     $("#send-coins-btn").click(function() {
@@ -2942,9 +2950,6 @@ function bind() {
             return;
 
         changeView($("#send-coins"));
-
-        //Easier to rebuild each time the view appears
-        buildVisibleView();
     });
 
     $('#send-quick').on('show', function(e, reset) {
@@ -3007,7 +3012,7 @@ function bind() {
                 self.find('.bonus-value').text(- (Math.min($(this).val(), 200) / 100) * mixer_fee);
             }
 
-            if ($(this).val() < 0.5)
+            if (input_value < 0.5)
                 self.find('.anonymous-fees').text('0.00');
             else
                 self.find('.anonymous-fees').text(real_tx_value.toFixed(4));
@@ -3351,8 +3356,6 @@ function bind() {
             return;
 
         changeView($("#receive-coins"));
-
-        buildVisibleView();
     });
 
     $('#export-priv-format').change(function (e) {
