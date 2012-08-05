@@ -375,7 +375,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                 self.modal.find('#review-tx').hide();
                                 self.modal.find('.offline-transaction').show();
 
-                                var s = tx.serialize();
+                                var s = self.tx.serialize();
 
                                 var hex = Crypto.util.bytesToHex(s);
 
