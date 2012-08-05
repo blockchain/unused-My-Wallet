@@ -263,7 +263,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                         show: true
                     });
 
-                    this.modal.find('#offline-transaction').hide();
+                    this.modal.find('.offline-transaction').hide();
                     this.modal.find('#missing-private-key').hide();
                     this.modal.find('#review-tx').hide();
 
@@ -373,13 +373,13 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                                 self.modal.find('#missing-private-key').hide();
                                 self.modal.find('#review-tx').hide();
-                                self.modal.find('#offline-transaction').show();
+                                self.modal.find('.offline-transaction').show();
 
                                 var s = tx.serialize();
 
                                 var hex = Crypto.util.bytesToHex(s);
 
-                                self.modal.find('#offline-transaction textarea[name="data"]').val(hex);
+                                self.modal.find('.offline-transaction textarea[name="data"]').val(hex);
                             });
 
                             self.modal.center();
