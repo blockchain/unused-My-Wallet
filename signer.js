@@ -250,6 +250,9 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     if (this.modal)
                         this.modal.modal('hide');
                 },
+                on_success : function() {
+                    buildVisibleView(true);
+                },
                 on_start : function() {
                     //Show the modal on start
                     var self = this;
@@ -398,6 +401,8 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                 on_success : function() {
                     try {
                         el.find('.send').show(200);
+
+                        buildVisibleView(true);
 
                         if (this.p)
                             this.p.hide();
@@ -1781,8 +1786,6 @@ function initNewTx() {
         on_success : function(e) {
             try {
                 $('.send').attr('disabled', false);
-
-                buildVisibleView(true);
             } catch (e) {
                 console.log(e);
             }
