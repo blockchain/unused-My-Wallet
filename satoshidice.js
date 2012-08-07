@@ -54,7 +54,7 @@ function buildForm() {
 
         form.find('.send').unbind().click(function() {
             loadScript(resource + 'wallet/signer.min.js', function() {
-                startTxUI(form, 'quick', initNewTx());
+                startTxUI(form, 'dice', initNewTx());
             });
         });
     }).error(function() {

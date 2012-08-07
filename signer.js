@@ -391,7 +391,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     self.error(e);
                 }
             };
-        } else if (type == 'quick' || type == 'email' || type == 'facebook' || type == 'sms') {
+        } else if (type == 'quick' || type == 'email' || type == 'dice' || type == 'facebook' || type == 'sms') {
             var listener = {
                 on_error : function(e) {
                     el.find('.send').show(200);
@@ -402,7 +402,8 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     try {
                         el.find('.send').show(200);
 
-                        buildVisibleView(true);
+                        if (type != 'dice')
+                            buildVisibleView(true);
 
                         if (this.p)
                             this.p.hide();
