@@ -3064,10 +3064,6 @@ function bind() {
     });
 
     $('#send-satoshi-dice').on('show', function(e, reset) {
-
-        if (reset)
-            return;
-
         loadScript(resource + 'wallet/satoshidice.min.js', function() {
             try {
                 buildForm();

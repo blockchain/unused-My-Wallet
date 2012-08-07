@@ -1,6 +1,10 @@
 
+var is_dice_loaded = false;
 
 function buildForm() {
+
+    if (is_dice_loaded) return;
+
     var form = $('#send-satoshi-dice');
 
     setLoadingText('Loading Betting Table');
@@ -57,7 +61,9 @@ function buildForm() {
                 startTxUI(form, 'dice', initNewTx());
             });
         });
+
+        is_dice_loaded = true;
     }).error(function() {
             makeNotice('error', 'misc-error', 'Error Downloading SatoshiDICE Bets')
-        });
+    });
 }
