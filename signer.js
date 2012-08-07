@@ -1283,10 +1283,6 @@ function initNewTx() {
                             throw 'Unable to decode output address from transaction hash ' + out.tx_hash;
                         }
 
-                        if (addresses[addr] == null) {
-                            throw 'Unknown recognized address ' + addr;
-                        }
-
                         if (looping_array != unspent_watch_only) {
                             //When we have reached the last one element add the watch only addresses back in
                             if (i == looping_array.length-1) {
@@ -1294,7 +1290,7 @@ function initNewTx() {
                                 looping_array = unspent_watch_only;
 
                                 i = -1;
-                            } else if (addresses[addr].priv == null)  {
+                            } else if (addresses[addr] != null && addresses[addr].priv == null)  {
                                 unspent_watch_only.push(out); //Skip watch only addresses first
                                 continue;
                             }
