@@ -47,8 +47,6 @@ function hideNotice(id) {
     $('#'+id).remove();
 }
 
-setInterval ( "doStuffTimer()", 10000 );
-
 //Updates time last block was received and check for websocket connectivity
 function doStuffTimer () {
     try {
@@ -3476,6 +3474,8 @@ function privateKeyStringToKey(value, format) {
 }
 
 $(document).ready(function() {
+
+    setInterval(doStuffTimer, 10000);
 
     //Disable auotcomplete in firefox
     $("input, button").attr("autocomplete","off");
