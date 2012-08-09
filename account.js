@@ -406,7 +406,13 @@ function bindAccountButtons() {
             }
         });
     });
-    
+
+
+
+    $('#notifications-confirmations').unbind().change(function(e) {
+        updateKV('Updating Notification Confirmations', 'update-notifications-confirmations', $(this).val());
+    });
+
     $('#wallet-yubikey').unbind().change(function(e) {
         updateKV('Updating Yubikey', 'update-yubikey', $(this).val());
     });
