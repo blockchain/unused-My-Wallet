@@ -31,12 +31,12 @@ var names = ["log", "debug", "info", "warn", "error", "assert", "dir",
              "dirxml", "group", "groupEnd", "time", "timeEnd", "count",
              "trace", "profile", "profileEnd"];
 
-if ("undefined" == typeof window.console)
-    window.console = {};
+if ("undefined" == typeof _window.console)
+    _window.console = {};
 
 for (var i = 0; i < names.length; ++i)
-  if ("undefined" == typeof window.console[names[i]])
-    window.console[names[i]] = function() {};
+  if ("undefined" == typeof _window.console[names[i]])
+      _window.console[names[i]] = function() {};
 
 // Bitcoin utility functions
 Bitcoin.Util = {

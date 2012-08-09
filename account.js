@@ -218,7 +218,7 @@ function getAccountInfo() {
         $('#wallet-http-url').val(data.http_url);
         $('#wallet-skype').val(data.skype_username);
         $('#wallet-yubikey').val(data.yubikey);
-        $('#wallet-sms').val(data.sms_number);
+        $('.wallet-sms').val(data.sms_number);
 
         if (data.email_verified == 0) {
             $('#verify-email').show();
@@ -229,16 +229,16 @@ function getAccountInfo() {
         }
 
         if (data.sms_verified == 0) {
-            $('#sms-unverified').show();
-            $('#sms-verified').hide();
+            $('.sms-unverified').show();
+            $('.sms-verified').hide();
         } else {
-            $('#sms-verified').show();
-            $('#sms-unverified').hide();
+            $('.sms-verified').show();
+            $('.sms-unverified').hide();
         }
 
 
         $.get(resource + 'wallet/country_codes.html').success(function(data) {
-            $('#wallet-sms-country-codes').html(data);
+            $('.wallet-sms-country-codes').html(data);
         }).error(function () {
                 makeNotice('error', 'misc-error', 'Error Downloading SMS Country Codes')
             });
@@ -351,7 +351,7 @@ function bindAccountButtons() {
             });
     });
 
-    $('#wallet-sms-code').unbind().change(function(e) {
+    $('.wallet-sms-code').unbind().change(function(e) {
         var code = $(this).val();
 
         if (code == null || code.length == 0 || code.length > 255) {
@@ -366,16 +366,16 @@ function bindAccountButtons() {
         $.post("/wallet", { guid: guid, payload: code, sharedKey : sharedKey, length : code.length, method : 'verify-sms' },  function(data) {
             makeNotice('success', 'misc-success', data);
 
-            $('#sms-unverified').hide();
-            $('#sms-verified').show(200);
+            $('.sms-unverified').hide();
+            $('.sms-verified').show(200);
         }).error(function(data) {
                 makeNotice('error', 'misc-error', data.responseText);
-                $('#sms-verified').hide();
-                $('#sms-unverified').show(200);
+                $('.sms-verified').hide();
+                $('.sms-unverified').show(200);
             });
     });
 
-    $('#wallet-sms').unbind().change(function(e) {
+    $('.wallet-sms').unbind().change(function(e) {
 
         var val = $.trim($(this).val());
 
@@ -387,12 +387,12 @@ function bindAccountButtons() {
             val = val.substring(1);
 
         if (val.charAt(0) != '+')
-            val = '+' + $('#wallet-sms-country-codes').val() + val;
+            val = '+' + $('.wallet-sms-country-codes').val() + val;
 
         updateKV('Updating Cell Number', 'update-sms',val);
 
-        $('#sms-unverified').show(200);
-        $('#sms-verified').hide();
+        $('.sms-unverified').show(200);
+        $('.sms-verified').hide();
     });
 
     $('#run-key-check').click(function() {

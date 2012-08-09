@@ -7,8 +7,13 @@
 
 var base64map = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
+if (typeof window == "undefined" || !window)
+    var _window = {};
+else
+    var _window = window;
+
 // Global Crypto object
-var Crypto = window.Crypto = {};
+var Crypto = _window.Crypto = {};
 
 // Crypto utilities
 var util = Crypto.util = {
@@ -2065,9 +2070,9 @@ if(rng_pool == null) {
   rng_pool = new Array();
   rng_pptr = 0;
   var t;
-  if(navigator.appName == "Netscape" && navigator.appVersion < "5" && window.crypto) {
+  if(navigator.appName == "Netscape" && navigator.appVersion < "5" && _window.crypto) {
     // Extract entropy (256 bits) from NS4 RNG if available
-    var z = window.crypto.random(32);
+    var z = _window.crypto.random(32);
     for(t = 0; t < z.length; ++t)
       rng_pool[rng_pptr++] = z.charCodeAt(t) & 255;
   }  
@@ -2477,12 +2482,12 @@ var names = ["log", "debug", "info", "warn", "error", "assert", "dir",
              "dirxml", "group", "groupEnd", "time", "timeEnd", "count",
              "trace", "profile", "profileEnd"];
 
-if ("undefined" == typeof window.console)
-    window.console = {};
+if ("undefined" == typeof _window.console)
+    _window.console = {};
 
 for (var i = 0; i < names.length; ++i)
-  if ("undefined" == typeof window.console[names[i]])
-    window.console[names[i]] = function() {};
+  if ("undefined" == typeof _window.console[names[i]])
+      _window.console[names[i]] = function() {};
 
 // Bitcoin utility functions
 Bitcoin.Util = {

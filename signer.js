@@ -10,8 +10,6 @@ try {
 //Init WebWoker
 //Window is not defined in WebWorker
     if (typeof window == "undefined" || !window) {
-        var window = {};
-
         importScripts('/Resources/wallet/bitcoinjs.min.js');
 
         self.addEventListener('message', function(e) {

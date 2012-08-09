@@ -11,6 +11,16 @@ var root = '/';
 var resource = '/Resources/';
 var decimals = 8;
 
+//Ignore Console
+if (!window.console) {
+    var names = ["log", "debug", "info", "warn", "error", "assert", "dir", "dirxml",
+        "group", "groupEnd", "time", "timeEnd", "count", "trace", "profile", "profileEnd"];
+
+    window.console = {};
+    for (var i = 0; i < names.length; ++i)
+        window.console[names[i]] = function() {}
+}
+
 
 function getWebSocketURL() {
     return "ws://api.blockchain.info:8335/inv";
