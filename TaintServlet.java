@@ -8,6 +8,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.servlet.ServletException;
@@ -240,7 +241,7 @@ public class TaintServlet extends BaseServlet {
             }
 
             for (BitcoinAddress hash : settings.myAddresses) {
-                select_stmt.setBytes(ii, hash.getHash160().getBytes());
+                select_stmt.setBytes(ii, hash.getBytes());
                 ++ii;
             }
 
@@ -480,7 +481,7 @@ public class TaintServlet extends BaseServlet {
                 if (wallet.getOutputs() == null || wallet.getOutputs().size() == 0)
                   wallet.getOutputs(conn, settings.maxInitialOutputs, 0, 0);
 
-                List<DBOutput> outsToFetch = wallet.getOutputs();
+                List<DBOutput> outsToFetch = new ArrayList<>(wallet.getOutputs());
 
                 Collections.sort(outsToFetch, Collections.reverseOrder());
 

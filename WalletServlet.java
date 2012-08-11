@@ -1993,7 +1993,7 @@ public class WalletServlet extends BaseServlet {
 						if (addr.equals("1VayNert3x1KzbpzMGt2qdqrAThiRovi8"))
 							continue;
 
-						byte[] hash160 = new BitcoinAddress(addr).getHash160().getBytes();
+						byte[] hash160 = new BitcoinAddress(addr).getBytes();
 
 						if (hash160.length != 20) {
 							res.setStatus(500);

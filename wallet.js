@@ -966,19 +966,21 @@ function setPage(i) {
 function parseMultiAddressJSON(json, cached) {
     var obj = $.parseJSON(json);
 
-    $('#nodes-connected').html(obj.info.nconnected);
+    if (obj.info) {
+        $('#nodes-connected').html(obj.info.nconnected);
 
-    if (obj.info.latest_block != null)
-        setLatestBlock(obj.info.latest_block);
+        if (obj.info.latest_block != null)
+            setLatestBlock(obj.info.latest_block);
 
-    var new_symbol_local = obj.info.symbol_local;
+        var new_symbol_local = obj.info.symbol_local;
 
-    if (symbol == symbol_local) {
-        symbol_local = new_symbol_local;
-        symbol = new_symbol_local;
-        calcMoney();
-    } else {
-        symbol_local = new_symbol_local;
+        if (symbol == symbol_local) {
+            symbol_local = new_symbol_local;
+            symbol = new_symbol_local;
+            calcMoney();
+        } else {
+            symbol_local = new_symbol_local;
+        }
     }
 
     if (!cached) {

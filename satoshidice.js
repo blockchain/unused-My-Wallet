@@ -1,15 +1,40 @@
+var satoshi_dice_games = null;
 
-var is_dice_loaded = false;
+function calculateProfitLoss() {
+    setLoadingText('Calculating Profit / Loss');
+
+    if (!satoshi_dice_games) return;
+
+    var output_addresses = [];
+    for (var i in satoshi_dice_games) {
+        output_addresses.push(satoshi_dice_games[i].address);
+    }
+
+    $.get(root + 'walletprofitloss?input_address='+getActiveAddresses().join('|')+'&output_address='+output_addresses.join('|')+'&format=plain').success(function(obj) {
+        var form = $('#send-satoshi-dice');
+
+        var container = form.find('.profit-loss').show(200);
+
+        container.find('.n-bets').text(obj.n_sent + obj.n_received);
+        container.find('.n-pending').text(obj.n_sent - obj.n_received);
+        container.find('.winnings').html(formatMoney(obj.total_received - obj.total_sent, true));
+
+        container.find('.refresh').unbind().click(function() {
+            calculateProfitLoss();
+        });
+    });
+}
 
 function buildForm() {
 
-    if (is_dice_loaded) return;
+    if (satoshi_dice_games)
+        return;
 
     var form = $('#send-satoshi-dice');
 
-    setLoadingText('Loading Betting Table');
-
     $.get(root + 'satoshidice').success(function(obj) {
+
+        satoshi_dice_games = obj;
 
         var container = form.find('.recipient-container');
 
@@ -62,8 +87,12 @@ function buildForm() {
             });
         });
 
-        is_dice_loaded = true;
+        try {
+            calculateProfitLoss();
+        } catch (e) {
+            console.log(e);
+        }
     }).error(function() {
             makeNotice('error', 'misc-error', 'Error Downloading SatoshiDICE Bets')
-    });
+        });
 }
