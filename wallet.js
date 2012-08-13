@@ -2804,7 +2804,6 @@ function bind() {
 
                 showWatchOnlyWarning(value, function() {
                     if (internalAddKey(value)) {
-
                         makeNotice('success', 'added-address', 'Sucessfully Added Address ' + address);
 
                         //Rebuild the list

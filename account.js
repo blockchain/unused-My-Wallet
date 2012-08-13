@@ -29,11 +29,11 @@ function updateKV(txt, method, value, success, error) {
 
 function setDoubleEncryptionButton() {
     if (double_encryption) {
-        $('#double-encryption-off').hide();
-        $('#double-encryption-on').show();
+        $('.double-encryption-off').hide();
+        $('.double-encryption-on').show();
     } else {
-        $('#double-encryption-on').hide();
-        $('#double-encryption-off').show();
+        $('.double-encryption-on').hide();
+        $('.double-encryption-off').show();
     }
 
     $('#double-password').val('');
@@ -218,7 +218,18 @@ function getAccountInfo() {
         $('#wallet-http-url').val(data.http_url);
         $('#wallet-skype').val(data.skype_username);
         $('#wallet-yubikey').val(data.yubikey);
-        $('.wallet-sms').val(data.sms_number);
+
+        $('#password-hint1').val(data.password_hint1);
+        $('#password-hint2').val(data.password_hint2);
+
+        $('#ip-lock').val(data.ip_lock);
+        $('#my-ip').text(data.my_ip);
+
+        if (data.ip_lock_on == 1)
+            $('#ip-lock').prop("checked", true);
+        else
+            $('#ip-lock').prop("checked", false);
+
 
         if (data.email_verified == 0) {
             $('#verify-email').show();
@@ -269,8 +280,20 @@ function bindAccountButtons() {
         backupWallet();
     });
 
-    $('#notifications-on').unbind().change(function() {
-        updateKV('Updating Notifications Settings', 'update-notifications-on', $(this).val());
+    $('#password-hint1').unbind().change(function() {
+        updateKV('Updating Main Password Hint', 'update-password-hint1', $(this).val());
+    });
+
+    $('#password-hint2').unbind().change(function() {
+        updateKV('Updating Second Password Hint', 'update-password-hint2', $(this).val());
+    });
+
+    $('#ip-lock-on').unbind().change(function() {
+        updateKV('Updating IP Lock', 'update-ip-lock-on', $(this).is(':checked'));
+    });
+
+    $('#ip-lock').unbind().change(function() {
+        updateKV('Updating Locked Ip Addresses', 'update-ip-lock', $(this).val());
     });
 
     $('#notifications-on').unbind().change(function() {

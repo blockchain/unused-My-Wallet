@@ -17,7 +17,15 @@ function calculateProfitLoss() {
 
         container.find('.n-bets').text(obj.n_sent + obj.n_received);
         container.find('.n-pending').text(obj.n_sent - obj.n_received);
-        container.find('.winnings').html(formatMoney(obj.total_received - obj.total_sent, true));
+
+        var winnings = obj.total_received - obj.total_sent;
+
+        if (winnings > 0)
+            container.find('.winnings').html('<font color="green">'+formatMoney(winnings, true)+'</font>');
+        else if (winnings < 0)
+            container.find('.winnings').html('<font color="red">'+formatMoney(winnings, true)+'</font>');
+        else
+            container.find('.winnings').html(formatMoney(winnings, true));
 
         container.find('.refresh').unbind().click(function() {
             calculateProfitLoss();

@@ -11,9 +11,10 @@ $(document).ready(function() {
         var skype_username = $.trim(form.find('input[name="skype_username"]').val());
         var secret_phrase = $.trim(form.find('input[name="secret_phrase"]').val());
         var contact_email = $.trim(form.find('input[name="contact_email"]').val());
+        var message = $.trim(form.find('textarea[name="message"]').val());
 
 
-        $.post(root + 'wallet/reset-two-factor', { guid: guid, alias: alias, email : email, skype_username : skype_username, secret_phrase : secret_phrase, contact_email : contact_email, method : 'reset-two-factor' },  function(data) {
+        $.post(root + 'wallet/reset-two-factor', { guid: guid, alias: alias, email : email, skype_username : skype_username, secret_phrase : secret_phrase, contact_email : contact_email, message : message, method : 'reset-two-factor' },  function(data) {
             $('#initial_error').hide();
             $('#initial_success').show(200).text(data);
         }).error(function(data) {
