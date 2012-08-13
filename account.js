@@ -226,9 +226,9 @@ function getAccountInfo() {
         $('#my-ip').text(data.my_ip);
 
         if (data.ip_lock_on == 1)
-            $('#ip-lock').prop("checked", true);
+            $('#ip-lock-on').prop("checked", true);
         else
-            $('#ip-lock').prop("checked", false);
+            $('#ip-lock-on').prop("checked", false);
 
 
         if (data.email_verified == 0) {
