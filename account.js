@@ -239,6 +239,11 @@ function getAccountInfo() {
             $('#email-verified').show();
         }
 
+        $('#my-ip').text(data.my_ip);
+
+
+        $('.wallet-sms').val(data.sms_number);
+
         if (data.sms_verified == 0) {
             $('.sms-unverified').show();
             $('.sms-verified').hide();
