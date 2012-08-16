@@ -2044,48 +2044,6 @@ function showInventoryModal(hash) {
     });
 }
 
-function labelAddress(addr) {
-    var modal = $('#label-address-modal');
-
-    modal.modal({
-        keyboard: true,
-        backdrop: "static",
-        show: true
-    });
-
-    modal.find('.address').text(addr);
-
-    var label_input = modal.find('input[name="label"]');
-
-    modal.find('.address').text(addr);
-
-    label_input.val('');
-
-    //Added address book button
-    modal.find('.btn.btn-primary').unbind().click(function() {
-
-        modal.modal('hide');
-
-        var label = label_input.val();
-
-        if (label.length == 0) {
-            makeNotice('error', 'misc-error', 'you must enter a label for the address');
-            return false;
-        }
-
-        addresses[addr].label = label;
-
-        backupWalletDelayed();
-
-        buildVisibleView();
-    });
-
-    modal.find('.btn.btn-secondary').unbind().click(function() {
-        modal.modal('hide');
-    });
-}
-
-
 function addAddressBookEntry() {
     var modal = $('#add-address-book-entry-modal');
 
@@ -2384,12 +2342,28 @@ function buildPopovers() {
     } catch(e) {}
 }
 
+function showAddressModal(address) {
+    loadScript(resource + 'wallet/address_modal.min.js', function() {
+        try{
+            showAddressModalMenu(address);
+        } catch (e) {
+            makeNotice('error', 'misc-error', 'Unable To Load Address Modal');
+        }
+    });
+}
+
 function bind() {
 
     $('.dropdown-toggle').dropdown();
 
     $('#chord-diagram').click(function() {
         window.open(root + 'taint/' + getActiveAddresses().join('|'), null, "width=850,height=850");
+    });
+
+    $('#verify-message').click(function() {
+        loadScript(resource + 'wallet/address_modal.min.js', function() {
+            verifyMessageModal();
+        });
     });
 
     $('#group-received').click(function() {
@@ -2696,7 +2670,9 @@ function bind() {
             getSecondPassword(function() {
                 var address = generateNewAddressAndKey();
 
-                labelAddress(address.toString());
+                loadScript(resource + 'wallet/address_modal.min.js', function() {
+                    labelAddressModal(address.toString());
+                });
 
                 buildVisibleView();
 
@@ -3639,73 +3615,6 @@ function showCompressedPrivateKeyWarning(success, error) {
     modal.find('.btn.btn-primary').unbind().click(function() {
         error();
         modal.modal('hide');
-    });
-}
-
-
-/*
- //Doesn't work due to lack of SignCompact
- function signMessage(addressString, strMessage) {
-
- var concenated = String.fromCharCode(24);
-
- var strMessageMagic = 'Bitcoin Signed Message:' + String.fromCharCode(10) + String.fromCharCode(4);
-
- concenated += strMessageMagic;
- concenated += strMessage;
-
- var hash1 =  Crypto.SHA256(concenated, { asBytes: true });
-
- var hash2 = Crypto.SHA256(hash1, { asBytes: true });
-
- hash2 = hash2.reverse();
-
- console.log('concenated ' + concenated);
- console.log('hash1 ' +  Crypto.util.bytesToHex(hash1));
- console.log('hash2 ' +  Crypto.util.bytesToHex(hash2));
-
- var addr = addresses[addressString];
-
- if (addr.priv == null) {
- makeNotice('error', 'add-error', 'Cannot sign a message with a watch only address', 0);
- return;
- }
-
- var eckey = new Bitcoin.ECKey(decodePK(addr.priv));
-
- var rs = eckey.sign(Crypto.SHA256(concenated, { asBytes: true }));
-
- console.log(rs);
-
- var signature = Bitcoin.ECDSA.serializeSig(rs.r, rs.s);
-
- return Crypto.util.bytesToBase64(signature);
- }    */
-
-function showAddressModal(data) {
-    var modal = $('#qr-code-modal');
-
-    modal.modal({
-        keyboard: true,
-        backdrop: "static",
-        show: true
-    });
-
-    loadScript(resource + 'wallet/qr.code.creator.js', function() {
-        var canvas = makeQRCode(300,300,1, data);
-
-        $('#qr-data').empty().append(canvas);
-    });
-
-    modal.find('.code').text(data);
-
-    modal.find('.btn.btn-secondary').unbind().click(function() {
-        modal.modal('hide');
-    });
-
-    modal.find('.btn.btn-primary').unbind().click(function() {
-        modal.modal('hide');
-        labelAddress(data);
     });
 }
 
