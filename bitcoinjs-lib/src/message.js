@@ -28,17 +28,19 @@ Bitcoin.Message = (function () {
 
         var hash = Message.getHash(message);
 
-        var sig = key.sign(hash);
+        var rs = key.sign(hash);
 
-        //var obj = Bitcoin.ECDSA.parseSig(sig);
+        var sig = Bitcoin.ECDSA.serializeSig(rs.r, rs.s);
 
-        var i = Bitcoin.ECDSA.calcPubkeyRecoveryParam(sig.r, sig.s, hash);
+        var obj = Bitcoin.ECDSA.parseSig(sig);
+
+        var i = Bitcoin.ECDSA.calcPubkeyRecoveryParam(obj.r, obj.s, hash);
 
         i += 27;
         if (compressed) i += 4;
 
-        var rBa = sig.r.toByteArrayUnsigned();
-        var sBa = sig.s.toByteArrayUnsigned();
+        var rBa = obj.r.toByteArrayUnsigned();
+        var sBa = obj.s.toByteArrayUnsigned();
 
         // Pad to 32 bytes per value
         while (rBa.length < 32) rBa.unshift(0);

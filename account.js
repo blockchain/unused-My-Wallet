@@ -158,6 +158,8 @@ function setDoubleEncryption(value) {
 
 //Get email address, secret phrase, yubikey etc.
 function getAccountInfo() {
+    if (!isInitialized || offline) return;
+
     setLoadingText('Getting Wallet Info');
 
     $.post("/wallet", { guid: guid, sharedKey: sharedKey, method : 'get-info' },  function(data) {
@@ -219,8 +221,11 @@ function getAccountInfo() {
         $('#wallet-skype').val(data.skype_username);
         $('#wallet-yubikey').val(data.yubikey);
 
-        $('#password-hint1').val(data.password_hint1);
-        $('#password-hint2').val(data.password_hint2);
+        if (data.password_hint1)
+             $('#password-hint1').val(data.password_hint1);
+
+        if (data.password_hint2)
+             $('#password-hint2').val(data.password_hint2);
 
         $('#ip-lock').val(data.ip_lock);
         $('#my-ip').text(data.my_ip);
