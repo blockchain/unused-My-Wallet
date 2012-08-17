@@ -3281,13 +3281,21 @@ Bitcoin.ECDSA = (function () {
     };
 
 
-    ECKey.prototype.getBitcoinAddressCompressed = function () {
-        var old_val = this.compressed;
-        this.setCompressed(true);
-        var address = this.getBitcoinAddress();
-        this.setCompressed(old_val);
-        return address;
+    ECKey.prototype.getPubCompressed = function () {
+        if (this.pubCompressed) return this.pubCompressed;
+        return this.pubCompressed = ecparams.getG().multiply(this.priv).getEncoded(1);
     };
+
+    ECKey.prototype.getPubKeyHashCompressed = function () {
+        if (this.pubKeyHashCompressed) return this.pubKeyHashCompressed;
+        return this.pubKeyHashCompressed = Bitcoin.Util.sha256ripe160(this.getPubCompressed());
+    }
+
+    ECKey.prototype.getBitcoinAddressCompressed = function () {
+        var hash = this.getPubKeyHashCompressed();
+        var addr = new Bitcoin.Address(hash);
+        return addr.toString();
+    }
 
     ECKey.prototype.setPub = function (pub) {
         this.pub = ECPointFp.decodeFrom(ecparams.getCurve(), pub);
@@ -3542,13 +3550,21 @@ Bitcoin.ECKey = (function () {
     };
 
 
-    ECKey.prototype.getBitcoinAddressCompressed = function () {
-        var old_val = this.compressed;
-        this.setCompressed(true);
-        var address = this.getBitcoinAddress();
-        this.setCompressed(old_val);
-        return address;
+    ECKey.prototype.getPubCompressed = function () {
+        if (this.pubCompressed) return this.pubCompressed;
+        return this.pubCompressed = ecparams.getG().multiply(this.priv).getEncoded(1);
     };
+
+    ECKey.prototype.getPubKeyHashCompressed = function () {
+        if (this.pubKeyHashCompressed) return this.pubKeyHashCompressed;
+        return this.pubKeyHashCompressed = Bitcoin.Util.sha256ripe160(this.getPubCompressed());
+    }
+
+    ECKey.prototype.getBitcoinAddressCompressed = function () {
+        var hash = this.getPubKeyHashCompressed();
+        var addr = new Bitcoin.Address(hash);
+        return addr.toString();
+    }
 
     ECKey.prototype.setPub = function (pub) {
         this.pub = ECPointFp.decodeFrom(ecparams.getCurve(), pub);
