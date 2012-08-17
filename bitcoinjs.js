@@ -4389,15 +4389,13 @@ Bitcoin.Message = (function () {
     Message.signMessage = function (key, message, target_address) {
         var hash = Message.getHash(message);
 
-        var sig = key.sign(hash);
+        var obj = key.sign(hash);
 
-        var obj = Bitcoin.ECDSA.parseSig(sig);
+        //var sig = Bitcoin.ECDSA.serializeSig(obj.r, obj.s);
 
         var address = key.getBitcoinAddress().toString();
 
         var compressed = !(address == target_address);
-
-        console.log(compressed);
 
         var i = Bitcoin.ECDSA.calcPubkeyRecoveryParam(address, obj.r, obj.s, hash);
 
@@ -4411,13 +4409,14 @@ Bitcoin.Message = (function () {
         while (rBa.length < 32) rBa.unshift(0);
         while (sBa.length < 32) sBa.unshift(0);
 
-        sig = [i].concat(rBa).concat(sBa);
+        var sig = [i].concat(rBa).concat(sBa);
 
         return Crypto.util.bytesToBase64(sig);
     };
 
     Message.verifyMessage = function (sig, message) {
         sig = Crypto.util.base64ToBytes(sig);
+
         sig = Bitcoin.ECDSA.parseSigCompact(sig);
 
         var hash = Message.getHash(message);
