@@ -242,7 +242,7 @@ Bitcoin.ECDSA = (function () {
 
             var s = k.modInverse(n).multiply(e.add(d.multiply(r))).mod(n);
 
-            return ECDSA.serializeSig(r, s);
+            return {r : r,  s : s };
         },
 
         verify: function (hash, sig, pubkey) {
