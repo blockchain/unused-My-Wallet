@@ -98,7 +98,7 @@ function verifyMessageModal() {
         modal.modal('hide');
     });
 
-    modal.find('textarea').bind('change keydown', function() {
+    modal.find('textarea').bind('change', function() {
         modal.find('.address-result').hide();
     });
 
@@ -154,7 +154,7 @@ function showAddressModalSignMessage(address) {
             modal.modal('hide');
         });
 
-        textarea.bind('change keydown', function() {
+        textarea.bind('change', function() {
             modal.find('.signature').hide();
         });
 
@@ -178,7 +178,7 @@ function showAddressModalSignMessage(address) {
 
             var key = new Bitcoin.ECKey(decryptedpk);
 
-            var signature = Bitcoin.Message.signMessage(key, message, true);
+            var signature = Bitcoin.Message.signMessage(key, message, addr.addr);
 
             modal.find('.signature').show(200);
 

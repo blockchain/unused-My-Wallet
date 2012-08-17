@@ -24,17 +24,20 @@ Bitcoin.Message = (function () {
         return Crypto.SHA256(Crypto.SHA256(buffer, {asBytes: true}), {asBytes: true});
     };
 
-    Message.signMessage = function (key, message, compressed) {
-
+    Message.signMessage = function (key, message, target_address) {
         var hash = Message.getHash(message);
 
-        var rs = key.sign(hash);
-
-        var sig = Bitcoin.ECDSA.serializeSig(rs.r, rs.s);
+        var sig = key.sign(hash);
 
         var obj = Bitcoin.ECDSA.parseSig(sig);
 
-        var i = Bitcoin.ECDSA.calcPubkeyRecoveryParam(obj.r, obj.s, hash);
+        var address = key.getBitcoinAddress().toString();
+
+        var compressed = !(address == target_address);
+
+        console.log(compressed);
+
+        var i = Bitcoin.ECDSA.calcPubkeyRecoveryParam(address, obj.r, obj.s, hash);
 
         i += 27;
         if (compressed) i += 4;
@@ -58,6 +61,7 @@ Bitcoin.Message = (function () {
         var hash = Message.getHash(message);
 
         var isCompressed = !!(sig.i & 4);
+
         var pubKey = Bitcoin.ECDSA.recoverPubKey(sig.r, sig.s, hash, sig.i);
 
         pubKey.setCompressed(isCompressed);
