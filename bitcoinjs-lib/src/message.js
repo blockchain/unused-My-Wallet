@@ -16,6 +16,7 @@ Bitcoin.Message = (function () {
         buffer = buffer.concat(Bitcoin.Util.numToVarInt(messageBytes.length));
         buffer = buffer.concat(messageBytes);
 
+
         return buffer;
     };
 

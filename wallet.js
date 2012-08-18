@@ -1204,7 +1204,7 @@ function didDecryptWallet() {
     $('#initial_error').remove();
     $('#initial_success').remove();
 
-    makeNotice('success', 'misc-success', 'Sucessfully Decrypted Wallet');
+    makeNotice('success', 'misc-success', 'Successfully Decrypted Wallet');
 }
 
 //Fetch a new wallet from the server
