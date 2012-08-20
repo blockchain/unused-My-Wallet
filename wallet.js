@@ -383,7 +383,7 @@ function apiGetTicker() {
         container.append('<li class="nav-header">Exchange Rates</li>');
 
         for (var code in data) {
-            container.append('<li><div style="width:35px;padding-left:10px;font-weight:bold;display:inline-block">'+code+'</div>  <i class="icon-user" style="background-image:url('+ resource + ((data[code].last >= data[code].avg24hr) ? 'up_green.png' : 'down_red.png') + ');width:14px;background-position:0px"></i>' + convert(satoshi, data[code].last) +'</li>');
+            container.append('<li><div style="width:35px;padding-left:10px;font-weight:bold;display:inline-block">'+code+'</div>  <i class="icon-user" style="background-image:url('+ resource + ((data[code]['15m'] >= data[code]['24h']) ? 'up_green.png' : 'down_red.png') + ');width:14px;background-position:0px"></i>' + data[code]['15m'] +'</li>');
         }
 
         container.append('<li style="font-size:10px;padding-left:10px;">Delayed By Up To 15 minutes</li>')
@@ -2618,14 +2618,10 @@ function bind() {
         });
     });
 
-    $('#deposit-sms').click(function() {
+    $('.deposit-sms-btn').click(function() {
         loadScript(resource + 'wallet/deposit/deposit.js', function() {
             showDepositModal(getPreferredAddress(), 'sms', 'Deposit Using Phone/SMS');
         });
-    });
-
-    $('#deposit-sms2').click(function() {
-        $('#deposit-sms').trigger('click');
     });
 
     $('#payment-request').click(function() {

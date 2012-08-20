@@ -198,15 +198,19 @@ function getAccountInfo() {
         }
 
         loadScript(resource + 'wallet/qr.code.creator.js', function() {
-            var device_qr = makeQRCode(300, 300, 1 , guid + '|' + sharedKey + '|' + password);
+            try {
+                var device_qr = makeQRCode(300, 300, 1 , guid + '|' + sharedKey + '|' + password);
 
-            $('#device-qr-code').empty().append(device_qr);
+                $('#device-qr-code').empty().append(device_qr);
 
-            if (data.google_secret_url != null && data.google_secret_url.length > 0) {
+                if (data.google_secret_url != null && data.google_secret_url.length > 0) {
 
-                var qr = makeQRCode(300, 300, 1 , data.google_secret_url);
+                    var qr = makeQRCode(300, 300, 1 , data.google_secret_url);
 
-                $('#wallet-google-qr').empty().append(qr);
+                    $('#wallet-google-qr').empty().append(qr);
+                }
+            } catch (e) {
+                makeNotice('error', 'misc-error', e);
             }
         });
 
@@ -222,10 +226,10 @@ function getAccountInfo() {
         $('#wallet-yubikey').val(data.yubikey);
 
         if (data.password_hint1)
-             $('#password-hint1').val(data.password_hint1);
+            $('#password-hint1').val(data.password_hint1);
 
         if (data.password_hint2)
-             $('#password-hint2').val(data.password_hint2);
+            $('#password-hint2').val(data.password_hint2);
 
         $('#ip-lock').val(data.ip_lock);
         $('#my-ip').text(data.my_ip);
@@ -253,7 +257,7 @@ function getAccountInfo() {
             $('.sms-unverified').show();
             $('.sms-verified').hide();
         } else {
-            $('.sms-verified').show();
+            $('.sms-verified').show().trigger('show');
             $('.sms-unverified').hide();
         }
 
@@ -264,8 +268,7 @@ function getAccountInfo() {
                 makeNotice('error', 'misc-error', 'Error Downloading SMS Country Codes')
             });
 
-    })
-        .error(function(data) {
+    }).error(function(data) {
             makeNotice('error', 'misc-error', data.responseText);
         });
 }
@@ -400,7 +403,7 @@ function bindAccountButtons() {
             makeNotice('success', 'misc-success', data);
 
             $('.sms-unverified').hide();
-            $('.sms-verified').show(200);
+            $('.sms-verified').show(200).trigger('show');
         }).error(function(data) {
                 makeNotice('error', 'misc-error', data.responseText);
                 $('.sms-verified').hide();
@@ -422,7 +425,7 @@ function bindAccountButtons() {
         if (val.charAt(0) != '+')
             val = '+' + $('.wallet-sms-country-codes').val() + val;
 
-        updateKV('Updating Cell Number', 'update-sms',val);
+        updateKV('Updating Cell Number', 'update-sms', val);
 
         $('.sms-unverified').show(200);
         $('.sms-verified').hide();
@@ -439,8 +442,6 @@ function bindAccountButtons() {
             }
         });
     });
-
-
 
     $('#notifications-confirmations').unbind().change(function(e) {
         updateKV('Updating Notification Confirmations', 'update-notifications-confirmations', $(this).val());
