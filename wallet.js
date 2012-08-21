@@ -2342,13 +2342,19 @@ function buildPopovers() {
     } catch(e) {}
 }
 
-function showAddressModal(address) {
+function showAddressModal(address, func) {
     loadScript(resource + 'wallet/address_modal.min.js', function() {
         try{
-            showAddressModalMenu(address);
+            window[func](address);
         } catch (e) {
             makeNotice('error', 'misc-error', 'Unable To Load Address Modal');
         }
+    });
+}
+
+function showPaymentRequest(address) {
+    loadScript(resource + 'wallet/payment-request.js', function() {
+        showPaymentRequestModal(address, 'Payment Request');
     });
 }
 
@@ -2495,9 +2501,20 @@ function bind() {
                 extra = '<span class="hidden-phone"> - ' + addr.addr + '</span>';
             }
 
-            var thtml = '<tr><td style="width:20px;"><img id="qr'+addr.addr+'" onclick="showAddressModal(\'' + addr.addr +'\')" src="'+resource+'info.png" /></td><td><div class="short-addr"><a class="pop" title="Your Addresses" data-content="These are your personal bitcoin addresses. Share these with people and they can send you bitcoins." href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatBTC(addr.balance) + '<span class="hidden-phone"> BTC</span></span></td><td style="width:16px"><img src="'+resource+'archive.png" class="pop" title="Archive Address" data-content="Click this button to hide the address from the main view. You can restore or delete later by finding it in the Archived addresses tab. " onclick="archiveAddr(\''+addr.addr+'\')" /></td></tr>';
+            var thtml = '<tr><td><div class="short-addr"><a class="pop" title="Your Addresses" data-content="These are your personal bitcoin addresses. Share these with people and they can send you bitcoins." href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatBTC(addr.balance) + '<span class="hidden-phone"> BTC</span></span></td>\
+            <td><div class="btn-group pull-right"><a class="btn btn-mini dropdown-toggle" data-toggle="dropdown" href="#"><span class="hidden-phone">Actions </span><span class="caret"></span></a><ul class="dropdown-menu"> \
+            <li><a href="#" class="pop" title="Archive Address" data-content="Click this button to hide the address from the main view. You can restore or delete later by finding it in the Archived addresses tab." onclick="archiveAddr(\''+addr.addr+'\')">Archive Address</a></li>\
+            <li><a href="#" class="pop" title="Label Address" data-content="Set the label for this address." onclick="showAddressModal(\''+addr.addr+'\',\'showLabelAddressModal\')">Label Address</a></li>\
+            <li><a href="#" class="pop" title="Show QR Code" data-content="Show a QR Code for this address." onclick="showAddressModal(\''+addr.addr+'\',\'showAddressModalQRCode\')">QR Code</a></li>\
+            <li><a href="#" class="pop" title="Sign Message" data-content="Sign A message with this address." onclick="showAddressModal(\''+addr.addr+'\',\'showAddressModalSignMessage\')">Sign Message</a></li>\
+            <li><a href="#" class="pop" title="Request Payment" data-content="Click here to create a new QR Code payment request. The QR Code can be scanned using most popular bitcoin software and mobile apps." onclick="showPaymentRequest(\''+addr.addr+'\')">Create Payment Request</a></li>\
+            </ul></div></td></tr>';
 
-            tbody.append(thtml);
+            if (addr.balance > 0 && addr.priv)  {
+                table.prepend(thtml);
+            } else {
+                table.append(thtml);
+            }
         }
 
         buildPopovers();
@@ -2597,12 +2614,6 @@ function bind() {
         SetCookie('anonymous-never-ask', $(this).is(':checked'));
     });
 
-    $('#local_currency').click(function() {
-        SetCookie('currency', $(this).val());
-
-        queryAPIMultiAddress();
-    });
-
     $('body').click(function() {
         rng_seed_time();
     });
@@ -2621,12 +2632,6 @@ function bind() {
     $('.deposit-sms-btn').click(function() {
         loadScript(resource + 'wallet/deposit/deposit.js', function() {
             showDepositModal(getPreferredAddress(), 'sms', 'Deposit Using Phone/SMS');
-        });
-    });
-
-    $('#payment-request').click(function() {
-        loadScript(resource + 'wallet/payment-request.js', function() {
-            showPaymentRequestModal(getPreferredAddress(), 'Payment Request');
         });
     });
 
@@ -2667,7 +2672,7 @@ function bind() {
                 var address = generateNewAddressAndKey();
 
                 loadScript(resource + 'wallet/address_modal.min.js', function() {
-                    labelAddressModal(address.toString());
+                    showLabelAddressModal(address.toString());
                 });
 
                 buildVisibleView();

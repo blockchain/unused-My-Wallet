@@ -29,7 +29,7 @@ function showAddressModalMenu(address) {
     modal.find('.address-label-button').unbind().click(function() {
         modal.modal('hide');
 
-        labelAddressModal(address);
+        showLabelAddressModal(address);
     });
 
     modal.find('.address-qr-code-button').unbind().click(function() {
@@ -187,7 +187,7 @@ function showAddressModalSignMessage(address) {
     });
 }
 
-function labelAddressModal(addr) {
+function showLabelAddressModal(addr) {
     var modal = $('#label-address-modal');
 
     modal.modal({

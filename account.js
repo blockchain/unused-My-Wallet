@@ -443,6 +443,15 @@ function bindAccountButtons() {
         });
     });
 
+    $('#local_currency').unbind().change(function() {
+        if (symbol != symbol_local)
+            toggleSymbol();
+
+        updateKV('Updating Local Currency', 'update-country', $(this).val(), function() {
+            queryAPIMultiAddress();
+        });
+    });
+
     $('#notifications-confirmations').unbind().change(function(e) {
         updateKV('Updating Notification Confirmations', 'update-notifications-confirmations', $(this).val());
     });
