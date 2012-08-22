@@ -1,56 +1,3 @@
-function showAddressModalMenu(address) {
-    var addr = addresses[address];
-
-    if (addr == null) {
-        makeNotice('error', 'misc-error', 'Address Not Found');
-        return;
-    }
-
-    var modal = $('#address-modal');
-
-    modal.modal({
-        keyboard: true,
-        backdrop: "static",
-        show: true
-    });
-
-    modal.find('.address').text(address);
-
-    if (addr.tag == 2)
-        modal.find('.address-archive-button').hide();
-
-    if (addr.priv == null)
-        modal.find('.address-sign-message').hide();
-
-    modal.find('.btn.btn-secondary').unbind().click(function() {
-        modal.modal('hide');
-    });
-
-    modal.find('.address-label-button').unbind().click(function() {
-        modal.modal('hide');
-
-        showLabelAddressModal(address);
-    });
-
-    modal.find('.address-qr-code-button').unbind().click(function() {
-        modal.modal('hide');
-
-        showAddressModalQRCode(address);
-    });
-
-    modal.find('.address-sign-message').unbind().click(function() {
-        modal.modal('hide');
-
-        showAddressModalSignMessage(address);
-    });
-
-    modal.find('.address-archive-button').unbind().click(function() {
-        modal.modal('hide');
-
-        archiveAddr(address);
-    });
-}
-
 function showAddressModalQRCode(address) {
     var modal = $('#qr-code-modal');
 
@@ -66,6 +13,8 @@ function showAddressModalQRCode(address) {
         var canvas = makeQRCode(300,300,1, address);
 
         modal.find('.address-qr-code').empty().append(canvas);
+
+        modal.center();
     });
 
     modal.find('.address').text(address);
@@ -115,9 +64,6 @@ function verifyMessageModal() {
                 makeNotice('error', 'misc-error', 'You Must Enter A Signature To Verify');
                 return;
             }
-
-
-            console.log(message + ' ' + signature);
 
             var address = Bitcoin.Message.verifyMessage(signature, message);
 
