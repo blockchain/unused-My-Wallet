@@ -613,7 +613,7 @@ public class ProcessForwardsOperation extends Operation<List<Forwarding>> {
     @Override
     public void process(List<Forwarding> forwards) throws Exception {
 
-        if (BaseServlet.log)  System.out.println("ProcessForwardsOperation()");
+        if (BaseServlet.log)  System.out.println("ProcessForwardRequests()");
 
         synchronized (ProcessForwardsOperation.class) {
             long timeBetweenLastRun =  System.currentTimeMillis() - lastRun;

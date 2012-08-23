@@ -2444,7 +2444,7 @@ function bind() {
     });
 
     $('#logout').click(function () {
-        window.location.reload();
+        window.location = root + 'wallet/logout';
     });
 
     $('#refresh').click(function () {
@@ -3335,8 +3335,6 @@ function bind() {
     });
 
     $('.show_adv').click(function() {
-        console.log('Center');
-
         $('.modal:visible').center();
     });
 

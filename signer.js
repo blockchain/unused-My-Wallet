@@ -340,8 +340,9 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                     setReviewTransactionContent(self.modal, self.tx, self.type);
 
-                    self.modal.center();
+                    setAdv(false);
 
+                    self.modal.center();
 
                     //We have the transaction ready to send, check if were online or offline
                     var btn = self.modal.find('.btn.btn-primary');
