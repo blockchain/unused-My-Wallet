@@ -503,7 +503,6 @@ function flashTitle(msg, til) {
     }, 750);
 }
 
-//Async load a script, at the moment this is only jquery.qrcode.js
 function loadScript(src, success, error) {
     if ($('script[src="'+src+'"]').length > 0) {
         success();

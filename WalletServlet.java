@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
+import java.lang.System;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
@@ -874,7 +875,7 @@ public class WalletServlet extends BaseServlet {
 						guid = results.getString(1);
 						String sharedKey = results.getString(2);
 
-						res.setContentType("text/json");
+						res.setContentType("application/json");
 
 						res.getOutputStream().print("{\"guid\" : \""+guid+"\", \"sharedKey\" : \"" + sharedKey + "\"}");
 					} else {
@@ -1566,7 +1567,10 @@ public class WalletServlet extends BaseServlet {
 
 			//Change to see if we stripped anything - could be a sign of malicious input
 			if (guid == null || guid.length() != 36 || pre_guid_length != guid.length()) {
-				throw new Exception("Invalid Input");
+
+                System.out.println("Wallet POST GUID : " + guid + " is invalid " + method);
+
+				throw new Exception("Invalid GUID");
 			}
 
 			//get-info has no payload
@@ -1587,7 +1591,9 @@ public class WalletServlet extends BaseServlet {
 				//Length verification also serves as rudimentary data corruption check
 				//Wallet payload is properly verified with a checksum later
 				if (payload == null || payload.length() == 0  || pre_payload_length != payload.length() || ulength!= payload.length()) {
-					throw new Exception("Invalid Input");
+                    System.out.println("Wallet POST Payload : " + payload + " is invalid " + method + " payload length " + payload.length() + " pre payload length " + pre_guid_length);
+
+                    throw new Exception("Invalid Payload");
 				}
 			} 
 
@@ -1598,7 +1604,9 @@ public class WalletServlet extends BaseServlet {
 				sharedKey = UUID.fromString(sharedKey).toString(); //Check is valid uuid
 
 				if (pre_shared_length != sharedKey.length() || sharedKey.length() != 36) {
-					throw new Exception("Invalid Input");
+                    System.out.println("Wallet POST SharedKey is invalid : " + pre_shared_length + " is invalid " + method);
+
+                    throw new Exception("Invalid Shared Key");
 				}	
 			}
 
