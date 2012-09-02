@@ -29,7 +29,7 @@ function updateTimes() {
 
 function connect() {
 	try {
-	    ws = new WebSocket(getSecureWebSocketURL());
+	    ws = new WebSocket(getWebSocketURL());
 
 		ws.onmessage = function(e) {
 						
