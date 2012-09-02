@@ -47,12 +47,24 @@ function hideNotice(id) {
     $('#'+id).remove();
 }
 
+var websocket_url = getSecureWebSocketURL();
+var websocket_connected_once = false;
+
 //Updates time last block was received and check for websocket connectivity
 function doStuffTimer () {
     try {
         if (WebSocket != null) {
-            if ((!offline && isInitialized) && (ws == null || ws.readyState != WebSocket.OPEN))
+            if ((!offline && isInitialized) && (ws == null || ws.readyState != WebSocket.OPEN)) {
+
+                //Alternate the websocket URL
+                //Prefer Secure but fall back to insecure if the browser doesn't support it
+                if (websocket_url == getWebSocketURL())
+                    websocket_url = getSecureWebSocketURL();
+                else
+                    websocket_url = getWebSocketURL();
+
                 _webSocketConnect();
+            }
         }
     } catch (e) {
         console.log(e);
@@ -84,7 +96,9 @@ function webSocketConnect() {
 function _webSocketConnect() {
 
     try {
-        ws = new WebSocket(getWebSocketURL());
+        console.log('Connect ' + websocket_url);
+
+        ws = new WebSocket(websocket_url);
 
         if (!ws) return;
 
@@ -210,6 +224,7 @@ function _webSocketConnect() {
         };
 
         ws.onopen = function() {
+            websocket_connected_once = true;
 
             $('#status').html('CONNECTED.');
 
@@ -235,6 +250,7 @@ function _webSocketConnect() {
             $('#status').html('DISCONNECTED.');
         };
     } catch (e) {
+
         console.log(e);
     }
 }
@@ -852,6 +868,11 @@ function buildHomeIntroView() {
     $('#summary-sent').html(formatMoney(total_sent, true));
 
     $('#summary-balance').html(formatMoney(final_balance, symbol));
+
+    $('#my-primary-address').text(getPreferredAddress());
+
+    $('#my-primary-addres-qr-code').empty().append('<img style="padding-right:10px;padding-bottom:10px" src="'+root+'qr?data='+getPreferredAddress()+'&size=125">');
+
 }
 
 function buildTransactionsView() {

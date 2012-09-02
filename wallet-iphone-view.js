@@ -1,9 +1,15 @@
 $(document).ready(function() {
     isInitialized = true;
 
-    setDoubleEncryptionButton();
+    setTimeout(function() {
+        try {
+            setDoubleEncryptionButton();
 
-    bindAccountButtons();
+            bindAccountButtons();
 
-    getAccountInfo();
+            getAccountInfo();
+        } catch (e) {
+            makeNotice('error', 'misc-error', 'Fatal Error ' + e);
+        }
+    }, 500);
 });

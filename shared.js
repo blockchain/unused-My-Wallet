@@ -26,6 +26,10 @@ function getWebSocketURL() {
     return "ws://api.blockchain.info:8335/inv";
 }
 
+function getSecureWebSocketURL() {
+    return "wss://blockchain.info/inv";
+}
+
 function Transaction () { };
 function Block () { };
 

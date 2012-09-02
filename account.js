@@ -289,8 +289,7 @@ function bindAccountButtons() {
 
         notifications_type_el.find('.type-'+$(this).val()).toggle();
 
-        //Backup the wallet to syn the pub keys
-        backupWallet();
+        queryAPIMultiAddress();
     });
 
     $('#password-hint1').unbind().change(function() {
