@@ -26,7 +26,7 @@ function getWebSocketURL() {
 }
 
 function getSecureWebSocketURL() {
-    return "wss://blockchain.info/inv";
+    return "wss://api.blockchain.info:8443/inv";
 }
 
 function Transaction () { };
