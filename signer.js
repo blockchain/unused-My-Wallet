@@ -1408,7 +1408,7 @@ function initNewTx() {
 
                 priority /= estimatedSize;
 
-                var kilobytes = parseInt(estimatedSize / 1024);
+                var kilobytes = Math.ceil(parseInt(estimatedSize / 1024));
 
                 var fee_is_zero = !self.fee || self.fee.compareTo(BigInteger.ZERO) == 0;
 
@@ -1421,11 +1421,11 @@ function initNewTx() {
                 } else if (fee_is_zero && (priority < 57600000 || kilobytes > 1 || isEscrow || askforfee)) {
                     self.ask_for_fee(function() {
 
-                        var bi_kilobytes = BigInteger.valueOf(kilobytes + 1);
-                        if (bi_kilobytes && bi_kilobytes.compareTo(BigInteger.ZERO) > 0)
-                            self.fee = self.base_fee.multiply(bi_kilobytes); //0.0005 BTC * kilobytes + 1
-                        else
+                        if (kilobytes > 1) {
+                            self.fee = self.base_fee.multiply(BigInteger.valueOf(kilobytes)); //0.0005 BTC * kilobytes + 1
+                        } else {
                             self.fee = self.base_fee; //0.0005 BTC
+                        }
 
                         self.makeTransaction();
                     }, function() {
