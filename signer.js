@@ -1408,7 +1408,7 @@ function initNewTx() {
 
                 priority /= estimatedSize;
 
-                var kilobytes = Math.ceil(parseInt(estimatedSize / 1024));
+                var kilobytes = Math.ceil(parseFloat(estimatedSize / 1024));
 
                 var fee_is_zero = !self.fee || self.fee.compareTo(BigInteger.ZERO) == 0;
 
