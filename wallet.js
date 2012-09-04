@@ -945,6 +945,8 @@ function buildTransactionsView() {
 
         if (start < transactions.length) {
             interval = setTimeout(buildSome, 1);
+        } else {
+            buildPopovers(); //Build the note popover
         }
     };
 
@@ -981,8 +983,6 @@ function buildTransactionsView() {
         disabled = '';
 
     container.append('<li onclick="setPage(tx_page+1)" class="next'+disabled+'"><a>Next &rarr;</a></li>');
-
-    buildPopovers();
 }
 
 function setFilter(i) {
