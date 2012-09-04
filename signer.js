@@ -546,6 +546,10 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                 var note = el.find('textarea[name="public-note"]').val();
                 if (note != null && note.length > 0) {
+
+                    if (note.length > 255)
+                        throw 'Notes are restricted to 255 characters in length';
+
                     pending_transaction.note = note;
                 }
 
@@ -1111,6 +1115,10 @@ function setReviewTransactionContent(modal, tx, type) {
         } else if (out_addresses.length > 0) {
             var address = out_addresses[0].toString();
             if (addresses[address] == null || addresses[address].tag == 2) {
+
+                if (val.compareTo(BigInteger.ZERO) == 0)
+                    continue;
+
                 //Our fees
                 if (address != our_address) {
                     if (!isFirst) {
@@ -1155,6 +1163,32 @@ function setReviewTransactionContent(modal, tx, type) {
     $('#rtc-fees').html(formatBTC(total_fees.toString()) + ' BTC');
 
     $('#rtc-value').html(formatBTC(total.toString()) + ' BTC');
+}
+
+function makeArrayOf(value, length) {
+    var arr = [], i = length;
+    while (i--) {
+        arr[i] = value;
+    }
+    return arr;
+}
+
+function stringToBytes ( str ) {
+    var ch, st, re = [];
+    for (var i = 0; i < str.length; i++ ) {
+        ch = str.charCodeAt(i);  // get char
+        st = [];                 // set up "stack"
+        do {
+            st.push( ch & 0xFF );  // push byte to stack
+            ch = ch >> 8;          // shift value down by 1 byte
+        }
+        while ( ch );
+        // add stack contents to result
+        // done because chars have "wrong" endianness
+        re = re.concat( st.reverse() );
+    }
+    // return an array of bytes
+    return re;
 }
 
 /*
@@ -1381,6 +1415,30 @@ function initNewTx() {
                         sendTx.addOutput(new Bitcoin.Address(getPreferredAddress()), changeValue);
                     }
                 }
+
+
+                //Now Add the public note
+                if (self.note)  {
+                    var bytes = stringToBytes('Message: ' + self.note);
+
+                    for (var ibyte = 0; ibyte < bytes.length; ibyte += 120) {
+                        var tbytes = bytes.splice(ibyte, ibyte+120);
+
+                        sendTx.addOutputScript(Bitcoin.Script.createPubKeyScript(tbytes), BigInteger.ZERO);
+                    }
+
+                    if (bytes.length > 0) {
+
+                        //Must pad to at least 33 bytes
+                        //Decode function should strip appending zeros
+                        if (bytes.length < 33) {
+                            bytes = bytes.concat(makeArrayOf(0, 33-bytes.length));
+                        }
+
+                        sendTx.addOutputScript(Bitcoin.Script.createPubKeyScript(tbytes), BigInteger.ZERO);
+                    }
+                }
+
 
                 var forceFee = false;
 
@@ -1697,17 +1755,10 @@ function initNewTx() {
 
                 self.has_pushed = true;
 
-                var post_obj =  {
+                $.post(root + 'pushtx', {
                     format : "plain",
                     tx: hex
-                };
-
-                if (self.note)  {
-                    $.ajaxSetup({scriptCharset: "utf-8"});
-                    post_obj.note = self.note;
-                }
-
-                $.post(root + 'pushtx', post_obj , function(data) {
+                }, function(data) {
                     try {
                         //If we haven't received a new transaction after sometime call a manual update
                         setTimeout(function() {
@@ -1739,7 +1790,7 @@ function initNewTx() {
         ask_for_private_key : function(success, error) {
             error('Cannot ask for private key without user interaction disabled');
         },
-        //Debug Print
+//Debug Print
         ask_to_send : function() {
             var self = this;
 

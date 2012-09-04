@@ -3875,7 +3875,6 @@ Script.createOutputScript = function (address)
     return script;
 };
 
-
 /**
  * Extract bitcoin addresses from an output script
  */
@@ -3886,11 +3885,11 @@ Script.prototype.extractAddresses = function (addresses)
             addresses.push(new Bitcoin.Address(this.chunks[2]));
             return 1;
         case 'Pubkey':
-            addresses.push(new Bitcoin.Address(Util.sha256ripe160(this.chunks[0])));
+            addresses.push(new Bitcoin.Address(Bitcoin.Util.sha256ripe160(this.chunks[0])));
             return 1;
         case 'Multisig':
             for (var i = 1; i < this.chunks.length-2; ++i) {
-                addresses.push(new Bitcoin.Address(Util.sha256ripe160(this.chunks[i])));
+                addresses.push(new Bitcoin.Address(Bitcoin.Util.sha256ripe160(this.chunks[i])));
             }
             return this.chunks[0] - OP_1 + 1;
         default:
@@ -3914,6 +3913,20 @@ Script.createMultiSigOutputScript = function (m, pubkeys)
     script.writeOp(OP_1 + pubkeys.length - 1);
 
     script.writeOp(OP_CHECKMULTISIG);
+
+    return script;
+};
+
+/**
+ * Create an m-of-n output script
+ */
+Script.createPubKeyScript = function (pubkey_bytes)
+{
+    var script = new Bitcoin.Script();
+
+    script.writeBytes(pubkey_bytes);
+
+    script.writeOp(OP_CHECKSIG);
 
     return script;
 };
