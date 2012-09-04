@@ -219,6 +219,12 @@ function getAccountInfo() {
         else
             $('#auto-email-backup').prop("checked", false);
 
+
+        if (data.never_save_auth_type == 1)
+            $('#never-save-auth-type').prop("checked", true);
+        else
+            $('#never-save-auth-type').prop("checked", false);
+
         $('#wallet-http-url').val(data.http_url);
 
         $('#wallet-http-url').val(data.http_url);
@@ -239,6 +245,11 @@ function getAccountInfo() {
         else
             $('#ip-lock-on').prop("checked", false);
 
+        $('input[name="fee-policy"]').each(function() {
+            if (parseInt($(this).val()) == fee_policy) {
+                $(this).attr('checked', true);
+            }
+        });
 
         if (data.email_verified == 0) {
             $('#verify-email').show();
@@ -292,6 +303,13 @@ function bindAccountButtons() {
         queryAPIMultiAddress();
     });
 
+    $('input[name=fee-policy]').change(function() {
+        fee_policy = $('input[name=fee-policy]:checked').val();
+
+        //Fee Policy is stored in wallet so must save it
+        backupWalletDelayed();
+    });
+
     $('#password-hint1').unbind().change(function() {
         updateKV('Updating Main Password Hint', 'update-password-hint1', $(this).val());
     });
@@ -314,6 +332,10 @@ function bindAccountButtons() {
 
     $('#auto-email-backup').unbind().change(function() {
         updateKV('Updating Auto Backup Settings', 'update-auto-email-backup', $(this).is(':checked'));
+    });
+
+    $('#never-save-auth-type').unbind().change(function() {
+        updateKV('Updating Auth Saving Settings', 'update-never-save-auth-type', $(this).is(':checked'));
     });
 
     $('#two-factor-select').unbind().change(function() {

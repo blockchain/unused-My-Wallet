@@ -28,6 +28,7 @@ var privateKeyToSweep = null; //a private key to sweep from #newpriv hash value 
 var isSignup = false; //Set when on new account signup page
 var archTimer; //Delayed Backuop wallet timer
 var mixer_fee = 1.5; //Default mixer fee 1.5%
+var fee_policy = 0; //Default Fee policy (-1 Tight, 0 Normal, 1 High)
 
 $.fn.center = function () {
     this.css("top", Math.max(( $(window).height() - this.height() ) / 2+$(window).scrollTop(), 10) + "px");
@@ -155,7 +156,6 @@ function _webSocketConnect() {
                             addr.balance -= value;
                         }
                     }
-
 
                     for (var i = 0; i < tx.out.length; i++) {
                         var output = tx.out[i];
@@ -330,6 +330,10 @@ function makeWalletJSON(format) {
 
     if (double_encryption && dpasswordhash != null && encode_func == noConvert) {
         out += '	"double_encryption" : '+double_encryption+',\n	"dpasswordhash" : "'+dpasswordhash+'",\n';
+    }
+
+    if (fee_policy != 0) {
+        out += '	"fee_policy" : '+fee_policy+',\n';
     }
 
     out += '	"keys" : [\n';
@@ -759,7 +763,7 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
 
     var result = this.result;
 
-    var html = '<tr><td style="width:16px" class="hidden-phone"><a target="new" href="'+root+'tx-index/'+this.txIndex+'/'+this.hash+'"><img src="'+resource+'info.png" /></a></td><td class="hidden-phone"><ul style="margin-left:0px;" class="short-addr">';
+    var html = '<tr><td style="width:16px" class="hidden-phone"><a target="new" href="'+root+'tx/'+this.hash+'/'+this.hash+'"><img src="'+resource+'info.png" /></a></td><td class="hidden-phone"><ul style="margin-left:0px;" class="short-addr">';
 
     var all_from_self = true;
     if (result > 0) {
@@ -803,6 +807,11 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
 
     html += '</ul></td><td>';
 
+
+    if (this.note) {
+        html += '<img src="'+resource+'note.png" class="pop" title="Note" data-content="'+this.note+'."> ';
+    }
+
     if (this.time > 0) {
         html += dateToString(new Date(this.time * 1000));
     }
@@ -832,6 +841,8 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
     return html;
 };
 
+
+//Reset is true when called manually with changeview
 function buildVisibleView(reset) {
 
     //Hide any popovers as they can get stuck whent the element is re-drawn
@@ -859,8 +870,7 @@ function buildVisibleView(reset) {
     }
 }
 
-
-function buildHomeIntroView() {
+function buildHomeIntroView(reset) {
     $('#summary-n-tx').html(n_tx);
 
     $('#summary-received').html(formatMoney(total_received, true));
@@ -869,9 +879,12 @@ function buildHomeIntroView() {
 
     $('#summary-balance').html(formatMoney(final_balance, symbol));
 
-    $('#my-primary-address').text(getPreferredAddress());
+    var primary_address = $('#my-primary-address');
+    if (primary_address.text() != getPreferredAddress()) {
+        primary_address.text(getPreferredAddress());
 
-    $('#my-primary-addres-qr-code').empty().append('<img style="padding-right:10px;padding-bottom:10px" src="'+root+'qr?data='+getPreferredAddress()+'&size=125">');
+        $('#my-primary-addres-qr-code').html('<img style="padding-right:10px;padding-bottom:10px" src="'+root+'qr?data='+getPreferredAddress()+'&size=125">');
+    }
 
 }
 
@@ -968,6 +981,8 @@ function buildTransactionsView() {
         disabled = '';
 
     container.append('<li onclick="setPage(tx_page+1)" class="next'+disabled+'"><a>Next &rarr;</a></li>');
+
+    buildPopovers();
 }
 
 function setFilter(i) {
@@ -1077,7 +1092,6 @@ function queryAPIMultiAddress(success) {
         },
 
         error : function(data) {
-
             console.log(data);
 
             makeNotice('error', 'misc-error', data.responseText);
@@ -1288,6 +1302,10 @@ function internalRestoreWallet() {
         if (obj.double_encryption != null && obj.dpasswordhash != null) {
             double_encryption = obj.double_encryption;
             dpasswordhash = obj.dpasswordhash;
+        }
+
+        if (obj.fee_policy != null) {
+            fee_policy = obj.fee_policy;
         }
 
         addresses = [];

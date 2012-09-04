@@ -521,6 +521,14 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
         pending_transaction.type = type;
 
+        if (fee_policy == 1) {
+            pending_transaction.fee = BigInteger.valueOf(100000);
+        } else if (fee_policy == -1) {
+            pending_transaction.ask_for_fee = function(yes, no) {
+                no();
+            };
+        }
+
         getSecondPassword(function() {
             try {
                 var silentReturn = false;
@@ -534,6 +542,11 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     pending_transaction.from_addresses = fromval;
                 } else {
                     pending_transaction.from_addresses = [fromval];
+                }
+
+                var note = el.find('textarea[name="public-note"]').val();
+                if (note != null && note.length > 0) {
+                    pending_transaction.note = note;
                 }
 
                 var changeAddressVal = el.find('select[name="change"]').val();
@@ -557,7 +570,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                 var input_fee = el.find('input[name="fees"]').val();
 
-                if (input_fee != null) {
+                if (input_fee != null && input_fee.length > 0) {
                     pending_transaction.fee = Bitcoin.Util.parseValue(input_fee);
 
                     if (pending_transaction.fee.compareTo(BigInteger.ZERO) < 0)
@@ -631,12 +644,6 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                 var address = resolveAddress(send_to_address);
 
                                 if (type == 'anonymous') {
-
-                                    var disclaimer_input = el.find('input[name="disclaimer"]');
-                                    if (disclaimer_input.length != 0 && !disclaimer_input.is(':checked')) {
-                                        throw 'You Must Agree To The Disclaimer.';
-                                    }
-
                                     if (!address) {
                                         throw 'Invalid Bitcoin Address';
                                     }
@@ -1174,6 +1181,7 @@ function initNewTx() {
         listeners : [],
         is_cancelled : false,
         ask_to_send_anonymously : false,
+        base_fee : BigInteger.valueOf(50000),
         addListener : function(listener) {
             this.listeners.push(listener);
         },
@@ -1189,7 +1197,6 @@ function initNewTx() {
                 self.invoke('on_start');
 
                 getUnspentOutputs(self.from_addresses, function (obj) {
-
                     try {
                         if (self.is_cancelled) {
                             throw 'Transaction Cancelled';
@@ -1407,7 +1414,7 @@ function initNewTx() {
                 //Priority under 57 million requires a 0.0005 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
                 if (fee_is_zero && forceFee) {
                     //Forced Fee
-                    self.fee = BigInteger.valueOf(50000);
+                    self.fee = self.base_fee;
 
                     self.makeTransaction();
                 } else if (fee_is_zero && (priority < 57600000 || kilobytes > 1 || isEscrow || askforfee)) {
@@ -1415,9 +1422,9 @@ function initNewTx() {
 
                         var bi_kilobytes = BigInteger.valueOf(kilobytes);
                         if (bi_kilobytes && bi_kilobytes.compareTo(BigInteger.ZERO) > 0)
-                            self.fee = BigInteger.valueOf(100000).multiply(bi_kilobytes); //0.001 BTC * kilobytes
+                            self.fee = self.base_fee.multiply(bi_kilobytes + 1); //0.0005 BTC * kilobytes + 1
                         else
-                            self.fee = BigInteger.valueOf(50000); //0.0005 BTC
+                            self.fee = self.base_fee; //0.0005 BTC
 
                         self.makeTransaction();
                     }, function() {
@@ -1689,7 +1696,17 @@ function initNewTx() {
 
                 self.has_pushed = true;
 
-                $.post("/pushtx", { format : "plain", tx: hex, format : 'plain' }, function(data) {
+                var post_obj =  {
+                    format : "plain",
+                    tx: hex
+                };
+
+                if (self.note)  {
+                    $.ajaxSetup({scriptCharset: "utf-8"});
+                    post_obj.note = self.note;
+                }
+
+                $.post(root + 'pushtx', post_obj , function(data) {
                     try {
                         //If we haven't received a new transaction after sometime call a manual update
                         setTimeout(function() {

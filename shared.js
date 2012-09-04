@@ -62,6 +62,7 @@ function TransactionFromJSON(json) {
     tx.blockHeight = json.block_height;
     tx.balance = json.balance;
     tx.double_spend = json.double_spend;
+    tx.note = json.note;
 
     return tx;
 }
@@ -209,7 +210,13 @@ Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
 
     var result = this.result;
 
-    var html = '<div id="tx-'+this.txIndex+'"><table class="table table-striped" cellpadding="0" cellspacing="0" style="padding:0px;float:left;margin:0px;margin-top:10px;"><tr><th colspan="4"><div class="hash-link"><a target="new" href="'+root+'tx-index/'+this.txIndex+'/'+this.hash+'">'+this.hash+'</a></div> <span style="float:right"><span class="can-hide"><b>';
+    var html = '<div id="tx-'+this.txIndex+'" style="margin-top:10px;">';
+
+    if (this.note) {
+        html += '<div class="alert note"><b>Note:</b> '+this.note+'</div>';
+    }
+
+    html += '<table class="table table-striped" cellpadding="0" cellspacing="0" style="padding:0px;float:left;margin:0px;"><tr><th colspan="4"><div class="hash-link"><a target="new" href="'+root+'tx/'+this.hash+'/'+this.hash+'">'+this.hash+'</a></div> <span style="float:right"><span class="can-hide"><b>';
 
     if (this.time > 0) {
         var date = new Date(this.time * 1000);
