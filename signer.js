@@ -1247,21 +1247,21 @@ function initNewTx() {
                     throw 'Transaction Cancelled';
                 }
 
-                this.selected_outputs = [];
+                self.selected_outputs = [];
 
                 var txValue = BigInteger.ZERO;
 
-                for (var i = 0; i < this.to_addresses.length; ++i) {
-                    txValue = txValue.add(this.to_addresses[i].value);
+                for (var i = 0; i < self.to_addresses.length; ++i) {
+                    txValue = txValue.add(self.to_addresses[i].value);
                 }
 
-                var isSweep = (this.to_addresses.length == 0);
+                var isSweep = (self.to_addresses.length == 0);
 
                 var isEscrow = false;
 
                 //If we have any escrow outputs we increase the fee to 0.05 BTC
-                for (var i =0; i < this.to_addresses.length; ++i) {
-                    var addrObj = this.to_addresses[i];
+                for (var i =0; i < self.to_addresses.length; ++i) {
+                    var addrObj = self.to_addresses[i];
                     if (addrObj.m != null) {
                         isEscrow = true;
                         break;
@@ -1271,13 +1271,14 @@ function initNewTx() {
                 var availableValue = BigInteger.ZERO;
 
                 //Add the miners fees
-                if (this.fee != null)
-                    txValue = txValue.add(this.fee);
+                if (self.fee != null) {
+                    txValue = txValue.add(self.fee);
+                }
 
                 var priority = 0;
                 var addresses_used = [];
                 var unspent_watch_only = [];
-                var looping_array = this.unspent;
+                var looping_array = self.unspent;
 
                 for (var i = 0; i < looping_array.length; ++i) {
                     var out = looping_array[i];
@@ -1302,7 +1303,7 @@ function initNewTx() {
                             }
                         }
 
-                        if (this.from_addresses != null && this.from_addresses.length > 0 && $.inArray(addr, this.from_addresses) == -1) {
+                        if (self.from_addresses != null && self.from_addresses.length > 0 && $.inArray(addr, self.from_addresses) == -1) {
                             continue;
                         }
 
@@ -1315,7 +1316,7 @@ function initNewTx() {
                         //If the output happens to be greater than tx value then we can make this transaction with one input only
                         //So discard the previous selected outs
                         if (!isSweep && out.value.compareTo(txValue) >= 0) {
-                            this.selected_outputs = [new_in];
+                            self.selected_outputs = [new_in];
 
                             addresses_used = [addr];
 
@@ -1326,7 +1327,7 @@ function initNewTx() {
                             break;
                         } else {
                             //Otherwise we add the value of the selected output and continue looping if we don't have sufficient funds yet
-                            this.selected_outputs.push(new_in);
+                            self.selected_outputs.push(new_in);
 
                             addresses_used.push(addr);
 
@@ -1344,24 +1345,24 @@ function initNewTx() {
                 }
 
                 if (availableValue.compareTo(txValue) < 0) {
-                    this.error('Insufficient funds. Value Needed ' +  formatBTC(txValue.toString()) + ' BTC. Available amount ' + formatBTC(availableValue.toString()) + ' BTC');
+                    self.error('Insufficient funds. Value Needed ' +  formatBTC(txValue.toString()) + ' BTC. Available amount ' + formatBTC(availableValue.toString()) + ' BTC');
                     return;
                 }
 
-                if (this.selected_outputs.length == 0) {
-                    this.error('No Available Outputs To Spend.');
+                if (self.selected_outputs.length == 0) {
+                    self.error('No Available Outputs To Spend.');
                     return;
                 }
 
                 var sendTx = new Bitcoin.Transaction();
 
-                for (var i = 0; i < this.selected_outputs.length; i++) {
-                    sendTx.addInput(this.selected_outputs[i]);
+                for (var i = 0; i < self.selected_outputs.length; i++) {
+                    sendTx.addInput(self.selected_outputs[i]);
                 }
 
                 var askforfee = false;
-                for (var i =0; i < this.to_addresses.length; ++i) {
-                    var addrObj = this.to_addresses[i];
+                for (var i =0; i < self.to_addresses.length; ++i) {
+                    var addrObj = self.to_addresses[i];
                     if (addrObj.m != null) {
                         sendTx.addOutputScript(Bitcoin.Script.createMultiSigOutputScript(addrObj.m, addrObj.pubkeys), addrObj.value);
                     } else {
@@ -1372,8 +1373,8 @@ function initNewTx() {
                 //Now deal with the change
                 var	changeValue = availableValue.subtract(txValue);
                 if (changeValue.compareTo(BigInteger.ZERO) > 0) {
-                    if (this.change_address != null) //If change address speicified return to that
-                        sendTx.addOutput(this.change_address, changeValue);
+                    if (self.change_address != null) //If change address speicified return to that
+                        sendTx.addOutput(self.change_address, changeValue);
                     else if (!isSweep && addresses_used.length > 0) { //Else return to a random from address if specified
                         sendTx.addOutput(new Bitcoin.Address(addresses_used[Math.floor(Math.random() * addresses_used.length)]), changeValue);
                     } else { //Otherwise return to random unarchived
@@ -1420,9 +1421,9 @@ function initNewTx() {
                 } else if (fee_is_zero && (priority < 57600000 || kilobytes > 1 || isEscrow || askforfee)) {
                     self.ask_for_fee(function() {
 
-                        var bi_kilobytes = BigInteger.valueOf(kilobytes);
+                        var bi_kilobytes = BigInteger.valueOf(kilobytes + 1);
                         if (bi_kilobytes && bi_kilobytes.compareTo(BigInteger.ZERO) > 0)
-                            self.fee = self.base_fee.multiply(bi_kilobytes + 1); //0.0005 BTC * kilobytes + 1
+                            self.fee = self.base_fee.multiply(bi_kilobytes); //0.0005 BTC * kilobytes + 1
                         else
                             self.fee = self.base_fee; //0.0005 BTC
 
