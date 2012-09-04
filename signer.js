@@ -1439,7 +1439,6 @@ function initNewTx() {
                     }
                 }
 
-
                 var forceFee = false;
 
                 //Check for tiny outputs
