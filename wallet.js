@@ -1046,8 +1046,7 @@ function parseMultiAddressJSON(json, cached) {
     }
 
     for (var i = 0; i < obj.txs.length; ++i) {
-        var tx = TransactionFromJSON(obj.txs[i]);
-        transactions.push(tx);
+        transactions.push(TransactionFromJSON(obj.txs[i]));
     }
 }
 
@@ -3078,12 +3077,16 @@ function bind() {
         });
     });
 
-    $('#send-satoshi-dice').on('show', function(e, reset) {
-        loadScript(resource + 'wallet/satoshidice.min.js', function() {
+    $('#send-satoshi-dice,#send-btcdice-dice').on('show', function(e, reset) {
+        var self = this;
+
+        loadScript(resource + 'wallet/dicegames.min.js', function() {
             try {
-                buildForm();
+                buildForm($(self));
             } catch (e) {
-                makeNotice('error', 'misc-error', 'Unable To Load Satoshi Dice Bets');
+                console.log(e);
+
+                makeNotice('error', 'misc-error', 'Unable To Load Dice Bets');
             }
         }, function (e) {
             makeNotice('error', 'misc-error', e);

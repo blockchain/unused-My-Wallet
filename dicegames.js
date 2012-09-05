@@ -1,17 +1,17 @@
-var satoshi_dice_games = null;
-
-function calculateProfitLoss() {
+function calculateProfitLoss(form) {
     setLoadingText('Calculating Profit / Loss');
 
-    if (!satoshi_dice_games) return;
+    var to_inputs = form.find('input[name="send-to-address"]');
 
     var output_addresses = [];
-    for (var i in satoshi_dice_games) {
-        output_addresses.push(satoshi_dice_games[i].address);
-    }
+    $(to_inputs).each(function() {
+        output_addresses.push($(this).val());
+    });
+
+    if (output_addresses.length == 0)
+        return;
 
     $.get(root + 'walletprofitloss?input_address='+getActiveAddresses().join('|')+'&output_address='+output_addresses.join('|')+'&format=plain').success(function(obj) {
-        var form = $('#send-satoshi-dice');
 
         var container = form.find('.profit-loss').show(200);
 
@@ -28,27 +28,22 @@ function calculateProfitLoss() {
             container.find('.winnings').html(formatMoney(winnings, true));
 
         container.find('.refresh').unbind().click(function() {
-            calculateProfitLoss();
+            calculateProfitLoss(form);
         });
     });
 }
 
-function buildForm() {
+function buildForm(form) {
+    var container = form.find('.recipient-container');
 
-    if (satoshi_dice_games)
+    if (!container.is(':empty'))
         return;
 
-    var form = $('#send-satoshi-dice');
-
-    $.get(root + 'satoshidice').success(function(obj) {
-
-        satoshi_dice_games = obj;
-
-        var container = form.find('.recipient-container');
+    $.get(root + 'dicegames?game='+form.data('name')).success(function(obj) {
 
         container.empty();
 
-        var control_group = $('<div class="control-group"><label class="control-label">Win Odds</label><div class="controls"><p class="help-block">Enter the amounts you wish to bet below:</p></div></div>');
+        var control_group = $('<div class="control-group"><label class="control-label">Win Odds</label><div class="controls"><p>Enter the amounts you wish to bet below:</p></div></div>');
 
         container.append(control_group);
 
@@ -96,11 +91,11 @@ function buildForm() {
         });
 
         try {
-            calculateProfitLoss();
+            calculateProfitLoss(form);
         } catch (e) {
             console.log(e);
         }
     }).error(function() {
-            makeNotice('error', 'misc-error', 'Error Downloading SatoshiDICE Bets')
-        });
+            makeNotice('error', 'misc-error', 'Error Downloading '+form.data('name')+' Bets')
+    });
 }

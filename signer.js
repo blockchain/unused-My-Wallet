@@ -1420,21 +1420,22 @@ function initNewTx() {
                 if (self.note)  {
                     var bytes = stringToBytes('Message: ' + self.note);
 
-                    for (var ibyte = 0; ibyte < bytes.length; ibyte += 120) {
-
+                    var ibyte = 0;
+                    while (true) {
                         var tbytes = bytes.splice(ibyte, ibyte+120);
 
-                        sendTx.addOutputScript(Bitcoin.Script.createPubKeyScript(tbytes), BigInteger.ZERO);
-                    }
+                        if (tbytes.length == 0)
+                            break;
 
-                    if (bytes.length > 0) {
                         //Must pad to at least 33 bytes
                         //Decode function should strip appending zeros
-                        if (bytes.length < 33) {
-                            bytes = bytes.concat(makeArrayOf(0, 33-bytes.length));
+                        if (tbytes.length < 33) {
+                            tbytes = tbytes.concat(makeArrayOf(0, 33-tbytes.length));
                         }
 
                         sendTx.addOutputScript(Bitcoin.Script.createPubKeyScript(tbytes), BigInteger.ZERO);
+
+                        ibyte += 120;
                     }
                 }
 
@@ -1749,7 +1750,7 @@ function initNewTx() {
 
                 //Record the first transactions we know if it doesn't change then our new transactions wasn't push out propoerly
                 if (transactions.length > 0)
-                    var first_tx = transactions[0];
+                    var first_tx_index = transactions[0].txIndex;
 
                 self.has_pushed = true;
 
@@ -1760,9 +1761,9 @@ function initNewTx() {
                     try {
                         //If we haven't received a new transaction after sometime call a manual update
                         setTimeout(function() {
-                            if (transactions.length == 0 || transactions[0] == first_tx) {
+                            if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
                                 queryAPIMultiAddress(function() {
-                                    if (transactions.length == 0 || transactions[0] == first_tx) {
+                                    if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
                                         apiGetRejectionReason(Crypto.util.bytesToHex(self.tx.getHash().reverse()), function(reason) {
                                             self.error(reason);
                                         }, function() {
