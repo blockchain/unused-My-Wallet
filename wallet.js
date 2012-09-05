@@ -763,7 +763,7 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
 
     var result = this.result;
 
-    var html = '<tr><td style="width:16px" class="hidden-phone"><a target="new" href="'+root+'tx/'+this.hash+'/'+this.hash+'"><img src="'+resource+'info.png" /></a></td><td class="hidden-phone"><ul style="margin-left:0px;" class="short-addr">';
+    var html = '<tr><td style="width:16px" class="hidden-phone"><a target="new" href="'+root+'tx/'+this.hash+'"><img src="'+resource+'info.png" /></a></td><td class="hidden-phone"><ul style="margin-left:0px;" class="short-addr">';
 
     var all_from_self = true;
     if (result > 0) {

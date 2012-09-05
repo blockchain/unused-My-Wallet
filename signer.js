@@ -1416,19 +1416,18 @@ function initNewTx() {
                     }
                 }
 
-
                 //Now Add the public note
                 if (self.note)  {
                     var bytes = stringToBytes('Message: ' + self.note);
 
                     for (var ibyte = 0; ibyte < bytes.length; ibyte += 120) {
+
                         var tbytes = bytes.splice(ibyte, ibyte+120);
 
                         sendTx.addOutputScript(Bitcoin.Script.createPubKeyScript(tbytes), BigInteger.ZERO);
                     }
 
                     if (bytes.length > 0) {
-
                         //Must pad to at least 33 bytes
                         //Decode function should strip appending zeros
                         if (bytes.length < 33) {
