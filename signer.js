@@ -1314,6 +1314,8 @@ function initNewTx() {
                 var unspent_watch_only = [];
                 var looping_array = self.unspent;
 
+                var forceFee = false;
+
                 for (var i = 0; i < looping_array.length; ++i) {
                     var out = looping_array[i];
 
@@ -1346,6 +1348,11 @@ function initNewTx() {
                         var b64hash = Crypto.util.bytesToBase64(Crypto.util.hexToBytes(out.tx_hash));
 
                         var new_in =  new Bitcoin.TransactionIn({outpoint: {hash: b64hash, hexhash: hexhash, index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295});
+
+                        //If less than 0.01 BTC force fee
+                        if (out.value.compareTo(BigInteger.valueOf(1000000)) < 0) {
+                            forceFee = true;
+                        }
 
                         //If the output happens to be greater than tx value then we can make this transaction with one input only
                         //So discard the previous selected outs
@@ -1417,6 +1424,7 @@ function initNewTx() {
                 }
 
                 //Now Add the public note
+                /*
                 if (self.note)  {
                     var bytes = stringToBytes('Message: ' + self.note);
 
@@ -1437,25 +1445,7 @@ function initNewTx() {
 
                         ibyte += 120;
                     }
-                }
-
-                var forceFee = false;
-
-                //Check for tiny outputs
-                for (var i = 0; i < sendTx.outs.length; ++i) {
-                    var out = sendTx.outs[i];
-
-                    var array = out.value.slice();
-                    array.reverse();
-                    var val =  new BigInteger(array);
-
-                    //If less than 0.001 BTC force fee
-                    if (val.compareTo(BigInteger.valueOf(100000)) < 0) {
-                        forceFee = true;
-                    } else if (val.compareTo(BigInteger.valueOf(1000000)) < 0) { //If less than 0.01 BTC show warning
-                        askforfee = true;
-                    }
-                }
+                }  */
 
                 //Estimate scripot sig (Cannot use serialized tx size yet becuase we haven't signed the inputs)
                 //18 bytes standard header
@@ -1754,10 +1744,16 @@ function initNewTx() {
 
                 self.has_pushed = true;
 
-                $.post(root + 'pushtx', {
+                var post_data = {
                     format : "plain",
                     tx: hex
-                }, function(data) {
+                };
+
+                if (self.note) {
+                    post_data.note = self.note;
+                }
+
+                $.post(root + 'pushtx', post_data, function(data) {
                     try {
                         //If we haven't received a new transaction after sometime call a manual update
                         setTimeout(function() {

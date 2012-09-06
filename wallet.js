@@ -294,18 +294,23 @@ function base58ToBase58(x) { return decryptPK(x); }
 function base58ToBase64(x) { var bytes = decodePK(x); return Crypto.util.bytesToBase64(bytes); }
 function base58ToHex(x) { var bytes = decodePK(x); return Crypto.util.bytesToHex(bytes); }
 function base58ToSipa(x, addr) {
-    var bytes = decodePK(x); // zero pad if private key is less than 32 bytes (thanks Casascius)
+    var bytes = decodePK(x);
 
-    var eckey = new Bitcoin.ECKey(bytes);
-
-    while (bytes.length < 32) bytes.unshift(0x00);
+    while (bytes.length < 32) bytes.unshift(0);
 
     bytes.unshift(0x80); // prepend 0x80 byte
 
-    if (eckey.getBitcoinAddressCompressed().toString() == addr)
+    var eckey = new Bitcoin.ECKey(bytes);
+
+    if (eckey.getBitcoinAddress().toString() == addr) {
+    } else if (eckey.getBitcoinAddressCompressed().toString() == addr) {
         bytes.push(0x01);    // append 0x01 byte for compressed format
+    } else {
+        throw 'Private Key does not match bitcoin address' + addr;
+    }
 
     var checksum = Crypto.SHA256(Crypto.SHA256(bytes, { asBytes: true }), { asBytes: true });
+
     bytes = bytes.concat(checksum.slice(0, 4));
 
     var privWif = B58.encode(bytes);
@@ -536,31 +541,38 @@ function importPyWalletJSONObject(obj) {
 
 function parsePrivateKeysFromText(input_text) {
 
-    var components = input_text.split(/\s+/g);
+    var components = input_text.split(/\W+/g);
 
     try {
-        var addedOne = false;
+        var nKeysAdded = 0;
+
         for (var i in components) {
             var word = components[i];
 
-            if (walletIsFull())
-                break;
+            if (walletIsFull()) {
+                throw 'Wallet Is Full';
+            }
 
             try {
                 var format = detectPrivateKeyFormat(word);
 
                 var key = privateKeyStringToKey(word, format);
 
-                if (format == 'compsipa')
-                    internalAddKey(key.getBitcoinAddressCompressed().toString(), encodePK(key.priv));
-                else
-                    internalAddKey(key.getBitcoinAddress().toString(), encodePK(key.priv));
+                console.log('Found PK ' + word);
 
-                addedOne = true;
+                if (format == 'compsipa') {
+                    if (internalAddKey(key.getBitcoinAddressCompressed().toString(), encodePK(key.priv)))
+                        ++nKeysAdded;
+                } else {
+                    if (internalAddKey(key.getBitcoinAddress().toString(), encodePK(key.priv)))
+                        ++nKeysAdded;
+                }
             } catch (e) { }
         }
 
-        if (addedOne) {
+        if (nKeysAdded > 0) {
+            makeNotice('success', 'misc-success', 'Imported ' + nKeysAdded + ' private keys');
+
             //Perform a wallet backup
             backupWallet('update', function() {
                 queryAPIMultiAddress();
@@ -3301,7 +3313,9 @@ function bind() {
                         return;
                     }
 
-                    popup.document.write('<!DOCTYPE html><html><head></head><body></body></html>');
+                    var addresses_array = getActiveAddresses();
+
+                    popup.document.write('<!DOCTYPE html><html><head></head><body><h1>'+addresses_array.length+' Active Addresses</h1></body></html>');
 
                     var container = $('body', popup.document);
 
@@ -3309,55 +3323,64 @@ function bind() {
 
                     container.append(table);
 
-                    var ii = 1;
-                    for (var key in addresses) {
-                        var addr = addresses[key];
+                    var ii = 0;
 
-                        var mode = 'Online Mode';
+                    var append = function() {
+                        try {
+                            var addr = addresses[addresses_array[ii]];
 
-                        if (addr.tag == 1)
-                            mode = 'Offline Mode';
+                            var mode = 'Online Mode';
 
-                        if (addr.priv == null) {
-                            continue;
+                            if (addr.tag == 1)
+                                mode = 'Offline Mode';
+
+                            if (addr.priv == null) {
+                                return;
+                            }
+
+                            var display_pk = base58ToSipa(addr.priv, addr.addr);
+
+                            var row = $('<tr></tr>', popup.document);
+
+                            //Add Address QR code
+                            var qrspan = $('<td><div style="height:225px;overflow:hidden"></div></td>', popup.document);
+
+                            var qr = makeQRCode(250, 250, 1 , display_pk, popup.document);
+
+                            qrspan.children(":first").append(qr);
+
+                            row.append(qrspan);
+
+                            var label = '';
+                            if (addr.label != null)
+                                label = addr.label + ' - ';
+
+                            var body = $('<td style="padding-top:25px;"><h3>' + addr.addr + '</h3><br /><small><p><b>' + display_pk + '</b></p></small><br /><p>' + mode + '</p><br /><p>'+label+'Balance ' + formatBTC(addr.balance) + ' BTC</p> </td>', popup.document);
+
+                            row.append(body);
+
+                            if (addr.balance > 0)
+                                table.prepend(row);
+                            else
+                                table.append(row);
+
+                            if ((ii+1) % 3 == 0) {
+                                table = $('<table style="page-break-after:always;"></table>', popup.document);
+                                container.append(table);
+                            }
+
+                            ii++;
+
+                            if (ii < addresses_array.length) {
+                                setTimeout(append, 10);
+                            }
+                        } catch (e) {
+                            makeNotice('error', 'error-paper', e);
                         }
+                    };
 
-                        var pk = decryptPK(addr.priv);
+                    append();
 
-                        if (pk == null)
-                            continue;
-
-                        var row = $('<tr></tr>', popup.document);
-
-                        //Add Address QR code
-                        var qrspan = $('<td><div style="height:225px;overflow:hidden"></div></td>', popup.document);
-
-                        var qr = makeQRCode(250, 250, 1 , pk, popup.document);
-
-                        qrspan.children(":first").append(qr);
-
-                        row.append(qrspan);
-
-                        var label = '';
-                        if (addr.label != null)
-                            label = addr.label + ' - ';
-
-                        var body = $('<td style="padding-top:25px;"><h3>' + addr.addr + '</h3><br /><small><p><b>' + pk + '</b></p></small><br /><p>' + mode + '</p><br /><p>'+label+'Balance ' + formatBTC(addr.balance) + ' BTC</p> </td>', popup.document);
-
-                        row.append(body);
-
-                        if (addr.balance > 0)
-                            table.prepend(row);
-                        else
-                            table.append(row);
-
-                        if (ii % 3 == 0) {
-                            table = $('<table style="page-break-after:always;"></table>', popup.document);
-                            container.append(table);
-                        }
-
-                        ii++;
-                    }
                 } catch (e) {
                     makeNotice('error', 'error-paper', e);
                 }
