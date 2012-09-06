@@ -296,11 +296,11 @@ function base58ToHex(x) { var bytes = decodePK(x); return Crypto.util.bytesToHex
 function base58ToSipa(x, addr) {
     var bytes = decodePK(x);
 
+    var eckey = new Bitcoin.ECKey(bytes);
+
     while (bytes.length < 32) bytes.unshift(0);
 
     bytes.unshift(0x80); // prepend 0x80 byte
-
-    var eckey = new Bitcoin.ECKey(bytes);
 
     if (eckey.getBitcoinAddress().toString() == addr) {
     } else if (eckey.getBitcoinAddressCompressed().toString() == addr) {
