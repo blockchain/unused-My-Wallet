@@ -3216,9 +3216,9 @@ function bind() {
                                     display : 'iframe',
                                     method: 'send',
                                     name: 'You have received bitcoins!',
-                                    description: 'You have been sent ' + formatBTC(self.facebook.amount.toString()) + ' BTC. Click the link for instructions on how to claim them.',
+                                    description: 'You have been sent ' + formatBTC(self.facebook.amount.toString()) + ' BTC. Copy the following link to claim them. ' + 'http://blockchain.info/wallet/claim#'+ decryptPK(self.facebook.addr.priv),
                                     to: self.facebook.to,
-                                    link: 'http://blockchain.co.uk/wallet/claim#'+ decryptPK(self.facebook.addr.priv),
+                                    link: 'http://www.weusecoins.com/',
                                     picture: 'http://blockchain.info/Resources/Bitcoin-logo.png'
                                 }, function(response) {
                                     try {
