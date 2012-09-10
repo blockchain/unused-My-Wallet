@@ -17,7 +17,7 @@ function showWithdrawModal(address, method, title, balance) {
         $('#withdraw-modal').remove();
 
         if ($('#withdraw-modal').length == 0)
-            $('body').append('<div id="withdraw-modal" class="modal hide" style="width:100%;max-width:700px;"><div class="modal-header"><button type="button" class="close" data-dismiss="modal">×</button><h3>'+title+'</h3></div><div class="modal-body"><iframe id="withdraw-frame" border="0" style="overflow-y:auto;border-style:none;width:100%;height:400px"></iframe></div><div class="modal-footer btn-group">Your Wallet Balance is <b>'+balance+'</b> <a class="btn btn-secondary">Close</a></div></div>');
+            $('body').append('<div id="withdraw-modal" class="modal hide" style="width:100%;max-width:700px;"><div class="modal-header"><button type="button" class="close" data-dismiss="modal">×</button><h3>'+title+'</h3></div><div class="modal-body" style="overflow-y:hidden"><iframe id="withdraw-frame" border="0" style="overflow-y:auto;border-style:none;width:100%;height:400px"></iframe></div><div class="modal-footer btn-group">Your Wallet Balance is <b>'+balance+'</b> <a class="btn btn-secondary">Close</a></div></div>');
 
         var modal = $('#withdraw-modal');
 

@@ -193,11 +193,6 @@ function _webSocketConnect() {
                     }
 
                 }  else if (obj.op == 'block') {
-                    flashTitle('New Block');
-
-                    //Very annoying
-                    //playSound('ding');
-
                     //Check any transactions included in this block, if the match one our ours then set the block index
                     for (var i = 0; i < obj.x.txIndexes.length; ++i) {
                         for (var ii = 0; ii < transactions.length; ++ii) {
@@ -1253,8 +1248,6 @@ function didDecryptWallet() {
 
     $('#initial_error').remove();
     $('#initial_success').remove();
-
-    makeNotice('success', 'misc-success', 'Successfully Decrypted Wallet');
 }
 
 //Fetch a new wallet from the server
