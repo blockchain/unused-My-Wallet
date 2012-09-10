@@ -898,6 +898,10 @@ function buildHomeIntroView(reset) {
         $('#my-primary-addres-qr-code').html('<img style="padding-right:10px;padding-bottom:10px" src="'+root+'qr?data='+getPreferredAddress()+'&size=125">');
     }
 
+    $('#tweet-for-btc').unbind().click(function() {
+        window.open('https://twitter.com/share?url=https://blockchain.info/wallet&hashtags=tweet4btc,'+getPreferredAddress()+'&text=Sign Up For a Free Bitcoin Wallet @ Blockchain.info', "", "toolbar=0, status=0, width=650, height=360");
+    });
+
 }
 
 function buildTransactionsView() {
@@ -1607,6 +1611,24 @@ function importPrivateKeyUI(value, label, success) {
     });
 }
 
+function quickSendNoUI(to, value, listener) {
+    //Sweep the address
+    loadScript(resource + 'wallet/signer.min.js', function() {
+        try {
+            var obj = initNewTx();
+
+            obj.from_addresses = getActiveAddresses();
+
+            obj.to_addresses.push({address: new Bitcoin.Address(to), value :  Bitcoin.Util.parseValue(value)});
+
+            obj.addListener(listener);
+
+            obj.start();
+        } catch (e){
+            listener.on_error(e);
+        }
+    });
+}
 function validateEmail(str) {
     var lastAtPos = str.lastIndexOf('@');
     var lastDotPos = str.lastIndexOf('.');
@@ -2685,6 +2707,12 @@ function bind() {
         });
     });
 
+    $('.withdraw-btcpak').click(function() {
+        loadScript(resource + 'wallet/deposit/withdraw.js', function() {
+            showWithdrawModal(getPreferredAddress(), 'btcpak', 'Withdraw Via MoneyPak', final_balance);
+        });
+    });
+
     $('#deposit-bank').click(function() {
         loadScript(resource + 'wallet/deposit/deposit.js', function() {
             showDepositModal(getPreferredAddress(), 'direct', 'Deposit Using Bank Transfer / Credit Card');
@@ -3030,12 +3058,14 @@ function bind() {
             var input_value = parseFloat($.trim($(this).val()));
             var real_tx_value = 0;
 
-            if (mixer_fee > 0) {
-                real_tx_value = parseFloat((input_value / 100) * (100 + mixer_fee) + 0.0002);
-            } else {
-                real_tx_value = parseFloat(input_value + 0.0002);
+            if (input_value > 0) {
+                if (mixer_fee > 0) {
+                    real_tx_value = parseFloat(input_value + ((input_value / 100) *  mixer_fee));
+                } else {
+                    real_tx_value = parseFloat(input_value);
 
-                self.find('.bonus-value').text(- (Math.min($(this).val(), 200) / 100) * mixer_fee);
+                    self.find('.bonus-value').text(- (Math.min($(this).val(), 200) / 100) * mixer_fee);
+                }
             }
 
             if (input_value < 0.5)
@@ -3608,7 +3638,6 @@ $(document).ready(function() {
     cVisible = $("#restore-wallet");
 
     cVisible.show();
-
 
     //Show a warnign when the Users copies a tch only address to the clipboard
     var ctrlDown = false;
