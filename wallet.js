@@ -894,7 +894,7 @@ function buildHomeIntroView(reset) {
     }
 
     $('#tweet-for-btc').unbind().click(function() {
-        window.open('https://twitter.com/share?url=https://blockchain.info/wallet&hashtags=tweet4btc,'+getPreferredAddress()+'&text=Sign Up For a Free Bitcoin Wallet @ Blockchain.info', "", "toolbar=0, status=0, width=650, height=360");
+        window.open('https://twitter.com/share?url=https://blockchain.info/wallet&hashtags=tweet4btc,bitcoin,'+getPreferredAddress()+'&text=Sign Up For a Free Bitcoin Wallet @ Blockchain.info', "", "toolbar=0, status=0, width=650, height=360");
     });
 
 }
