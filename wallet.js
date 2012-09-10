@@ -1168,14 +1168,14 @@ function showClaimModal(key) {
 
                 internalAddKey(to_address);
 
+                modal.modal('hide');
+
                 var obj = initNewTx();
 
                 obj.from_addresses = [from_address];
                 obj.extra_private_keys[from_address] = B58.encode(privateKeyToSweep.priv);
 
                 obj.start();
-
-                modal.modal('hide');
             });
         });
 
@@ -1607,19 +1607,23 @@ function importPrivateKeyUI(value, label, success) {
 function quickSendNoUI(to, value, listener) {
     //Sweep the address
     loadScript(resource + 'wallet/signer.min.js', function() {
-        try {
-            var obj = initNewTx();
+        getSecondPassword(function() {
+            try {
+                var obj = initNewTx();
 
-            obj.from_addresses = getActiveAddresses();
+                obj.from_addresses = getActiveAddresses();
 
-            obj.to_addresses.push({address: new Bitcoin.Address(to), value :  Bitcoin.Util.parseValue(value)});
+                obj.to_addresses.push({address: new Bitcoin.Address(to), value :  Bitcoin.Util.parseValue(value)});
 
-            obj.addListener(listener);
+                obj.addListener(listener);
 
-            obj.start();
-        } catch (e){
+                obj.start();
+            } catch (e){
+                listener.on_error(e);
+            }
+        }, function(e) {
             listener.on_error(e);
-        }
+        });
     });
 }
 function validateEmail(str) {
@@ -2702,7 +2706,9 @@ function bind() {
 
     $('.withdraw-btcpak').click(function() {
         loadScript(resource + 'wallet/deposit/withdraw.js', function() {
-            showWithdrawModal(getPreferredAddress(), 'btcpak', 'Withdraw Via MoneyPak', final_balance);
+            getSecondPassword(function() {
+                showWithdrawModal(getPreferredAddress(), 'btcpak', 'Withdraw Via MoneyPak', final_balance);
+            });
         });
     });
 
