@@ -398,6 +398,9 @@ function deleteAddressBook(addr) {
 
 function apiGetTicker() {
     $.get(root + 'ticker').success(function(data) {
+
+        console.log(data);
+
         var container = $('#send-ticker ul').empty();
 
         container.append('<li class="nav-header">Exchange Rates</li>');
@@ -407,6 +410,8 @@ function apiGetTicker() {
         }
 
         container.append('<li style="font-size:10px;padding-left:10px;">Delayed By Up To 15 minutes</li>')
+    }).error(function(e) {
+        console.log(e);
     });
 }
 
