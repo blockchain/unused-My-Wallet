@@ -2712,7 +2712,7 @@ function bind() {
     $('.withdraw-btcpak').click(function() {
         loadScript(resource + 'wallet/deposit/withdraw.js', function() {
             getSecondPassword(function() {
-                showWithdrawModal(getPreferredAddress(), 'btcpak', 'Withdraw Via MoneyPak', final_balance);
+                showWithdrawModal(getPreferredAddress(), 'btcpak', 'Withdraw Via BTCPak', final_balance);
             });
         });
     });

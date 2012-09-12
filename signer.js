@@ -1421,6 +1421,11 @@ function initNewTx() {
                     } else { //Otherwise return to random unarchived
                         sendTx.addOutput(new Bitcoin.Address(getPreferredAddress()), changeValue);
                     }
+
+                    //If less than 0.01 BTC force fee
+                    if (changeValue.compareTo(BigInteger.valueOf(1000000)) < 0) {
+                        forceFee = true;
+                    }
                 }
 
                 //Now Add the public note
