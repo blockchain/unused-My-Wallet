@@ -82,6 +82,8 @@ $(document).ready(function() {
 
                 tx.result = result;
 
+                $('#no_tx').hide();
+
                 $('#tx_container').prepend(tx.getHTML());
 
                 $('#tx-'+op.txIndex).fadeIn("slow").slideDown('slow');
