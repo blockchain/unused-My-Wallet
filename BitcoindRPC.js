@@ -194,7 +194,7 @@ function downloadAddressList() {
             }
         };
 
-        apiGetBalances(bitcoind_addresses_strings, buildBitcoind, function(e) {
+        BlockchainAPI.get_balances(bitcoind_addresses_strings, buildBitcoind, function(e) {
             makeNotice('error', 'misc-error', e);
 
             buildBitcoind({});

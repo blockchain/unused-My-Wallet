@@ -159,22 +159,6 @@ function resolveAddress(label) {
 }
 
 
-function apiResolveFirstbits(addr, success, error) {
-
-    setLoadingText('Getting Firstbits');
-
-    $.get(root + 'q/resolvefirstbits/'+addr+'?format=plain').success(function(data) {
-
-        if (data == null || data.length == 0)
-            error();
-        else
-            success(data);
-
-    }).error(function(data) {
-            error();
-        });
-}
-
 //Check for inputs and get unspent for before signing
 function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
@@ -663,7 +647,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                             }
 
                                             if (obj.fee_percent != mixer_fee) {
-                                                queryAPIMultiAddress();
+                                                BlockchainAPI.get_history();
 
                                                 throw 'The mixer fee may have changed';
                                             }
@@ -684,7 +668,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                         pending_transaction.to_addresses.push({address: new Bitcoin.Address(address), value : value});
                                     } else {
                                         //Try and Resolve firstbits
-                                        apiResolveFirstbits(send_to_address, function(data) {
+                                        BlockchainAPI.resolve_firstbits(send_to_address, function(data) {
                                             try {
                                                 pending_transaction.to_addresses.push({address: new Bitcoin.Address(data), value : value});
 
@@ -824,9 +808,26 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
     return pending_transaction;
 };
 
+if (typeof BlockchainAPI == "undefined" || !BlockchainAPI)
+    var BlockchainAPI = {};
 
-function apiGetPubKey(addr, success, error) {
-    setLoadingText('Getting Pub Key');
+BlockchainAPI.resolve_firstbits = function(addr, success, error) {
+    setLoadingText('Querying Firstbits');
+
+    $.get(root + 'q/resolvefirstbits/'+addr+'?format=plain').success(function(data) {
+
+        if (data == null || data.length == 0)
+            error();
+        else
+            success(data);
+
+    }).error(function(data) {
+            error();
+        });
+}
+
+BlockchainAPI.get_pubkey = function(addr, success, error) {
+    setLoadingText('Resolving Pub Key');
 
     $.get(root + 'q/pubkeyaddr/'+addr+'?format=plain').success(function(data) {
 
@@ -837,19 +838,136 @@ function apiGetPubKey(addr, success, error) {
 
     }).error(function(data) {
             error();
-        });
+    });
 }
 
-function apiGetRejectionReason(hexhash, success, error) {
+BlockchainAPI.get_rejection_reason = function(hexhash, success, error) {
+    setLoadingText('Querying Rejection Reason');
+
     $.get(root + 'q/rejected/'+hexhash+'?format=plain').success(function(data) {
         if (data == null || data.length == 0)
             error();
         else
             success(data);
-
     }).error(function(data) {
-            if (error) error();
-        });
+        if (error) error();
+    });
+}
+
+BlockchainAPI.push_tx = function(tx, note, success, error) {
+    try {
+        setLoadingText('Pushing Transaction');
+
+        var s = tx.serialize();
+
+        var hex = Crypto.util.bytesToHex(s);
+
+        if (hex.length >= 32768) {
+            error('My wallet cannot handle transactions over 32KB in size. Please try splitting your transaction,');
+        }
+
+        //Record the first transactions we know if it doesn't change then our new transactions wasn't push out propoerly
+        if (transactions.length > 0)
+            var first_tx_index = transactions[0].txIndex;
+
+        var post_data = {
+            format : "plain",
+            tx: hex
+        };
+
+        if (note) {
+            post_data.note = note;
+        }
+
+        $.post(root + 'pushtx', post_data, function(data) {
+            try {
+                //If we haven't received a new transaction after sometime call a manual update
+                setTimeout(function() {
+                    if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
+                        BlockchainAPI.get_history(function() {
+                            if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
+                                BlockchainAPI.get_rejection_reason(Crypto.util.bytesToHex(tx.getHash().reverse()), function(reason) {
+                                    error(reason);
+                                }, function() {
+                                    error('Unknown Error Pushing Transaction');
+                                });
+                            }
+                        });
+                    }
+                }, 3000);
+
+                success();
+            } catch (e) {
+                error(e);
+            }
+        }).error(function(data) {
+                error(data ? data.responseText : null);
+            });
+    } catch (e) {
+        error(e);
+    }
+}
+
+BlockchainAPI.get_unspent = function(fromAddresses, success, error) {
+    //Get unspent outputs
+    setLoadingText('Getting Unspent Outputs');
+
+    $.ajax({
+        type: "POST",
+        url: root +'unspent',
+        data: {'addr[]' : fromAddresses, 'format' : 'json'},
+        converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": $.parseXML},
+        success: function(data) {
+            try {
+                var obj = $.parseJSON(data);
+
+                if (obj == null) {
+                    throw 'Unspent returned null object';
+                }
+
+                if (obj.error != null) {
+                    throw obj.error;
+                }
+
+                if (obj.notice != null) {
+                    makeNotice('notice', 'misc-notice', obj.notice);
+                }
+                //Save the unspent cache
+                try {
+                    localStorage.setItem('unspent', data);
+                } catch (e) { }
+
+                success(obj);
+            } catch (e) {
+                error(e);
+            }
+        },
+        error: function (data) {
+            try {
+                try {
+                    var cache = localStorage.getItem('unspent');
+
+                    if (cache != null) {
+                        var obj = $.parseJSON(cache);
+
+                        success(obj);
+
+                        return;
+                    }
+                } catch (e) {
+                    console.log(e);
+                }
+
+                if (data.responseText)
+                    throw data.responseText;
+                else
+                    throw 'Error Contacting Server. No unspent outputs available in cache.';
+
+            } catch (e) {
+                error(e);
+            }
+        }
+    });
 }
 
 function readVarInt(buff) {
@@ -914,68 +1032,6 @@ Bitcoin.Transaction.deserialize = function (buffer)
 
     return tx;
 };
-
-function getUnspentOutputs(fromAddresses, success, error) {
-    //Get unspent outputs
-    setLoadingText('Getting Unspent Outputs');
-
-    $.ajax({
-        type: "POST",
-        url: root +'unspent',
-        data: {'addr[]' : fromAddresses, 'format' : 'json'},
-        converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": $.parseXML},
-        success: function(data) {
-            try {
-                var obj = $.parseJSON(data);
-
-                if (obj == null) {
-                    throw 'Unspent returned null object';
-                }
-
-                if (obj.error != null) {
-                    throw obj.error;
-                }
-
-                if (obj.notice != null) {
-                    makeNotice('notice', 'misc-notice', obj.notice);
-                }
-                //Save the unspent cache
-                try {
-                    localStorage.setItem('unspent', data);
-                } catch (e) { }
-
-                success(obj);
-            } catch (e) {
-                error(e);
-            }
-        },
-        error: function (data) {
-            try {
-                try {
-                    var cache = localStorage.getItem('unspent');
-
-                    if (cache != null) {
-                        var obj = $.parseJSON(cache);
-
-                        success(obj);
-
-                        return;
-                    }
-                } catch (e) {
-                    console.log(e);
-                }
-
-                if (data.responseText)
-                    throw data.responseText;
-                else
-                    throw 'Error Contacting Server. No unspent outputs available in cache.';
-
-            } catch (e) {
-                error(e);
-            }
-        }
-    });
-}
 
 function signInput(tx, inputN, base58Key, connected_script) {
 
@@ -1230,7 +1286,7 @@ function initNewTx() {
             try {
                 self.invoke('on_start');
 
-                getUnspentOutputs(self.from_addresses, function (obj) {
+                BlockchainAPI.get_unspent(self.from_addresses, function (obj) {
                     try {
                         if (self.is_cancelled) {
                             throw 'Transaction Cancelled';
@@ -1430,27 +1486,27 @@ function initNewTx() {
 
                 //Now Add the public note
                 /*
-                if (self.note)  {
-                    var bytes = stringToBytes('Message: ' + self.note);
+                 if (self.note)  {
+                 var bytes = stringToBytes('Message: ' + self.note);
 
-                    var ibyte = 0;
-                    while (true) {
-                        var tbytes = bytes.splice(ibyte, ibyte+120);
+                 var ibyte = 0;
+                 while (true) {
+                 var tbytes = bytes.splice(ibyte, ibyte+120);
 
-                        if (tbytes.length == 0)
-                            break;
+                 if (tbytes.length == 0)
+                 break;
 
-                        //Must pad to at least 33 bytes
-                        //Decode function should strip appending zeros
-                        if (tbytes.length < 33) {
-                            tbytes = tbytes.concat(makeArrayOf(0, 33-tbytes.length));
-                        }
+                 //Must pad to at least 33 bytes
+                 //Decode function should strip appending zeros
+                 if (tbytes.length < 33) {
+                 tbytes = tbytes.concat(makeArrayOf(0, 33-tbytes.length));
+                 }
 
-                        sendTx.addOutputScript(Bitcoin.Script.createPubKeyScript(tbytes), BigInteger.ZERO);
+                 sendTx.addOutputScript(Bitcoin.Script.createPubKeyScript(tbytes), BigInteger.ZERO);
 
-                        ibyte += 120;
-                    }
-                }  */
+                 ibyte += 120;
+                 }
+                 }  */
 
                 //Estimate scripot sig (Cannot use serialized tx size yet becuase we haven't signed the inputs)
                 //18 bytes standard header
@@ -1727,65 +1783,18 @@ function initNewTx() {
             }
         },
         pushTx : function() {
-            if (this.is_cancelled) //Only call once
-                return;
-
             var self = this;
 
-            try {
-                var s = this.tx.serialize();
+            if (self.is_cancelled) //Only call once
+                return;
 
-                var hex = Crypto.util.bytesToHex(s);
+            self.has_pushed = true;
 
-                if (hex.length >= 32768) {
-                    this.error('My wallet cannot handle transactions over 32KB in size. Please try splitting your transaction,');
-                }
-
-                setLoadingText('Sending Transaction');
-
-                //Record the first transactions we know if it doesn't change then our new transactions wasn't push out propoerly
-                if (transactions.length > 0)
-                    var first_tx_index = transactions[0].txIndex;
-
-                self.has_pushed = true;
-
-                var post_data = {
-                    format : "plain",
-                    tx: hex
-                };
-
-                if (self.note) {
-                    post_data.note = self.note;
-                }
-
-                $.post(root + 'pushtx', post_data, function(data) {
-                    try {
-                        //If we haven't received a new transaction after sometime call a manual update
-                        setTimeout(function() {
-                            if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
-                                queryAPIMultiAddress(function() {
-                                    if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
-                                        apiGetRejectionReason(Crypto.util.bytesToHex(self.tx.getHash().reverse()), function(reason) {
-                                            self.error(reason);
-                                        }, function() {
-                                            self.error('Unknown Error Pushing Transaction');
-                                        });
-                                    }
-                                });
-                            }
-                        }, 3000);
-
-                        self.success();
-                    } catch (e) {
-                        self.error(e);
-                    }
-                }).error(function(data) {
-                        self.error(data ? data.responseText : null);
-                    });
-
-            } catch (e) {
-                self.error(e);
-            }
+            BlockchainAPI.push_tx(self.tx, self.note, function(response) {
+                self.success(response);
+            }, function(response) {
+                self.error(response);
+            });
         },
         ask_for_private_key : function(success, error) {
             error('Cannot ask for private key without user interaction disabled');

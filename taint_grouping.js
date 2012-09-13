@@ -98,8 +98,7 @@ function loadTaintData() {
 
         buildTable(groups);
 
-
-        apiGetBalances(getAllAddresses(), function(obj) {
+        BlockchainAPI.get_balances(getAllAddresses(), function(obj) {
             for (var key in obj) {
                 addresses[key].balance = obj[key].final_balance;
             }

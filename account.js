@@ -300,7 +300,7 @@ function bindAccountButtons() {
 
         notifications_type_el.find('.type-'+$(this).val()).toggle();
 
-        queryAPIMultiAddress();
+        BlockchainAPI.get_history();
     });
 
     $('input[name=fee-policy]').change(function() {
@@ -469,7 +469,7 @@ function bindAccountButtons() {
             toggleSymbol();
 
         updateKV('Updating Local Currency', 'update-country', $(this).val(), function() {
-            queryAPIMultiAddress();
+            BlockchainAPI.get_history();
         });
     });
 

@@ -396,32 +396,12 @@ function deleteAddressBook(addr) {
     $('#send-coins').find('.tab-pane').trigger('show', true);
 }
 
-function apiGetTicker() {
-    $.get(root + 'ticker').success(function(data) {
-
-        console.log(data);
-
-        var container = $('#send-ticker ul').empty();
-
-        container.append('<li class="nav-header">Exchange Rates</li>');
-
-        for (var code in data) {
-            container.append('<li><div style="width:35px;padding-left:10px;font-weight:bold;display:inline-block">'+code+'</div>  <i class="icon-user" style="background-image:url('+ resource + ((data[code]['15m'] >= data[code]['24h']) ? 'up_green.png' : 'down_red.png') + ');width:14px;background-position:0px"></i>' + data[code]['15m'] +'</li>');
-        }
-
-        container.append('<li style="font-size:10px;padding-left:10px;">Delayed By Up To 15 minutes</li>')
-    }).error(function(e) {
-        console.log(e);
-    });
-}
-
 function buildSendTxView(reset) {
-
-    apiGetTicker();
-
     $('#send-coins').find('.tab-pane.active').trigger('show', reset);
 
     if (reset) {
+        BlockchainAPI.get_ticker();
+
         $('.send').attr('disabled', false);
     }
 }
@@ -575,7 +555,7 @@ function parsePrivateKeysFromText(input_text) {
 
             //Perform a wallet backup
             backupWallet('update', function() {
-                queryAPIMultiAddress();
+                BlockchainAPI.get_history();
             });
 
             return true;
@@ -698,7 +678,7 @@ function importJSON() {
 
             //Perform a wallet backup
             backupWallet('update', function() {
-                queryAPIMultiAddress();
+                BlockchainAPI.get_history();
             });
         } catch (e) {
             makeNotice('error', 'misc-error', e);
@@ -1005,14 +985,15 @@ function setFilter(i) {
     tx_page = 0;
     tx_filter = i;
 
-    queryAPIMultiAddress();
+    BlockchainAPI.get_history();
 }
 
 function setPage(i) {
     tx_page = i;
 
     scroll(0,0);
-    queryAPIMultiAddress();
+
+    BlockchainAPI.get_history();
 }
 
 function parseMultiAddressJSON(json, cached) {
@@ -1066,52 +1047,92 @@ function parseMultiAddressJSON(json, cached) {
     }
 }
 
-//Get the list of transactions from the http API, after that it will update through websocket
-function queryAPIMultiAddress(success) {
-    if (!isInitialized || offline) return;
+var BlockchainAPI = {
+    //Get the list of transactions from the http API, after that it will update through websocket
+    get_history: function(success, error) {
+        if (!isInitialized || offline) return;
 
-    setLoadingText('Loading transactions');
+        setLoadingText('Loading transactions');
 
-    $.ajax({
-        type: "POST",
-        url: root +'multiaddr?filter='+tx_filter+'&offset='+tx_page*50,
-        data: {'active' : getActiveAddresses().join('|'), 'archived' : getArchivedAddresses().join('|') },
-        converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": $.parseXML},
-        success: function(data) {
+        $.ajax({
+            type: "POST",
+            url: root +'multiaddr?filter='+tx_filter+'&offset='+tx_page*50,
+            data: {'active' : getActiveAddresses().join('|'), 'archived' : getArchivedAddresses().join('|') },
+            converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": $.parseXML},
+            success: function(data) {
 
-            if (data.error != null) {
-                makeNotice('error', 'misc-error', data.error);
-            }
-
-            try {
-                parseMultiAddressJSON(data, false);
-
-                //Rebuild the my-addresses list with the new updated balances (Only if visible)
-                buildVisibleView();
-
-                try {
-                    //Cache results to show next login
-                    if (tx_page == 0 && tx_filter == 0)
-                        localStorage.setItem('multiaddr', data);
-                } catch (e) {
-
+                if (data.error != null) {
+                    makeNotice('error', 'misc-error', data.error);
                 }
 
-                if (success) success();
+                try {
+                    parseMultiAddressJSON(data, false);
 
-            } catch (e) {
+                    //Rebuild the my-addresses list with the new updated balances (Only if visible)
+                    buildVisibleView();
+
+                    try {
+                        //Cache results to show next login
+                        if (tx_page == 0 && tx_filter == 0)
+                            localStorage.setItem('multiaddr', data);
+                    } catch (e) {
+
+                    }
+
+                    if (success) success();
+
+                } catch (e) {
+                    console.log(data);
+
+                    makeNotice('error', 'misc-error', e);
+                }
+            },
+
+            error : function(data) {
                 console.log(data);
 
-                makeNotice('error', 'misc-error', e);
+                makeNotice('error', 'misc-error', data.responseText);
             }
-        },
+        });
+    },
+    //Get the balances of multi addresses (Used for archived)
+    get_balances : function(_addresses, success, error) {
+        setLoadingText('Getting Balances');
 
-        error : function(data) {
-            console.log(data);
+        $.post("/multiaddr", {'active' : _addresses.join('|'), 'simple' : true, 'format' : 'json' },  function(obj) {
+                success(obj);
+        }).error(function(data) {
+                error(data.responseText);
+            });
+    },
+    //Get the balance of an array of addresses
+    get_balance : function(addresses, success, error) {
+        setLoadingText('Getting Balance');
 
-            makeNotice('error', 'misc-error', data.responseText);
-        }
-    });
+        this.get_balances(addresses, function(obj){
+            var balance = 0;
+            for (var key in obj) {
+                balance += obj[key].final_balance;
+            }
+
+            success(balance);
+        }, error);
+    },
+    get_ticker : function() {
+        $.get(root + 'ticker').success(function(data) {
+            var container = $('#send-ticker ul').empty();
+
+            container.append('<li class="nav-header">Exchange Rates</li>');
+
+            for (var code in data) {
+                container.append('<li><div style="width:35px;padding-left:10px;font-weight:bold;display:inline-block">'+code+'</div>  <i class="icon-user" style="background-image:url('+ resource + ((data[code]['15m'] >= data[code]['24h']) ? 'up_green.png' : 'down_red.png') + ');width:14px;background-position:0px"></i>' + data[code]['15m'] +'</li>');
+            }
+
+            container.append('<li style="font-size:10px;padding-left:10px;">Delayed By Up To 15 minutes</li>')
+        }).error(function(e) {
+                console.log(e);
+        });
+    }
 }
 
 function showClaimModal(key) {
@@ -1134,7 +1155,7 @@ function showClaimModal(key) {
         $('#claim-qr-code').empty().append(claim_qr);
     });
 
-    apiGetBalance([address], function(data) {
+    BlockchainAPI.get_balance([address], function(data) {
 
         if (data == 0) {
             modal.find('.spent').show(200);
@@ -1247,7 +1268,7 @@ function didDecryptWallet() {
     } catch (e) { } //Don't care - cache is optional
 
     ///Get the list of transactions from the http API
-    queryAPIMultiAddress();
+    BlockchainAPI.get_history();
 
     changeView($("#home-intro"));
 
@@ -1283,7 +1304,7 @@ function getWallet() {
 
             internalRestoreWallet();
 
-            queryAPIMultiAddress();
+            BlockchainAPI.get_history();
 
             buildVisibleView();
         }
@@ -1553,12 +1574,12 @@ function importPrivateKeyUI(value, label, success) {
 
                         //Perform a wallet backup
                         backupWallet('update', function() {
-                            queryAPIMultiAddress();
+                            BlockchainAPI.get_history();
                         });
 
                         if (success) success();
 
-                        makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr);
+                        makeNotice('success', 'added', 'Added bitcoin address ' + addr);
                     }
                 }, function() {
                     //Sweep the address
@@ -1591,7 +1612,7 @@ function importPrivateKeyUI(value, label, success) {
 
                     //Perform a wallet backup
                     backupWallet('update', function() {
-                        queryAPIMultiAddress();
+                        BlockchainAPI.get_history();
                     });
 
                     if (success) success();
@@ -1644,8 +1665,7 @@ function emailBackup() {
 
     $.post("/wallet", { guid: guid, sharedKey: sharedKey, method : 'email-backup', format : 'plain' },  function(data) {
         makeNotice('success', 'backup-success', data);
-    })
-        .error(function(data) {
+    }).error(function(data) {
             makeNotice('error', 'misc-error', data.responseText);
         });
 }
@@ -2213,7 +2233,7 @@ function deleteAddresses(addrs) {
             addrs_with_priv.push(addrs[i]);
     }
 
-    apiGetBalance(addrs_with_priv, function(data) {
+    BlockchainAPI.get_balance(addrs_with_priv, function(data) {
 
         modal.find('.btn.btn-primary').show(200);
         modal.find('.btn.btn-danger').show(200);
@@ -2311,7 +2331,7 @@ function deleteAddresses(addrs) {
                     buildVisibleView();
 
                     backupWallet('update', function() {
-                        queryAPIMultiAddress();
+                        BlockchainAPI.get_history();
                     });
 
                 } finally {
@@ -2348,35 +2368,13 @@ function getActiveLabels() {
     return labels;
 }
 
-//Get the balances of multi addresses (Used for archived)
-function apiGetBalances(_addresses, success, error) {
-    setLoadingText('Getting Balances');
-
-    $.post("/multiaddr", {'active' : _addresses.join('|'), 'simple' : true, 'format' : 'json' },  function(obj) {
-        success(obj);
-    }).error(function(data) {
-            error(data.responseText);
-        });
-}
-
-//Get the balance of an array of addresses
-function apiGetBalance(addresses, success, error) {
-    setLoadingText('Getting Balance');
-
-    $.get(root + 'q/addressbalance/'+addresses.join('|')+'?format=plain').success(function(data) {
-        success(data);
-    }).error(function(data) {
-            error(data.responseText);
-        });
-}
-
 function sweepAddresses(addresses) {
     getSecondPassword(function() {
         var modal = $('#sweep-address-modal');
 
         modal.modal('show');
 
-        apiGetBalance(addresses, function(data) {
+        BlockchainAPI.get_balance(addresses, function(data) {
             modal.find('.balance').text('Amount: ' + formatBTC(data) + ' BTC');
         }, function() {
             modal.find('.balance').text('Error Fetching Balance');
@@ -2524,7 +2522,7 @@ function bind() {
     $('#refresh').click(function () {
         getWallet();
 
-        queryAPIMultiAddress();
+        BlockchainAPI.get_history();
     });
 
     $('#enable_archived_checkbox').change(function() {
@@ -2637,7 +2635,7 @@ function bind() {
 
         build();
 
-        apiGetBalances(archived, function(obj) {
+        BlockchainAPI.get_balances(archived, function(obj) {
             for (var key in obj) {
                 addresses[key].balance = obj[key].final_balance;
             }
@@ -2870,7 +2868,7 @@ function bind() {
 
                         //Backup
                         backupWallet('update', function() {
-                            queryAPIMultiAddress();
+                            BlockchainAPI.get_history();
                         });
                     } else {
                         throw 'Internal Error ' + address;
@@ -2902,7 +2900,7 @@ function bind() {
 
                             //Perform a wallet backup
                             backupWallet('update', function() {
-                                queryAPIMultiAddress();
+                                BlockchainAPI.get_history();
                             });
 
                             makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr);
@@ -3719,7 +3717,7 @@ function internalArchive(addr) {
     buildVisibleView();
 
     backupWalletDelayed('update', function() {
-        queryAPIMultiAddress();
+        BlockchainAPI.get_history();
     });
 }
 
