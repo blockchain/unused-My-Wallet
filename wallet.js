@@ -1119,6 +1119,8 @@ var BlockchainAPI = {
         }, error);
     },
     get_ticker : function() {
+        setLoadingText('Getting Ticker Data');
+
         $.get(root + 'ticker').success(function(data) {
             var container = $('#send-ticker ul').empty();
 
@@ -1478,37 +1480,42 @@ function restoreWallet() {
         }
     }
 
-    //If we don't have any wallet data then we must have two factor authenitcation enabled
+    //If we don't have any wallet data then we must have two factor authentication enabled
     if (encrypted_wallet_data == null || encrypted_wallet_data.length == 0) {
-
-        setLoadingText('Validating authentication key');
+        setLoadingText('Validating Authentication key');
 
         var auth_key = $('#restore-auth-key').val();
 
         if (auth_key == null || auth_key.length == 0 || auth_key.length > 255) {
-            makeNotice('error', 'misc-error', 'You must enter a Two Factor authetication code');
+            makeNotice('error', 'misc-error', 'You must enter a Two Factor Authentication code');
             return false;
         }
 
         $.post("/wallet", { guid: guid, payload: auth_key, length : auth_key.length,  method : 'get-wallet', format : 'plain' },  function(data) {
+            try {
+                if (data == null || data.length == 0) {
+                    makeNotice('error', 'misc-error', 'Server Return Empty Wallet Data');
+                    return;
+                }
 
-            encrypted_wallet_data = data;
+                encrypted_wallet_data = data;
 
-            if (internalRestoreWallet()) {
-                if (toffline)
-                    getReadyForOffline();
-                else
-                    didDecryptWallet();
-            } else {
-                if (toffline)
-                    $('#offline-mode-modal').modal('hide');
+                if (internalRestoreWallet()) {
+                    if (toffline)
+                        getReadyForOffline();
+                    else
+                        didDecryptWallet();
+                } else {
+                    if (toffline)
+                        $('#offline-mode-modal').modal('hide');
 
+                }
+            } catch (e) {
+                makeNotice('error', 'misc-error', e);
             }
-
-        })
-            .error(function(data) {
+        }).error(function(data) {
                 makeNotice('error', 'misc-error', data.responseText);
-            });
+        });
     } else {
 
         if (internalRestoreWallet()) {
@@ -2707,6 +2714,14 @@ function bind() {
         });
     });
 
+
+    $('.deposit-pingit-btn').click(function() {
+        loadScript(resource + 'wallet/deposit/deposit.js', function() {
+            showDepositModal(getPreferredAddress(), 'pingit', 'Deposit Using Barclays Pingit');
+        });
+    });
+
+
     $('.withdraw-btcpak').click(function() {
         loadScript(resource + 'wallet/deposit/withdraw.js', function() {
             getSecondPassword(function() {
@@ -3654,8 +3669,12 @@ $(document).ready(function() {
 
                 var addr = addresses[selection];
 
-                if (addr != null && addr.priv == null) {
-                    $('#watch-only-copy-warning-modal').modal('show');
+                if (addr != null) {
+                    if (addr.priv == null) {
+                        $('#watch-only-copy-warning-modal').modal('show');
+                    } else if (addr.tag == 1) {
+                        $('#not-synced-warning-modal').modal('show');
+                    }
                 }
             }
         } catch (e) {
@@ -3664,7 +3683,7 @@ $(document).ready(function() {
     }).keyup(function(e) {
             if (e.keyCode == ctrlKey || e.keyCode == appleKey)
                 ctrlDown = false;
-        });
+    });
 });
 
 

@@ -13,14 +13,21 @@ function updateKV(txt, method, value, success, error) {
 
     value = $.trim(value);
 
+    if (value.length == 0) {
+        makeNotice('error', method + '-error', data.responseText);
+
+        if (error) error();
+
+        return;
+    }
+
     setLoadingText(txt);
 
     $.post("/wallet", { guid: guid, sharedKey: sharedKey, length : (value+'').length, payload : value+'', method : method, format : 'plain' },  function(data) {
         makeNotice('success', method + '-success', data);
 
         if (success) success();
-    })
-        .error(function(data) {
+    }).error(function(data) {
             makeNotice('error', method + '-error', data.responseText);
 
             if (error) error();
