@@ -236,6 +236,8 @@ function getAccountInfo() {
 
         $('#wallet-http-url').val(data.http_url);
         $('#wallet-skype').val(data.skype_username);
+        $('#wallet-boxcar').val(data.boxcar_email);
+
         $('#wallet-yubikey').val(data.yubikey);
 
         if (data.password_hint1)
@@ -490,6 +492,10 @@ function bindAccountButtons() {
 
     $('#wallet-skype').unbind().change(function(e) {
         updateKV('Updating Skype Username', 'update-skype', $(this).val());
+    });
+
+    $('#wallet-boxcar').unbind().change(function(e) {
+        updateKV('Updating Boxcar Email', 'update-boxcar', $(this).val());
     });
 
     $('#wallet-http-url').unbind().change(function(e) {
