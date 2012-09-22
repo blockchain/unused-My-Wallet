@@ -1100,7 +1100,7 @@ var BlockchainAPI = {
         setLoadingText('Getting Balances');
 
         $.post("/multiaddr", {'active' : _addresses.join('|'), 'simple' : true, 'format' : 'json' },  function(obj) {
-                success(obj);
+            success(obj);
         }).error(function(data) {
                 error(data.responseText);
             });
@@ -1133,7 +1133,7 @@ var BlockchainAPI = {
             container.append('<li style="font-size:10px;padding-left:10px;">Delayed By Up To 15 minutes</li>')
         }).error(function(e) {
                 console.log(e);
-        });
+            });
     }
 }
 
@@ -1515,7 +1515,7 @@ function restoreWallet() {
             }
         }).error(function(data) {
                 makeNotice('error', 'misc-error', data.responseText);
-        });
+            });
     } else {
 
         if (internalRestoreWallet()) {
@@ -2783,12 +2783,18 @@ function bind() {
         setFilter($(this).val());
     });
 
-    $('#tx_display').change(function(){
+    var tx_display_el = $('#tx_display');
+    tx_display_el.change(function(){
         SetCookie("tx_display", $(this).val());
 
         buildVisibleView();
 
-    }).val(parseInt(getCookie('tx_display')));
+    });
+
+    var tx_cookie_val = getCookie('tx_display');
+    if (tx_cookie_val != null) {
+        tx_display_el.val(parseInt(tx_cookie_val));
+    }
 
     $('#update-password-btn').click(function() {
         updatePassword();
@@ -3683,7 +3689,7 @@ $(document).ready(function() {
     }).keyup(function(e) {
             if (e.keyCode == ctrlKey || e.keyCode == appleKey)
                 ctrlDown = false;
-    });
+        });
 });
 
 
