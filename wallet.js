@@ -520,7 +520,6 @@ function importPyWalletJSONObject(obj) {
 }
 
 function parsePrivateKeysFromText(input_text) {
-
     var components = input_text.split(/\W+/g);
 
     try {
@@ -1576,9 +1575,6 @@ function importPrivateKeyUI(value, label, success) {
                         if (label && label.length > 0)
                             addresses[addr].label = label;
 
-                        //Rebuild the My-address list
-                        buildVisibleView();
-
                         //Perform a wallet backup
                         backupWallet('update', function() {
                             BlockchainAPI.get_history();
@@ -1613,9 +1609,6 @@ function importPrivateKeyUI(value, label, success) {
 
                     if (label && label.length > 0)
                         addresses[addr].label = label;
-
-                    //Rebuild the My-address list
-                    buildVisibleView();
 
                     //Perform a wallet backup
                     backupWallet('update', function() {
@@ -1756,13 +1749,12 @@ function backupWalletDelayed(method, success, error, extra) {
 
 //Save the javascript walle to the remote server
 function backupWallet(method, successcallback, errorcallback, extra) {
-    if (offline) return;
-
     try {
-        if (method == null) method = 'update';
+        if (method == null)
+            method = 'update';
 
         if (!isInitialized && method != 'insert')
-            return false;
+            throw 'Wallet not initialized';
 
         if (guid.length != 36) {
             throw 'Invalid wallet identifier';
@@ -1774,10 +1766,10 @@ function backupWallet(method, successcallback, errorcallback, extra) {
         var crypted = encrypt(data, password);
 
         if (crypted.length == 0) {
-            throw 'Error enrypting the JSON output';
+            throw 'Error encrypting the JSON output';
         }
 
-        //Now Decrypt the it again to double check for any possible curruption
+        //Now Decrypt the it again to double check for any possible currupotion
         var obj = null;
         decrypt(crypted, password, function(decrypted) {
             try {
@@ -1789,8 +1781,7 @@ function backupWallet(method, successcallback, errorcallback, extra) {
         });
 
         if (obj == null) {
-            makeNotice('error', 'misc-error', 'Error Decrypting Wallet, Not saving. This is a serious error..');
-            return false;
+            throw 'Error Decrypting Previously encrypted JSON. Not Saving Wallet.';
         }
 
         //SHA256 new_checksum verified by server in case of curruption during transit
@@ -1817,10 +1808,6 @@ function backupWallet(method, successcallback, errorcallback, extra) {
                         addr.tag = null; //Make any unsaved addresses as saved
                         change = true;
                     }
-
-                    //Update view remove 'Unsynced' tags
-                    if (change)
-                        buildVisibleView();
                 }
 
                 //Update to the new payload new_checksum
@@ -1828,22 +1815,30 @@ function backupWallet(method, successcallback, errorcallback, extra) {
 
                 makeNotice('success', 'misc-success', data);
 
+                buildVisibleView();
+
                 if (successcallback != null)
                     successcallback();
 
                 updateCacheManifest();
             },
-
             error : function(data) {
                 makeNotice('error', 'misc-error', data.responseText, 10000);
+
+                buildVisibleView();
 
                 if (errorcallback != null)
                     errorcallback();
             }
         });
     } catch (e) {
-        makeNotice('error', 'misc-error', e, 10000);
-        throw e;
+        makeNotice('error', 'misc-error', 'Error Saving Wallet: ' + e, 10000);
+
+        buildVisibleView();
+
+        if (errorcallback != null)
+            errorcallback(e);
+        else throw e;
     }
 }
 
@@ -2001,18 +1996,12 @@ function updatePassword() {
             return false;
         }
 
-        try {
-            backupWallet('update', function() {
-                window.location = root + 'wallet/' + guid + window.location.hash;
-            }, function() {
-                makeNotice('error', 'misc-error', 'Error syncing wallet. Password Not changed');
-                password = oldPassword;
-            });
-
-        } catch (e) {
+        backupWallet('update', function() {
+            window.location = root + 'wallet/' + guid + window.location.hash;
+        }, function() {
             makeNotice('error', 'misc-error', 'Error syncing wallet. Password Not changed');
             password = oldPassword;
-        }
+        });
     });
 
     modal.find('.btn.btn-secondary').unbind().click(function() {
@@ -2770,8 +2759,6 @@ function bind() {
                     showLabelAddressModal(address.toString());
                 });
 
-                buildVisibleView();
-
                 backupWallet();
             });
         } catch (e) {
@@ -2882,10 +2869,7 @@ function bind() {
 
                 showWatchOnlyWarning(value, function() {
                     if (internalAddKey(value)) {
-                        makeNotice('success', 'added-address', 'Sucessfully Added Address ' + address);
-
-                        //Rebuild the list
-                        buildVisibleView();
+                        makeNotice('success', 'added-address', 'Successfully Added Address ' + address);
 
                         //Backup
                         backupWallet('update', function() {
@@ -2915,9 +2899,6 @@ function bind() {
                         var addr = key.getBitcoinAddress().toString();
 
                         if (internalAddKey(addr, encodePK(key.priv))) {
-
-                            //Rebuild the My-address list
-                            buildVisibleView();
 
                             //Perform a wallet backup
                             backupWallet('update', function() {
