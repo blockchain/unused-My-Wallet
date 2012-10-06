@@ -612,11 +612,9 @@ public class WalletServlet extends BaseServlet {
 				res.setStatus(404);
 				return;
 			} else if (guid.equals("wallet.manifest")) {
+                addNoCacheHeaders(res);
 
-				res.addHeader("Cache-Control", "max-age=0, no-cache, no-store, must-revalidate");
-				res.addHeader("Pragma", "no-cache");
-				res.addHeader("Expires", "Wed, 11 Jan 1984 05:00:00 GMT");
-				res.addHeader("Content-type", "text/cache-manifest");
+                res.addHeader("Content-type", "text/cache-manifest");
 
 				guid = req.getParameter("guid");
 
