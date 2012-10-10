@@ -449,11 +449,15 @@ function bindAccountButtons() {
             return;
         }
 
+        if (val.charAt(0) == '+') {
+            makeNotice('error', 'misc-error', 'Please omit the country code. Number should begin with 0.');
+            return;
+        }
+
         if (val.charAt(0) == '0')
             val = val.substring(1);
 
-        if (val.charAt(0) != '+')
-            val = '+' + $('.wallet-sms-country-codes').val() + val;
+        val = '+' + $('.wallet-sms-country-codes').val() + val;
 
         updateKV('Updating Cell Number', 'update-sms', val);
 

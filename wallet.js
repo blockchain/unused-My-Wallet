@@ -2569,7 +2569,7 @@ function bind() {
                 extra = '<span class="hidden-phone"> - ' + addr.addr + '</span>';
             }
 
-            var thtml = '<tr><td><div class="short-addr"><a class="pop" title="Your Addresses" data-content="These are your personal bitcoin addresses. Share these with people and they can send you bitcoins." href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatMoney(addr.balance, true) + '<span class="hidden-phone"> BTC</span></span></td>\
+            var thtml = '<tr><td><div class="short-addr"><a class="pop" title="Your Addresses" data-content="These are your personal bitcoin addresses. Share these with people and they can send you bitcoins." href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatMoney(addr.balance, true) + '</span></td>\
             <td><div class="btn-group pull-right"><a class="btn btn-mini dropdown-toggle" data-toggle="dropdown" href="#"><span class="hidden-phone">Actions </span><span class="caret"></span></a><ul class="dropdown-menu"> \
             <li><a href="#" class="pop" title="Archive Address" data-content="Click this button to hide the address from the main view. You can restore or delete later by finding it in the Archived addresses tab." onclick="archiveAddr(\''+addr.addr+'\')">Archive Address</a></li>\
             <li><a href="#" class="pop" title="Label Address" data-content="Set the label for this address." onclick="showAddressModal(\''+addr.addr+'\',\'showLabelAddressModal\')">Label Address</a></li>\
@@ -2710,6 +2710,13 @@ function bind() {
         });
     });
 
+    $('.withdraw-pingit').click(function() {
+        loadScript(resource + 'wallet/deposit/withdraw.js', function() {
+            getSecondPassword(function() {
+                showWithdrawModal(getPreferredAddress(), 'pingit', 'Withdraw Via Barclays PingIt', final_balance);
+            });
+        });
+    });
 
     $('.withdraw-btcpak').click(function() {
         loadScript(resource + 'wallet/deposit/withdraw.js', function() {

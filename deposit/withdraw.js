@@ -40,7 +40,7 @@ function showWithdrawModal(address, method, title, balance) {
 
         try {
             if (guid != null && sharedKey != null) {
-                $('#withdraw-frame').attr('src', '/withdraw?&method='+method+'&guid='+guid+'&sharedKey='+sharedKey+'&address='+address+'&balance='+balance);
+                $('#withdraw-frame').attr('src', '/withdraw?method='+method+'&guid='+guid+'&sharedKey='+sharedKey+'&address='+address+'&balance='+balance);
                 return;
             }
         } catch (e) { }
