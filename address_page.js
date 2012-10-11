@@ -6,7 +6,7 @@ $(document).ready(function() {
 
     $('#deposit').click(function() {
         loadScript(resource + 'wallet/deposit/deposit.js', function() {
-            showDepositModal(address, 'bitinstant', 'Deposit Using Cash');
+            showDepositModal(address, 'bitinstant', 'Deposit Using Cash', 'https://www.bitinstant.com/howitworks/cash');
         });
     });
 

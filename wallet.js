@@ -2693,20 +2693,20 @@ function bind() {
 
     $('#deposit-cash').click(function() {
         loadScript(resource + 'wallet/deposit/deposit.js', function() {
-            showDepositModal(getPreferredAddress(), 'bitinstant', 'Deposit Using Cash');
+            showDepositModal(getPreferredAddress(), 'bitinstant', 'Deposit Using Cash', 'https://www.bitinstant.com/howitworks/cash');
         });
     });
 
     $('.deposit-sms-btn').click(function() {
         loadScript(resource + 'wallet/deposit/deposit.js', function() {
-            showDepositModal(getPreferredAddress(), 'sms', 'Deposit Using Phone/SMS');
+            showDepositModal(getPreferredAddress(), 'sms', 'Deposit Using Phone/SMS', '/wallet/sms-phone-deposits');
         });
     });
 
 
     $('.deposit-pingit-btn').click(function() {
         loadScript(resource + 'wallet/deposit/deposit.js', function() {
-            showDepositModal(getPreferredAddress(), 'pingit', 'Deposit Using Barclays Pingit');
+            showDepositModal(getPreferredAddress(), 'pingit', 'Deposit Using Barclays Pingit', '/wallet/deposit-pingit');
         });
     });
 

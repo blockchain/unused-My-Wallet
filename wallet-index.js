@@ -15,12 +15,6 @@ $(document).ready(function() {
             });
     } catch(err) {}
 
-    $('#sms-depost-button').click(function() {
-        loadScript('/Resources/wallet/deposit/deposit.js', function() {
-            showDepositModal($('#sms-depost-address').val());
-        });
-    });
-
     $('#youtube-preview').click(function() {
         $(this).empty().append('<iframe width="100%" height="256" src="https://www.youtube.com/embed/Um63OQz3bjo?autohide=1&controls=0&showinfo=0&autoplay=1" frameborder="0" allowfullscreen></iframe>');
     });
