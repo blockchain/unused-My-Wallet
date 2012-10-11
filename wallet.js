@@ -445,7 +445,7 @@ function buildSendForm(el, reset) {
 
     if (reset) {
         el.find('input').val('');
-        el.find('.send-value-usd').html('$0');
+        el.find('.send-value-usd').text(formatSymbol(0, symbol_local)).val('');
     }
 
     var recipient_container = el.find(".recipient-container");
@@ -456,12 +456,24 @@ function buildSendForm(el, reset) {
         recipient_container.empty().append(first_child);
     }
 
-    recipient_container.find(".recipient").find('input[name="send-to-address"]').typeahead({
-        source : getActiveLabels()
-    });
+    function bindRecipient(recipient) {
+        recipient.find('input[name="send-to-address"]').val('').typeahead({
+            source : getActiveLabels()
+        });
 
-    recipient_container.find(".recipient").find('input[name="send-value"]').unbind().keyup(function() {
-        $(this).parent().find('.send-value-usd').html(formatSymbol($(this).val() *  100000000, symbol_local));
+        recipient.find('.local-symbol').text(symbol_local.symbol);
+
+        recipient.find('input[name="send-value"]').val('').keyup(function() {
+            recipient.find('.send-value-usd').val(convert($(this).val() *  100000000, symbol_local.conversion)).text(formatSymbol($(this).val() *  100000000, symbol_local));
+        });
+
+        recipient.find('.send-value-usd').val('').text(formatSymbol(0, symbol_local)).keyup(function() {
+            recipient.find('.send-value').val(($(this).val() * (symbol_local.conversion / satoshi).toFixed(2)));
+        });
+    }
+
+    recipient_container.find(".recipient").each(function(){
+        bindRecipient($(this));
     });
 
     el.find('.remove-recipient').unbind().click(function() {
@@ -480,14 +492,7 @@ function buildSendForm(el, reset) {
 
         recipient.appendTo(recipient_container);
 
-        recipient.find('input[name="send-to-address"]').val('').typeahead({
-            source : getActiveLabels()
-        });
-
-        recipient.find('.send-value-usd').html('$0');
-        recipient.find('input[name="send-value"]').val('').keyup(function() {
-            $(this).parent().find('.send-value-usd').html(formatSymbol($(this).val() *  100000000, symbol_local));
-        });
+        bindRecipient(recipient);
 
         el.find('.remove-recipient').show(200);
     });
@@ -1010,7 +1015,7 @@ function parseMultiAddressJSON(json, cached) {
             symbol_local = new_symbol_local;
             symbol = new_symbol_local;
             calcMoney();
-        } else {
+        } else if (!cached) {
             symbol_local = new_symbol_local;
         }
     }

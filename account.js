@@ -441,13 +441,20 @@ function bindAccountButtons() {
             });
     });
 
+    $('.send-code').click(function() {
+        $(this).parent().find('.wallet-sms').trigger('change');
+    });
+
+    var wallet_sms_val;
     $('.wallet-sms').unbind().change(function(e) {
 
         var val = $.trim($(this).val());
 
-        if (val == null || val.length == 0) {
+        if (val == null || val.length == 0 || wallet_sms_val == val) {
             return;
         }
+
+        wallet_sms_val = val;
 
         if (val.charAt(0) == '+') {
             makeNotice('error', 'misc-error', 'Please omit the country code. Number should begin with 0.');
