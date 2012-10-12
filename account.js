@@ -270,7 +270,7 @@ function getAccountInfo() {
 
         $('#my-ip').text(data.my_ip);
 
-        var country_code = $('.wallet-sms-country-codes').val();
+        var country_code = '1';
 
         if (data.sms_number) {
             var sms_split = data.sms_number.split(' ');
@@ -292,7 +292,7 @@ function getAccountInfo() {
         }
 
         $.get(resource + 'wallet/country_codes.html').success(function(data) {
-            $('.wallet-sms-country-codes').html(data).val(country_code);
+            $('select[class="wallet-sms-country-codes"]').html(data).val(country_code);
         }).error(function () {
                 makeNotice('error', 'misc-error', 'Error Downloading SMS Country Codes')
             });
