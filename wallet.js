@@ -1103,7 +1103,7 @@ var BlockchainAPI = {
     get_balances : function(_addresses, success, error) {
         setLoadingText('Getting Balances');
 
-        $.post("/multiaddr", {'active' : _addresses.join('|'), 'simple' : true, 'format' : 'json' },  function(obj) {
+        $.post("/multiaddr", {active : _addresses.join('|'), simple : true, format : 'json' },  function(obj) {
             success(obj);
         }).error(function(data) {
                 error(data.responseText);
@@ -1125,7 +1125,7 @@ var BlockchainAPI = {
     get_ticker : function() {
         setLoadingText('Getting Ticker Data');
 
-        $.get(root + 'ticker').success(function(data) {
+        $.get(root + 'ticker?format=json').success(function(data) {
             var container = $('#send-ticker ul').empty();
 
             container.append('<li class="nav-header">Exchange Rates</li>');
