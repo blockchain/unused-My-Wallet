@@ -270,7 +270,7 @@ function getAccountInfo() {
 
         $('#my-ip').text(data.my_ip);
 
-        var country_code = '1';
+        var country_code = $('.wallet-sms-country-codes').val();
 
         if (data.sms_number) {
             var sms_split = data.sms_number.split(' ');
@@ -282,8 +282,6 @@ function getAccountInfo() {
                 $('.wallet-sms').val(data.sms_number);
             }
         }
-
-        console.log(country_code);
 
         if (data.sms_verified == 0) {
             $('.sms-unverified').show();
