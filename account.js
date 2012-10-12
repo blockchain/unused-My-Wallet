@@ -270,8 +270,20 @@ function getAccountInfo() {
 
         $('#my-ip').text(data.my_ip);
 
+        var country_code = '1';
 
-        $('.wallet-sms').val(data.sms_number);
+        if (data.sms_number) {
+            var sms_split = data.sms_number.split(' ');
+            if (data.sms_number[0] == '+' && sms_split.length > 1) {
+                country_code = sms_split[0].substring(1);
+
+                $('.wallet-sms').val(sms_split[1]);
+            } else {
+                $('.wallet-sms').val(data.sms_number);
+            }
+        }
+
+        console.log(country_code);
 
         if (data.sms_verified == 0) {
             $('.sms-unverified').show();
@@ -281,9 +293,8 @@ function getAccountInfo() {
             $('.sms-unverified').hide();
         }
 
-
         $.get(resource + 'wallet/country_codes.html').success(function(data) {
-            $('.wallet-sms-country-codes').html(data);
+            $('.wallet-sms-country-codes').html(data).val(country_code);
         }).error(function () {
                 makeNotice('error', 'misc-error', 'Error Downloading SMS Country Codes')
             });
@@ -456,15 +467,9 @@ function bindAccountButtons() {
 
         wallet_sms_val = val;
 
-        if (val.charAt(0) == '+') {
-            makeNotice('error', 'misc-error', 'Please omit the country code. Number should begin with 0.');
-            return;
+        if (val.charAt(0) != '+') {
+            val = '+' + $('.wallet-sms-country-codes').val() + val;
         }
-
-        if (val.charAt(0) == '0')
-            val = val.substring(1);
-
-        val = '+' + $('.wallet-sms-country-codes').val() + val;
 
         updateKV('Updating Cell Number', 'update-sms', val);
 
