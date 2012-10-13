@@ -37,7 +37,7 @@ function BlockFromJSON(json) {
 
     block.hash = json.hash;
     block.time = json.time;
-    block.blockIndex = json.block_index;
+    block.blockIndex = json.blockIndex;
     block.height = json.height;
     block.txIndex = json.txIndexes;
     block.totalBTCSent = json.totalBTCSent;
