@@ -1488,9 +1488,9 @@ function restoreWallet() {
     if (encrypted_wallet_data == null || encrypted_wallet_data.length == 0) {
         setLoadingText('Validating Authentication key');
 
-        var auth_key = $('#restore-auth-key').val();
+        var auth_key = $.trim($('#restore-auth-key').val());
 
-        if (auth_key == null || auth_key.length == 0 || auth_key.length > 255) {
+        if (auth_key.length == 0 || auth_key.length > 255) {
             makeNotice('error', 'misc-error', 'You must enter a Two Factor Authentication code');
             return false;
         }
@@ -3359,7 +3359,7 @@ function bind() {
                         return;
                     }
 
-                    var addresses_array = getActiveAddresses();
+                    var addresses_array = getAllAddresses();
 
                     popup.document.write('<!DOCTYPE html><html><head></head><body><h1>'+addresses_array.length+' Active Addresses</h1></body></html>');
 
@@ -3379,6 +3379,8 @@ function bind() {
 
                             if (addr.tag == 1)
                                 mode = 'Offline Mode';
+                            else if (addr.tag == 2) //Skip archived
+                                return;
 
                             if (addr.priv == null) {
                                 return;
