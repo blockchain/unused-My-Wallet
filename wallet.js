@@ -2009,7 +2009,9 @@ function updatePassword() {
         }
 
         backupWallet('update', function() {
-            window.location = root + 'wallet/' + guid + window.location.hash;
+            updateCacheManifest(function() {
+                window.location = root + 'wallet/' + guid + window.location.hash;
+            });
         }, function() {
             makeNotice('error', 'misc-error', 'Error syncing wallet. Password Not changed');
             password = oldPassword;
