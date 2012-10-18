@@ -1505,7 +1505,7 @@ function restoreWallet() {
                 encrypted_wallet_data = data;
 
                 if (internalRestoreWallet()) {
-                     didDecryptWallet();
+                    didDecryptWallet();
                 }
             } catch (e) {
                 makeNotice('error', 'misc-error', e);
@@ -1716,13 +1716,34 @@ function decrypt(data, password, success, error) {
     return null;
 }
 
-function updateCacheManifest() {
+function updateCacheManifest(done) {
     try {
+        var cache = window.applicationCache;
+
         console.log('Clear Cache Manifest');
 
-        window.applicationCache.update();
+        // Swap in newly download files when update is ready
+        cache.addEventListener('updateready', function(e){
+            cache.swapCache();
+
+            if(done) done();
+        }, false);
+
+        // Swap in newly download files when update is ready
+        cache.addEventListener('noupdate', function(e){
+            if(done) done();
+        }, false);
+
+        // Swap in newly download files when update is ready
+        cache.addEventListener('error', function(e){
+            if(done) done();
+        }, false);
+
+        cache.update();
     } catch (e) {
         console.log(e);
+
+        if(done) done();
     }
 }
 
@@ -3366,7 +3387,7 @@ function bind() {
                             var mode = 'Online Mode';
 
                             if (addr.tag == 1)
-                               mode = 'Offline Mode';
+                                mode = 'Offline Mode';
                             else if (addr.tag == 2) //Skip archived
                                 return;
 

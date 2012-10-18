@@ -517,9 +517,9 @@ function bindAccountButtons() {
 
     $('#language_select').unbind().change(function() {
         updateKV('Updating Language', 'update-language', $(this).val(), function() {
-            updateCacheManifest();
-
-            window.location.reload();
+            updateCacheManifest(function() {
+                window.location.reload();
+            });
         });
     });
 
