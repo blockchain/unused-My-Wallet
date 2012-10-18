@@ -204,6 +204,25 @@ function getAccountInfo() {
             $('.alias').show(200);
         }
 
+        var local_currency = $('#local_currency').empty();
+        for (var currency in data.currencies) {
+            var currency_name = data.currencies[currency];
+
+            local_currency.append('<option value="'+currency+'">'+currency_name+'</option>');
+        }
+
+        local_currency.val(data.currency);
+
+        var language_select = $('#language_select').empty();
+
+        for (var language in data.languages) {
+            var language_name = data.languages[language];
+
+            language_select.append('<option value="'+language+'">'+language_name+'</option>');
+        }
+
+        language_select.val(data.language);
+
         loadScript(resource + 'wallet/qr.code.creator.js', function() {
             try {
                 var device_qr = makeQRCode(300, 300, 1 , guid + '|' + sharedKey + '|' + password);
@@ -493,6 +512,14 @@ function bindAccountButtons() {
 
         updateKV('Updating Local Currency', 'update-country', $(this).val(), function() {
             BlockchainAPI.get_history();
+        });
+    });
+
+    $('#language_select').unbind().change(function() {
+        updateKV('Updating Language', 'update-language', $(this).val(), function() {
+            updateCacheManifest();
+
+            window.location.reload();
         });
     });
 

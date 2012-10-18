@@ -1505,14 +1505,7 @@ function restoreWallet() {
                 encrypted_wallet_data = data;
 
                 if (internalRestoreWallet()) {
-                    if (toffline)
-                        getReadyForOffline();
-                    else
-                        didDecryptWallet();
-                } else {
-                    if (toffline)
-                        $('#offline-mode-modal').modal('hide');
-
+                     didDecryptWallet();
                 }
             } catch (e) {
                 makeNotice('error', 'misc-error', e);
@@ -1523,14 +1516,7 @@ function restoreWallet() {
     } else {
 
         if (internalRestoreWallet()) {
-
-            if (toffline)
-                getReadyForOffline();
-            else
-                didDecryptWallet();
-        } else {
-            if (toffline)
-                $('#offline-mode-modal').modal('hide');
+            didDecryptWallet();
         }
     }
 
@@ -3370,19 +3356,22 @@ function bind() {
                     container.append(table);
 
                     var ii = 0;
-
+                    var ii_appended = 0;
                     var append = function() {
                         try {
                             var addr = addresses[addresses_array[ii]];
 
+                            ++ii;
+
                             var mode = 'Online Mode';
 
                             if (addr.tag == 1)
-                                mode = 'Offline Mode';
+                               mode = 'Offline Mode';
                             else if (addr.tag == 2) //Skip archived
                                 return;
 
                             if (addr.priv == null) {
+                                setTimeout(append, 10);
                                 return;
                             }
 
@@ -3412,12 +3401,12 @@ function bind() {
                             else
                                 table.append(row);
 
-                            if ((ii+1) % 3 == 0) {
+                            if ((ii_appended+1) % 3 == 0) {
                                 table = $('<table style="page-break-after:always;"></table>', popup.document);
                                 container.append(table);
                             }
 
-                            ii++;
+                            ii_appended++;
 
                             if (ii < addresses_array.length) {
                                 setTimeout(append, 10);
