@@ -3388,10 +3388,12 @@ function bind() {
 
                             var mode = 'Online Mode';
 
-                            if (addr.tag == 1)
+                            if (addr.tag == 1) {
                                 mode = 'Offline Mode';
-                            else if (addr.tag == 2) //Skip archived
+                            } else if (addr.tag == 2) {//Skip archived
+                                setTimeout(append, 10);
                                 return;
+                            }
 
                             if (addr.priv == null) {
                                 setTimeout(append, 10);

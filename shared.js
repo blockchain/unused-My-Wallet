@@ -531,7 +531,7 @@ function loadScript(src, success, error) {
 }
 
 function SetCookie(key, value) {
-    document.cookie = key + "=" + encodeURI(value.toString()) + '; path=/';
+    document.cookie = key + "=" + encodeURI(value.toString()) + '; path=/; secure=false; domain=blockchain.info; max-age=' + (60*60*24*365);
 }
 
 function getCookie(c_name) {

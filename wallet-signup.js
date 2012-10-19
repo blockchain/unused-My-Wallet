@@ -31,6 +31,8 @@ function generateNewWallet() {
 
         backupWallet('insert', function(){
 
+            SetCookie('cguid', guid);
+
             $('#password-strength').fadeOut(200);
 
             changeView($("#new-wallet-success"));
