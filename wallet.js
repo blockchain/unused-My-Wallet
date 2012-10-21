@@ -2169,7 +2169,7 @@ function addAddressBookEntry() {
 
         modal.modal('hide');
 
-        var label = $.trim($(labelField.val()).text());
+        var label = $.trim($('<div>' + labelField.val() + '</div>').text());
 
         var bitcoinAddress = $.trim(addrField.val());
 

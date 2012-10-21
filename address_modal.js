@@ -155,7 +155,7 @@ function showLabelAddressModal(addr) {
 
         modal.modal('hide');
 
-        var label = label_input.val();
+        var label = $.trim($('<div>' + label_input.val() + '</div>').text());
 
         if (label.length == 0) {
             makeNotice('error', 'misc-error', 'you must enter a label for the address');
