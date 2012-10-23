@@ -1,4 +1,4 @@
-var default_servers = ["uncle-enzo.info", "electrum.novit.ro", "electrum.bitcoins.sk", "electrum.bitfoo.org"];
+var default_servers = ['electrum.bitcoin.cz'];
 
 var JSONRPCoverHTTP = (function (host, port) {
     var polling_interval = 5000,     // interval at which to poll
@@ -124,11 +124,9 @@ var JSONRPCoverHTTP = (function (host, port) {
             var url = 'http://' + host + ":" + port + '/';
             if (outgoing.length) {
                 xhr.open('POST', url, true);
-                xhr.setRequestHeader("Content-type", "application/json");
                 xhr.send(JSON.stringify(outgoing));
             } else { // !out
                 xhr.open('GET', url, true);
-                xhr.setRequestHeader("Content-type", "application/json");
                 xhr.send();
             }
 
