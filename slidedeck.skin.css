@@ -252,7 +252,6 @@ Tags: flexible, white, black, multi-color
 	height: 0;
 	overflow: hidden;
     line-height: 12px;
-	background: url('vertical-nav.png') 0 0 no-repeat;
 }
 /* Vertical slide navigation style for the currently active vertical slide navigation link */
 .skin-slidedeck dl.slidedeck ul.verticalSlideNav li.active a {
