@@ -465,8 +465,6 @@ $(document).ready(function() {
 
         setAdv(show_adv);
     } catch (e) {}
-
-    registerURIHandler();
 });
 
 function registerURIHandler() {
@@ -531,7 +529,7 @@ function loadScript(src, success, error) {
 }
 
 function SetCookie(key, value) {
-    document.cookie = key + "=" + encodeURI(value.toString()) + '; path=/; secure=false; domain=blockchain.info; max-age=' + (60*60*24*365);
+    document.cookie = key + "=" + encodeURI(value.toString()) + '; path=/; domain=blockchain.info; max-age=' + (60*60*24*365);
 }
 
 function getCookie(c_name) {
