@@ -446,6 +446,7 @@ function buildSendForm(el, reset) {
     if (reset) {
         el.find('input').val('');
         el.find('.send-value-usd').text(formatSymbol(0, symbol_local)).val('');
+        el.find('.amount-needed').text(0);
     }
 
     var recipient_container = el.find(".recipient-container");
@@ -456,6 +457,16 @@ function buildSendForm(el, reset) {
         recipient_container.empty().append(first_child);
     }
 
+    function totalValue() {
+        var total_value = 0;
+        el.find('input[name="send-value"]').each(function(){
+            var el_val = parseFloat($(this).val());
+            if (!isNaN(el_val))
+                total_value += el_val;
+        });
+        return total_value;
+    }
+
     function bindRecipient(recipient) {
         recipient.find('input[name="send-to-address"]').val('').typeahead({
             source : getActiveLabels()
@@ -464,6 +475,8 @@ function buildSendForm(el, reset) {
         recipient.find('.local-symbol').text(symbol_local.symbol);
 
         recipient.find('input[name="send-value"]').val('').keyup(function() {
+            el.find('.amount-needed').text(formatBTC(Bitcoin.Util.parseValue(''+totalValue()).toString()));
+
             recipient.find('.send-value-usd').val(convert($(this).val() *  100000000, symbol_local.conversion)).text(formatSymbol($(this).val() *  100000000, symbol_local));
         });
 
@@ -755,11 +768,40 @@ function setLatestBlock(block) {
     latest_block = block;
 }
 
+
+function openTransactionSummaryModal(txIndex, result) {
+
+    $('#summary-modal').remove();
+
+    var modal  = $('<div id="summary-modal" class="modal hide" style="width:100%;max-width:700px;"><div class="modal-header"><button type="button" class="close" data-dismiss="modal">×</button><h3>Transaction Summary</h3></div><div class="modal-body" style="overflow-y:hidden;"><iframe id="summary-frame" border="0" style="overflow-y:auto;border-style:none;width:100%;height:400px"></iframe></div><div class="modal-footer btn-group"><a class="btn btn-secondary">Close</a></div></div>');
+
+    $('body').append(modal);
+
+    modal.modal({
+        keyboard: true,
+        backdrop: "static",
+        show: true
+    });
+
+    modal.find('.btn.btn-primary').unbind().click(function() {
+        modal.modal('hide');
+    });
+
+    modal.find('.btn.btn-secondary').unbind().click(function() {
+        modal.modal('hide');
+    });
+
+    //Center
+    modal.center();
+
+    $('#summary-frame').attr('src', root + 'tx-summary/'+txIndex+'?result='+result+'&guid='+guid);
+}
+
 Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
 
     var result = this.result;
 
-    var html = '<tr><td style="width:16px" class="hidden-phone"><a target="new" href="'+root+'tx/'+this.hash+'"><img src="'+resource+'info.png" /></a></td><td class="hidden-phone"><ul style="margin-left:0px;" class="short-addr">';
+    var html = '<tr class="pointer" onclick=\'openTransactionSummaryModal('+this.txIndex+', '+this.result+')\'><td class="hidden-phone"><ul style="margin-left:0px;" class="short-addr">';
 
     var all_from_self = true;
     if (result > 0) {
@@ -910,7 +952,7 @@ function buildTransactionsView() {
     var txcontainer = $('#transactions').empty();
 
     if (tx_display == 0) {
-        var table = $('<table class="table table-striped table-condensed"><tr><th style="width:16px" class="hidden-phone"></th><th class="hidden-phone">To / From</th><th>Date</th><th>Amount</th><th class="hidden-phone">Balance</th></tr></table>');
+        var table = $('<table class="table table-striped table-condensed table-hover"><tbody><tr><th class="hidden-phone">To / From</th><th>Date</th><th>Amount</th><th class="hidden-phone">Balance</th></tr></tbody></table>');
 
         txcontainer.append(table);
         txcontainer = table;
@@ -970,7 +1012,7 @@ function buildTransactionsView() {
 
     container.append('<li onclick="setPage(tx_page-1)" class="prev'+disabled+'"><a>&larr; Previous</a></li>');
 
-    for (var i = 0; i < pages && i <= 15; ++i) {
+    for (var i = 0; i < pages && i <= 10; ++i) {
         var active = '';
         if (tx_page == i)
             active = ' class="active"';
@@ -2088,66 +2130,6 @@ function internalAddKey(addr, priv) {
     }
     return false;
 }
-
-
-function showInventoryModal(hash) {
-    var modal = $('#inv-modal');
-
-    modal.modal({
-        keyboard: true,
-        backdrop: "static",
-        show: true
-    });
-
-    setLoadingText('Getting Inventory Data');
-
-    $('#inv-data').hide();
-
-    $.get(root + 'inv/'+hash+'?format=json').success(function(data) {
-
-        $('#inv-data').show(200);
-
-        $('#initial_ip').html('<a href="'+root+'ip-address/'+data.initial_ip+'">'+data.initial_ip+'</a>');
-
-        $('#initial_time').html(dateToString(new Date(parseInt(data.initial_time))));
-
-        $('#last_seen').html(dateToString(new Date(parseInt(data.last_time))));
-
-        $('#inv_n_connected').html(data.nconnected);
-
-        $('#total_relayed').html(data.relayed_count);
-
-        $('#p_network').html(data.relayed_percent);
-
-        var container = $('#inv_mining_nodes');
-
-        container.empty();
-
-        var tmp_map = [];
-
-        for (var i = 0; i < data.mining_nodes.length; ++i) {
-            var node = data.mining_nodes[i];
-
-            if (tmp_map[node.name] == null) {
-                tmp_map[node.name] = true;
-                container.append('<li><a href="'+node.link+'">'+node.name+'</a></li>');
-            }
-        }
-
-        if (data.mining_nodes == 0) {
-            container.append('<li>No mining nodes have receivied this transaction. It is unlikely to be included in any blocks and will be clear in approximatly 24 hours.</li>');
-        }
-
-    }).error(function(data) {
-            modal.modal('hide');
-            makeNotice('error', 'misc-error', data.responseText);
-        });
-
-    modal.find('.btn.btn-secondary').unbind().click(function() {
-        modal.modal('hide');
-    });
-}
-
 function addAddressBookEntry() {
     var modal = $('#add-address-book-entry-modal');
 
@@ -3130,17 +3112,29 @@ function bind() {
         });
 
         self.find('select[name="from"]').unbind().change(function() {
+            var total_selected = 0;
+
             var values = $(this).val();
             for (var i in values) {
                 if (values[i] == 'any') {
                     $(this).val('any');
+
+                    total_selected = final_balance;
                     break;
+                } else {
+                    var addr = addresses[values[i]];
+                    if (addr && addr.balance)
+                        total_selected += addr.balance;
                 }
             }
-        });
+
+            self.find('.amount-available').text(formatBTC(total_selected));
+        }).trigger('change');
 
         self.find('.reset').unbind().click(function() {
             buildSendForm(self, true);
+
+            self.find('select[name="from"]').trigger('change');
         });
     });
 

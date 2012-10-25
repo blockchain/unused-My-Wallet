@@ -9,7 +9,6 @@ var symbol_local; //Users local currency object
 var symbol; //Active currency object
 var root = '/';
 var resource = '/Resources/';
-var decimals = 8;
 
 //Ignore Console
 if (!window.console) {
@@ -97,7 +96,7 @@ function formatBTC(value) {
         neg = '-';
     }
 
-    value = ''+value;
+    value = ''+parseInt(value);
 
     var integerPart = value.length > 8 ? value.substr(0, value.length-8) : '0';
     var decimalPart = value.length > 8 ? value.substr(value.length-8) : value;
@@ -107,10 +106,7 @@ function formatBTC(value) {
         decimalPart = decimalPart.replace(/0*$/, '');
         while (decimalPart.length < 2) decimalPart += "0";
 
-        if (decimals < 8)
-            return neg + integerPart + parseFloat('0.'+decimalPart).toFixed(decimals).substr(1);
-        else
-            return neg + integerPart+"."+decimalPart;
+        return neg + integerPart+"."+decimalPart;
     }
 
     return neg + integerPart;
