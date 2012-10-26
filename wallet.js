@@ -855,7 +855,7 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
     }
 
     if (this.confirmations == 0) {
-        html += ' <span class="label label-important pull-right hidden-phone" onclick="showInventoryModal(\''+this.hash+'\')">Unconfirmed Transaction!</span> ';
+        html += ' <span class="label label-important pull-right hidden-phone">Unconfirmed Transaction!</span> ';
     } else if (this.confirmations > 0) {
         html += ' <span class="label label-info pull-right hidden-phone">' + this.confirmations + ' Confirmations</span> ';
     }
