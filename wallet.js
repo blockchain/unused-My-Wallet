@@ -474,14 +474,22 @@ function buildSendForm(el, reset) {
 
         recipient.find('.local-symbol').text(symbol_local.symbol);
 
-        recipient.find('input[name="send-value"]').val('').keyup(function() {
-            el.find('.amount-needed').text(formatBTC(Bitcoin.Util.parseValue(''+totalValue()).toString()));
+        recipient.find('input[name="send-value"]').val('').bind('keyup change', function(e) {
+            if (e.keyCode == '9') {
+                return;
+            }
+
+            el.find('.amount-needed').text(formatBTC(Bitcoin.Util.parseValue(totalValue().toFixed(8)).toString()));
 
             recipient.find('.send-value-usd').val(convert($(this).val() *  100000000, symbol_local.conversion)).text(formatSymbol($(this).val() *  100000000, symbol_local));
         });
 
-        recipient.find('.send-value-usd').val('').text(formatSymbol(0, symbol_local)).keyup(function() {
-            recipient.find('.send-value').val(($(this).val() * (symbol_local.conversion / satoshi).toFixed(2)));
+        recipient.find('.send-value-usd').val('').text(formatSymbol(0, symbol_local)).bind('keyup change', function(e) {
+            if (e.keyCode == '9') {
+                return;
+            }
+
+            recipient.find('.send-value').val(formatBTC(parseFloat($(this).val()) * symbol_local.conversion));
         });
     }
 
@@ -719,14 +727,14 @@ function getPreferredAddress() {
         var addr = addresses[key];
 
         if (preferred == null)
-            preferred = addr.addr;
+            preferred = addr;
 
         if (addr.priv != null) {
             if (preferred == null)
-                preferred = addr.addr;
+                preferred = addr;
 
             if (addr.tag == null || addr.tag == 0) {
-                preferred = addr.addr;
+                preferred = addr;
                 break;
             }
         }
@@ -917,17 +925,20 @@ function buildHomeIntroView(reset) {
 
     $('#summary-balance').html(formatMoney(final_balance, symbol));
 
-    var primary_address = $('#my-primary-address');
-    if (primary_address.text() != getPreferredAddress()) {
-        primary_address.text(getPreferredAddress());
+    var preferred = getPreferredAddress();
 
-        $('#my-primary-addres-qr-code').html('<img style="padding-right:10px;padding-bottom:10px" src="'+root+'qr?data='+getPreferredAddress()+'&size=125">');
+    if (preferred.priv == null) {
+        $('.no-watch-only').hide();
+    } else {
+        $('.no-watch-only').show();
+
+        var primary_address = $('#my-primary-address');
+        if (primary_address.text() != preferred.addr) {
+            primary_address.text(preferred.addr);
+
+            $('#my-primary-addres-qr-code').html('<img style="padding-right:10px;padding-bottom:10px" src="'+root+'qr?data='+getPreferredAddress().addr+'&size=125">');
+        }
     }
-
-    $('#tweet-for-btc').unbind().click(function() {
-        window.open('https://twitter.com/share?url=https://blockchain.info/wallet&hashtags=tweet4btc,bitcoin,'+getPreferredAddress()+'&text=Sign Up For a Free Bitcoin Wallet @ Blockchain.info', "", "toolbar=0, status=0, width=650, height=360");
-    });
-
 }
 
 function buildTransactionsView() {

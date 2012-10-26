@@ -81,7 +81,7 @@ function buildAnonymousTable(el) {
 
 
     $('#anonymous-address').unbind().click(function() {
-        var destination = getPreferredAddress();
+        var destination = getPreferredAddress().addr;
 
         setLoadingText('Creating Forwarding Address');
 

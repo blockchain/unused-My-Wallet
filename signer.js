@@ -1475,7 +1475,7 @@ function initNewTx() {
                     else if (!isSweep && addresses_used.length > 0) { //Else return to a random from address if specified
                         sendTx.addOutput(new Bitcoin.Address(addresses_used[Math.floor(Math.random() * addresses_used.length)]), changeValue);
                     } else { //Otherwise return to random unarchived
-                        sendTx.addOutput(new Bitcoin.Address(getPreferredAddress()), changeValue);
+                        sendTx.addOutput(new Bitcoin.Address(getPreferredAddress().addr), changeValue);
                     }
 
                     //If less than 0.01 BTC force fee
