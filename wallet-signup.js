@@ -33,6 +33,10 @@ function generateNewWallet() {
 
             SetCookie('cguid', guid);
 
+            try {
+                localStorage.setItem('guid', guid);
+            } catch (e) {}
+
             $('#password-strength').fadeOut(200);
 
             changeView($("#new-wallet-success"));
