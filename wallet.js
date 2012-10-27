@@ -2700,27 +2700,27 @@ function bind() {
 
     $('#deposit-cash').click(function() {
         loadScript(resource + 'wallet/deposit/deposit.js', function() {
-            showDepositModal(getPreferredAddress(), 'bitinstant', 'Deposit Using Cash', 'https://www.bitinstant.com/howitworks/cash');
+            showDepositModal(getPreferredAddress().addr, 'bitinstant', 'Deposit Using Cash', 'https://www.bitinstant.com/howitworks/cash');
         });
     });
 
     $('.deposit-sms-btn').click(function() {
         loadScript(resource + 'wallet/deposit/deposit.js', function() {
-            showDepositModal(getPreferredAddress(), 'sms', 'Deposit Using Phone/SMS', '/wallet/sms-phone-deposits');
+            showDepositModal(getPreferredAddress().addr, 'sms', 'Deposit Using Phone/SMS', '/wallet/sms-phone-deposits');
         });
     });
 
 
     $('.deposit-pingit-btn').click(function() {
         loadScript(resource + 'wallet/deposit/deposit.js', function() {
-            showDepositModal(getPreferredAddress(), 'pingit', 'Deposit Using Barclays Pingit', '/wallet/deposit-pingit');
+            showDepositModal(getPreferredAddress().addr, 'pingit', 'Deposit Using Barclays Pingit', '/wallet/deposit-pingit');
         });
     });
 
     $('.withdraw-pingit').click(function() {
         loadScript(resource + 'wallet/deposit/withdraw.js', function() {
             getSecondPassword(function() {
-                showWithdrawModal(getPreferredAddress(), 'pingit', 'Withdraw Via Barclays PingIt', final_balance);
+                showWithdrawModal(getPreferredAddress().addr, 'pingit', 'Withdraw Via Barclays PingIt', final_balance);
             });
         });
     });
@@ -2728,14 +2728,8 @@ function bind() {
     $('.withdraw-btcpak').click(function() {
         loadScript(resource + 'wallet/deposit/withdraw.js', function() {
             getSecondPassword(function() {
-                showWithdrawModal(getPreferredAddress(), 'btcpak', 'Withdraw Via BTCPak', final_balance);
+                showWithdrawModal(getPreferredAddress().addr, 'btcpak', 'Withdraw Via BTCPak', final_balance);
             });
-        });
-    });
-
-    $('#deposit-bank').click(function() {
-        loadScript(resource + 'wallet/deposit/deposit.js', function() {
-            showDepositModal(getPreferredAddress(), 'direct', 'Deposit Using Bank Transfer / Credit Card');
         });
     });
 
