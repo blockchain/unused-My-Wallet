@@ -2504,30 +2504,10 @@ function bind() {
         rng_seed_time();
     });
 
-    $('#deposit-cash').click(function() {
+    $('.deposit-btn').click(function() {
+        var self = $(this);
         loadScript(resource + 'wallet/deposit/deposit.js', function() {
-            showDepositModal(getPreferredAddress().addr, 'bitinstant', 'Deposit Using Cash', 'https://www.bitinstant.com/howitworks/cash');
-        });
-    });
-
-    $('.deposit-sms-btn').click(function() {
-        loadScript(resource + 'wallet/deposit/deposit.js', function() {
-            showDepositModal(getPreferredAddress().addr, 'sms', 'Deposit Using Phone/SMS', '/wallet/sms-phone-deposits');
-        });
-    });
-
-
-    $('.deposit-pingit-btn').click(function() {
-        loadScript(resource + 'wallet/deposit/deposit.js', function() {
-            showDepositModal(getPreferredAddress().addr, 'pingit', 'Deposit Using Barclays Pingit', '/wallet/deposit-pingit');
-        });
-    });
-
-    $('.withdraw-pingit').click(function() {
-        loadScript(resource + 'wallet/deposit/withdraw.js', function() {
-            getSecondPassword(function() {
-                showWithdrawModal(getPreferredAddress().addr, 'pingit', 'Withdraw Via Barclays PingIt', final_balance);
-            });
+            showDepositModal(getPreferredAddress().addr, self.data('type'), self.data('title'), self.data('link'));
         });
     });
 
