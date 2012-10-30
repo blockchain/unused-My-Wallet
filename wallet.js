@@ -3372,9 +3372,9 @@ function privateKeyStringToKey(value, format) {
 
 $(document).ready(function() {
 
-    /*loadScript(resource + 'wallet/electrum.js', function() {
-     ElectrumAPI.get_history();
-     });*/
+    loadScript(resource + 'wallet/electrum.js', function() {
+        ElectrumAPI.get_history();
+    });
 
     setInterval(doStuffTimer, 10000);
 

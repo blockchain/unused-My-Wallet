@@ -1,4 +1,4 @@
-var default_servers = ['electrum.bitcoin.cz'];
+var default_servers = ['ecdsa.org'];
 
 var JSONRPCoverHTTP = (function (host, port) {
     var polling_interval = 5000,     // interval at which to poll
