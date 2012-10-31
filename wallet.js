@@ -2512,6 +2512,7 @@ function bind() {
     });
 
     $('.withdraw-btn').click(function() {
+        var self = $(this);
         loadScript(resource + 'wallet/deposit/withdraw.js', function() {
             getSecondPassword(function() {
                 showWithdrawModal(getPreferredAddress().addr, self.data('type'), self.data('title'), final_balance);
