@@ -2511,10 +2511,10 @@ function bind() {
         });
     });
 
-    $('.withdraw-btcpak').click(function() {
+    $('.withdraw-btn').click(function() {
         loadScript(resource + 'wallet/deposit/withdraw.js', function() {
             getSecondPassword(function() {
-                showWithdrawModal(getPreferredAddress().addr, 'btcpak', 'Withdraw Via BTCPak', final_balance);
+                showWithdrawModal(getPreferredAddress().addr, self.data('type'), self.data('title'), final_balance);
             });
         });
     });
