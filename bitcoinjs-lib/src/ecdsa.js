@@ -189,7 +189,7 @@ function dmp(v) {
 };
 
 Bitcoin.ECDSA = (function () {
-    var ecparams = getSECCurveByName("secp256k1");
+    var ecparams = secp256k1();
     var rng = new SecureRandom();
 
     var P_OVER_FOUR = null;
@@ -248,7 +248,7 @@ Bitcoin.ECDSA = (function () {
         verify: function (hash, sig, pubkey) {
             var r,s;
             if (Bitcoin.Util.isArray(sig)) {
-                var obj = stringECDSA.parseSig(sig);
+                var obj = ECDSA.parseSig(sig);
                 r = obj.r;
                 s = obj.s;
             } else if ("object" === typeof sig && sig.r && sig.s) {

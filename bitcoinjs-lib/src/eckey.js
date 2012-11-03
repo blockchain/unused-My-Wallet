@@ -1,6 +1,6 @@
 Bitcoin.ECKey = (function () {
     var ECDSA = Bitcoin.ECDSA;
-    var ecparams = getSECCurveByName("secp256k1");
+    var ecparams = secp256k1();
     var rng = new SecureRandom();
 
     var ECKey = function (input) {

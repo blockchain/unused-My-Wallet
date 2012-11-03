@@ -293,6 +293,97 @@ SHA256._sha256 = function (message) {
 SHA256._blocksize = 16;
 
 /*
+ * Crypto-JS v2.5.4
+ * http://code.google.com/p/crypto-js/
+ * (c) 2009-2012 by Jeff Mott. All rights reserved.
+ * http://code.google.com/p/crypto-js/wiki/License
+ */
+(function(){
+
+// Shortcuts
+var C = Crypto,
+    util = C.util,
+    charenc = C.charenc,
+    UTF8 = charenc.UTF8,
+    Binary = charenc.Binary;
+
+// Public API
+var SHA1 = C.SHA1 = function (message, options) {
+	var digestbytes = util.wordsToBytes(SHA1._sha1(message));
+	return options && options.asBytes ? digestbytes :
+	       options && options.asString ? Binary.bytesToString(digestbytes) :
+	       util.bytesToHex(digestbytes);
+};
+
+// The core
+SHA1._sha1 = function (message) {
+
+	// Convert to byte array
+	if (message.constructor == String) message = UTF8.stringToBytes(message);
+	/* else, assume byte array already */
+
+	var m  = util.bytesToWords(message),
+	    l  = message.length * 8,
+	    w  =  [],
+	    H0 =  1732584193,
+	    H1 = -271733879,
+	    H2 = -1732584194,
+	    H3 =  271733878,
+	    H4 = -1009589776;
+
+	// Padding
+	m[l >> 5] |= 0x80 << (24 - l % 32);
+	m[((l + 64 >>> 9) << 4) + 15] = l;
+
+	for (var i = 0; i < m.length; i += 16) {
+
+		var a = H0,
+		    b = H1,
+		    c = H2,
+		    d = H3,
+		    e = H4;
+
+		for (var j = 0; j < 80; j++) {
+
+			if (j < 16) w[j] = m[i + j];
+			else {
+				var n = w[j-3] ^ w[j-8] ^ w[j-14] ^ w[j-16];
+				w[j] = (n << 1) | (n >>> 31);
+			}
+
+			var t = ((H0 << 5) | (H0 >>> 27)) + H4 + (w[j] >>> 0) + (
+			         j < 20 ? (H1 & H2 | ~H1 & H3) + 1518500249 :
+			         j < 40 ? (H1 ^ H2 ^ H3) + 1859775393 :
+			         j < 60 ? (H1 & H2 | H1 & H3 | H2 & H3) - 1894007588 :
+			                  (H1 ^ H2 ^ H3) - 899497514);
+
+			H4 =  H3;
+			H3 =  H2;
+			H2 = (H1 << 30) | (H1 >>> 2);
+			H1 =  H0;
+			H0 =  t;
+
+		}
+
+		H0 += a;
+		H1 += b;
+		H2 += c;
+		H3 += d;
+		H4 += e;
+
+	}
+
+	return [H0, H1, H2, H3, H4];
+
+};
+
+// Package private blocksize
+SHA1._blocksize = 16;
+
+SHA1._digestsize = 20;
+
+})();
+/*
  * Crypto-JS v2.0.0
  * http://code.google.com/p/crypto-js/
  * Copyright (c) 2009, Jeff Mott. All rights reserved.
@@ -460,6 +551,925 @@ SHA256._blocksize = 16;
 	{
 		return (num << cnt) | (num >>> (32 - cnt));
 	}
+/*
+ * Crypto-JS v2.5.4
+ * http://code.google.com/p/crypto-js/
+ * (c) 2009-2012 by Jeff Mott. All rights reserved.
+ * http://code.google.com/p/crypto-js/wiki/License
+ */
+/*!
+ * Crypto-JS contribution from Simon Greatrix
+ */
+
+(function(C){
+
+// Create pad namespace
+var C_pad = C.pad = {};
+
+// Calculate the number of padding bytes required.
+function _requiredPadding(cipher, message) {
+    var blockSizeInBytes = cipher._blocksize * 4;
+    var reqd = blockSizeInBytes - message.length % blockSizeInBytes;
+    return reqd;
+}
+
+// Remove padding when the final byte gives the number of padding bytes.
+var _unpadLength = function(cipher, message, alg, padding) {
+	var pad = message.pop();
+	if (pad == 0) {
+		throw new Error("Invalid zero-length padding specified for " + alg
+				+ ". Wrong cipher specification or key used?");
+	}
+	var maxPad = cipher._blocksize * 4;
+	if (pad > maxPad) {
+		throw new Error("Invalid padding length of " + pad
+				+ " specified for " + alg
+				+ ". Wrong cipher specification or key used?");
+	}
+	for ( var i = 1; i < pad; i++) {
+		var b = message.pop();
+		if (padding != undefined && padding != b) {
+			throw new Error("Invalid padding byte of 0x" + b.toString(16)
+					+ " specified for " + alg
+					+ ". Wrong cipher specification or key used?");
+		}
+	}
+};
+
+// No-operation padding, used for stream ciphers
+C_pad.NoPadding = {
+        pad : function (cipher,message) {},
+        unpad : function (cipher,message) {}
+    };
+
+// Zero Padding.
+//
+// If the message is not an exact number of blocks, the final block is
+// completed with 0x00 bytes. There is no unpadding.
+C_pad.ZeroPadding = {
+    pad : function (cipher, message) {
+        var blockSizeInBytes = cipher._blocksize * 4;
+        var reqd = message.length % blockSizeInBytes;
+        if( reqd!=0 ) {
+            for(reqd = blockSizeInBytes - reqd; reqd>0; reqd--) {
+                message.push(0x00);
+            }
+        }
+    },
+
+    unpad : function (cipher, message) {
+        while (message[message.length - 1] == 0) {
+            message.pop();
+        }
+    }
+};
+
+// ISO/IEC 7816-4 padding.
+//
+// Pads the plain text with an 0x80 byte followed by as many 0x00
+// bytes are required to complete the block.
+C_pad.iso7816 = {
+    pad : function (cipher, message) {
+        var reqd = _requiredPadding(cipher, message);
+        message.push(0x80);
+        for (; reqd > 1; reqd--) {
+            message.push(0x00);
+        }
+    },
+
+    unpad : function (cipher, message) {
+    	var padLength;
+    	for(padLength = cipher._blocksize * 4; padLength>0; padLength--) {
+    		var b = message.pop();
+    		if( b==0x80 ) return;
+    		if( b!=0x00 ) {
+    			throw new Error("ISO-7816 padding byte must be 0, not 0x"+b.toString(16)+". Wrong cipher specification or key used?");
+    		}
+    	}
+    	throw new Error("ISO-7816 padded beyond cipher block size. Wrong cipher specification or key used?");
+    }
+};
+
+// ANSI X.923 padding
+//
+// The final block is padded with zeros except for the last byte of the
+// last block which contains the number of padding bytes.
+C_pad.ansix923 = {
+    pad : function (cipher, message) {
+        var reqd = _requiredPadding(cipher, message);
+        for (var i = 1; i < reqd; i++) {
+            message.push(0x00);
+        }
+        message.push(reqd);
+    },
+
+    unpad : function (cipher,message) {
+    	_unpadLength(cipher,message,"ANSI X.923",0);
+    }
+};
+
+// ISO 10126
+//
+// The final block is padded with random bytes except for the last
+// byte of the last block which contains the number of padding bytes.
+C_pad.iso10126 = {
+    pad : function (cipher, message) {
+        var reqd = _requiredPadding(cipher, message);
+        for (var i = 1; i < reqd; i++) {
+            message.push(Math.floor(Math.random() * 256));
+        }
+        message.push(reqd);
+    },
+
+    unpad : function (cipher,message) {
+    	_unpadLength(cipher,message,"ISO 10126",undefined);
+    }
+};
+
+// PKCS7 padding
+//
+// PKCS7 is described in RFC 5652. Padding is in whole bytes. The
+// value of each added byte is the number of bytes that are added,
+// i.e. N bytes, each of value N are added.
+C_pad.pkcs7 = {
+    pad : function (cipher, message) {
+        var reqd = _requiredPadding(cipher, message);
+        for (var i = 0; i < reqd; i++) {
+            message.push(reqd);
+        }
+    },
+
+    unpad : function (cipher,message) {
+    	_unpadLength(cipher,message,"PKCS 7",message[message.length-1]);
+    }
+};
+
+// Create mode namespace
+var C_mode = C.mode = {};
+
+/**
+ * Mode base "class".
+ */
+var Mode = C_mode.Mode = function (padding) {
+    if (padding) {
+        this._padding = padding;
+    }
+};
+
+Mode.prototype = {
+    encrypt: function (cipher, m, iv) {
+        this._padding.pad(cipher, m);
+        this._doEncrypt(cipher, m, iv);
+    },
+
+    decrypt: function (cipher, m, iv) {
+        this._doDecrypt(cipher, m, iv);
+        this._padding.unpad(cipher, m);
+    },
+
+    // Default padding
+    _padding: C_pad.iso7816
+};
+
+
+/**
+ * Electronic Code Book mode.
+ * 
+ * ECB applies the cipher directly against each block of the input.
+ * 
+ * ECB does not require an initialization vector.
+ */
+var ECB = C_mode.ECB = function () {
+    // Call parent constructor
+    Mode.apply(this, arguments);
+};
+
+// Inherit from Mode
+var ECB_prototype = ECB.prototype = new Mode;
+
+// Concrete steps for Mode template
+ECB_prototype._doEncrypt = function (cipher, m, iv) {
+    var blockSizeInBytes = cipher._blocksize * 4;
+    // Encrypt each block
+    for (var offset = 0; offset < m.length; offset += blockSizeInBytes) {
+        cipher._encryptblock(m, offset);
+    }
+};
+ECB_prototype._doDecrypt = function (cipher, c, iv) {
+    var blockSizeInBytes = cipher._blocksize * 4;
+    // Decrypt each block
+    for (var offset = 0; offset < c.length; offset += blockSizeInBytes) {
+        cipher._decryptblock(c, offset);
+    }
+};
+
+// ECB never uses an IV
+ECB_prototype.fixOptions = function (options) {
+    options.iv = [];
+};
+
+
+/**
+ * Cipher block chaining
+ * 
+ * The first block is XORed with the IV. Subsequent blocks are XOR with the
+ * previous cipher output.
+ */
+var CBC = C_mode.CBC = function () {
+    // Call parent constructor
+    Mode.apply(this, arguments);
+};
+
+// Inherit from Mode
+var CBC_prototype = CBC.prototype = new Mode;
+
+// Concrete steps for Mode template
+CBC_prototype._doEncrypt = function (cipher, m, iv) {
+    var blockSizeInBytes = cipher._blocksize * 4;
+
+    // Encrypt each block
+    for (var offset = 0; offset < m.length; offset += blockSizeInBytes) {
+        if (offset == 0) {
+            // XOR first block using IV
+            for (var i = 0; i < blockSizeInBytes; i++)
+            m[i] ^= iv[i];
+        } else {
+            // XOR this block using previous crypted block
+            for (var i = 0; i < blockSizeInBytes; i++)
+            m[offset + i] ^= m[offset + i - blockSizeInBytes];
+        }
+        // Encrypt block
+        cipher._encryptblock(m, offset);
+    }
+};
+CBC_prototype._doDecrypt = function (cipher, c, iv) {
+    var blockSizeInBytes = cipher._blocksize * 4;
+
+    // At the start, the previously crypted block is the IV
+    var prevCryptedBlock = iv;
+
+    // Decrypt each block
+    for (var offset = 0; offset < c.length; offset += blockSizeInBytes) {
+        // Save this crypted block
+        var thisCryptedBlock = c.slice(offset, offset + blockSizeInBytes);
+        // Decrypt block
+        cipher._decryptblock(c, offset);
+        // XOR decrypted block using previous crypted block
+        for (var i = 0; i < blockSizeInBytes; i++) {
+            c[offset + i] ^= prevCryptedBlock[i];
+        }
+        prevCryptedBlock = thisCryptedBlock;
+    }
+};
+
+
+/**
+ * Cipher feed back
+ * 
+ * The cipher output is XORed with the plain text to produce the cipher output,
+ * which is then fed back into the cipher to produce a bit pattern to XOR the
+ * next block with.
+ * 
+ * This is a stream cipher mode and does not require padding.
+ */
+var CFB = C_mode.CFB = function () {
+    // Call parent constructor
+    Mode.apply(this, arguments);
+};
+
+// Inherit from Mode
+var CFB_prototype = CFB.prototype = new Mode;
+
+// Override padding
+CFB_prototype._padding = C_pad.NoPadding;
+
+// Concrete steps for Mode template
+CFB_prototype._doEncrypt = function (cipher, m, iv) {
+    var blockSizeInBytes = cipher._blocksize * 4,
+        keystream = iv.slice(0);
+
+    // Encrypt each byte
+    for (var i = 0; i < m.length; i++) {
+
+        var j = i % blockSizeInBytes;
+        if (j == 0) cipher._encryptblock(keystream, 0);
+
+        m[i] ^= keystream[j];
+        keystream[j] = m[i];
+    }
+};
+CFB_prototype._doDecrypt = function (cipher, c, iv) {
+    var blockSizeInBytes = cipher._blocksize * 4,
+        keystream = iv.slice(0);
+
+    // Encrypt each byte
+    for (var i = 0; i < c.length; i++) {
+
+        var j = i % blockSizeInBytes;
+        if (j == 0) cipher._encryptblock(keystream, 0);
+
+        var b = c[i];
+        c[i] ^= keystream[j];
+        keystream[j] = b;
+    }
+};
+
+
+/**
+ * Output feed back
+ * 
+ * The cipher repeatedly encrypts its own output. The output is XORed with the
+ * plain text to produce the cipher text.
+ * 
+ * This is a stream cipher mode and does not require padding.
+ */
+var OFB = C_mode.OFB = function () {
+    // Call parent constructor
+    Mode.apply(this, arguments);
+};
+
+// Inherit from Mode
+var OFB_prototype = OFB.prototype = new Mode;
+
+// Override padding
+OFB_prototype._padding = C_pad.NoPadding;
+
+// Concrete steps for Mode template
+OFB_prototype._doEncrypt = function (cipher, m, iv) {
+
+    var blockSizeInBytes = cipher._blocksize * 4,
+        keystream = iv.slice(0);
+
+    // Encrypt each byte
+    for (var i = 0; i < m.length; i++) {
+
+        // Generate keystream
+        if (i % blockSizeInBytes == 0)
+            cipher._encryptblock(keystream, 0);
+
+        // Encrypt byte
+        m[i] ^= keystream[i % blockSizeInBytes];
+
+    }
+};
+OFB_prototype._doDecrypt = OFB_prototype._doEncrypt;
+
+/**
+ * Counter
+ * @author Gergely Risko
+ *
+ * After every block the last 4 bytes of the IV is increased by one
+ * with carry and that IV is used for the next block.
+ *
+ * This is a stream cipher mode and does not require padding.
+ */
+var CTR = C_mode.CTR = function () {
+    // Call parent constructor
+    Mode.apply(this, arguments);
+};
+
+// Inherit from Mode
+var CTR_prototype = CTR.prototype = new Mode;
+
+// Override padding
+CTR_prototype._padding = C_pad.NoPadding;
+
+CTR_prototype._doEncrypt = function (cipher, m, iv) {
+    var blockSizeInBytes = cipher._blocksize * 4;
+    var counter = iv.slice(0);
+
+    for (var i = 0; i < m.length;) {
+        // do not lose iv
+        var keystream = counter.slice(0);
+
+        // Generate keystream for next block
+        cipher._encryptblock(keystream, 0);
+
+        // XOR keystream with block
+        for (var j = 0; i < m.length && j < blockSizeInBytes; j++, i++) {
+            m[i] ^= keystream[j];
+        }
+
+        // Increase counter
+        if(++(counter[blockSizeInBytes-1]) == 256) {
+            counter[blockSizeInBytes-1] = 0;
+            if(++(counter[blockSizeInBytes-2]) == 256) {
+                counter[blockSizeInBytes-2] = 0;
+                if(++(counter[blockSizeInBytes-3]) == 256) {
+                    counter[blockSizeInBytes-3] = 0;
+                    ++(counter[blockSizeInBytes-4]);
+                }
+            }
+        }
+    }
+};
+CTR_prototype._doDecrypt = CTR_prototype._doEncrypt;
+
+})(Crypto);
+/*
+ * Crypto-JS v2.5.4
+ * http://code.google.com/p/crypto-js/
+ * (c) 2009-2012 by Jeff Mott. All rights reserved.
+ * http://code.google.com/p/crypto-js/wiki/License
+ */
+(function(){
+
+// Shortcuts
+var C = Crypto,
+    util = C.util,
+    charenc = C.charenc,
+    UTF8 = charenc.UTF8,
+    Binary = charenc.Binary;
+
+C.HMAC = function (hasher, message, key, options) {
+
+	// Convert to byte arrays
+	if (message.constructor == String) message = UTF8.stringToBytes(message);
+	if (key.constructor == String) key = UTF8.stringToBytes(key);
+	/* else, assume byte arrays already */
+
+	// Allow arbitrary length keys
+	if (key.length > hasher._blocksize * 4)
+		key = hasher(key, { asBytes: true });
+
+	// XOR keys with pad constants
+	var okey = key.slice(0),
+	    ikey = key.slice(0);
+	for (var i = 0; i < hasher._blocksize * 4; i++) {
+		okey[i] ^= 0x5C;
+		ikey[i] ^= 0x36;
+	}
+
+	var hmacbytes = hasher(okey.concat(hasher(ikey.concat(message), { asBytes: true })), { asBytes: true });
+
+	return options && options.asBytes ? hmacbytes :
+	       options && options.asString ? Binary.bytesToString(hmacbytes) :
+	       util.bytesToHex(hmacbytes);
+
+};
+
+})();
+/*
+ * Crypto-JS v2.5.4
+ * http://code.google.com/p/crypto-js/
+ * (c) 2009-2012 by Jeff Mott. All rights reserved.
+ * http://code.google.com/p/crypto-js/wiki/License
+ */
+(function(){
+
+// Shortcuts
+var C = Crypto,
+    util = C.util,
+    charenc = C.charenc,
+    UTF8 = charenc.UTF8,
+    Binary = charenc.Binary;
+
+C.PBKDF2 = function (password, salt, keylen, options) {
+
+	// Convert to byte arrays
+	if (password.constructor == String) password = UTF8.stringToBytes(password);
+	if (salt.constructor == String) salt = UTF8.stringToBytes(salt);
+	/* else, assume byte arrays already */
+
+	// Defaults
+	var hasher = options && options.hasher || C.SHA1,
+	    iterations = options && options.iterations || 1;
+
+	// Pseudo-random function
+	function PRF(password, salt) {
+		return C.HMAC(hasher, salt, password, { asBytes: true });
+	}
+
+	// Generate key
+	var derivedKeyBytes = [],
+	    blockindex = 1;
+	while (derivedKeyBytes.length < keylen) {
+		var block = PRF(password, salt.concat(util.wordsToBytes([blockindex])));
+		for (var u = block, i = 1; i < iterations; i++) {
+			u = PRF(password, u);
+			for (var j = 0; j < block.length; j++) block[j] ^= u[j];
+		}
+		derivedKeyBytes = derivedKeyBytes.concat(block);
+		blockindex++;
+	}
+
+	// Truncate excess bytes
+	derivedKeyBytes.length = keylen;
+
+	return options && options.asBytes ? derivedKeyBytes :
+	       options && options.asString ? Binary.bytesToString(derivedKeyBytes) :
+	       util.bytesToHex(derivedKeyBytes);
+
+};
+
+})();
+/*
+ * Crypto-JS v2.5.4
+ * http://code.google.com/p/crypto-js/
+ * (c) 2009-2012 by Jeff Mott. All rights reserved.
+ * http://code.google.com/p/crypto-js/wiki/License
+ */
+(function(){
+
+// Shortcuts
+var C = Crypto,
+    util = C.util,
+    charenc = C.charenc,
+    UTF8 = charenc.UTF8;
+
+// Precomputed SBOX
+var SBOX = [ 0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5,
+             0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
+             0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0,
+             0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
+             0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc,
+             0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
+             0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a,
+             0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75,
+             0x09, 0x83, 0x2c, 0x1a, 0x1b, 0x6e, 0x5a, 0xa0,
+             0x52, 0x3b, 0xd6, 0xb3, 0x29, 0xe3, 0x2f, 0x84,
+             0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b,
+             0x6a, 0xcb, 0xbe, 0x39, 0x4a, 0x4c, 0x58, 0xcf,
+             0xd0, 0xef, 0xaa, 0xfb, 0x43, 0x4d, 0x33, 0x85,
+             0x45, 0xf9, 0x02, 0x7f, 0x50, 0x3c, 0x9f, 0xa8,
+             0x51, 0xa3, 0x40, 0x8f, 0x92, 0x9d, 0x38, 0xf5,
+             0xbc, 0xb6, 0xda, 0x21, 0x10, 0xff, 0xf3, 0xd2,
+             0xcd, 0x0c, 0x13, 0xec, 0x5f, 0x97, 0x44, 0x17,
+             0xc4, 0xa7, 0x7e, 0x3d, 0x64, 0x5d, 0x19, 0x73,
+             0x60, 0x81, 0x4f, 0xdc, 0x22, 0x2a, 0x90, 0x88,
+             0x46, 0xee, 0xb8, 0x14, 0xde, 0x5e, 0x0b, 0xdb,
+             0xe0, 0x32, 0x3a, 0x0a, 0x49, 0x06, 0x24, 0x5c,
+             0xc2, 0xd3, 0xac, 0x62, 0x91, 0x95, 0xe4, 0x79,
+             0xe7, 0xc8, 0x37, 0x6d, 0x8d, 0xd5, 0x4e, 0xa9,
+             0x6c, 0x56, 0xf4, 0xea, 0x65, 0x7a, 0xae, 0x08,
+             0xba, 0x78, 0x25, 0x2e, 0x1c, 0xa6, 0xb4, 0xc6,
+             0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a,
+             0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e,
+             0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e,
+             0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94,
+             0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf,
+             0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68,
+             0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16 ];
+
+// Compute inverse SBOX lookup table
+for (var INVSBOX = [], i = 0; i < 256; i++) INVSBOX[SBOX[i]] = i;
+
+// Compute multiplication in GF(2^8) lookup tables
+var MULT2 = [],
+    MULT3 = [],
+    MULT9 = [],
+    MULTB = [],
+    MULTD = [],
+    MULTE = [];
+
+function xtime(a, b) {
+	for (var result = 0, i = 0; i < 8; i++) {
+		if (b & 1) result ^= a;
+		var hiBitSet = a & 0x80;
+		a = (a << 1) & 0xFF;
+		if (hiBitSet) a ^= 0x1b;
+		b >>>= 1;
+	}
+	return result;
+}
+
+for (var i = 0; i < 256; i++) {
+	MULT2[i] = xtime(i,2);
+	MULT3[i] = xtime(i,3);
+	MULT9[i] = xtime(i,9);
+	MULTB[i] = xtime(i,0xB);
+	MULTD[i] = xtime(i,0xD);
+	MULTE[i] = xtime(i,0xE);
+}
+
+// Precomputed RCon lookup
+var RCON = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
+
+// Inner state
+var state = [[], [], [], []],
+    keylength,
+    nrounds,
+    keyschedule;
+
+var AES = C.AES = {
+
+	/**
+	 * Public API
+	 */
+
+	encrypt: function (message, password, options) {
+
+		options = options || {};
+
+		// Determine mode
+		var mode = options.mode || new C.mode.OFB;
+
+		// Allow mode to override options
+		if (mode.fixOptions) mode.fixOptions(options);
+
+		var
+
+			// Convert to bytes if message is a string
+			m = (
+				message.constructor == String ?
+				UTF8.stringToBytes(message) :
+				message
+			),
+
+			// Generate random IV
+			iv = options.iv || util.randomBytes(AES._blocksize * 4),
+
+			// Generate key
+			k = (
+				password.constructor == String ?
+				// Derive key from pass-phrase
+				C.PBKDF2(password, iv, 32, { asBytes: true, iterations: options.iterations }) :
+				// else, assume byte array representing cryptographic key
+				password
+			);
+
+		// Encrypt
+		AES._init(k);
+		mode.encrypt(AES, m, iv);
+
+		// Return ciphertext
+		m = options.iv ? m : iv.concat(m);
+		return (options && options.asBytes) ? m : util.bytesToBase64(m);
+
+	},
+
+	decrypt: function (ciphertext, password, options) {
+
+		options = options || {};
+
+		// Determine mode
+		var mode = options.mode || new C.mode.OFB;
+
+		// Allow mode to override options
+		if (mode.fixOptions) mode.fixOptions(options);
+
+		var
+
+			// Convert to bytes if ciphertext is a string
+			c = (
+				ciphertext.constructor == String ?
+				util.base64ToBytes(ciphertext):
+			    ciphertext
+			),
+
+			// Separate IV and message
+			iv = options.iv || c.splice(0, AES._blocksize * 4),
+
+			// Generate key
+			k = (
+				password.constructor == String ?
+				// Derive key from pass-phrase
+				C.PBKDF2(password, iv, 32, { asBytes: true, iterations: options.iterations }) :
+				// else, assume byte array representing cryptographic key
+				password
+			);
+
+		// Decrypt
+		AES._init(k);
+		mode.decrypt(AES, c, iv);
+
+		// Return plaintext
+		return (options && options.asBytes) ? c : UTF8.bytesToString(c);
+
+	},
+
+
+	/**
+	 * Package private methods and properties
+	 */
+
+	_blocksize: 4,
+
+	_encryptblock: function (m, offset) {
+
+		// Set input
+		for (var row = 0; row < AES._blocksize; row++) {
+			for (var col = 0; col < 4; col++)
+				state[row][col] = m[offset + col * 4 + row];
+		}
+
+		// Add round key
+		for (var row = 0; row < 4; row++) {
+			for (var col = 0; col < 4; col++)
+				state[row][col] ^= keyschedule[col][row];
+		}
+
+		for (var round = 1; round < nrounds; round++) {
+
+			// Sub bytes
+			for (var row = 0; row < 4; row++) {
+				for (var col = 0; col < 4; col++)
+					state[row][col] = SBOX[state[row][col]];
+			}
+
+			// Shift rows
+			state[1].push(state[1].shift());
+			state[2].push(state[2].shift());
+			state[2].push(state[2].shift());
+			state[3].unshift(state[3].pop());
+
+			// Mix columns
+			for (var col = 0; col < 4; col++) {
+
+				var s0 = state[0][col],
+				    s1 = state[1][col],
+				    s2 = state[2][col],
+				    s3 = state[3][col];
+
+				state[0][col] = MULT2[s0] ^ MULT3[s1] ^ s2 ^ s3;
+				state[1][col] = s0 ^ MULT2[s1] ^ MULT3[s2] ^ s3;
+				state[2][col] = s0 ^ s1 ^ MULT2[s2] ^ MULT3[s3];
+				state[3][col] = MULT3[s0] ^ s1 ^ s2 ^ MULT2[s3];
+
+			}
+
+			// Add round key
+			for (var row = 0; row < 4; row++) {
+				for (var col = 0; col < 4; col++)
+					state[row][col] ^= keyschedule[round * 4 + col][row];
+			}
+
+		}
+
+		// Sub bytes
+		for (var row = 0; row < 4; row++) {
+			for (var col = 0; col < 4; col++)
+				state[row][col] = SBOX[state[row][col]];
+		}
+
+		// Shift rows
+		state[1].push(state[1].shift());
+		state[2].push(state[2].shift());
+		state[2].push(state[2].shift());
+		state[3].unshift(state[3].pop());
+
+		// Add round key
+		for (var row = 0; row < 4; row++) {
+			for (var col = 0; col < 4; col++)
+				state[row][col] ^= keyschedule[nrounds * 4 + col][row];
+		}
+
+		// Set output
+		for (var row = 0; row < AES._blocksize; row++) {
+			for (var col = 0; col < 4; col++)
+				m[offset + col * 4 + row] = state[row][col];
+		}
+
+	},
+
+	_decryptblock: function (c, offset) {
+
+		// Set input
+		for (var row = 0; row < AES._blocksize; row++) {
+			for (var col = 0; col < 4; col++)
+				state[row][col] = c[offset + col * 4 + row];
+		}
+
+		// Add round key
+		for (var row = 0; row < 4; row++) {
+			for (var col = 0; col < 4; col++)
+				state[row][col] ^= keyschedule[nrounds * 4 + col][row];
+		}
+
+		for (var round = 1; round < nrounds; round++) {
+
+			// Inv shift rows
+			state[1].unshift(state[1].pop());
+			state[2].push(state[2].shift());
+			state[2].push(state[2].shift());
+			state[3].push(state[3].shift());
+
+			// Inv sub bytes
+			for (var row = 0; row < 4; row++) {
+				for (var col = 0; col < 4; col++)
+					state[row][col] = INVSBOX[state[row][col]];
+			}
+
+			// Add round key
+			for (var row = 0; row < 4; row++) {
+				for (var col = 0; col < 4; col++)
+					state[row][col] ^= keyschedule[(nrounds - round) * 4 + col][row];
+			}
+
+			// Inv mix columns
+			for (var col = 0; col < 4; col++) {
+
+				var s0 = state[0][col],
+				    s1 = state[1][col],
+				    s2 = state[2][col],
+				    s3 = state[3][col];
+
+				state[0][col] = MULTE[s0] ^ MULTB[s1] ^ MULTD[s2] ^ MULT9[s3];
+				state[1][col] = MULT9[s0] ^ MULTE[s1] ^ MULTB[s2] ^ MULTD[s3];
+				state[2][col] = MULTD[s0] ^ MULT9[s1] ^ MULTE[s2] ^ MULTB[s3];
+				state[3][col] = MULTB[s0] ^ MULTD[s1] ^ MULT9[s2] ^ MULTE[s3];
+
+			}
+
+		}
+
+		// Inv shift rows
+		state[1].unshift(state[1].pop());
+		state[2].push(state[2].shift());
+		state[2].push(state[2].shift());
+		state[3].push(state[3].shift());
+
+		// Inv sub bytes
+		for (var row = 0; row < 4; row++) {
+			for (var col = 0; col < 4; col++)
+				state[row][col] = INVSBOX[state[row][col]];
+		}
+
+		// Add round key
+		for (var row = 0; row < 4; row++) {
+			for (var col = 0; col < 4; col++)
+				state[row][col] ^= keyschedule[col][row];
+		}
+
+		// Set output
+		for (var row = 0; row < AES._blocksize; row++) {
+			for (var col = 0; col < 4; col++)
+				c[offset + col * 4 + row] = state[row][col];
+		}
+
+	},
+
+
+	/**
+	 * Private methods
+	 */
+
+	_init: function (k) {
+		keylength = k.length / 4;
+		nrounds = keylength + 6;
+		AES._keyexpansion(k);
+	},
+
+	// Generate a key schedule
+	_keyexpansion: function (k) {
+
+		keyschedule = [];
+
+		for (var row = 0; row < keylength; row++) {
+			keyschedule[row] = [
+				k[row * 4],
+				k[row * 4 + 1],
+				k[row * 4 + 2],
+				k[row * 4 + 3]
+			];
+		}
+
+		for (var row = keylength; row < AES._blocksize * (nrounds + 1); row++) {
+
+			var temp = [
+				keyschedule[row - 1][0],
+				keyschedule[row - 1][1],
+				keyschedule[row - 1][2],
+				keyschedule[row - 1][3]
+			];
+
+			if (row % keylength == 0) {
+
+				// Rot word
+				temp.push(temp.shift());
+
+				// Sub word
+				temp[0] = SBOX[temp[0]];
+				temp[1] = SBOX[temp[1]];
+				temp[2] = SBOX[temp[2]];
+				temp[3] = SBOX[temp[3]];
+
+				temp[0] ^= RCON[row / keylength];
+
+			} else if (keylength > 6 && row % keylength == 4) {
+
+				// Sub word
+				temp[0] = SBOX[temp[0]];
+				temp[1] = SBOX[temp[1]];
+				temp[2] = SBOX[temp[2]];
+				temp[3] = SBOX[temp[3]];
+
+			}
+
+			keyschedule[row] = [
+				keyschedule[row - keylength][0] ^ temp[0],
+				keyschedule[row - keylength][1] ^ temp[1],
+				keyschedule[row - keylength][2] ^ temp[2],
+				keyschedule[row - keylength][3] ^ temp[3]
+			];
+
+		}
+
+	}
+
+};
+
+})();
 // Basic Javascript Elliptic Curve implementation
 // Ported loosely from BouncyCastle's Java EC code
 // Only Fp curves implemented for now
@@ -494,9 +1504,6 @@ function feFpAdd(b) {
 }
 
 function feFpSubtract(b) {
-	/*console.log("b.y (int): ", Crypto.util.bytesToHex(this.x.toByteArrayUnsigned()));
-	console.log("this.y (int): ", Crypto.util.bytesToHex(b.toBigInteger().toByteArrayUnsigned()));
-	console.log("b.y-this.y (premod): ", Crypto.util.bytesToHex(this.x.subtract(b.toBigInteger()).toByteArrayUnsigned()));*/
     return new ECFieldElementFp(this.q, this.x.subtract(b.toBigInteger()).mod(this.q));
 }
 
@@ -509,7 +1516,6 @@ function feFpSquare() {
 }
 
 function feFpDivide(b) {
-	//console.log("x: ", Crypto.util.bytesToHex(this.x.toByteArrayUnsigned()));
     return new ECFieldElementFp(this.q, this.x.multiply(b.toBigInteger().modInverse(this.q)).mod(this.q));
 }
 
@@ -587,7 +1593,6 @@ function pointFpAdd(b) {
     // v = X2 * Z1 - X1 * Z2
     var v = b.x.toBigInteger().multiply(this.z).subtract(this.x.toBigInteger().multiply(b.z)).mod(this.curve.q);
 
-	
     if(BigInteger.ZERO.equals(v)) {
         if(BigInteger.ZERO.equals(u)) {
             return this.twice(); // this == b, so double
@@ -995,7 +2000,7 @@ function bnCompareTo(a) {
   if(r != 0) return r;
   var i = this.t;
   r = i-a.t;
-  if(r != 0) return r;
+  if(r != 0) return (this.s<0)?-r:r;
   while(--i >= 0) if((r=this[i]-a[i]) != 0) return r;
   return 0;
 }
@@ -2070,9 +3075,9 @@ if(rng_pool == null) {
   rng_pool = new Array();
   rng_pptr = 0;
   var t;
-  if(navigator.appName == "Netscape" && navigator.appVersion < "5" && _window.crypto) {
+  if(navigator.appName == "Netscape" && navigator.appVersion < "5" && window.crypto) {
     // Extract entropy (256 bits) from NS4 RNG if available
-    var z = _window.crypto.random(32);
+    var z = window.crypto.random(32);
     for(t = 0; t < z.length; ++t)
       rng_pool[rng_pptr++] = z.charCodeAt(t) & 255;
   }  
@@ -2150,96 +3155,6 @@ X9ECParameters.prototype.getH = x9getH;
 
 function fromHex(s) { return new BigInteger(s, 16); }
 
-function secp128r1() {
-    // p = 2^128 - 2^97 - 1
-    var p = fromHex("FFFFFFFDFFFFFFFFFFFFFFFFFFFFFFFF");
-    var a = fromHex("FFFFFFFDFFFFFFFFFFFFFFFFFFFFFFFC");
-    var b = fromHex("E87579C11079F43DD824993C2CEE5ED3");
-    //byte[] S = Hex.decode("000E0D4D696E6768756151750CC03A4473D03679");
-    var n = fromHex("FFFFFFFE0000000075A30D1B9038A115");
-    var h = BigInteger.ONE;
-    var curve = new ECCurveFp(p, a, b);
-    var G = curve.decodePointHex("04"
-                + "161FF7528B899B2D0C28607CA52C5B86"
-		+ "CF5AC8395BAFEB13C02DA292DDED7A83");
-    return new X9ECParameters(curve, G, n, h);
-}
-
-function secp160k1() {
-    // p = 2^160 - 2^32 - 2^14 - 2^12 - 2^9 - 2^8 - 2^7 - 2^3 - 2^2 - 1
-    var p = fromHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFAC73");
-    var a = BigInteger.ZERO;
-    var b = fromHex("7");
-    //byte[] S = null;
-    var n = fromHex("0100000000000000000001B8FA16DFAB9ACA16B6B3");
-    var h = BigInteger.ONE;
-    var curve = new ECCurveFp(p, a, b);
-    var G = curve.decodePointHex("04"
-                + "3B4C382CE37AA192A4019E763036F4F5DD4D7EBB"
-                + "938CF935318FDCED6BC28286531733C3F03C4FEE");
-    return new X9ECParameters(curve, G, n, h);
-}
-
-function secp160r1() {
-    // p = 2^160 - 2^31 - 1
-    var p = fromHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7FFFFFFF");
-    var a = fromHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7FFFFFFC");
-    var b = fromHex("1C97BEFC54BD7A8B65ACF89F81D4D4ADC565FA45");
-    //byte[] S = Hex.decode("1053CDE42C14D696E67687561517533BF3F83345");
-    var n = fromHex("0100000000000000000001F4C8F927AED3CA752257");
-    var h = BigInteger.ONE;
-    var curve = new ECCurveFp(p, a, b);
-    var G = curve.decodePointHex("04"
-		+ "4A96B5688EF573284664698968C38BB913CBFC82"
-		+ "23A628553168947D59DCC912042351377AC5FB32");
-    return new X9ECParameters(curve, G, n, h);
-}
-
-function secp192k1() {
-    // p = 2^192 - 2^32 - 2^12 - 2^8 - 2^7 - 2^6 - 2^3 - 1
-    var p = fromHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFEE37");
-    var a = BigInteger.ZERO;
-    var b = fromHex("3");
-    //byte[] S = null;
-    var n = fromHex("FFFFFFFFFFFFFFFFFFFFFFFE26F2FC170F69466A74DEFD8D");
-    var h = BigInteger.ONE;
-    var curve = new ECCurveFp(p, a, b);
-    var G = curve.decodePointHex("04"
-                + "DB4FF10EC057E9AE26B07D0280B7F4341DA5D1B1EAE06C7D"
-                + "9B2F2F6D9C5628A7844163D015BE86344082AA88D95E2F9D");
-    return new X9ECParameters(curve, G, n, h);
-}
-
-function secp192r1() {
-    // p = 2^192 - 2^64 - 1
-    var p = fromHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFFFFFFFFFF");
-    var a = fromHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFFFFFFFFFC");
-    var b = fromHex("64210519E59C80E70FA7E9AB72243049FEB8DEECC146B9B1");
-    //byte[] S = Hex.decode("3045AE6FC8422F64ED579528D38120EAE12196D5");
-    var n = fromHex("FFFFFFFFFFFFFFFFFFFFFFFF99DEF836146BC9B1B4D22831");
-    var h = BigInteger.ONE;
-    var curve = new ECCurveFp(p, a, b);
-    var G = curve.decodePointHex("04"
-                + "188DA80EB03090F67CBF20EB43A18800F4FF0AFD82FF1012"
-                + "07192B95FFC8DA78631011ED6B24CDD573F977A11E794811");
-    return new X9ECParameters(curve, G, n, h);
-}
-
-function secp224r1() {
-    // p = 2^224 - 2^96 + 1
-    var p = fromHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000000000000000000001");
-    var a = fromHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFE");
-    var b = fromHex("B4050A850C04B3ABF54132565044B0B7D7BFD8BA270B39432355FFB4");
-    //byte[] S = Hex.decode("BD71344799D5C7FCDC45B59FA3B9AB8F6A948BC5");
-    var n = fromHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFF16A2E0B8F03E13DD29455C5C2A3D");
-    var h = BigInteger.ONE;
-    var curve = new ECCurveFp(p, a, b);
-    var G = curve.decodePointHex("04"
-                + "B70E0CBD6BB4BF7F321390B94A03C1D356C21122343280D6115C1D21"
-                + "BD376388B5F723FB4C22DFE6CD4375A05A07476444D5819985007E34");
-    return new X9ECParameters(curve, G, n, h);
-}
-
 function secp256k1() {
     // p = 2^256 - 2^32 - 2^9 - 2^8 - 2^7 - 2^6 - 2^4 - 1
     var p = fromHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F");
@@ -2251,36 +3166,8 @@ function secp256k1() {
     var curve = new ECCurveFp(p, a, b);
     var G = curve.decodePointHex("04"
                 + "79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
-	            + "483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8");
+                + "483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8");
     return new X9ECParameters(curve, G, n, h);
-}
-
-function secp256r1() {
-    // p = 2^224 (2^32 - 1) + 2^192 + 2^96 - 1
-    var p = fromHex("FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF");
-    var a = fromHex("FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC");
-    var b = fromHex("5AC635D8AA3A93E7B3EBBD55769886BC651D06B0CC53B0F63BCE3C3E27D2604B");
-    //byte[] S = Hex.decode("C49D360886E704936A6678E1139D26B7819F7E90");
-    var n = fromHex("FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551");
-    var h = BigInteger.ONE;
-    var curve = new ECCurveFp(p, a, b);
-    var G = curve.decodePointHex("04"
-                + "6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296"
-		+ "4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5");
-    return new X9ECParameters(curve, G, n, h);
-}
-
-// TODO: make this into a proper hashtable
-function getSECCurveByName(name) {
-    if(name == "secp128r1") return secp128r1();
-    if(name == "secp160k1") return secp160k1();
-    if(name == "secp160r1") return secp160r1();
-    if(name == "secp192k1") return secp192k1();
-    if(name == "secp192r1") return secp192r1();
-    if(name == "secp224r1") return secp224r1();
-    if(name == "secp256k1") return secp256k1();
-    if(name == "secp256r1") return secp256r1();
-    return null;
 }
 var Bitcoin = {};
 
@@ -2996,7 +3883,7 @@ function dmp(v) {
 };
 
 Bitcoin.ECDSA = (function () {
-    var ecparams = getSECCurveByName("secp256k1");
+    var ecparams = secp256k1();
     var rng = new SecureRandom();
 
     var P_OVER_FOUR = null;
@@ -3055,7 +3942,7 @@ Bitcoin.ECDSA = (function () {
         verify: function (hash, sig, pubkey) {
             var r,s;
             if (Bitcoin.Util.isArray(sig)) {
-                var obj = stringECDSA.parseSig(sig);
+                var obj = ECDSA.parseSig(sig);
                 r = obj.r;
                 s = obj.s;
             } else if ("object" === typeof sig && sig.r && sig.s) {
@@ -3283,7 +4170,7 @@ Bitcoin.ECDSA = (function () {
     return ECDSA;
 })();Bitcoin.ECKey = (function () {
     var ECDSA = Bitcoin.ECDSA;
-    var ecparams = getSECCurveByName("secp256k1");
+    var ecparams = secp256k1();
     var rng = new SecureRandom();
 
     var ECKey = function (input) {
@@ -3552,7 +4439,7 @@ for (var i in Opcode.map) {
 }
 Bitcoin.ECKey = (function () {
     var ECDSA = Bitcoin.ECDSA;
-    var ecparams = getSECCurveByName("secp256k1");
+    var ecparams = secp256k1();
     var rng = new SecureRandom();
 
     var ECKey = function (input) {
