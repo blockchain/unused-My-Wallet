@@ -508,6 +508,8 @@ function flashTitle(msg, til) {
 }
 
 function loadScript(src, success, error) {
+    src += '?'+war_checksum;
+
     if ($('script[src="'+src+'"]').length > 0) {
         success();
         return;

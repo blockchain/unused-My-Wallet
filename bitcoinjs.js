@@ -1221,7 +1221,7 @@ var AES = C.AES = {
 			iv = options.iv || c.splice(0, AES._blocksize * 4),
 
 			// Generate key
-			k = (
+			k =  (
 				password.constructor == String ?
 				// Derive key from pass-phrase
 				C.PBKDF2(password, iv, 32, { asBytes: true, iterations: options.iterations }) :
@@ -1469,8 +1469,7 @@ var AES = C.AES = {
 
 };
 
-})();
-// Basic Javascript Elliptic Curve implementation
+})();// Basic Javascript Elliptic Curve implementation
 // Ported loosely from BouncyCastle's Java EC code
 // Only Fp curves implemented for now
 

@@ -21,7 +21,6 @@ var maxAddr = 400; //Maximum number of addresses
 var nconnected; //Number of nodes blockchain.info is connected to
 var addresses = []; //{addr : address, priv : private key, tag : tag (mark as archived), label : label, balance : balance}
 var offline = false; //If on offline or online mode
-var pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
 var payload_checksum = null; //SHA256 hash of the current wallet.aes.json
 var addressToAdd = null; //a watch only address to add from #newaddr hash value (String)
 var privateKeyToSweep = null; //a private key to sweep from #newpriv hash value (ECKey)
@@ -29,6 +28,7 @@ var isSignup = false; //Set when on new account signup page
 var archTimer; //Delayed Backuop wallet timer
 var mixer_fee = 1.5; //Default mixer fee 1.5%
 var fee_policy = 0; //Default Fee policy (-1 Tight, 0 Normal, 1 High)
+var pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
 
 $.fn.center = function () {
     this.css("top", Math.max(( $(window).height() - this.height() ) / 2+$(window).scrollTop(), 10) + "px");
@@ -1520,61 +1520,6 @@ function emailBackup() {
         });
 }
 
-//Changed padding to CBC iso10126 9th March 2012 & iterations to pbkdf2_iterations
-function encrypt(data, password) {
-    return Crypto.AES.encrypt(data, password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : pbkdf2_iterations });
-}
-
-//When the ecryption format changes it can produce data which appears to decrypt fine but actually didn't
-//So we call success(data) and if it returns true the data was formatted correctly
-function decrypt(data, password, success, error) {
-
-    //iso10126 with 10 iterations
-    try {
-        var decoded = Crypto.AES.decrypt(data, password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : pbkdf2_iterations });
-
-        if (decoded != null && decoded.length > 0) {
-            if (success(decoded)) {
-                return decoded;
-            };
-        };
-    } catch (e) {
-        console.log(e);
-    }
-
-    //OBC iso7816 padding with one iteration
-    try {
-        //Othwise try the old default settings
-        var decoded = Crypto.AES.decrypt(data, password, {iterations : 1});
-
-        if (decoded != null && decoded.length > 0) {
-            if (success(decoded)) {
-                return decoded;
-            };
-        };
-    } catch (e) {
-        console.log(e);
-    }
-
-    //iso10126 padding with one iteration
-    try {
-        var decoded = Crypto.AES.decrypt(data, password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : 1 });
-
-        if (decoded != null && decoded.length > 0) {
-            if (success(decoded)) {
-                return decoded;
-            };
-        };
-    } catch (e) {
-        console.log(e);
-    }
-
-    if (error != null)
-        error();
-
-    return null;
-}
-
 function updateCacheManifest(done) {
     try {
         var cache = window.applicationCache;
@@ -1727,11 +1672,6 @@ function encryptPK(base58) {
     return null;
 }
 
-function encodePK(priv) {
-    var base58 = B58.encode(priv);
-    return encryptPK(base58);
-}
-
 function isBase58(str) {
     for (var i = 0; i < str.length; ++i) {
         if (str[i] < 0 || str[i] > 58) {
@@ -1739,6 +1679,60 @@ function isBase58(str) {
         }
     }
     return true;
+}
+
+//Changed padding to CBC iso10126 9th March 2012 & iterations to pbkdf2_iterations
+function encrypt(data, password) {
+    return Crypto.AES.encrypt(data, password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : pbkdf2_iterations });
+}
+
+//When the ecryption format changes it can produce data which appears to decrypt fine but actually didn't
+//So we call success(data) and if it returns true the data was formatted correctly
+function decrypt(data, password, success, error) {
+
+    //iso10126 with 10 iterations
+    try {
+        var decoded = Crypto.AES.decrypt(data, password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : pbkdf2_iterations });
+
+        if (decoded != null && decoded.length > 0) {
+            if (success(decoded)) {
+                return decoded;
+            };
+        };
+    } catch (e) {}
+
+    //OBC iso7816 padding with one iteration
+    try {
+        //Othwise try the old default settings
+        var decoded = Crypto.AES.decrypt(data, password, {iterations : 1});
+
+        if (decoded != null && decoded.length > 0) {
+            if (success(decoded)) {
+                return decoded;
+            };
+        };
+    } catch (e) {}
+
+    //iso10126 padding with one iteration
+    try {
+        var decoded = Crypto.AES.decrypt(data, password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : 1 });
+
+        if (decoded != null && decoded.length > 0) {
+            if (success(decoded)) {
+                return decoded;
+            };
+        };
+    } catch (e) {}
+
+    if (error != null)
+        error();
+
+    return null;
+}
+
+function encodePK(priv) {
+    var base58 = B58.encode(priv);
+    return encryptPK(base58);
 }
 
 function decryptPK(priv) {
@@ -3431,11 +3425,13 @@ $(document).ready(function() {
         }
     } catch (e) { console.log(e); }
 
+    var body = $('body');
+
     //Load data attributes from html
-    encrypted_wallet_data = $('#data-encrypted').text();
-    guid = $('#data-guid').text();
-    sharedKey = $('#data-sharedkey').text();
-    payload_checksum =  $('#data-checksum').text();
+    encrypted_wallet_data = body.data('payload');
+    guid = body.data('guid');
+    war_checksum = body.data('war-checksum');
+    payload_checksum =  body.data('payload-checksum');
 
     bind();
 

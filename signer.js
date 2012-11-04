@@ -838,7 +838,7 @@ BlockchainAPI.get_pubkey = function(addr, success, error) {
 
     }).error(function(data) {
             error();
-    });
+        });
 }
 
 BlockchainAPI.get_rejection_reason = function(hexhash, success, error) {
@@ -850,8 +850,8 @@ BlockchainAPI.get_rejection_reason = function(hexhash, success, error) {
         else
             success(data);
     }).error(function(data) {
-        if (error) error();
-    });
+            if (error) error();
+        });
 }
 
 BlockchainAPI.push_tx = function(tx, note, success, error) {
