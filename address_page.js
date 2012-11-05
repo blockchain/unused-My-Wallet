@@ -24,6 +24,9 @@ $(document).ready(function() {
     });
 
     $('#filter').change(function(){
+
+        console.log('Change');
+
         $(this).parent().submit();
     });
 

@@ -1,5 +1,4 @@
 var satoshi = parseInt(100000000); //One satoshi
-var showInvBtn = false;
 var show_adv = false;
 var adv_rule;
 var our_address = '1A8JiWcwvpY7tAopUkSnGuEYHmzGYfZPiq'; //Address for fees and what not
@@ -9,6 +8,7 @@ var symbol_local; //Users local currency object
 var symbol; //Active currency object
 var root = '/';
 var resource = '/Resources/';
+var war_checksum;
 
 //Ignore Console
 if (!window.console) {

@@ -3431,6 +3431,7 @@ $(document).ready(function() {
     encrypted_wallet_data = body.data('payload');
     guid = body.data('guid');
     war_checksum = body.data('war-checksum');
+    sharedKey = body.data('sharedkey');
     payload_checksum =  body.data('payload-checksum');
 
     bind();
