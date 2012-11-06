@@ -23,8 +23,8 @@ $(document).ready(function() {
         $('#pingit-youtube-preview').empty().append('<iframe width="100%" height="315" src="https://www.youtube.com/embed/dFgRm2ijqAM?autohide=1&controls=0&showinfo=0" frameborder="0" allowfullscreen></iframe>');
     }, 500);
 
-    $('#forgot-email-btn').click(function() {
-        window.location = root + 'wallet/forgot-identifier?email='+ $('#forgot-email').val();
+    $('#forgot-btn').click(function() {
+        window.location = root + 'wallet/forgot-identifier?param1='+ encodeURIComponent($('#forgot').val());
     });
 
     $('#download-instructions-btn').click(function () {
