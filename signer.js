@@ -1410,11 +1410,6 @@ function initNewTx() {
 
                         var new_in =  new Bitcoin.TransactionIn({outpoint: {hash: b64hash, hexhash: hexhash, index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295});
 
-                        //If less than 0.01 BTC force fee
-                        if (out.value.compareTo(BigInteger.valueOf(1000000)) < 0) {
-                            forceFee = true;
-                        }
-
                         //If the output happens to be greater than tx value then we can make this transaction with one input only
                         //So discard the previous selected outs
                         if (!isSweep && out.value.compareTo(txValue) >= 0) {
@@ -1470,6 +1465,11 @@ function initNewTx() {
                     } else {
                         sendTx.addOutput(addrObj.address, addrObj.value);
                     }
+
+                    //If less than 0.01 BTC force fee
+                    if (addrObj.value.compareTo(BigInteger.valueOf(1000000)) <= 0) {
+                        forceFee = true;
+                    }
                 }
 
                 //Now deal with the change
@@ -1484,7 +1484,7 @@ function initNewTx() {
                     }
 
                     //If less than 0.01 BTC force fee
-                    if (changeValue.compareTo(BigInteger.valueOf(1000000)) < 0) {
+                    if (changeValue.compareTo(BigInteger.valueOf(1000000)) <= 0) {
                         forceFee = true;
                     }
                 }
@@ -1523,7 +1523,7 @@ function initNewTx() {
 
                 var kilobytes = Math.ceil(parseFloat(estimatedSize / 1024));
 
-                var fee_is_zero = self.fee == null || self.fee.compareTo(BigInteger.ZERO) <= 0;
+                var fee_is_zero = (!self.fee || self.fee.compareTo(self.base_fee) < 0);
 
                 //Priority under 57 million requires a 0.0005 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
                 if (fee_is_zero && forceFee) {
