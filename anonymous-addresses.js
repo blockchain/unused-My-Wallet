@@ -47,10 +47,9 @@ function buildAnonymousTable(el) {
 
                 var destination_addr = addresses[forward.destination_address];
 
-                var desintation_desc;
-                if (destination_addr == null) {
-                    desintation_desc = forward.destination_address + '<font color="red">(Missing!)</font>';
-                } else {
+                if (destination_addr != null) {
+                    var desintation_desc;
+
                     if (destination_addr.label)
                         desintation_desc = destination_addr.label;
                     else
@@ -60,14 +59,14 @@ function buildAnonymousTable(el) {
                         desintation_desc += '<font color="red">(Watch Only!)</font>';
                     else if (destination_addr.tag == 2)
                         desintation_desc += '<font color="red">(Archived)</font>';
+
+                    if (forward.expires < 0)
+                        var expires = '<font color="red">Removing After Tx Confirms</font>';
+                    else
+                        var expires = milliToStr(time_left);
+
+                    forward_tbody.append('<tr><td><a class="short-addr" href="'+root+'address/'+forward.input_address+'" target="new">'+forward.input_address+'</a></td><td class="hidden-phone">'+desintation_desc+'</td><td>'+ expires +' <a class="pull-right hidden-phone" onclick="extendForwarding(\''+forward.input_address+'\')">(extend)</a></td></tr>');
                 }
-
-                if (forward.expires < 0)
-                    var expires = '<font color="red">Removing After Tx Confirms</font>';
-                else
-                    var expires = milliToStr(time_left);
-
-                forward_tbody.append('<tr><td><a class="short-addr" href="'+root+'address/'+forward.input_address+'" target="new">'+forward.input_address+'</a></td><td class="hidden-phone">'+desintation_desc+'</td><td>'+ expires +' <a class="pull-right hidden-phone" onclick="extendForwarding(\''+forward.input_address+'\')">(extend)</a></td></tr>');
             }
         } else {
             forward_tbody.append('<tr><td colspan="3">No Anonymous Addresses</td></tr>')

@@ -51,7 +51,6 @@ function importPyWalletJSONObject(obj) {
     var i = 0;
     try {
         for (i = 0; i < obj.keys.length; ++i) {
-
             if (walletIsFull())
                 return;
 
@@ -188,7 +187,6 @@ function importJSON(input_text) {
         }
     });
 }
-
 
 function importS3WalletBackup(id) {
     setLoadingText('Importing Backup');

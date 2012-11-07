@@ -168,11 +168,14 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
             total_value += parseFloat($(this).val());
         });
 
+        var custom_ask_for_fee = true;
         if (total_value > 10) {
-            if (type == 'email' || type == 'facebook' || type == 'sms')
+            if (type == 'email' || type == 'facebook' || type == 'sms') {
                 throw 'Cannot Send More Than 10 BTC via email or facebook';
-            else if (type == 'quick') //Any quick transactions over 20 BTC make them custom
+            } else if (type == 'quick') { //Any quick transactions over 20 BTC make them custom
                 type = 'custom';
+                custom_ask_for_fee = false;
+            }
         } else if ( type == 'anonymous' && total_value < 0.5) {
             throw 'The Minimum Amount You Can Send Anonymously is 0.5 BTC';
         }
@@ -280,35 +283,37 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
             pending_transaction.addListener(listener);
 
 
-            pending_transaction.ask_for_fee = function(yes, no) {
-                var self = this;
+            if (custom_ask_for_fee) {
+                pending_transaction.ask_for_fee = function(yes, no) {
+                    var self = this;
 
-                self.modal.modal('hide'); //Hide the transaction progress modal
+                    self.modal.modal('hide'); //Hide the transaction progress modal
 
-                var modal = $('#ask-for-fee');
+                    var modal = $('#ask-for-fee');
 
-                modal.modal({
-                    keyboard: false,
-                    backdrop: "static",
-                    show: true
-                });
+                    modal.modal({
+                        keyboard: false,
+                        backdrop: "static",
+                        show: true
+                    });
 
-                modal.find('.btn.btn-primary').unbind().click(function() {
-                    yes();
+                    modal.find('.btn.btn-primary').unbind().click(function() {
+                        yes();
 
-                    modal.modal('hide');
-                });
+                        modal.modal('hide');
+                    });
 
-                modal.find('.btn.btn-secondary').unbind().click(function() {
-                    no();
+                    modal.find('.btn.btn-secondary').unbind().click(function() {
+                        no();
 
-                    modal.modal('hide');
-                });
+                        modal.modal('hide');
+                    });
 
-                modal.on('hidden', function () {
-                    self.modal.modal('show'); //Show the progress modal again
-                });
-            };
+                    modal.on('hidden', function () {
+                        self.modal.modal('show'); //Show the progress modal again
+                    });
+                };
+            }
 
             pending_transaction.ask_to_send = function() {
                 var self = this;
@@ -1518,7 +1523,7 @@ function initNewTx() {
 
                 var kilobytes = Math.ceil(parseFloat(estimatedSize / 1024));
 
-                var fee_is_zero = !self.fee || self.fee.compareTo(BigInteger.ZERO) == 0;
+                var fee_is_zero = self.fee == null || self.fee.compareTo(BigInteger.ZERO) <= 0;
 
                 //Priority under 57 million requires a 0.0005 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
                 if (fee_is_zero && forceFee) {
