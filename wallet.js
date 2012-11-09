@@ -595,6 +595,8 @@ function openTransactionSummaryModal(txIndex, result) {
         show: true
     });
 
+    modal.find('.modal-body').empty().append('<iframe border="0" style="overflow-y:auto;border-style:none;width:100%;height:400px"></iframe>');
+
     modal.find('iframe').attr('src', root + 'tx-summary/'+txIndex+'?result='+result+'&guid='+guid);
 
     modal.find('.btn.btn-primary').unbind().click(function() {
