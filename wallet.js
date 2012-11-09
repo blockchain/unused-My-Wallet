@@ -587,17 +587,15 @@ function setLatestBlock(block) {
 
 function openTransactionSummaryModal(txIndex, result) {
 
-    $('#summary-modal').remove();
-
-    var modal  = $('<div id="summary-modal" class="modal hide" style="width:100%;max-width:700px;"><div class="modal-header"><button type="button" class="close" data-dismiss="modal">×</button><h3>Transaction Summary</h3></div><div class="modal-body" style="overflow-y:hidden;"><iframe id="summary-frame" border="0" style="overflow-y:auto;border-style:none;width:100%;height:400px"></iframe></div><div class="modal-footer btn-group"><a class="btn btn-secondary">Close</a></div></div>');
-
-    $('body').append(modal);
+    var modal = $('#summary-modal');
 
     modal.modal({
         keyboard: true,
         backdrop: "static",
         show: true
     });
+
+    modal.find('iframe').attr('src', root + 'tx-summary/'+txIndex+'?result='+result+'&guid='+guid);
 
     modal.find('.btn.btn-primary').unbind().click(function() {
         modal.modal('hide');
@@ -606,11 +604,6 @@ function openTransactionSummaryModal(txIndex, result) {
     modal.find('.btn.btn-secondary').unbind().click(function() {
         modal.modal('hide');
     });
-
-    //Center
-    gnter();
-
-    $('#summary-frame').attr('src', root + 'tx-summary/'+txIndex+'?result='+result+'&guid='+guid);
 }
 
 Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
@@ -3259,8 +3252,8 @@ function bind() {
     $('.modal').on('show', function() {
         $(this).center();
     }).on('shown', function() {
-            $(this).center();
-        })
+        $(this).center();
+    })
 }
 
 function parseMiniKey(miniKey) {
