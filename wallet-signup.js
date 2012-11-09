@@ -46,7 +46,7 @@ function generateNewWallet() {
             isInitialized = true;
         }, function() {
 
-            $("#captcha").attr("src", $("#captcha").attr("src")+"?timestamp=" + new Date().getTime());
+            $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
 
         }, '?kaptcha='+$('#captcha-value').val());
 
@@ -82,6 +82,7 @@ $(document).ready(function() {
         }
     });
 
+    $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
 
     //Password strength meter
     $('#password').bind('change keypress keyup', function() {

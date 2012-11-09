@@ -17,7 +17,7 @@ var transactions = []; //List of all transactions (initially populated from /mul
 var double_encryption = false; //If wallet has a second password
 var tx_page = 0; //Multi-address page
 var tx_filter = 0; //Transaction filter (e.g. Sent Received etc)
-var maxAddr = 400; //Maximum number of addresses
+var maxAddr = 1000; //Maximum number of addresses
 var nconnected; //Number of nodes blockchain.info is connected to
 var addresses = []; //{addr : address, priv : private key, tag : tag (mark as archived), label : label, balance : balance}
 var offline = false; //If on offline or online mode
@@ -608,7 +608,7 @@ function openTransactionSummaryModal(txIndex, result) {
     });
 
     //Center
-    modal.center();
+    gnter();
 
     $('#summary-frame').attr('src', root + 'tx-summary/'+txIndex+'?result='+result+'&guid='+guid);
 }
@@ -1250,23 +1250,16 @@ function internalRestoreWallet() {
     return false;
 }
 
-function getSecondPassword(success, error) {
-
-    if (!double_encryption || dpassword != null) {
-        if (success) {
-            try { success(); } catch (e) { makeNotice('error', 'misc-error', e);  }
-        }
-
-        return;
-    }
-
-    var modal = $('#second-password-modal');
+function getPassword(modal, success, error) {
 
     modal.modal({
         keyboard: true,
         backdrop: "static",
         show: true
     });
+
+    //Center
+    modal.center();
 
     var input = modal.find('input[name="password"]');
 
@@ -1280,10 +1273,35 @@ function getSecondPassword(success, error) {
     input.val('');
 
     modal.find('.btn.btn-primary').unbind().click(function() {
+        modal.modal('hide');
 
-        var password = input.val();
+        setTimeout(function() {
+            success(input.val());
+        },100);
+    });
 
-        if (vaidateDPassword(password)) {
+    modal.find('.btn.btn-secondary').unbind().click(function() {
+        makeNotice('error', 'misc-error', 'User cancelled, password needed to continue.');
+
+        modal.modal('hide');
+
+        if (error) {
+            try { error(); } catch (e) { makeNotice('error', 'misc-error', e); }
+        }
+    });
+}
+
+function getSecondPassword(success, error) {
+
+    if (!double_encryption || dpassword != null) {
+        if (success) {
+            try { success(); } catch (e) { makeNotice('error', 'misc-error', e);  }
+        }
+        return;
+    }
+
+    getPassword($('#second-password-modal'), function(_password) {
+        if (vaidateDPassword(_password)) {
             if (success) {
                 try { success(); } catch (e) { makeNotice('error', 'misc-error', e); }
             }
@@ -1293,18 +1311,7 @@ function getSecondPassword(success, error) {
                 try { error(); } catch (e) { makeNotice('error', 'misc-error', e); }
             }
         }
-
-        modal.modal('hide');
-    });
-
-    modal.find('.btn.btn-secondary').unbind().click(function() {
-        makeNotice('error', 'misc-error', 'User cancelled, password needed to continue.');
-        modal.modal('hide');
-
-        if (error) {
-            try { error(); } catch (e) { makeNotice('error', 'misc-error', e); }
-        }
-    });
+    }, error);
 }
 
 function restoreWallet() {
@@ -1672,7 +1679,7 @@ function encryptPK(base58) {
     return null;
 }
 
-function isBase58(str) {
+function isBase58(str, base) {
     for (var i = 0; i < str.length; ++i) {
         if (str[i] < 0 || str[i] > 58) {
             return false;
@@ -1919,10 +1926,9 @@ function internalAddAddressBookEntry(addr, label) {
     address_book[addr] = label;
 }
 
-function walletIsFull(addr) {
-
+function walletIsFull() {
     if (nKeys(addresses) >= maxAddr) {
-        makeNotice('error', 'misc-error', 'We currently support a maximum of '+maxAddr+' private keys, please remove some unsused ones.');
+        makeNotice('error', 'misc-error', 'We currently support a maximum of '+maxAddr+' private keys, please remove some unused ones.');
         return true;
     }
 
@@ -1932,10 +1938,10 @@ function walletIsFull(addr) {
 //Address (String), priv (base58 String), compresses boolean
 function internalAddKey(addr, priv) {
     var existing = addresses[addr];
-    if (existing == null || existing.length == 0) {
+    if (!existing || existing.length == 0) {
         addresses[addr] = {addr : addr, priv : priv, balance : 0};
         return true;
-    } else if (existing.priv == null && priv != null) {
+    } else if (!existing.priv && priv) {
         existing.priv = priv;
         return true;
     }
@@ -2627,13 +2633,9 @@ function bind() {
 
             $(this).attr("disabled", true);
 
-            try {
-                loadScript(resource + 'wallet/wallet-backups.min.js', function() {
-                    importJSON($('#import-json').val());
-                });
-            } catch (e) {
-                makeNotice('error', 'misc-error', e);
-            }
+            loadScript(resource + 'wallet/wallet-backups.min.js', function() {
+                importTextArea($('#import-json'));
+            });
 
             $(this).attr("disabled", false);
         });

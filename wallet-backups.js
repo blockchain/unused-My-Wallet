@@ -1,9 +1,8 @@
-
 function parsePrivateKeysFromText(input_text) {
     var components = input_text.split(/\W+/g);
 
     try {
-        var nKeysAdded = 0;
+        var nKeysFound = 0;
 
         for (var i in components) {
             var word = components[i];
@@ -17,28 +16,17 @@ function parsePrivateKeysFromText(input_text) {
 
                 var key = privateKeyStringToKey(word, format);
 
-                console.log('Found PK ' + word);
-
                 if (format == 'compsipa') {
-                    if (internalAddKey(key.getBitcoinAddressCompressed().toString(), encodePK(key.priv)))
-                        ++nKeysAdded;
+                    internalAddKey(key.getBitcoinAddressCompressed().toString(), encodePK(key.priv))
+                    ++nKeysFound;
                 } else {
-                    if (internalAddKey(key.getBitcoinAddress().toString(), encodePK(key.priv)))
-                        ++nKeysAdded;
+                    internalAddKey(key.getBitcoinAddress().toString(), encodePK(key.priv))
+                    ++nKeysFound;
                 }
             } catch (e) { }
         }
 
-        if (nKeysAdded > 0) {
-            makeNotice('success', 'misc-success', 'Imported ' + nKeysAdded + ' private keys');
-
-            //Perform a wallet backup
-            backupWallet('update', function() {
-                BlockchainAPI.get_history();
-            });
-
-            return true;
-        }
+        return nKeysFound;
 
     } catch (e) {
         makeNotice('error', 'misc-error', e);
@@ -47,144 +35,276 @@ function parsePrivateKeysFromText(input_text) {
     return false;
 }
 
-function importPyWalletJSONObject(obj) {
-    var i = 0;
-    try {
-        for (i = 0; i < obj.keys.length; ++i) {
-            if (walletIsFull())
-                return;
+function appendModals() {
+    if ($('#import-password-modal').length == 0)
+        $('body').append('<div id="import-password-modal" class="modal hide">\
+        <div class="modal-header">\
+        <button type="button" class="close" data-dismiss="modal">×</button>\
+        <h3>Wallet Password</h3>\
+        </div>\
+        <div class="modal-body">\
+            <p>If this wallet is encrypted please enter the password below. Otherwise leave it blank.</p>\
+            <p align="center">\
+                <b>Wallet password:</b> <input style="margin-left:10px" placeholder="password" name="password" type="password"/>\
+            </p>\
+        </div>\
+        <div class="modal-footer">\
+            <div class="btn-group pull-right">\
+               <button class="btn btn-primary">Continue</button>\
+            </div>\
+        </div>\
+    </div>');
 
-            var key = privateKeyStringToKey(obj.keys[i].sec, detectPrivateKeyFormat(obj.keys[i].sec));
-
-            //Check the the private keys matches the bitcoin address
-            if (obj.keys[i].addr ==  key.getBitcoinAddress().toString() || obj.keys[i].addr ==  key.getBitcoinAddressCompressed().toString()) {
-                internalAddKey(obj.keys[i].addr, encodePK(key.priv));
-            } else {
-                makeNotice('error', 'misc-error', 'Private key doesn\'t seem to match the address. Possible corruption', 1000);
-                return false;
-            }
-        }
-    } catch (e) {
-        makeNotice('error', 'misc-error', 'Exception caught parsing importing JSON. Incorrect format?');
-        return false;
-    }
-
-    makeNotice('success', 'misc-success', 'Imported ' + i + ' private keys');
+    if ($('#import-second-password-modal').length == 0)
+        $('body').append('<div id="import-second-password-modal" class="modal hide">\
+        <div class="modal-header">\
+        <button type="button" class="close" data-dismiss="modal">×</button>\
+        <h3>Wallet Second Password</h3>\
+        </div>\
+        <div class="modal-body">\
+            <p>Please enter the second password for this wallet.</p>\
+            <p align="center">\
+                <b>Second password:</b> <input style="margin-left:10px" placeholder="password" name="password" type="password"/>\
+            </p>\
+        </div>\
+        <div class="modal-footer">\
+            <div class="btn-group pull-right">\
+                <button class="btn btn-primary">Continue</button>\
+            </div>\
+        </div>\
+    </div>');
 }
 
-function importJSON(input_text) {
-
-    if (input_text == null || input_text.length == 0) {
-        throw 'No import data provided!';
-    }
-
-    var obj = null;
+function importJSON(input_text, opt, success, error) {
     try {
-        //First try a simple decode
-        obj = $.parseJSON(input_text);
+        appendModals();
 
-        if (obj == null)
-            throw 'null input_text';
-    } catch(e) {
-        //Maybe it's encrypted?
-        decrypt(input_text, password, function(decrypted) {
-            try {
-                obj = $.parseJSON(decrypted);
+        var nKeysFound = 0;
 
-                return (obj != null);
-            } catch (e) {
-                return false;
-            }
-        });
-    }
+        if (input_text == null || input_text.length == 0) {
+            throw 'No import data provided!';
+        }
 
-    getSecondPassword(function() {
+        var obj = null;
+
         try {
-            if (obj == null) {
-                console.log('Error Parsing JSON. Trying Plain Text import.');
+            //First try a simple decode
+            obj = $.parseJSON(input_text);
 
-                //Not JSON Try plain Text
-                if (parsePrivateKeysFromText(input_text)) {
-                    return true;
-                } else {
-                    throw 'Could not decode import data';
+            if (obj == null)
+                throw 'null input_text';
+        } catch(e) {
+            //Maybe it's encrypted?
+            decrypt(input_text, opt && opt.password ? opt.password : password, function(decrypted) {
+                try {
+                    obj = $.parseJSON(decrypted);
+
+                    return (obj != null);
+                } catch (e) {
+                    return false;
                 }
-            }
+            });
+        }
 
-            if (obj == null || obj.keys == null || obj.keys.length == 0) {
-                throw 'No keys imported. Incorrect format?';
-            }
+        var key_n = 0;
+        var really_import = function() {
+            try {
+                //Parse the  wallet backup
+                var json_key = obj.keys[key_n];
 
-            //Pywallet contains hexsec
-            if (obj.keys[0].hexsec != null) {
-                importPyWalletJSONObject(obj);
-            } else {
-                //Parse the normal wallet backup
-                for (var i = 0; i < obj.keys.length; ++i) {
-                    var addr = obj.keys[i].addr;
+                var addr = json_key.addr;
 
-                    if (addr == null || addr.length == 0 || addr == 'undefined')
-                        continue;
-
+                if (addr != null && addr.length > 0 && addr != 'undefined') {
                     try {
-                        //If there is a private key we first need to decrypt it, detect the format then re-insert
-                        if (obj.keys[i].priv != null) {
+                        var priv = json_key.priv;
+                        if (!priv)
+                            priv = json_key.sec;
 
+                        //If there is a private key we first need to decrypt it, detect the format then re-insert
+                        if (priv != null) {
                             //If the wallet is double encrypted we need to decrypt the key first
                             if (obj.double_encryption) {
-                                var decrypted = decrypt(obj.keys[i].priv, obj.sharedKey + dpassword, isBase58);
+                                if (opt.second_password || dpassword) {
+                                    var decrypted = decrypt(priv, obj.sharedKey + (dpassword ? dpassword : opt.second_password), isBase58);
 
-                                if (decrypted == null)
-                                    throw 'Error decrypting private key for address ' + addr;
+                                    if (decrypted == null)
+                                        throw 'Error decrypting private key for address ' + addr;
 
-                                obj.keys[i].priv = decrypted;
+                                    priv = decrypted;
+                                } else {
+                                    getPassword($('#import-second-password-modal'), function(__password) {
+                                        opt.second_password = __password;
+                                        importJSON(input_text, opt, success, error)
+                                    });
+                                    return;
+                                }
                             }
 
-                            var key = privateKeyStringToKey(obj.keys[i].priv, detectPrivateKeyFormat(obj.keys[i].priv));
+                            var key = privateKeyStringToKey(priv, detectPrivateKeyFormat(priv));
                             if (key.getBitcoinAddress().toString() == addr || key.getBitcoinAddressCompressed().toString() == addr) {
-                                internalAddKey(addr, encodePK(key.priv));
+                                internalAddKey(addr, encodePK(key.priv))
+                                    ++nKeysFound;
                             } else {
-                                throw 'Not importing ' + addr + ' becuse it is inconsistent with the decoded address ';
+                                throw 'Not importing ' + addr + ' because it is inconsistent with the decoded address ';
                             }
-
-                            //Else see if there is a compressed private key
-                        }   else {
-                            internalAddKey(addr); //Add watch only address
                         }
 
                         //Copy over the tag and label
                         var added_addr = addresses[addr];
-                        added_addr.label = obj.keys[i].label;
+                        if (added_addr) {
+                            if (json_key.label && $.trim(json_key.label.length) > 0)
+                                added_addr.label = $.trim(json_key.label);
 
-                        if (obj.keys[i].tag != null)
-                            added_addr.tag = obj.keys[i].tag;
-                        else
-                            added_addr.tag = 1; //Mark as unsynced
+                            if (json_key.tag)
+                                added_addr.tag = json_key.tag;
+                            else if (json_key.reserve)
+                                added_addr.tag = 2; //Mark as archived
+                            else
+                                added_addr.tag = 1; //Mark as unsynced
+                        }
                     } catch (e) {
-                        makeNotice('error', 'misc-error', e);
+                        console.log(e);
                     }
+                }
+
+                if (key_n < obj.keys.length-1) {
+                    ++key_n;
+                    setTimeout(really_import, 10);
+                    return;
                 }
 
                 if (obj.address_book != null) {
-                    for (var i = 0; i < obj.address_book.length; ++i) {
-                        internalAddAddressBookEntry(obj.address_book[i].addr, obj.address_book[i].label);
+                    for (var i2 = 0; i2 < obj.address_book.length; ++i2) {
+                        var addressbook_obj = obj.address_book[i2];
+                        if (addressbook_obj.addr && addressbook_obj.label)
+                            internalAddAddressBookEntry(addressbook_obj.addr, addressbook_obj.label);
                     }
                 }
-            }
 
-            //Check the integrity of all keys
-            checkAllKeys();
+                //Clear the old value
+                $('#import-input_text').val('');
+
+                if (nKeysFound > 0)
+                    success();
+                else
+                    throw 'No Private Keys Imported. Unknown Format Incorrect Password';
+            } catch (e) {
+                console.log(e);
+
+                try {
+                    error(e);
+                } catch (e) {}
+            }
+        }
+
+        if (obj == null) {
+            nKeysFound = parsePrivateKeysFromText(input_text);
 
             //Clear the old value
             $('#import-input_text').val('');
 
-            //Perform a wallet backup
-            backupWallet('update', function() {
-                BlockchainAPI.get_history();
-            });
-        } catch (e) {
-            makeNotice('error', 'misc-error', e);
+            if (nKeysFound > 0)
+                success();
+            else
+                throw 'No Private Keys Imported. Unknown Format or Incorrect Password';
+        } else if (obj != null && obj.keys != null && obj.keys.length > 0) {
+
+            if (obj.keys.length > 1000) {
+                makeNotice('info', 'keys-skipped', 'Some keys may have been skipped');
+
+                var ii = 0;
+                var test_balances=[];
+
+                var do_part = function() {
+                    try {
+                        for (; ii < obj.keys.length; ++ii) {
+                            var json_key = obj.keys[ii];
+
+                            var addr = json_key.addr;
+
+                            if (addr == null || addr.length == 0 || addr == 'undefined')
+                                continue;
+
+                            if (json_key.reserve || json_key.tag == 2)
+                                test_balances.push(json_key.addr);
+
+                            if (test_balances.length == 1000 || (ii == obj.keys.length-1 &&  test_balances.length > 0)) {
+                                BlockchainAPI.get_balances(test_balances, function(response) {
+                                    try {
+                                        for (var key in response) {
+                                            if (response[key].final_balance == 0) {
+                                                for (var iii = 0; iii < obj.keys.length; ++iii) {
+                                                    var _addr = obj.keys[iii].addr;
+
+                                                    if (_addr == key) {
+                                                        if (obj.keys.length > 1)
+                                                            obj.keys.splice(iii, 1);
+
+                                                        --ii;
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        setTimeout(do_part, 10);
+                                    } catch (e) {
+                                        console.log(e);
+
+                                        try {
+                                            error(e);
+                                        } catch (e) {}
+                                    }
+                                }, function(e) {
+                                    console.log(e);
+
+                                    try {
+                                        error(e);
+                                    } catch (e) {}
+                                });
+
+                                test_balances = [];
+
+                                return;
+                            }
+                        }
+                    } catch (e) {
+                        console.log(e);
+
+                        try {
+                            error(e);
+                        } catch (e) {}
+                    }
+
+                    really_import();
+                };
+
+                do_part();
+            } else {
+                really_import();
+            }
+        } else {
+            throw 'Unknown Format'
         }
+    } catch (e) {
+        console.log(e);
+
+        try {
+            error(e);
+        } catch (e) {}
+    }
+}
+
+function importTextArea(area) {
+    getSecondPassword(function() {
+        importJSON(area.val(), {},
+            function() {
+                //Perform a wallet backup
+                backupWallet('update', function() {
+                    BlockchainAPI.get_history();
+                });
+            }, function(e) {
+                makeNotice('error', 'misc-error', e);
+            });
     });
 }
 
@@ -195,7 +315,16 @@ function importS3WalletBackup(id) {
         try {
             var payload = obj.payload;
 
-            importJSON(payload);
+            getSecondPassword(function() {
+                importJSON(payload, {}, function() {
+                    //Perform a wallet backup
+                    backupWallet('update', function() {
+                        BlockchainAPI.get_history();
+                    });
+                }, function(e) {
+                    makeNotice('error', 'misc-error', e);
+                });
+            });
         } catch (e) {
             makeNotice('error', 'misc-error', e);
         }
