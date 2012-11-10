@@ -95,20 +95,19 @@ Script.prototype.parse = function () {
  */
 Script.prototype.getOutType = function () {
 
-    if (this.chunks[this.chunks.length-1] == OP_CHECKMULTISIG && this.chunks[this.chunks.length-2] <= 3) {
-        // Transfer to M-OF-N
-        return 'Multisig';
-    } else if (this.chunks.length == 5 &&
+    if (this.chunks.length == 5 &&
         this.chunks[0] == OP_DUP &&
         this.chunks[1] == OP_HASH160 &&
         this.chunks[3] == OP_EQUALVERIFY &&
         this.chunks[4] == OP_CHECKSIG) {
         // Transfer to Bitcoin address
         return 'Address';
-    } else if (this.chunks.length == 2 &&
-        this.chunks[1] == OP_CHECKSIG) {
+    } else if (this.chunks.length == 2 && this.chunks[1] == OP_CHECKSIG) {
         // Transfer to IP address
         return 'Pubkey';
+    } else if (this.chunks[this.chunks.length-1] == OP_CHECKMULTISIG && this.chunks[this.chunks.length-2] <= 3) {
+        // Transfer to M-OF-N
+        return 'Multisig';
     } else {
         return 'Strange';
     }
@@ -134,7 +133,7 @@ Script.prototype.simpleOutHash = function ()
         case 'Pubkey':
             return Bitcoin.Util.sha256ripe160(this.chunks[0]);
         default:
-            throw new Error("Encountered non-standard scriptPubKey");
+            throw new Error("Encountered non-standard scriptPubKey " + this.getOutType());
     }
 };
 
@@ -303,7 +302,7 @@ Script.prototype.extractAddresses = function (addresses)
             }
             return this.chunks[0] - OP_1 + 1;
         default:
-            throw new Error("Encountered non-standard scriptPubKey");
+            throw new Error('ExtractAddresses Encountered non-standard scriptPubKey ' + this.getOutType());
     }
 };
 

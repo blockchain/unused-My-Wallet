@@ -71,7 +71,7 @@ function showPrivateKeyModal(success, error, addr) {
 
     modal.find('.address').text(addr);
 
-    var key = null;
+    var scanned_key = null;
     var error_msg = null;
 
     //WebCam
@@ -79,10 +79,12 @@ function showPrivateKeyModal(success, error, addr) {
         loadScript(resource + 'wallet/qr.code.reader.js', function() {
             //Flash QR Code Reader
             var interval = initQRCodeReader('qr-code-reader', function(code){
-                try {
-                    key = privateKeyStringToKey(code, detectPrivateKeyFormat(code));
+                console.log('Scanned ' + code);
 
-                    if (key == null) {
+                try {
+                    scanned_key = privateKeyStringToKey(code, detectPrivateKeyFormat(code));
+
+                    if (scanned_key == null) {
                         throw 'Error decoding private key';
                     }
 
@@ -96,7 +98,7 @@ function showPrivateKeyModal(success, error, addr) {
 
             }, resource + 'wallet/');
 
-            modal.on('hidden', function () {
+            modal.unbind().on('hidden', function () {
                 clearInterval(interval);
             });
         });
@@ -110,9 +112,9 @@ function showPrivateKeyModal(success, error, addr) {
                 throw  'You must enter a private key to import';
             }
 
-            key = privateKeyStringToKey(value, detectPrivateKeyFormat(value));
+            scanned_key = privateKeyStringToKey(value, detectPrivateKeyFormat(value));
 
-            if (key == null) {
+            if (scanned_key == null) {
                 throw 'Could not decode private key';
             }
         } catch(e) {
@@ -122,11 +124,15 @@ function showPrivateKeyModal(success, error, addr) {
         modal.modal('hide');
     });
 
-    modal.on('hide', function() {
-        if (key)
-            success(key);
+    modal.unbind().on('hide', function() {
+        try {
+        if (scanned_key)
+            success(scanned_key);
         else
             error(error_msg);
+        } catch (e) {
+            console.log(e);
+        }
     });
 
     modal.find('.btn.btn-secondary').unbind().click(function() {
@@ -219,9 +225,9 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                 });
 
                 modal.find('.btn.btn-secondary').unbind().click(function() {
-                    startTxUI(el, type, pending_transaction, true)
-
                     modal.modal('hide');
+
+                    startTxUI(el, type, pending_transaction, true)
                 });
 
                 return;
@@ -265,8 +271,8 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     this.modal.find('.btn.btn-primary').text('Send Transaction');
 
                     this.modal.find('.btn.btn-secondary').unbind().click(function() {
-                        self.cancel();
                         self.modal.modal('hide');
+                        self.cancel();
                     });
                 },
                 on_begin_signing : function() {
@@ -298,18 +304,18 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     });
 
                     modal.find('.btn.btn-primary').unbind().click(function() {
-                        yes();
-
                         modal.modal('hide');
+
+                        yes();
                     });
 
                     modal.find('.btn.btn-secondary').unbind().click(function() {
-                        no();
-
                         modal.modal('hide');
+
+                        no();
                     });
 
-                    modal.on('hidden', function () {
+                    modal.unbind().on('hidden', function () {
                         self.modal.modal('show'); //Show the progress modal again
                     });
                 };
@@ -456,6 +462,8 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                 });
 
                                 modal.find('.btn.btn-primary').unbind().click(function() {
+                                    modal.modal('hide');
+
                                     try {
                                         $.get(root + 'send-via?type=email&format=plain&to=' + self.email_data.email + '&guid='+ guid + '&priv='+ decryptPK(self.email_data.addr.priv) + '&sharedKey=' + sharedKey+'&hash='+Crypto.util.bytesToHex(self.tx.getHash().reverse())).success(function(data) {
                                             self.send();
@@ -466,8 +474,6 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                     } catch (e) {
                                         self.error(e);
                                     }
-
-                                    modal.modal('hide');
                                 });
                             } catch (e) {
                                 modal.modal('hide');
@@ -1149,7 +1155,15 @@ function setReviewTransactionContent(modal, tx, type) {
 
         var out_addresses = [];
 
-        var m = out.script.extractAddresses(out_addresses);
+        var m = 1;
+
+        try {
+            m = out.script.extractAddresses(out_addresses);
+        } catch (e) {
+            console.log(e);
+
+            out_addresses.push('Unknown Address!');
+        }
 
         $('#rtc-to').append(formatAddresses(m, out_addresses) + ' <font color="green">' + formatBTC(val.toString()) + ' BTC </font><br />');
 

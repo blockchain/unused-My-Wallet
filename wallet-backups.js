@@ -143,7 +143,7 @@ function importJSON(input_text, opt, success, error) {
                             var key = privateKeyStringToKey(priv, detectPrivateKeyFormat(priv));
                             if (key.getBitcoinAddress().toString() == addr || key.getBitcoinAddressCompressed().toString() == addr) {
                                 internalAddKey(addr, encodePK(key.priv))
-                                    ++nKeysFound;
+                                ++nKeysFound;
                             } else {
                                 throw 'Not importing ' + addr + ' because it is inconsistent with the decoded address ';
                             }

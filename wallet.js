@@ -597,6 +597,8 @@ function openTransactionSummaryModal(txIndex, result) {
 
     modal.find('.modal-body').empty().append('<iframe border="0" style="overflow-y:auto;border-style:none;width:100%;height:400px"></iframe>');
 
+    modal.center();
+
     modal.find('iframe').attr('src', root + 'tx-summary/'+txIndex+'?result='+result+'&guid='+guid);
 
     modal.find('.btn.btn-primary').unbind().click(function() {
@@ -1703,10 +1705,10 @@ function decrypt(data, password, success, error) {
         };
     } catch (e) {}
 
-    //OBC iso7816 padding with one iteration
+    //OFB iso7816 padding with one iteration
     try {
         //Othwise try the old default settings
-        var decoded = Crypto.AES.decrypt(data, password, {iterations : 1});
+        var decoded = Crypto.AES.decrypt(data, password, {mode: new Crypto.mode.OFB(Crypto.pad.iso7816), iterations : 1});
 
         if (decoded != null && decoded.length > 0) {
             if (success(decoded)) {
@@ -2146,7 +2148,7 @@ function deleteAddresses(addrs) {
         }, 1000);
     });
 
-    modal.on('hidden', function () {
+    modal.unbind().on('hidden', function () {
         if (interval) {
             isCancelled = true;
             clearInterval(interval);
@@ -2869,22 +2871,6 @@ function bind() {
         })
     });
 
-    $('#send-qr').on('show', function() {
-        //WebCam
-        loadScript(resource + 'wallet/llqrcode.js', function() {
-            loadScript(resource + 'wallet/qr.code.reader.js', function() {
-                //Flash QR Code Reader
-                var interval = initQRCodeReader('send-qr-reader', function(code){
-
-                    clearInterval(interval);
-
-                    console.log(code);
-
-                }, resource + 'wallet/');
-            });
-        });
-    });
-
     $('#send-custom').on('show',  function(e, reset) {
         var self = $(this);
 
@@ -3156,7 +3142,7 @@ function bind() {
 
                     var addresses_array = getAllAddresses();
 
-                    popup.document.write('<!DOCTYPE html><html><head></head><body><h1>'+addresses_array.length+' Active Addresses</h1></body></html>');
+                    popup.document.write('<!DOCTYPE html><html><head></head><body><h1>Paper Wallet</h1></body></html>');
 
                     var container = $('body', popup.document);
 
@@ -3172,16 +3158,11 @@ function bind() {
 
                             ++ii;
 
-                            var mode = 'Online Mode';
 
-                            if (addr.tag == 1) {
-                                mode = 'Offline Mode';
-                            } else if (addr.tag == 2) {//Skip archived
+                            if (addr.tag == 2) {//Skip archived
                                 setTimeout(append, 10);
                                 return;
-                            }
-
-                            if (addr.priv == null) {
+                            } else if (addr.priv == null) {
                                 setTimeout(append, 10);
                                 return;
                             }
@@ -3203,7 +3184,7 @@ function bind() {
                             if (addr.label != null)
                                 label = addr.label + ' - ';
 
-                            var body = $('<td style="padding-top:25px;"><h3>' + addr.addr + '</h3><br /><small><p><b>' + display_pk + '</b></p></small><br /><p>' + mode + '</p><br /><p>'+label+'Balance ' + formatBTC(addr.balance) + ' BTC</p> </td>', popup.document);
+                            var body = $('<td><h3>' + addr.addr + '</h3><small><p><b>' + display_pk + '</b></p></small><p>'+label+'Balance ' + formatBTC(addr.balance) + ' BTC</p> </td>', popup.document);
 
                             row.append(body);
 

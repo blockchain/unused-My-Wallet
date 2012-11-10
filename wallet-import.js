@@ -146,9 +146,15 @@ function handleFileSelect(evt) {
                         getPassword($('#import-password-modal'), function(password) {
                             addresses = [];
 
+                            $('.loading-indicator').fadeIn(200);
+
                             importJSON(e.target.result, {password : password}, function() {
+                                $('.loading-indicator').fadeOut(200);
+
                                 insertWallet();
                             }, function(e) {
+                                $('.loading-indicator').fadeOut(200);
+
                                 makeNotice('error', 'misc-error', e);
                             });
                         });
@@ -167,9 +173,15 @@ function handleFileSelect(evt) {
                             uploadWallet(root + 'upload_wallet', f, function(response) {
                                 addresses = [];
 
+                                $('.loading-indicator').fadeIn(200);
+
                                 importJSON(response, {}, function() {
+                                    $('.loading-indicator').fadeOut(200);
+
                                     insertWallet();
                                 }, function(e) {
+                                    $('.loading-indicator').fadeOut(200);
+
                                     makeNotice('error', 'misc-error', e);
                                 });
                             }, function(response) {

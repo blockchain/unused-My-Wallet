@@ -79,7 +79,7 @@ Bitcoin.ECKey = (function () {
 
     ECKey.prototype.getPubCompressed = function () {
         if (this.pubCompressed) return this.pubCompressed;
-        return this.pubCompressed = ecparams.getG().multiply(this.priv).getEncoded(1);
+        return this.pubCompressed = this.getPubPoint().getEncoded(1);
     };
 
     ECKey.prototype.getPubKeyHashCompressed = function () {
