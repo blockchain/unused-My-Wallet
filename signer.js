@@ -125,14 +125,12 @@ function showPrivateKeyModal(success, error, addr) {
     });
 
     modal.unbind().on('hide', function() {
-        try {
-        if (scanned_key)
-            success(scanned_key);
-        else
-            error(error_msg);
-        } catch (e) {
-            console.log(e);
-        }
+        setTimeout(function() {
+            if (scanned_key)
+                success(scanned_key);
+            else
+                error(error_msg);
+        }, 10);
     });
 
     modal.find('.btn.btn-secondary').unbind().click(function() {
