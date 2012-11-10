@@ -89,7 +89,6 @@ function showPrivateKeyModal(success, error, addr) {
                     }
 
                     clearInterval(interval);
-
                 } catch(e) {
                     error_msg = 'Error decoding private key ' + e;
                 }
@@ -122,19 +121,16 @@ function showPrivateKeyModal(success, error, addr) {
         }
 
         modal.modal('hide');
-    });
 
-    modal.unbind().on('hide', function() {
-        setTimeout(function() {
-            if (scanned_key)
-                success(scanned_key);
-            else
-                error(error_msg);
-        }, 10);
+        if (scanned_key)
+            success(scanned_key);
+        else
+            error(error_msg);
     });
 
     modal.find('.btn.btn-secondary').unbind().click(function() {
         modal.modal('hide');
+        error('User Cancelled');
     });
 }
 
@@ -1412,7 +1408,7 @@ function initNewTx() {
                             }
                         }
 
-                        if (self.from_addresses != null && self.from_addresses.length > 0 && $.inArray(addr, self.from_addresses) == -1) {
+                        if (self.from_addresses != null && $.inArray(addr, self.from_addresses) == -1) {
                             continue;
                         }
 

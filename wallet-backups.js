@@ -39,7 +39,6 @@ function appendModals() {
     if ($('#import-password-modal').length == 0)
         $('body').append('<div id="import-password-modal" class="modal hide">\
         <div class="modal-header">\
-        <button type="button" class="close" data-dismiss="modal">×</button>\
         <h3>Wallet Password</h3>\
         </div>\
         <div class="modal-body">\
@@ -58,7 +57,6 @@ function appendModals() {
     if ($('#import-second-password-modal').length == 0)
         $('body').append('<div id="import-second-password-modal" class="modal hide">\
         <div class="modal-header">\
-        <button type="button" class="close" data-dismiss="modal">×</button>\
         <h3>Wallet Second Password</h3>\
         </div>\
         <div class="modal-body">\
