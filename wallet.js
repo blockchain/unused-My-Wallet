@@ -623,7 +623,9 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
                 input = this.inputs[i];
 
                 if (input.prev_out == null || input.prev_out.addr == null) {
-                    html += '<li>No Input (Newly Generated Coins)</li>';
+                    all_from_self = false;
+
+                    html += '<span class="label">Newly Generated Coins</span>';
                 } else {
 
                     //Don't Show sent from
@@ -636,8 +638,6 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
                     html += formatOutput(input.prev_out, myAddresses, addresses_book);
                 }
             }
-        } else {
-            html += '<li>No inputs, transaction probably sent from this.</li>';
         }
     } else if (result < 0) {
         for (var i = 0; i < this.out.length; i++) {
@@ -2695,7 +2695,7 @@ function bind() {
                                 BlockchainAPI.get_history();
                             });
 
-                            makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr);
+                            makeNotice('success', 'added-address', 'Added bitcoin address ' + addr);
                         } else {
                             throw 'Unable to add private key for bitcoin address ' + addr;
                         }

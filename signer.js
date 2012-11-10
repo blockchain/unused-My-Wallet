@@ -87,19 +87,20 @@ function showPrivateKeyModal(success, error, addr) {
                     if (scanned_key == null) {
                         throw 'Error decoding private key';
                     }
-
-                    clearInterval(interval);
                 } catch(e) {
                     error_msg = 'Error decoding private key ' + e;
                 }
 
                 modal.modal('hide');
 
-            }, resource + 'wallet/');
+                if (scanned_key)
+                    success(scanned_key);
+                else
+                    error(error_msg);
 
-            modal.unbind().on('hidden', function () {
                 clearInterval(interval);
-            });
+
+            }, resource + 'wallet/');
         });
     });
 
