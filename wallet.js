@@ -918,7 +918,7 @@ var BlockchainAPI = {
 
         $.ajax({
             type: "POST",
-            url: root +'multiaddr?filter='+tx_filter+'&offset='+tx_page*50,
+            url: root +'multiaddr?format=json&filter='+tx_filter+'&offset='+tx_page*50,
             data: {'active' : getActiveAddresses().join('|'), 'archived' : getArchivedAddresses().join('|') },
             converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": $.parseXML},
             success: function(data) {
