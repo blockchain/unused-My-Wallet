@@ -396,16 +396,29 @@ function bindAccountButtons() {
         $('#wallet-email').trigger('change');
     });
 
+    var previous_email = '';
     $('#wallet-email').unbind().change(function(e) {
 
-        var email = $(this).val();
+        var email = $.trim($(this).val());
+
+        if (email.length == 0)
+            return;
+
+        if (previous_email == email)
+            return;
 
         if (!validateEmail(email)) {
             makeNotice('error', 'misc-error', 'Email address is not valid');
             return;
         }
 
-        updateKV('Updating Email', 'update-email', email);
+        updateKV('Updating Email', 'update-email', email, function() {
+            previous_email = email;
+        }, function() {
+            previous_email = '';
+        });
+
+        previous_email = email;
 
         $('#verify-email').show(200);
         $('#email-verified').hide();
