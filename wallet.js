@@ -610,17 +610,17 @@ function openTransactionSummaryModal(txIndex, result) {
     });
 }
 
-Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
+function getCompactHTML(tx, myAddresses, addresses_book) {
 
-    var result = this.result;
+    var result = tx.result;
 
-    var html = '<tr class="pointer" onclick=\'openTransactionSummaryModal('+this.txIndex+', '+this.result+')\'><td class="hidden-phone"><ul style="margin-left:0px;" class="short-addr">';
+    var html = '<tr class="pointer" onclick=\'openTransactionSummaryModal('+tx.txIndex+', '+tx.result+')\'><td class="hidden-phone"><ul style="margin-left:0px;" class="short-addr">';
 
     var all_from_self = true;
     if (result > 0) {
-        if (this.inputs.length > 0) {
-            for (var i = 0; i < this.inputs.length; i++) {
-                input = this.inputs[i];
+        if (tx.inputs.length > 0) {
+            for (var i = 0; i < tx.inputs.length; i++) {
+                input = tx.inputs[i];
 
                 if (input.prev_out == null || input.prev_out.addr == null) {
                     all_from_self = false;
@@ -640,16 +640,16 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
             }
         }
     } else if (result < 0) {
-        for (var i = 0; i < this.out.length; i++) {
+        for (var i = 0; i < tx.out.length; i++) {
 
             //Don't Show sent to self
-            var my_addr = myAddresses[this.out[i].addr];
-            if (this.out.length > 1 && this.out[i].type == 0 && my_addr && my_addr.tag != 2)
+            var my_addr = myAddresses[tx.out[i].addr];
+            if (tx.out.length > 1 && tx.out[i].type == 0 && my_addr && my_addr.tag != 2)
                 continue;
 
             all_from_self = false;
 
-            html += formatOutput(this.out[i], myAddresses, addresses_book);
+            html += formatOutput(tx.out[i], myAddresses, addresses_book);
         }
     }
 
@@ -659,18 +659,18 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
     html += '</ul></td><td>';
 
 
-    if (this.note) {
-        html += '<img src="'+resource+'note.png" class="pop" title="Note" data-content="'+this.note+'."> ';
+    if (tx.note) {
+        html += '<img src="'+resource+'note.png" class="pop" title="Note" data-content="'+tx.note+'."> ';
     }
 
-    if (this.time > 0) {
-        html += dateToString(new Date(this.time * 1000));
+    if (tx.time > 0) {
+        html += dateToString(new Date(tx.time * 1000));
     }
 
-    if (this.confirmations == 0) {
+    if (tx.confirmations == 0) {
         html += ' <span class="label label-important pull-right hidden-phone">Unconfirmed Transaction!</span> ';
-    } else if (this.confirmations > 0) {
-        html += ' <span class="label label-info pull-right hidden-phone">' + this.confirmations + ' Confirmations</span> ';
+    } else if (tx.confirmations > 0) {
+        html += ' <span class="label label-info pull-right hidden-phone">' + tx.confirmations + ' Confirmations</span> ';
     }
 
     html += '</td>';
@@ -682,10 +682,10 @@ Transaction.prototype.getCompactHTML = function(myAddresses, addresses_book) {
     else
         html += '<td>' + formatMoney(result, true) + '</td>';
 
-    if (this.balance == null)
+    if (tx.balance == null)
         html += '<td></td>';
     else
-        html += '<td class="hidden-phone">' + formatMoney(this.balance) + '</td>';
+        html += '<td class="hidden-phone">' + formatMoney(tx.balance) + '</td>';
 
     html += '</tr>';
 
@@ -791,7 +791,7 @@ function buildTransactionsView() {
             }
 
             if (tx_display == 0) {
-                html += tx.getCompactHTML(addresses, address_book);
+                html += getCompactHTML(tx, addresses, address_book);
             } else {
                 html += tx.getHTML(addresses, address_book);
             }
@@ -1703,7 +1703,9 @@ function decrypt(data, password, success, error) {
                 return decoded;
             };
         };
-    } catch (e) {}
+    } catch (e) {
+        console.log(e);
+    }
 
     //OFB iso7816 padding with one iteration
     try {
@@ -1715,7 +1717,9 @@ function decrypt(data, password, success, error) {
                 return decoded;
             };
         };
-    } catch (e) {}
+    } catch (e) {
+        console.log(e);
+    }
 
     //iso10126 padding with one iteration
     try {
@@ -1726,7 +1730,9 @@ function decrypt(data, password, success, error) {
                 return decoded;
             };
         };
-    } catch (e) {}
+    } catch (e) {
+        console.log(e);
+    }
 
     if (error != null)
         error();
@@ -2231,8 +2237,10 @@ function showAddressModal(address, func) {
 }
 
 function showPaymentRequest(address) {
-    loadScript(resource + 'wallet/payment-request.js', function() {
-        showPaymentRequestModal(address, 'Payment Request');
+    showFrameModal({
+        title : 'Create Payment Request',
+        description : 'Request Payment into address <b>'+address+'</b>',
+        src : root + 'payment_request?address='+address
     });
 }
 
@@ -2503,16 +2511,27 @@ function bind() {
 
     $('.deposit-btn').click(function() {
         var self = $(this);
-        loadScript(resource + 'wallet/deposit/deposit.js', function() {
-            showDepositModal(getPreferredAddress().addr, self.data('type'), self.data('title'), self.data('link'));
+        var address = getPreferredAddress().addr;
+        loadScript(resource + 'wallet/frame-modal.js', function() {
+            showFrameModal({
+                title : self.data('title'),
+                description : 'Deposit into address <b>'+address+'</b>',
+                top_right : 'Have Questions? Read <a href="'+self.data('link')+'" target="new">How It Works</a>',
+                src : root + 'deposit?address='+address+'&ptype='+self.data('type')+'&guid='+guid+'&sharedKey='+sharedKey
+            });
         });
     });
 
     $('.withdraw-btn').click(function() {
         var self = $(this);
-        loadScript(resource + 'wallet/deposit/withdraw.js', function() {
-            getSecondPassword(function() {
-                showWithdrawModal(getPreferredAddress().addr, self.data('type'), self.data('title'), final_balance);
+        getSecondPassword(function() {
+            var address = getPreferredAddress().addr;
+            loadScript(resource + 'wallet/frame-modal.js', function() {
+                showFrameModal({
+                    title : self.data('title'),
+                    description : 'Your Wallet Balance is <b>'+formatBTC(final_balance)+' BTC</b>',
+                    src : root + 'withdraw?method='+self.data('type')+'&address='+address+'&balance='+final_balance+'&guid='+guid+'&sharedKey='+sharedKey
+                });
             });
         });
     });
@@ -3156,10 +3175,11 @@ function bind() {
                         try {
                             var addr = addresses[addresses_array[ii]];
 
+                            if (!addr) return;
+
                             ++ii;
 
-
-                            if (addr.tag == 2) {//Skip archived
+                            if (addr.tag && addr.tag == 2) {//Skip archived
                                 setTimeout(append, 10);
                                 return;
                             } else if (addr.priv == null) {
@@ -3408,7 +3428,6 @@ $(document).ready(function() {
     //Load data attributes from html
     encrypted_wallet_data = body.data('payload');
     guid = body.data('guid');
-    war_checksum = body.data('war-checksum');
     sharedKey = body.data('sharedkey');
     payload_checksum =  body.data('payload-checksum');
 

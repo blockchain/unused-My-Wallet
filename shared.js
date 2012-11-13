@@ -1,4 +1,4 @@
-var satoshi = parseInt(100000000); //One satoshi
+var satoshi = 100000000; //One satoshi
 var show_adv = false;
 var adv_rule;
 var our_address = '1A8JiWcwvpY7tAopUkSnGuEYHmzGYfZPiq'; //Address for fees and what not
@@ -16,8 +16,9 @@ if (!window.console) {
         "group", "groupEnd", "time", "timeEnd", "count", "trace", "profile", "profileEnd"];
 
     window.console = {};
-    for (var i = 0; i < names.length; ++i)
-        window.console[names[i]] = function() {}
+    for (var i = 0; i < names.length; ++i) {
+        window.console[names[i]] = function() {};
+    }
 }
 
 function getWebSocketURL() {
@@ -28,63 +29,186 @@ function getSecureWebSocketURL() {
     return "wss://blockchain.info/inv";
 }
 
-function Transaction () { };
-function Block () { };
-
 function BlockFromJSON(json) {
-    var block = new Block();
-
-    block.hash = json.hash;
-    block.time = json.time;
-    block.blockIndex = json.blockIndex;
-    block.height = json.height;
-    block.txIndex = json.txIndexes;
-    block.totalBTCSent = json.totalBTCSent;
-    block.foundBy = json.foundBy;
-    block.size = json.size;
-
-    return block;
+    return {
+        hash : json.hash,
+        time : json.time,
+        blockIndex : json.blockIndex,
+        height : json.height,
+        txIndex : json.txIndexes,
+        totalBTCSent : json.totalBTCSent,
+        foundBy : json.foundBy,
+        size : json.size
+    };
 }
 
 function TransactionFromJSON(json) {
+    return {
+        hash : json.hash,
+        size : json.size,
+        txIndex : json.tx_index,
+        time : json.time,
+        inputs : json.inputs,
+        out : json.out,
+        blockIndex : json.block_index,
+        result : json.result,
+        blockHeight : json.block_height,
+        balance : json.balance,
+        double_spend : json.double_spend,
+        note : json.note,
+        setConfirmations : function(n_confirmations) {
+            this.confirmations = n_confirmations;
+        },
+        getHTML : function(myAddresses, addresses_book) {
+            var result = this.result;
 
-    var tx = new Transaction();
+            var html = '<div id="tx-'+this.txIndex+'" style="margin-top:10px;">';
 
-    tx.hash = json.hash;
-    tx.size = json.size;
-    tx.txIndex = json.tx_index;
-    tx.time = json.time;
-    tx.inputs = json.inputs;
-    tx.out = json.out;
-    tx.blockIndex = json.block_index;
-    tx.result = json.result;
-    tx.blockHeight = json.block_height;
-    tx.balance = json.balance;
-    tx.double_spend = json.double_spend;
-    tx.note = json.note;
+            if (this.note) {
+                html += '<div class="alert note">'+this.note+'</div>';
+            }
 
-    return tx;
+            html += '<table class="table table-striped" cellpadding="0" cellspacing="0" style="padding:0px;float:left;margin:0px;"><tr><th colspan="4"><div class="hash-link"><a target="new" href="'+root+'tx/'+this.hash+'">'+this.hash+'</a></div> <span style="float:right"><span class="can-hide"><b>';
+
+            if (this.time > 0) {
+                var date = new Date(this.time * 1000);
+
+                html += dateToString(date);
+            }
+
+            var tclass;
+            if (result < 0)
+                tclass = 'class="txtd hidden-phone"';
+            else
+                tclass = 'class="txtd"';
+
+            html += '</b></span></th></tr><tr><td '+ tclass +'>';
+
+            if (this.inputs.length > 0) {
+                for (var i = 0; i < this.inputs.length; i++) {
+                    input = this.inputs[i];
+
+                    if (input.prev_out == null || input.prev_out.addr == null) {
+                        html += 'No Input (Newly Generated Coins)<br />';
+                    } else {
+                        html += formatOutput(input.prev_out, myAddresses, addresses_book);
+                    }
+                }
+            } else {
+                html += 'No inputs, transaction probably sent from self.<br />';
+            }
+
+            html += '</td><td width="48px" class="hidden-phone" style="padding:4px;text-align:center;vertical-align:middle;">';
+
+            if (result == null) {
+                result = 0;
+                for (var i = 0; i < this.out.length; i++) {
+                    result += this.out[i].value;
+                }
+            }
+
+            var button_class;
+            if (result == null || result > 0) {
+                button_class = 'btn btn-success';
+                html += '<img src="'+resource+'arrow_right_green.png" />';
+            } else if (result < 0) {
+                button_class = 'btn btn-danger';
+                html += '<img src="'+resource+'arrow_right_red.png" />';
+            } else  {
+                button_class = 'btn';
+                html += '&nbsp;';
+            }
+
+            if (result >= 0)
+                tclass = 'class="txtd hidden-phone"';
+            else
+                tclass = 'class="txtd"';
+
+            html += '</td><td width="360px" '+tclass+'>';
+
+            var escrow_n = null;
+            var escrow_addr = null;
+            for (var i = 0; i < this.out.length; i++) {
+                var out = this.out[i];
+                if (out.type > 0 && !out.spent && escrow_n == null) {
+                    var myAddr = myAddresses[out.addr];
+
+                    if (myAddr == null)
+                        myAddr = myAddresses[out.addr2];
+
+                    if (myAddr == null)
+                        myAddr = myAddresses[out.addr3];
+
+                    if (myAddr != null && myAddr.priv != null) {
+                        escrow_n = i;
+                        escrow_addr = myAddr;
+                    }
+                }
+
+                html += formatOutput(out, myAddresses, addresses_book);
+            }
+
+            html += '</td><td width="140px" style="text-align:right" class="txtd">';
+
+            for (var i = 0; i < this.out.length; i++) {
+                output = this.out[i];
+                html += '<span class="hidden-phone">' + formatMoney(output.value, true) +'</span><br />';
+            }
+
+            html += '</td></tr></table><span style="float:right;padding-bottom:30px;clear:both;">';
+
+            if (this.confirmations == null) {
+                html += '<button style="display:none"></button> ';
+            } else if (this.confirmations == 0) {
+                html += '<button class="btn btn-danger">Unconfirmed Transaction!</button> ';
+            } else if (this.confirmations > 0) {
+                html += '<button class="btn btn-primary">' + this.confirmations + ' Confirmations</button> ';
+            }
+
+            html += '<button class="'+button_class+'" onclick="toggleSymbol()">' + formatMoney(result, true) + '</button>';
+
+            if (this.double_spend == true) {
+                html += '<button class="btn btn-danger">Double Spend</button> ';
+            }
+
+            //Only show for My Wallet
+            if (myAddresses != null && !offline) {
+                if (escrow_n != null && this.confirmations != 0) {
+
+                    var priv = '';
+                    if (escrow_addr != null)
+                        priv = escrow_addr.priv;
+
+                    html += '<button class="btn btn-info" onclick="openEscrow('+this.txIndex+', '+escrow_n+', \''+priv+'\')">Redeem / Release</button>';
+                }
+
+                if (this.confirmations == 0) {
+                    html += '<button class="btn" style="padding-top:4px;padding-bottom:4px;padding-left:7px;padding-right:7px;margin:5px""><img src="'+resource+'network.png" /></button> ';
+                }
+            }
+
+            html += '</span></div>';
+
+            return html;
+        }
+    };
 }
 
-Transaction.prototype.setConfirmations = function(n_confirmations) {
-    this.confirmations = n_confirmations;
+Date.prototype.sameDayAs = function(pDate){
+    return ((this.getFullYear()==pDate.getFullYear())&&(this.getMonth()==pDate.getMonth())&&(this.getDate()==pDate.getDate()));
 };
 
 function padStr(i) {
     return (i < 10) ? "0" + i : "" + i;
-};
-
-Date.prototype.sameDayAs = function(pDate){
-    return ((this.getFullYear()==pDate.getFullYear())&&(this.getMonth()==pDate.getMonth())&&(this.getDate()==pDate.getDate()));
 }
 
 function dateToString(d) {
     if (d.sameDayAs(new Date())) {
         return 'Today ' + padStr(d.getHours()) + ':' + padStr(d.getMinutes()) + ':' + padStr(d.getSeconds());
-    }  else {
+    } else {
         return padStr(d.getFullYear()) + '-' + padStr(1 + d.getMonth()) + '-' + padStr(d.getDate()) + ' ' + padStr(d.getHours()) + ':' + padStr(d.getMinutes()) + ':' + padStr(d.getSeconds());
     }
-};
+}
 
 function formatBTC(value) {
     if (value == null)
@@ -202,164 +326,6 @@ function openEscrow(txIndex, escrow_n, priv) {
     }
 }
 
-Transaction.prototype.getHTML = function(myAddresses, addresses_book) {
-
-    var result = this.result;
-
-    var html = '<div id="tx-'+this.txIndex+'" style="margin-top:10px;">';
-
-    if (this.note) {
-        html += '<div class="alert note">'+this.note+'</div>';
-    }
-
-    html += '<table class="table table-striped" cellpadding="0" cellspacing="0" style="padding:0px;float:left;margin:0px;"><tr><th colspan="4"><div class="hash-link"><a target="new" href="'+root+'tx/'+this.hash+'">'+this.hash+'</a></div> <span style="float:right"><span class="can-hide"><b>';
-
-    if (this.time > 0) {
-        var date = new Date(this.time * 1000);
-
-        html += dateToString(date);
-    }
-
-    var tclass = '';
-    if (result < 0)
-        tclass = 'class="txtd hidden-phone"';
-    else
-        tclass = 'class="txtd"';
-
-    html += '</b></span></th></tr><tr><td '+ tclass +'>';
-
-    if (this.inputs.length > 0) {
-        for (var i = 0; i < this.inputs.length; i++) {
-            input = this.inputs[i];
-
-            if (input.prev_out == null || input.prev_out.addr == null) {
-                html += 'No Input (Newly Generated Coins)<br />';
-            } else {
-                html += formatOutput(input.prev_out, myAddresses, addresses_book);
-            }
-        }
-    } else {
-        html += 'No inputs, transaction probably sent from self.<br />';
-    }
-
-    html += '</td><td width="48px" class="hidden-phone" style="padding:4px;text-align:center;vertical-align:middle;">';
-
-    if (result == null) {
-        result = 0;
-        for (var i = 0; i < this.out.length; i++) {
-            result += this.out[i].value;
-        }
-    }
-
-    var button_class;
-    if (result == null || result > 0) {
-        button_class = 'btn btn-success';
-        html += '<img src="'+resource+'arrow_right_green.png" />';
-    } else if (result < 0) {
-        button_class = 'btn btn-danger';
-        html += '<img src="'+resource+'arrow_right_red.png" />';
-    } else  {
-        button_class = 'btn';
-        html += '&nbsp;';
-    }
-
-    var tclass = '';
-    if (result >= 0)
-        tclass = 'class="txtd hidden-phone"';
-    else
-        tclass = 'class="txtd"';
-
-    html += '</td><td width="360px" '+tclass+'>';
-
-    var escrow_n = null;
-    var escrow_addr = null;
-    for (var i = 0; i < this.out.length; i++) {
-        var out = this.out[i];
-        if (out.type > 0 && !out.spent && escrow_n == null) {
-            var myAddr = myAddresses[out.addr];
-
-            if (myAddr == null)
-                myAddr = myAddresses[out.addr2];
-
-            if (myAddr == null)
-                myAddr = myAddresses[out.addr3];
-
-            if (myAddr != null && myAddr.priv != null) {
-                escrow_n = i;
-                escrow_addr = myAddr;
-            }
-        }
-
-        html += formatOutput(out, myAddresses, addresses_book);
-    }
-
-    html += '</td><td width="140px" style="text-align:right" class="txtd">';
-
-    for (var i = 0; i < this.out.length; i++) {
-        output = this.out[i];
-        html += '<span class="hidden-phone">' + formatMoney(output.value, true) +'</span><br />';
-    }
-
-    html += '</td></tr></table><span style="float:right;padding-bottom:30px;clear:both;">';
-
-    if (this.confirmations == null) {
-        html += '<button style="display:none"></button> ';
-    } else if (this.confirmations == 0) {
-        html += '<button class="btn btn-danger">Unconfirmed Transaction!</button> ';
-    } else if (this.confirmations > 0) {
-        html += '<button class="btn btn-primary">' + this.confirmations + ' Confirmations</button> ';
-    }
-
-    html += '<button class="'+button_class+'" onclick="toggleSymbol()">' + formatMoney(result, true) + '</button>';
-
-    if (this.double_spend == true) {
-        html += '<button class="btn btn-danger">Double Spend</button> ';
-    }
-
-    //Only show for My Wallet
-    if (myAddresses != null && !offline) {
-        if (escrow_n != null && this.confirmations != 0) {
-
-            var priv = '';
-            if (escrow_addr != null)
-                priv = escrow_addr.priv;
-
-            html += '<button class="btn btn-info" onclick="openEscrow('+this.txIndex+', '+escrow_n+', \''+priv+'\')">Redeem / Release</button>';
-        }
-
-        if (this.confirmations == 0) {
-            html += '<button class="btn" style="padding-top:4px;padding-bottom:4px;padding-left:7px;padding-right:7px;margin:5px""><img src="'+resource+'network.png" /></button> ';
-        }
-    }
-
-    html += '</span></div>';
-
-    return html;
-};
-
-function goToWallet(addr) {
-
-    if (localStorage) {
-        var guid = localStorage.getItem('guid');
-
-        if (guid != null) {
-            if (addr == null) {
-                window.location='https://blockchain.info/wallet/'+guid;
-            } else {
-                window.location='https://blockchain.info/wallet/'+guid+'#newaddr|'+addr;
-            }
-
-            return;
-        }
-    }
-
-    if (addr == null) {
-        window.location='https://blockchain.info/wallet';
-    } else {
-        window.location='https://blockchain.info/wallet/new#newaddr|'+addr;
-    }
-}
-
 function toggleAdv() {
     setAdv(!show_adv);
 }
@@ -426,6 +392,7 @@ function setupToggle() {
 $(document).ready(function() {
     symbol_btc = $.parseJSON($('#symbol-btc').text());
     symbol_local = $.parseJSON($('#symbol-local').text());
+    war_checksum = $('body').data('war-checksum');
 
     if (getCookie('local') == 'true') {
         symbol = symbol_local;

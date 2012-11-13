@@ -1,3 +1,30 @@
+
+function goToWallet(addr) {
+    try {
+        if (localStorage) {
+            var guid = localStorage.getItem('guid');
+
+            if (guid != null) {
+                if (addr == null) {
+                    window.location='https://blockchain.info/wallet/'+guid;
+                } else {
+                    window.location='https://blockchain.info/wallet/'+guid+'#newaddr|'+addr;
+                }
+
+                return;
+            }
+        }
+    } catch(e) {
+        console.log(e);
+    }
+
+    if (addr == null) {
+        window.location='https://blockchain.info/wallet';
+    } else {
+        window.location='https://blockchain.info/wallet/new#newaddr|'+addr;
+    }
+}
+
 $(document).ready(function() {
 
     $('#add-to-wallet').click(function() {
@@ -5,14 +32,34 @@ $(document).ready(function() {
     });
 
     $('#deposit').click(function() {
-        loadScript(resource + 'wallet/deposit/deposit.js', function() {
-            showDepositModal(address, 'bitinstant', 'Deposit Using Cash', 'https://www.bitinstant.com/howitworks/cash');
+        loadScript(resource + 'wallet/frame-modal.js', function() {
+            showFrameModal({
+                title : 'Deposit Using Cash',
+                description : 'Deposit into address <b>'+address+'</b>',
+                top_right : 'Have Questions? Read <a href="https://www.bitinstant.com/howitworks/cash" target="new">How It Works</a>',
+                src : root + 'deposit?address='+address+'&ptype=bitinstant'
+            });
         });
     });
 
     $('#payment-request').click(function() {
-        loadScript(resource + 'wallet/payment-request.js', function() {
-            showPaymentRequestModal(address, 'Payment Request');
+        loadScript(resource + 'wallet/frame-modal.js', function() {
+            showFrameModal({
+                title : 'Create Payment Request',
+                description : 'Request Payment into address <b>'+address+'</b>',
+                src : root + 'payment_request?address='+address
+            });
+        });
+    });
+
+    $('#create-donation-button').click(function() {
+        loadScript(resource + 'wallet/frame-modal.js', function() {
+            showFrameModal({
+                title : 'Create Donation Button',
+                description : 'Create Donation Button To Address <b>'+address+'</b>',
+                src : root + 'create_donation_button?address='+address,
+                height : '600px'
+            });
         });
     });
 
