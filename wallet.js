@@ -586,27 +586,12 @@ function setLatestBlock(block) {
 
 
 function openTransactionSummaryModal(txIndex, result) {
-
-    var modal = $('#summary-modal');
-
-    modal.modal({
-        keyboard: true,
-        backdrop: "static",
-        show: true
-    });
-
-    modal.find('.modal-body').empty().append('<iframe border="0" style="overflow-y:auto;border-style:none;width:100%;height:400px"></iframe>');
-
-    modal.center();
-
-    modal.find('iframe').attr('src', root + 'tx-summary/'+txIndex+'?result='+result+'&guid='+guid);
-
-    modal.find('.btn.btn-primary').unbind().click(function() {
-        modal.modal('hide');
-    });
-
-    modal.find('.btn.btn-secondary').unbind().click(function() {
-        modal.modal('hide');
+    loadScript(resource + 'wallet/frame-modal.js', function() {
+        showFrameModal({
+            title : 'Transaction Summary',
+            description : '',
+            src : root + 'tx-summary/'+txIndex+'?result='+result+'&guid='+guid
+        });
     });
 }
 
@@ -3255,8 +3240,8 @@ function bind() {
     $('.modal').on('show', function() {
         $(this).center();
     }).on('shown', function() {
-        $(this).center();
-    })
+            $(this).center();
+        })
 }
 
 function parseMiniKey(miniKey) {
