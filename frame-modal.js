@@ -10,17 +10,25 @@ $(window).resize(function() {
 });
 
 function showFrameModal(options) {
-    $('#frame-modal').remove();
+    var modal = $('#frame-modal');
+
+    try {
+        modal.modal('hide');
+
+        modal.remove();
+    } catch (e) {
+        console.log(e);
+    }
 
     var top_right = '';
     if (options.top_right) {
-       top_right = '<span style="float:right;padding-top:5px;padding-right:10px;">'+options.top_right+'</a></span>'
+        top_right = '<span style="float:right;padding-top:5px;padding-right:10px;">'+options.top_right+'</a></span>'
     }
 
-    if ($('#frame-modal').length == 0)
+    if (modal.length == 0)
         $('body').append('<div id="frame-modal" class="modal hide"><div class="modal-header"><button type="button" class="close" data-dismiss="modal">×</button>'+top_right+'<h3>'+options.title+'</h3></div><div class="modal-body" style="overflow-y:hidden;"><iframe border="0" scrolling="no" style="overflow-y:hidden;border-style:none;"></iframe></div><div class="modal-footer btn-group">'+options.description+' <a class="btn btn-secondary">Close</a></div></div>');
 
-    var modal = $('#frame-modal');
+    modal = $('#frame-modal');
 
     modal.modal({
         keyboard: true,

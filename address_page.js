@@ -63,13 +63,6 @@ $(document).ready(function() {
         });
     });
 
-    loadScript(resource + 'wallet/qr.code.creator.js', function() {
-        var canvas = makeQRCode(255,250, 1, address);
-
-        $('#qr-code').append(canvas);
-
-    });
-
     $('#filter').change(function(){
 
         console.log('Change');
