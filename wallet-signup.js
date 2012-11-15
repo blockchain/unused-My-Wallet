@@ -17,7 +17,8 @@ function generateNewWallet() {
         return false;
 
     try {
-        generateNewAddressAndKey();
+        if (getActiveAddresses().length == 0)
+            generateNewAddressAndKey();
 
         sharedKey = guidGenerator();
         guid = guidGenerator();
