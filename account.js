@@ -316,6 +316,38 @@ function getAccountInfo() {
                 makeNotice('error', 'misc-error', 'Error Downloading SMS Country Codes')
             });
 
+
+        try {
+            var html5_notifications_checkbox = $('#html5-notifications-checkbox');
+
+            html5_notifications_checkbox.change(function() {
+                if (!window.Notification) {
+                    makeNotice('error', 'misc-error', "Notifications are not supported for this Browser/OS version yet.");
+                    return;
+                }
+
+                if (window.Notification.permissionLevel() == "granted") {
+                    return makeNotice('success', 'misc-success', "HTML5 Notifications Enabled");
+                } else if (window.Notification.permissionLevel() == "default") {
+                    window.Notification.requestPermission(function () {
+                        if (window.Notification.permissionLevel() == "granted") {
+                            return makeNotice('success', 'misc-success', "HTML5 Notifications Enabled. Please Restart your browser.");
+                        } else {
+                            return makeNotice('error', 'misc-error', "HTML5 Notifications Denied");
+                        }
+                    });
+                }
+            });
+
+            if (window.Notification && window.Notification.permissionLevel() == "granted") {
+                html5_notifications_checkbox.attr('checked', true);
+            } else {
+                html5_notifications_checkbox.attr('checked', false);
+            }
+        } catch (e) {
+            console.log(e);
+        }
+
     }).error(function(data) {
             makeNotice('error', 'misc-error', data.responseText);
         });

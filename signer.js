@@ -1190,25 +1190,21 @@ function setReviewTransactionContent(modal, tx, type) {
                     continue;
 
                 //Our fees
-                if (address != our_address) {
-                    if (!isFirst) {
-                        basic_str += ' and ';
-                    }
-
-                    if (type && type == 'anonymous') {
-                        basic_str += '<b>' + formatBTC(val.toString())  + ' BTC</b> Anonymously';
-                    } else {
-                        basic_str += '<b>' + formatBTC(val.toString())  + ' BTC</b> to ' + formatAddresses(1, [address], true);
-                    }
-
-                    all_txs_to_self = false;
+                if (!isFirst) {
+                    basic_str += ' and ';
                 }
+
+                if (type && type == 'anonymous') {
+                    basic_str += '<b>' + formatBTC(val.toString())  + ' BTC</b> Anonymously';
+                } else {
+                    basic_str += '<b>' + formatBTC(val.toString())  + ' BTC</b> to ' + formatAddresses(1, [address], true);
+                }
+
+                all_txs_to_self = false;
             } else {
                 wallet_effect = wallet_effect.subtract(val);
 
-                if (address != our_address) {
-                    amount = amount.add(val);
-                }
+                amount = amount.add(val);
             }
         }
 

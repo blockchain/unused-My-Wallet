@@ -173,6 +173,16 @@ function _webSocketConnect() {
                         }
                     }
 
+                    try {
+                        if (window.Notification && window.Notification.permissionLevel() == "granted") {
+                            new window.Notification(result > 0 ? 'Payment Received' : 'Payment Sent', {
+                                body : 'Transaction Value ' + formatBTC(result) + ' BTC',
+                                iconUrl : resource + 'cube48.png'
+                            }).show();
+                        }
+                    } catch (e) {
+                       console.log(e);
+                    }
 
                     flashTitle('New Transaction');
 

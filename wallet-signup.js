@@ -17,11 +17,9 @@ function generateNewWallet() {
         return false;
 
     try {
-
         generateNewAddressAndKey();
 
         sharedKey = guidGenerator();
-
         guid = guidGenerator();
 
         if (guid.length != 36) {
@@ -29,26 +27,25 @@ function generateNewWallet() {
             return false;
         }
 
-        backupWallet('insert', function(){
+        var alias = encodeURIComponent($.trim($('#alias-value').val()));
+        var captcha_code = $.trim($('#captcha-value').val());
 
+        backupWallet('insert', function(){
             SetCookie('cguid', guid);
 
-            try {
-                localStorage.setItem('guid', guid);
-            } catch (e) {}
-
-            $('#password-strength').fadeOut(200);
-
-            changeView($("#new-wallet-success"));
-
-            $('#new-wallet-url').html('https://blockchain.info/wallet/' + guid);
-
-            isInitialized = true;
-        }, function() {
+            if (alias && alias.length > 0)
+                window.location = root + 'wallet/' + alias + window.location.hash;
+            else
+                window.location = root + 'wallet/' + guid + window.location.hash;
+        }, function(e) {
 
             $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
 
-        }, '?kaptcha='+$('#captcha-value').val());
+            $('#captcha-value').val('');
+
+            makeNotice('error', 'misc-error', e);
+
+        }, '?kaptcha='+encodeURIComponent(captcha_code)+'&alias='+alias);
 
         return true;
 

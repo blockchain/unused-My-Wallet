@@ -1,7 +1,6 @@
 var satoshi = 100000000; //One satoshi
 var show_adv = false;
 var adv_rule;
-var our_address = '1A8JiWcwvpY7tAopUkSnGuEYHmzGYfZPiq'; //Address for fees and what not
 var open_pk; //Passed to escrow window when redeeming a tx
 var symbol_btc; //BTC Currency Symbol object
 var symbol_local; //Users local currency object
@@ -263,27 +262,32 @@ function formatMoney(x, span) {
     return str;
 }
 
-function formatAddr(addr, myAddresses, addresses_book) {
-    var myAddr = null;
-    if (myAddresses != null)
-        myAddr = myAddresses[addr];
-
-    if (myAddr != null) {
-        if (myAddr.label != null)
-            return myAddr.label;
-        else
-            return addr;
-    } else {
-        if (addr == our_address)
-            return 'Blockchain.info';
-        else if (addresses_book != null && addresses_book[addr] != null)
-            return '<a target="new" href="'+root+'address/'+addr+'">'+addresses_book[addr]+'</a>';
-        else
-            return '<a target="new" href="'+root+'address/'+addr+'">'+addr+'</a>';
-    }
-}
-
 function formatOutput(output, myAddresses, addresses_book) {
+
+    function formatOut(addr, out) {
+        var myAddr = null;
+        if (myAddresses != null)
+            myAddr = myAddresses[addr];
+
+        if (myAddr != null) {
+            if (myAddr.label != null)
+                return myAddr.label;
+            else
+                return addr;
+        } else {
+            if (addresses_book && addresses_book[addr])
+                return '<a target="new" href="'+root+'address/'+addr+'">'+addresses_book[addr]+'</a>';
+            else if (out.addr_tag) {
+
+                if (out.addr_tag_link)
+                    return '<a target="new" href="'+root+'address/'+addr+'">'+addr.substring(0, 15)+'...</a> ('+out.addr_tag+' <a class="external" rel="nofollow" href="'+root + 'r?url='+out.addr_tag_link+'" target="new"></a>)';
+                else
+                    return '<a target="new" href="'+root+'address/'+addr+'">'+addr.substring(0, 15)+'...</a> ('+out.addr_tag+')';
+            } else {
+                return '<a target="new" href="'+root+'address/'+addr+'">'+addr+'</a>';
+            }
+        }
+    }
 
     //total_fees -= output.value;
     var str = '';
@@ -296,13 +300,13 @@ function formatOutput(output, myAddresses, addresses_book) {
     }
 
     if (output.addr != null)
-        str += formatAddr(output.addr, myAddresses, addresses_book);
+        str += formatOut(output.addr, output);
 
     if (output.addr2 != null)
-        str += ', ' + formatAddr(output.addr2, myAddresses, addresses_book);
+        str += ', ' + formatOut(output.addr2, output);
 
     if (output.addr3 != null)
-        str += ', ' + formatAddr(output.addr3, myAddresses, addresses_book);
+        str += ', ' + formatOut(output.addr3, output);
 
     if (output.type == 1 || output.type == 2 || output.type == 3) {
         str += ')';
