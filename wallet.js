@@ -727,6 +727,10 @@ function buildHomeIntroView(reset) {
 
     var preferred = getPreferredAddress();
 
+    $('#tweet-for-btc').unbind().click(function() {
+        window.open('https://twitter.com/share?url=https://blockchain.info/wallet&hashtags=tweet4btc,bitcoin,'+preferred.addr+'&text=Sign Up For a Free Bitcoin Wallet @ Blockchain.info', "", "toolbar=0, status=0, width=650, height=360");
+    });
+
     if (preferred.priv == null) {
         $('.no-watch-only').hide();
     } else {
@@ -736,7 +740,7 @@ function buildHomeIntroView(reset) {
         if (primary_address.text() != preferred.addr) {
             primary_address.text(preferred.addr);
 
-            $('#my-primary-addres-qr-code').html('<img style="padding-right:10px;padding-bottom:10px" src="'+root+'qr?data='+getPreferredAddress().addr+'&size=125">');
+            $('#my-primary-addres-qr-code').html('<img style="padding-right:10px;padding-bottom:10px" src="'+root+'qr?data='+preferred.addr+'&size=125">');
         }
     }
 }
@@ -1331,7 +1335,7 @@ function restoreWallet() {
     if (toffline) {
         try {
             if (localStorage == null) {
-                makeNotice('error', 'misc-error', 'Your browser does not support local stoage. Cannot login in offline mode.');
+                makeNotice('error', 'misc-error', 'Your browser does not support local storage. Cannot login in offline mode.');
                 return false;
             } else if (localStorage.getItem('multiaddr') != null) {
                 makeNotice('error', 'misc-error', 'Local storage not empty. Have you enabled private browsing?.');

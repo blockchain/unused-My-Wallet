@@ -37,9 +37,22 @@ function connect() {
 			
 			if (obj.op == 'minitx') {									
 				var tx = obj.x;
-										
-				$('<tr><td><div><a href="'+root+'tx/'+tx.hash+'">'+tx.hash.substring(0, 25)+'...</a></div></td><td class="hidden-phone" data-time="'+tx.time+'"><div>< 1 minute</div></td><td><div><button class="btn btn-success" onclick="toggleSymbol()">'+ formatMoney(tx.value, true) +'</button></div></td></tr>').insertAfter($('#txs tr:first')).find('div').hide().slideDown('slow');
-				
+
+                var label;
+                if (tx.tag) {
+                    label = '<a href="'+root+'tx/'+tx.hash+'">'+tx.hash.substring(0, 10)+'...</a> <span class="tag">('+tx.tag;
+
+                    if (tx.tag_link) {
+                      label += ' <a class="external" rel="nofollow" href="'+tx.tag_link+'" target="new"></a>';
+                    }
+
+                    label +=')</span>';
+                } else {
+                    label = '<a href="'+root+'tx/'+tx.hash+'">'+tx.hash.substring(0, 25)+'...</a>';
+                }
+
+				$('<tr><td><div>'+label+'</div></td><td class="hidden-phone" data-time="'+tx.time+'"><div>< 1 minute</div></td><td><div><button class="btn btn-success" onclick="toggleSymbol()">'+ formatMoney(tx.value, true) +'</button></div></td></tr>').insertAfter($('#txs tr:first')).find('div').hide().slideDown('slow');
+
 			    $('#txs tr:last-child').remove();
 			} else if (obj.op == 'block') {
 				var block = BlockFromJSON(obj.x);

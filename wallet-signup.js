@@ -8,7 +8,6 @@ function guidGenerator() {
 }
 
 function generateNewWallet() {
-
     if (isInitialized) {
         return false;
     }
@@ -58,7 +57,6 @@ function generateNewWallet() {
 }
 
 $(document).ready(function() {
-
     $('#intro-header').fadeOut(200);
     $('#intro-body').fadeOut(200);
 

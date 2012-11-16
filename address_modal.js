@@ -35,8 +35,6 @@ function verifyMessageModal() {
     });
 
 
-    console.log('Verify Message');
-
     modal.find('.address-result').hide();
 
     var message_textarea = modal.find('textarea[name="message"]');
