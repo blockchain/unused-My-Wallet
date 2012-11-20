@@ -379,11 +379,7 @@ function toggleSymbol() {
 
 function playSound(id) {
     try {
-        $('#sound').remove();
-
-        if (document.hasFocus) {
-            $('body').append('<embed id="sound" src="'+resource+id+'.wav" autostart="true" hidden="true" loop="false">');
-        }
+        new Audio(resource+id+'.wav').play();
     } catch (e) { }
 };
 

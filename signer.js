@@ -921,7 +921,7 @@ BlockchainAPI.get_unspent = function(fromAddresses, success, error) {
     $.ajax({
         type: "POST",
         url: root +'unspent',
-        data: {'addr[]' : fromAddresses, 'format' : 'json'},
+        data: {active : fromAddresses.join('|'), format : 'json'},
         converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": $.parseXML},
         success: function(data) {
             try {

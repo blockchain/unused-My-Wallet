@@ -317,40 +317,71 @@ function getAccountInfo() {
             });
 
 
-        try {
-            var html5_notifications_checkbox = $('#html5-notifications-checkbox');
+        //HTML 5 notifications request permission
+        var request_notification_permission = function(success, error, request) {
+            try {
+                if (window.webkitNotifications && navigator.userAgent.indexOf("Chrome") > -1) {
+                    var permission = webkitNotifications.checkPermission();
+                    if (permission == 1 && request) {
+                        webkitNotifications.requestPermission(request_notification_permission);
+                    } else if (permission == 0) {
+                        success();
+                    } else {
+                        error();
+                    }
 
-            html5_notifications_checkbox.change(function() {
-                if (!window.Notification) {
-                    makeNotice('error', 'misc-error', "Notifications are not supported for this Browser/OS version yet.");
-                    return;
+                } else if (window.Notification) {
+                    if (Notification.permissionLevel() === 'default' && request) {
+                        Notification.requestPermission(request_notification_permission);
+                    } else if (window.Notification.permissionLevel() == "granted") {
+                        success();
+                    } else {
+                        error();
+                    }
+                } else {
+                    error();
                 }
+            } catch (e) {
+                console.log(e);
 
-                if (window.Notification.permissionLevel() == "granted") {
-                    return makeNotice('success', 'misc-success', "HTML5 Notifications Enabled");
-                } else if (window.Notification.permissionLevel() == "default") {
-                    window.Notification.requestPermission(function () {
-                        if (window.Notification.permissionLevel() == "granted") {
-                            return makeNotice('success', 'misc-success', "HTML5 Notifications Enabled. Please Restart your browser.");
-                        } else {
-                            return makeNotice('error', 'misc-error', "HTML5 Notifications Denied");
-                        }
-                    });
-                }
-            });
-
-            if (window.Notification && window.Notification.permissionLevel() == "granted") {
-                html5_notifications_checkbox.attr('checked', true);
-            } else {
-                html5_notifications_checkbox.attr('checked', false);
+                error();
             }
-        } catch (e) {
-            console.log(e);
-        }
+        };
+
+        var html5_notifications_checkbox = $('#html5-notifications-checkbox');
+
+        html5_notifications_checkbox.change(function() {
+            if ($(this).is(':checked')) {
+                request_notification_permission(function() {
+                    makeNotice('success', 'misc-success', "HTML5 Notifications Enabled");
+
+                    html5_notifications = true;
+
+                    backupWallet();
+                }, function() {
+                    makeNotice('error', 'misc-error', "Error Enabling HTML5 Notifications");
+
+                    html5_notifications = false;
+
+                    backupWallet();
+
+                }, true);
+            } else {
+                html5_notifications = false;
+
+                backupWallet();
+            }
+        });
+
+        if (html5_notifications) {
+            html5_notifications_checkbox.attr('checked', true);
+        } else {
+            html5_notifications_checkbox.attr('checked', false);
+        };
 
     }).error(function(data) {
-            makeNotice('error', 'misc-error', data.responseText);
-        });
+        makeNotice('error', 'misc-error', data.responseText);
+    });
 }
 
 function bindAccountButtons() {

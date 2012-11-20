@@ -140,8 +140,6 @@ function showLabelAddressModal(addr) {
         show: true
     });
 
-    modal.find('.address').text(addr);
-
     var label_input = modal.find('input[name="label"]');
 
     modal.find('.address').text(addr);
@@ -156,7 +154,12 @@ function showLabelAddressModal(addr) {
         var label = $.trim($('<div>' + label_input.val() + '</div>').text());
 
         if (label.length == 0) {
-            makeNotice('error', 'misc-error', 'you must enter a label for the address');
+            makeNotice('error', 'misc-error', 'You must enter a label for the address');
+            return false;
+        }
+
+        if (label.indexOf("\"") != -1) {
+            makeNotice('error', 'misc-error', 'Label cannot contain double quotes');
             return false;
         }
 

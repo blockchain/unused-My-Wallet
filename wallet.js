@@ -29,6 +29,7 @@ var archTimer; //Delayed Backuop wallet timer
 var mixer_fee = 1.5; //Default mixer fee 1.5%
 var fee_policy = 0; //Default Fee policy (-1 Tight, 0 Normal, 1 High)
 var pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
+var html5_notifications = false;
 
 $.fn.center = function () {
     this.css("top", Math.max(( $(window).height() - this.height() ) / 2+$(window).scrollTop(), 10) + "px");
@@ -131,8 +132,8 @@ function _webSocketConnect() {
 
                     //Check if this is a duplicate
                     //Maybe should have a map_prev to check for possible double spends
-                    for (var i = 0; i < transactions.length; ++i) {
-                        if (transactions[i].txIndex == tx.txIndex)
+                    for (var key in transactions) {
+                        if (transactions[key].txIndex == tx.txIndex)
                             return;
                     }
 
@@ -141,8 +142,8 @@ function _webSocketConnect() {
                     /* Calculate the result */
                     var result = 0;
 
-                    for (var i = 0; i < tx.inputs.length; i++) {
-                        var input = tx.inputs[i];
+                    for (var key in tx.inputs) {
+                        var input = tx.inputs[key];
 
                         //If it is our address then subtract the value
                         var addr = addresses[input.prev_out.addr];
@@ -157,8 +158,8 @@ function _webSocketConnect() {
                         }
                     }
 
-                    for (var i = 0; i < tx.out.length; i++) {
-                        var output = tx.out[i];
+                    for (var key in tx.out) {
+                        var output = tx.out[key];
 
                         var addr = addresses[output.addr];
                         if (addr) {
@@ -173,18 +174,32 @@ function _webSocketConnect() {
                         }
                     }
 
-                    try {
-                        if (window.Notification && window.Notification.permissionLevel() == "granted") {
-                            new window.Notification(result > 0 ? 'Payment Received' : 'Payment Sent', {
+                    if (html5_notifications) {
+                        //Send HTML 5 Notification
+                        var send_notification = function(options) {
+                            try {
+                                if (window.webkitNotifications && navigator.userAgent.indexOf("Chrome") > -1) {
+                                    if (webkitNotifications.checkPermission() == 0) {
+                                        webkitNotifications.createNotification(options.iconUrl, options.title, options.body).show();
+                                    }
+                                } else if (window.Notification) {
+                                    if (Notification.permissionLevel() === 'granted') {
+                                        new Notification(options.title, options).show();
+                                    }
+                                }
+                            } catch (e) {}
+                        };
+
+                        try {
+                            send_notification({
+                                title : result > 0 ? 'Payment Received' : 'Payment Sent',
                                 body : 'Transaction Value ' + formatBTC(result) + ' BTC',
                                 iconUrl : resource + 'cube48.png'
-                            }).show();
+                            });
+                        } catch (e) {
+                            console.log(e);
                         }
-                    } catch (e) {
-                       console.log(e);
                     }
-
-                    flashTitle('New Transaction');
 
                     tx.result = result;
 
@@ -197,6 +212,8 @@ function _webSocketConnect() {
                     if (tx_filter == 0 && tx_page == 0) {
 
                         transactions.unshift(tx);
+
+                        transactions.pop();
 
                         //Meed to update transactions list
                         buildVisibleView();
@@ -344,6 +361,10 @@ function makeWalletJSON(format) {
 
     if (fee_policy != 0) {
         out += '	"fee_policy" : '+fee_policy+',\n';
+    }
+
+    if (html5_notifications) {
+        out += '	"html5_notifications" : '+html5_notifications+',\n';
     }
 
     out += '	"keys" : [\n';
@@ -581,17 +602,24 @@ function getArchivedAddresses() {
 
 function setLatestBlock(block) {
 
-    /*
-     $('#latest-block').show();
+    if (block != null) {
+        latest_block = block;
 
-     $('#latest-block-height').html(block.height);
+        for (var key in transactions) {
+            var tx = transactions[key];
 
-     var date = new Date(block.time * 1000);
-
-     $('#latest-block-time').html(dateToString(date));
-     */
-
-    latest_block = block;
+            if (tx.blockHeight != null && tx.blockHeight > 0) {
+                var confirmations = latest_block.height - tx.blockHeight + 1;
+                if (confirmations <= 100) {
+                    tx.setConfirmations(latest_block.height - tx.blockHeight + 1);
+                } else {
+                    tx.setConfirmations(null);
+                }
+            } else {
+                tx.setConfirmations(0);
+            }
+        }
+    }
 }
 
 
@@ -767,7 +795,7 @@ function buildTransactionsView() {
     var txcontainer = $('#transactions').empty();
 
     if (tx_display == 0) {
-        var table = $('<table class="table table-striped table-condensed table-hover"><tbody><tr><th class="hidden-phone">To / From</th><th>Date</th><th>Amount</th><th class="hidden-phone">Balance</th></tr></tbody></table>');
+        var table = $('<table class="table table-striped table-condensed table-hover"><tbody><tr><th class="hidden-phone" style="min-width:365px">To / From</th><th>Date</th><th style="min-width:152px">Amount</th><th class="hidden-phone">Balance</th></tr></tbody></table>');
 
         txcontainer.append(table);
         txcontainer = table;
@@ -776,18 +804,9 @@ function buildTransactionsView() {
     var buildSome = function() {
         var html = '';
 
-        for (var i = start; i < transactions.length && i < (start+5); ++i) {
+        for (var i = start; i < transactions.length && i < (start+10); ++i) {
 
             var tx = transactions[i];
-
-            if (tx.blockHeight != null && tx.blockHeight > 0 && latest_block != null) {
-                var confirmations = latest_block.height - tx.blockHeight + 1;
-                if (confirmations <= 100) {
-                    tx.setConfirmations(latest_block.height - tx.blockHeight + 1);
-                }
-            } else {
-                tx.setConfirmations(0);
-            }
 
             if (tx_display == 0) {
                 html += getCompactHTML(tx, addresses, address_book);
@@ -798,10 +817,10 @@ function buildTransactionsView() {
 
         txcontainer.append(html);
 
-        start += 5;
+        start += 10;
 
         if (start < transactions.length) {
-            interval = setTimeout(buildSome, 1);
+            interval = setTimeout(buildSome, 10);
         } else {
             buildPopovers(); //Build the note popover
         }
@@ -860,23 +879,6 @@ function setPage(i) {
 function parseMultiAddressJSON(json, cached) {
     var obj = $.parseJSON(json);
 
-    if (obj.info) {
-        $('#nodes-connected').html(obj.info.nconnected);
-
-        if (obj.info.latest_block != null)
-            setLatestBlock(obj.info.latest_block);
-
-        var new_symbol_local = obj.info.symbol_local;
-
-        if (symbol == symbol_local) {
-            symbol_local = new_symbol_local;
-            symbol = new_symbol_local;
-            calcMoney();
-        } else if (!cached) {
-            symbol_local = new_symbol_local;
-        }
-    }
-
     if (!cached) {
         mixer_fee = obj.mixer_fee;
     }
@@ -905,6 +907,23 @@ function parseMultiAddressJSON(json, cached) {
 
     for (var i = 0; i < obj.txs.length; ++i) {
         transactions.push(TransactionFromJSON(obj.txs[i]));
+    }
+
+    if (obj.info) {
+        $('#nodes-connected').html(obj.info.nconnected);
+
+        if (obj.info.latest_block != null)
+            setLatestBlock(obj.info.latest_block);
+
+        var new_symbol_local = obj.info.symbol_local;
+
+        if (symbol == symbol_local) {
+            symbol_local = new_symbol_local;
+            symbol = new_symbol_local;
+            calcMoney();
+        } else if (!cached) {
+            symbol_local = new_symbol_local;
+        }
     }
 }
 
@@ -1194,13 +1213,17 @@ function internalRestoreWallet() {
             throw 'Error Decrypting Wallet. Please check your password is correct.';
         }
 
-        if (obj.double_encryption != null && obj.dpasswordhash != null) {
+        if (obj.double_encryption && obj.dpasswordhash) {
             double_encryption = obj.double_encryption;
             dpasswordhash = obj.dpasswordhash;
         }
 
-        if (obj.fee_policy != null) {
+        if (obj.fee_policy) {
             fee_policy = obj.fee_policy;
+        }
+
+        if (obj.html5_notifications) {
+            html5_notifications = obj.html5_notifications;
         }
 
         addresses = [];
@@ -1975,12 +1998,17 @@ function addAddressBookEntry() {
         var bitcoinAddress = $.trim(addrField.val());
 
         if (label.length == 0) {
-            makeNotice('error', 'misc-error', 'you must enter a label for the address book entry');
+            makeNotice('error', 'misc-error', 'You must enter a label for the address book entry');
+            return false;
+        }
+
+        if (label.indexOf("\"") != -1) {
+            makeNotice('error', 'misc-error', 'Label cannot contain double quotes');
             return false;
         }
 
         if (bitcoinAddress.length == 0) {
-            makeNotice('error', 'misc-error', 'you must enter a bitcoin address for the address book entry');
+            makeNotice('error', 'misc-error', 'You must enter a bitcoin address for the address book entry');
             return false;
         }
 
