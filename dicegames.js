@@ -15,10 +15,9 @@ function calculateProfitLoss(form) {
 
         var container = form.find('.profit-loss').show(200);
 
-        container.find('.n-bets').text(obj.n_sent + obj.n_received);
-        container.find('.n-pending').text(obj.n_sent - obj.n_received);
+        container.find('.n-bets').text(obj.n_sent);
 
-        var winnings = obj.total_received - obj.total_sent;
+        var winnings = obj.result;
 
         if (winnings > 0)
             container.find('.winnings').html('<font color="green">'+formatMoney(winnings, true)+'</font>');
@@ -90,12 +89,8 @@ function buildForm(form) {
             });
         });
 
-        try {
-            calculateProfitLoss(form);
-        } catch (e) {
-            console.log(e);
-        }
-    }).error(function() {
-            makeNotice('error', 'misc-error', 'Error Downloading '+form.data('name')+' Bets')
+       calculateProfitLoss(form);
+    }).error(function(e) {
+        makeNotice('error', 'misc-error', e)
     });
 }

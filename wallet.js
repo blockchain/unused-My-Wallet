@@ -631,13 +631,15 @@ function openTransactionSummaryModal(txIndex, result) {
             src : root + 'tx-summary/'+txIndex+'?result='+result+'&guid='+guid
         });
     });
+
+    return false;
 }
 
 function getCompactHTML(tx, myAddresses, addresses_book) {
 
     var result = tx.result;
 
-    var html = '<tr class="pointer" onclick=\'openTransactionSummaryModal('+tx.txIndex+', '+tx.result+')\'><td class="hidden-phone"><ul style="margin-left:0px;" class="short-addr">';
+    var html = '<tr class="pointer" onclick=\'return openTransactionSummaryModal('+tx.txIndex+', '+tx.result+');\'><td class="hidden-phone"><ul style="margin-left:0px;min-width:365px" class="short-addr">';
 
     var all_from_self = true;
     if (result > 0) {
@@ -795,27 +797,22 @@ function buildTransactionsView() {
     var txcontainer = $('#transactions').empty();
 
     if (tx_display == 0) {
-        var table = $('<table class="table table-striped table-condensed table-hover"><tbody><tr><th class="hidden-phone" style="min-width:365px">To / From</th><th>Date</th><th style="min-width:152px">Amount</th><th class="hidden-phone">Balance</th></tr></tbody></table>');
+        var table = $('<table class="table table-striped table-condensed table-hover"><tbody><tr><th class="hidden-phone">To / From</th><th>Date</th><th style="min-width:152px">Amount</th><th class="hidden-phone">Balance</th></tr></tbody></table>');
 
         txcontainer.append(table);
         txcontainer = table;
     }
 
     var buildSome = function() {
-        var html = '';
-
         for (var i = start; i < transactions.length && i < (start+10); ++i) {
-
             var tx = transactions[i];
 
             if (tx_display == 0) {
-                html += getCompactHTML(tx, addresses, address_book);
+                txcontainer.append(getCompactHTML(tx, addresses, address_book));
             } else {
-                html += tx.getHTML(addresses, address_book);
+                txcontainer.append(tx.getHTML(addresses, address_book));
             }
         }
-
-        txcontainer.append(html);
 
         start += 10;
 
@@ -823,42 +820,42 @@ function buildTransactionsView() {
             interval = setTimeout(buildSome, 10);
         } else {
             buildPopovers(); //Build the note popover
+
+            var pagination = $('.pagination ul').empty();
+
+            if (tx_page == 0 && transactions.length < 50) {
+                pagination.hide();
+                return;
+            } else {
+                pagination.show();
+            }
+
+            var pages = Math.ceil(n_tx_filtered / 50);
+
+            var disabled = ' disabled';
+            if (tx_page > 0)
+                disabled = '';
+
+            pagination.append('<li onclick="setPage(tx_page-1)" class="prev'+disabled+'"><a>&larr; Previous</a></li>');
+
+            for (var i = 0; i < pages && i <= 10; ++i) {
+                var active = '';
+                if (tx_page == i)
+                    active = ' class="active"';
+
+                pagination.append('<li onclick="setPage('+i+')"'+active+'><a class="hidden-phone">'+i+'</a></li>');
+            }
+
+            var disabled = ' disabled';
+            if (tx_page < pages)
+                disabled = '';
+
+            pagination.append('<li onclick="setPage(tx_page+1)" class="next'+disabled+'"><a>Next &rarr;</a></li>');
         }
     };
 
 
     buildSome();
-
-    var container = $('.pagination ul').empty();
-
-    if (tx_page == 0 && transactions.length < 50) {
-        container.hide();
-        return;
-    } else {
-        container.show();
-    }
-
-    var pages = Math.ceil(n_tx_filtered / 50);
-
-    var disabled = ' disabled';
-    if (tx_page > 0)
-        disabled = '';
-
-    container.append('<li onclick="setPage(tx_page-1)" class="prev'+disabled+'"><a>&larr; Previous</a></li>');
-
-    for (var i = 0; i < pages && i <= 10; ++i) {
-        var active = '';
-        if (tx_page == i)
-            active = ' class="active"';
-
-        container.append('<li onclick="setPage('+i+')"'+active+'><a class="hidden-phone">'+i+'</a></li>');
-    }
-
-    var disabled = ' disabled';
-    if (tx_page < pages)
-        disabled = '';
-
-    container.append('<li onclick="setPage(tx_page+1)" class="next'+disabled+'"><a>Next &rarr;</a></li>');
 }
 
 function setFilter(i) {

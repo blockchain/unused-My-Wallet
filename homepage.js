@@ -13,7 +13,11 @@ function updateTimes() {
 
 	var now = new Date().getTime() / 1000;
 	$('td[data-time]').each(function(index) {
-		var diff = now - $(this).attr('data-time');
+        var time = parseInt($(this).attr('data-time'));
+
+        if (time == 0) $(this).text('');
+
+		var diff = now - time;
 		
 		if (diff < 60) {
 			$(this).text('< 1 minute');

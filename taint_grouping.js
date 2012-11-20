@@ -42,7 +42,7 @@ function buildTable(groups) {
                 extra = '<span class="hidden-phone"> - ' + addr.addr + '</span>';
             }
 
-            var thtml = '<tr style="background-color:#FFFFFF;"><td style="width:20px;background-color:#FFFFFF;"><img id="qr'+addr.addr+'" onclick="showAddressModal(\'' + addr.addr +'\')" src="'+resource+'info.png" /></td><td style="background-color:#FFFFFF;"><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td style="background-color:#FFFFFF;" colspan="2"><span style="color:green">' + formatBTC(addr.balance) + '<span class="hidden-phone"> BTC</span></span></td></tr>';
+            var thtml = '<tr style="background-color:#FFFFFF;"><td></td><td style="background-color:#FFFFFF;"><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td style="background-color:#FFFFFF;" colspan="2"><span style="color:green">' + formatBTC(addr.balance) + '<span class="hidden-phone"> BTC</span></span></td></tr>';
 
             tbody.append(thtml);
         }
