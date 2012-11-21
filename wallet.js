@@ -209,13 +209,42 @@ function _webSocketConnect() {
 
                     tx.setConfirmations(0);
 
-                    if (tx_filter == 0 && tx_page == 0) {
+                    var id = buildVisibleViewPre();
+                    if ("my-transactions" == id) {
+                        if (tx_filter == 0 && tx_page == 0) {
+                            transactions.unshift(tx);
 
-                        transactions.unshift(tx);
+                            var did_pop = false;
+                            if (transactions.length > 50) {
+                                transactions.pop();
+                                did_pop = true;
+                            }
 
-                        transactions.pop();
+                            var txcontainer = $('#transactions');
 
-                        //Meed to update transactions list
+                            if (transactions.length == 0) {
+                                $('#transactions-header').hide();
+                                return;
+                            } else {
+                                $('#transactions-header').show();
+                            }
+
+                            if ($('#tx_display').val() == 0) {
+                                $(getCompactHTML(tx, addresses, address_book)).prependTo(txcontainer.find('tbody')).find('div').hide().slideDown('slow');
+
+                                if (did_pop) {
+                                    txcontainer.find('tbody tr:last-child').remove();
+                                }
+
+                            } else {
+                                txcontainer.prepend(tx.getHTML(addresses, address_book));
+
+                                if (did_pop) {
+                                    txcontainer.find('div:last-child').remove();
+                                }
+                            }
+                        }
+                    } else {
                         buildVisibleView();
                     }
 
@@ -639,7 +668,7 @@ function getCompactHTML(tx, myAddresses, addresses_book) {
 
     var result = tx.result;
 
-    var html = '<tr class="pointer" onclick=\'return openTransactionSummaryModal('+tx.txIndex+', '+tx.result+');\'><td class="hidden-phone"><ul style="margin-left:0px;min-width:365px" class="short-addr">';
+    var html = '<tr class="pointer" onclick=\'return openTransactionSummaryModal('+tx.txIndex+', '+tx.result+');\'><td class="hidden-phone"><div><ul style="margin-left:0px;width:365px" class="short-addr">';
 
     var all_from_self = true;
     if (result > 0) {
@@ -681,7 +710,7 @@ function getCompactHTML(tx, myAddresses, addresses_book) {
     if (all_from_self)
         html += '<span class="label">Moved Between Wallet</info>';
 
-    html += '</ul></td><td>';
+    html += '</ul></div></td><td><div>';
 
 
     if (tx.note) {
@@ -698,44 +727,31 @@ function getCompactHTML(tx, myAddresses, addresses_book) {
         html += ' <span class="label label-info pull-right hidden-phone">' + tx.confirmations + ' Confirmations</span> ';
     }
 
-    html += '</td>';
+    html += '</div></td>';
 
     if (result > 0)
-        html += '<td style="color:green">' + formatMoney(result, true) + '</td>';
+        html += '<td style="color:green"><div>' + formatMoney(result, true) + '</div></td>';
     else if (result < 0)
-        html += '<td style="color:red">' + formatMoney(result, true) + '</td>';
+        html += '<td style="color:red"><div>' + formatMoney(result, true) + '</div></td>';
     else
-        html += '<td>' + formatMoney(result, true) + '</td>';
+        html += '<td><div>' + formatMoney(result, true) + '</div></td>';
 
     if (tx.balance == null)
-        html += '<td></td>';
+        html += '<td></td></tr>';
     else
-        html += '<td class="hidden-phone">' + formatMoney(tx.balance) + '</td>';
-
-    html += '</tr>';
+        html += '<td class="hidden-phone"><div>' + formatMoney(tx.balance) + '</div></td></tr>';
 
     return html;
 };
 
 
-//Reset is true when called manually with changeview
-function buildVisibleView(reset) {
 
+//Reset is true when called manually with changeview
+function buildVisibleViewPre(reset) {
     //Hide any popovers as they can get stuck whent the element is re-drawn
     try {
         cVisible.find('.pop').popover('hide');
     } catch (e) {}
-
-    //Only build when visible
-    var id = cVisible.attr('id');
-    if ("send-coins" == id)
-        buildSendTxView(reset);
-    else if ("home-intro" == id)
-        buildHomeIntroView(reset);
-    else if ("receive-coins" == id)
-        buildReceiveCoinsView(reset)
-    else if ("my-transactions" == id)
-        buildTransactionsView(reset);
 
     //Update the account balance
     if (final_balance == null) {
@@ -744,6 +760,22 @@ function buildVisibleView(reset) {
         $('#balance').html(formatSymbol(final_balance, symbol));
         $('#balance2').html(formatSymbol(final_balance, (symbol == symbol_local) ? symbol_btc : symbol_local));
     }
+
+    //Only build when visible
+    return cVisible.attr('id');
+}
+//Reset is true when called manually with changeview
+function buildVisibleView(reset) {
+
+    var id = buildVisibleViewPre();
+    if ("send-coins" == id)
+        buildSendTxView(reset);
+    else if ("home-intro" == id)
+        buildHomeIntroView(reset);
+    else if ("receive-coins" == id)
+        buildReceiveCoinsView(reset)
+    else if ("my-transactions" == id)
+        buildTransactionsView(reset);
 }
 
 function buildHomeIntroView(reset) {
@@ -797,10 +829,7 @@ function buildTransactionsView() {
     var txcontainer = $('#transactions').empty();
 
     if (tx_display == 0) {
-        var table = $('<table class="table table-striped table-condensed table-hover"><tbody><tr><th class="hidden-phone">To / From</th><th>Date</th><th style="min-width:152px">Amount</th><th class="hidden-phone">Balance</th></tr></tbody></table>');
-
-        txcontainer.append(table);
-        txcontainer = table;
+        txcontainer = txcontainer.append('<table class="table table-striped table-condensed table-hover"><thead><tr><th class="hidden-phone">To / From</th><th>Date</th><th style="min-width:152px">Amount</th><th class="hidden-phone">Balance</th></tr></thead><tbody></tbody></table>').find('tbody');
     }
 
     var buildSome = function() {

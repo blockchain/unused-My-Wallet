@@ -180,10 +180,6 @@ function TransactionFromJSON(json) {
 
                     html += '<button class="btn btn-info" onclick="openEscrow('+this.txIndex+', '+escrow_n+', \''+priv+'\')">Redeem / Release</button>';
                 }
-
-                if (this.confirmations == 0) {
-                    html += '<button class="btn" style="padding-top:4px;padding-bottom:4px;padding-left:7px;padding-right:7px;margin:5px""><img src="'+resource+'network.png" /></button> ';
-                }
             }
 
             html += '</span></div>';
