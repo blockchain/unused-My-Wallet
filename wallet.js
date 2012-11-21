@@ -220,16 +220,13 @@ function _webSocketConnect() {
                                 did_pop = true;
                             }
 
-                            var txcontainer = $('#transactions');
+                            $('#transactions-header').show();
 
-                            if (transactions.length == 0) {
-                                $('#transactions-header').hide();
-                                return;
-                            } else {
-                                $('#transactions-header').show();
-                            }
+                            $('#no-transactions').hide();
 
                             if ($('#tx_display').val() == 0) {
+                                var txcontainer = $('#transactions-compact').show();
+
                                 $(getCompactHTML(tx, addresses, address_book)).prependTo(txcontainer.find('tbody')).find('div').hide().slideDown('slow');
 
                                 if (did_pop) {
@@ -237,6 +234,8 @@ function _webSocketConnect() {
                                 }
 
                             } else {
+                                var txcontainer = $('#transactions-detailed').show();
+
                                 txcontainer.prepend(tx.getHTML(addresses, address_book));
 
                                 if (did_pop) {
@@ -668,7 +667,7 @@ function getCompactHTML(tx, myAddresses, addresses_book) {
 
     var result = tx.result;
 
-    var html = '<tr class="pointer" onclick=\'return openTransactionSummaryModal('+tx.txIndex+', '+tx.result+');\'><td class="hidden-phone"><div><ul style="margin-left:0px;width:365px" class="short-addr">';
+    var html = '<tr class="pointer" onclick=\'return openTransactionSummaryModal('+tx.txIndex+', '+tx.result+');\'><td class="hidden-phone" style="width:365px"><div><ul style="margin-left:0px;" class="short-addr">';
 
     var all_from_self = true;
     if (result > 0) {
@@ -810,14 +809,6 @@ function buildHomeIntroView(reset) {
 function buildTransactionsView() {
 
     var tx_display = $('#tx_display').val();
-
-    if (transactions.length == 0) {
-        $('#transactions-header').hide();
-        return;
-    } else {
-        $('#transactions-header').show();
-    }
-
     var interval = null;
     var start = 0;
 
@@ -826,10 +817,22 @@ function buildTransactionsView() {
         interval = null;
     }
 
-    var txcontainer = $('#transactions').empty();
-
+    var txcontainer;
     if (tx_display == 0) {
-        txcontainer = txcontainer.append('<table class="table table-striped table-condensed table-hover"><thead><tr><th class="hidden-phone">To / From</th><th>Date</th><th style="min-width:152px">Amount</th><th class="hidden-phone">Balance</th></tr></thead><tbody></tbody></table>').find('tbody');
+        $('#transactions-detailed').hide();
+        txcontainer = $('#transactions-compact').show().find('tbody').empty();
+    } else {
+        $('#transactions-compact').hide();
+        txcontainer = $('#transactions-detailed').empty().show();
+    }
+
+    if (transactions.length == 0) {
+        $('#transactions-header, #transactions-detailed, #transactions-compact').hide();
+        $('#no-transactions').show();
+        return;
+    } else {
+        $('#transactions-header').show();
+        $('#no-transactions').hide();
     }
 
     var buildSome = function() {
@@ -846,7 +849,7 @@ function buildTransactionsView() {
         start += 10;
 
         if (start < transactions.length) {
-            interval = setTimeout(buildSome, 10);
+            interval = setTimeout(buildSome, 15);
         } else {
             buildPopovers(); //Build the note popover
 
