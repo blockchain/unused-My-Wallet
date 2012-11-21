@@ -137,10 +137,9 @@ function _webSocketConnect() {
                             return;
                     }
 
-                    playSound('beep');
-
                     /* Calculate the result */
                     var result = 0;
+                    var at_least_one_active = false;
 
                     for (var key in tx.inputs) {
                         var input = tx.inputs[key];
@@ -153,7 +152,9 @@ function _webSocketConnect() {
                             if (addr.tag != 2) {
                                 result -= value;
                                 total_sent += value;
+                                at_least_one_active = true;
                             }
+
                             addr.balance -= value;
                         }
                     }
@@ -168,11 +169,14 @@ function _webSocketConnect() {
                             if (addr.tag != 2) {
                                 result += value;
                                 total_received += value;
+                                at_least_one_active = true;
                             }
 
                             addr.balance += value;
                         }
                     }
+
+                    if (!at_least_one_active) return;
 
                     if (html5_notifications) {
                         //Send HTML 5 Notification
@@ -209,19 +213,22 @@ function _webSocketConnect() {
 
                     tx.setConfirmations(0);
 
+                    playSound('beep');
+
+                    if (tx_filter == 0 && tx_page == 0) {
+                        transactions.unshift(tx);
+
+                        var did_pop = false;
+                        if (transactions.length > 50) {
+                            transactions.pop();
+                            did_pop = true;
+                        }
+                    }
+
                     var id = buildVisibleViewPre();
                     if ("my-transactions" == id) {
                         if (tx_filter == 0 && tx_page == 0) {
-                            transactions.unshift(tx);
-
-                            var did_pop = false;
-                            if (transactions.length > 50) {
-                                transactions.pop();
-                                did_pop = true;
-                            }
-
                             $('#transactions-header').show();
-
                             $('#no-transactions').hide();
 
                             if ($('#tx_display').val() == 0) {
@@ -285,9 +292,8 @@ function _webSocketConnect() {
 
             try {
                 var addrs = getActiveAddresses();
-                for (var i = 0; i < addrs.length; ++i) {
-                    //Subscribe to tranactions updates through websockets
-                    msg += '{"op":"addr_sub", "addr":"'+ addrs[i] +'"}';
+                for (var key in addrs) {
+                    msg += '{"op":"addr_sub", "addr":"'+ addrs[key] +'"}'; //Subscribe to transactions updates through websockets
                 }
             } catch (e) {
                 alert(e);
@@ -2741,7 +2747,7 @@ function bind() {
                             BlockchainAPI.get_history();
                         });
                     } else {
-                        throw 'Internal Error ' + address;
+                        makeNotice('error', 'misc-error', 'Error adding address: ' + e);
                     }
                 });
             } catch (e) {
