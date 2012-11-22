@@ -46,7 +46,7 @@ $(document).ready(function() {
 
                 button.find('.stage-loading').trigger('show').show();
 
-                $.get(root + 'api/receive?method=create&address='+encodeURIComponent(receivers_address)+'&anonymous='+anonymous+'&callback='+callback_url).success(function(response) {
+                $.getJSON(root + 'api/receive?method=create&address='+encodeURIComponent(receivers_address)+'&anonymous='+anonymous+'&callback='+callback_url).success(function(response) {
                     button.find('.qr-code').empty();
 
                     button.find('.blockchain').hide();

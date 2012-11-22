@@ -276,9 +276,9 @@ function formatOutput(output, myAddresses, addresses_book) {
             else if (out.addr_tag) {
 
                 if (out.addr_tag_link)
-                    return '<a target="new" href="'+root+'address/'+addr+'">'+addr.substring(0, 15)+'...</a> ('+out.addr_tag+' <a class="external" rel="nofollow" href="'+root + 'r?url='+out.addr_tag_link+'" target="new"></a>)';
+                    return '<a target="new" href="'+root+'address/'+addr+'">'+addr.substring(0, 15)+'...</a> <span class="tag">('+out.addr_tag+' <a class="external" rel="nofollow" href="'+root + 'r?url='+out.addr_tag_link+'" target="new"></a>)</span>';
                 else
-                    return '<a target="new" href="'+root+'address/'+addr+'">'+addr.substring(0, 15)+'...</a> ('+out.addr_tag+')';
+                    return '<a target="new" href="'+root+'address/'+addr+'">'+addr.substring(0, 15)+'...</a> <span class="tag">('+out.addr_tag+')</span>';
             } else {
                 return '<a target="new" href="'+root+'address/'+addr+'">'+addr+'</a>';
             }

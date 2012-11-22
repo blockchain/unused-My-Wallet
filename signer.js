@@ -864,51 +864,97 @@ BlockchainAPI.push_tx = function(tx, note, success, error) {
     try {
         setLoadingText('Pushing Transaction');
 
-        var s = tx.serialize();
-
-        var hex = Crypto.util.bytesToHex(s);
-
-        if (hex.length >= 32768) {
-            error('My wallet cannot handle transactions over 32KB in size. Please try splitting your transaction,');
-        }
-
         //Record the first transactions we know if it doesn't change then our new transactions wasn't push out propoerly
         if (transactions.length > 0)
             var first_tx_index = transactions[0].txIndex;
 
-        var post_data = {
-            format : "plain",
-            tx: hex
-        };
+        function did_push() {
+            success(); //Call success to enable send button again
 
-        if (note) {
-            post_data.note = note;
-        }
+            function call_history() {
+                BlockchainAPI.get_history(function() {
+                    if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
+                        BlockchainAPI.get_rejection_reason(Crypto.util.bytesToHex(tx.getHash().reverse()), function(reason) {
+                            makeNotice('error', 'tx-error', reason);
+                        }, function() {
+                            makeNotice('error', 'tx-error', 'Unknown Error Pushing Transaction');
+                        });
+                    } else {
+                        playSound('beep');
+                    }
+                });
+            }
 
-        $.post(root + 'pushtx', post_data, function(data) {
-            try {
-                //If we haven't received a new transaction after sometime call a manual update
+            if (!window.WebSocket || ws == null || ws.readyState != WebSocket.OPEN) {
+                call_history(); //If the websocket isn't defined or open call history immediately
+            } else {
+                //Otherwise we set an interval to set for a transaction
                 setTimeout(function() {
                     if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
-                        BlockchainAPI.get_history(function() {
-                            if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
-                                BlockchainAPI.get_rejection_reason(Crypto.util.bytesToHex(tx.getHash().reverse()), function(reason) {
-                                    error(reason);
-                                }, function() {
-                                    error('Unknown Error Pushing Transaction');
-                                });
-                            }
-                        });
+                        call_history();
                     }
-                }, 3000);
-
-                success();
-            } catch (e) {
-                error(e);
+                }, 2000);
             }
-        }).error(function(data) {
-                error(data ? data.responseText : null);
+        };
+
+        var s = tx.serialize();
+
+        try {
+            var buffer = new ArrayBuffer(s.length);
+
+            var int8_array = new Int8Array(buffer);
+
+            int8_array.set(s);
+
+            var blob = new Blob([buffer], {type : 'application/octet-stream'});
+
+            if (blob.size != s.length)
+                throw 'Inconsistent Data Sizes (blob : ' + blob.size + ' s : ' + s.length + ' buffer : ' + buffer.byteLength + ')';
+
+            var fd = new FormData();
+
+            fd.append('txbytes', blob);
+
+            if (note) {
+                fd.append('note', note);
+            }
+
+            fd.append('format', 'plain');
+
+            $.ajax({
+                url: root + 'pushtx',
+                data: fd,
+                processData: false,
+                contentType: false,
+                type: 'POST',
+                success: function(){
+                    did_push();
+                },
+                error : function(data) {
+                    error(data ? data.responseText : null);
+                }
             });
+
+        } catch (e) {
+            console.log(e);
+
+            var hex = Crypto.util.bytesToHex(s);
+
+            var post_data = {
+                format : "plain",
+                tx: hex
+            };
+
+            if (note) {
+                post_data.note = note;
+            }
+
+            $.post(root + 'pushtx', post_data, function() {
+                did_push();
+            }).error(function(data) {
+                    error(data ? data.responseText : null);
+                });
+        }
     } catch (e) {
         error(e);
     }
@@ -1809,33 +1855,8 @@ function initNewTx() {
         ask_for_private_key : function(success, error) {
             error('Cannot ask for private key without user interaction disabled');
         },
-//Debug Print
         ask_to_send : function() {
-            var self = this;
-
-            for (var i = 0; i < self.tx.ins.length; ++i) {
-                var input = self.tx.ins[i];
-
-                console.log('From : ' + new Bitcoin.Address(input.script.simpleInPubKeyHash()) + ' => ' + input.outpoint.value.toString());
-            }
-
-            var isFirst = true;
-            for (var i = 0; i < self.tx.outs.length; ++i) {
-                var out = self.tx.outs[i];
-                var out_addresses = [];
-
-                var m = out.script.extractAddresses(out_addresses);
-
-                var array = out.value.slice();
-
-                array.reverse();
-
-                var val =  new BigInteger(array);
-
-                console.log('To: ' + formatAddresses(m, out_addresses) + ' => ' + val.toString());
-            }
-
-            self.send();
+            this.send(); //By Defualt Just Send
         },
         error : function(error) {
             if (this.is_cancelled) //Only call once

@@ -110,9 +110,7 @@ function _webSocketConnect() {
                 var obj = $.parseJSON(e.data);
 
                 if (obj.op == 'status') {
-
                     $('#status').html(obj.msg);
-
                 } else if (obj.op == 'on_change') {
                     var old_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
                     var new_checksum = obj.checksum;
@@ -141,13 +139,13 @@ function _webSocketConnect() {
                     var result = 0;
                     var at_least_one_active = false;
 
-                    for (var key in tx.inputs) {
-                        var input = tx.inputs[key];
+                    for (var i = 0; i < tx.inputs.length; ++i) {
+                        var output = tx.inputs[i].prev_out;
 
                         //If it is our address then subtract the value
-                        var addr = addresses[input.prev_out.addr];
+                        var addr = addresses[output.addr];
                         if (addr) {
-                            var value = parseInt(input.prev_out.value);
+                            var value = parseInt(output.value);
 
                             if (addr.tag != 2) {
                                 result -= value;
@@ -159,8 +157,8 @@ function _webSocketConnect() {
                         }
                     }
 
-                    for (var key in tx.out) {
-                        var output = tx.out[key];
+                    for (var i = 0; i < tx.out.length; ++i) {
+                        var output = tx.out[i];
 
                         var addr = addresses[output.addr];
                         if (addr) {
@@ -665,50 +663,47 @@ function openTransactionSummaryModal(txIndex, result) {
             src : root + 'tx-summary/'+txIndex+'?result='+result+'&guid='+guid
         });
     });
-
-    return false;
 }
 
 function getCompactHTML(tx, myAddresses, addresses_book) {
-
     var result = tx.result;
 
-    var html = '<tr class="pointer" onclick=\'return openTransactionSummaryModal('+tx.txIndex+', '+tx.result+');\'><td class="hidden-phone" style="width:365px"><div><ul style="margin-left:0px;" class="short-addr">';
+    var html = '<tr class="pointer" onclick=\'openTransactionSummaryModal('+tx.txIndex+', '+tx.result+')\'><td class="hidden-phone" style="width:365px"><div><ul style="margin-left:0px;" class="short-addr">';
 
     var all_from_self = true;
-    if (result > 0) {
-        if (tx.inputs.length > 0) {
-            for (var i = 0; i < tx.inputs.length; i++) {
-                input = tx.inputs[i];
+    if (result >= 0) {
+        for (var i = 0; i < tx.inputs.length; ++i) {
+            var out = tx.inputs[i].prev_out;
 
-                if (input.prev_out == null || input.prev_out.addr == null) {
-                    all_from_self = false;
+            if (!out || !out.addr) {
+                all_from_self = false;
 
-                    html += '<span class="label">Newly Generated Coins</span>';
-                } else {
+                html += '<span class="label">Newly Generated Coins</span>';
+            } else {
+                var my_addr = myAddresses[out.addr];
 
-                    //Don't Show sent from
-                    var my_addr = myAddresses[input.prev_out.addr];
-                    if (my_addr && my_addr.tag != 2)
-                        continue;
+                //Don't Show sent from self
+                if (my_addr)
+                    continue;
 
-                    all_from_self = false;
+                all_from_self = false;
 
-                    html += formatOutput(input.prev_out, myAddresses, addresses_book);
-                }
+                html += formatOutput(out, myAddresses, addresses_book);
             }
         }
     } else if (result < 0) {
-        for (var i = 0; i < tx.out.length; i++) {
+        for (var i = 0; i < tx.out.length; ++i) {
+            var out = tx.out[i];
+
+            var my_addr = myAddresses[out.addr];
 
             //Don't Show sent to self
-            var my_addr = myAddresses[tx.out[i].addr];
-            if (tx.out.length > 1 && tx.out[i].type == 0 && my_addr && my_addr.tag != 2)
+            if (my_addr && out.type == 0)
                 continue;
 
             all_from_self = false;
 
-            html += formatOutput(tx.out[i], myAddresses, addresses_book);
+            html += formatOutput(out, myAddresses, addresses_book);
         }
     }
 
@@ -716,7 +711,6 @@ function getCompactHTML(tx, myAddresses, addresses_book) {
         html += '<span class="label">Moved Between Wallet</info>';
 
     html += '</ul></div></td><td><div>';
-
 
     if (tx.note) {
         html += '<img src="'+resource+'note.png" class="pop" title="Note" data-content="'+tx.note+'."> ';
@@ -2739,15 +2733,23 @@ function bind() {
                 $('#import-address-address').val('');
 
                 showWatchOnlyWarning(value, function() {
-                    if (internalAddKey(value)) {
-                        makeNotice('success', 'added-address', 'Successfully Added Address ' + address);
+                    try {
+                        if (internalAddKey(value)) {
+                            makeNotice('success', 'added-address', 'Successfully Added Address ' + address);
 
-                        //Backup
-                        backupWallet('update', function() {
-                            BlockchainAPI.get_history();
-                        });
-                    } else {
-                        makeNotice('error', 'misc-error', 'Error adding address: ' + e);
+                            try {
+                                ws.send('{"op":"addr_sub", "addr":"'+address+'"}');
+                            } catch (e) { }
+
+                            //Backup
+                            backupWallet('update', function() {
+                                BlockchainAPI.get_history();
+                            });
+                        } else {
+                            throw 'Wallet Full Or Addresses Exists'
+                        }
+                    } catch (e) {
+                        makeNotice('error', 'misc-error', e);
                     }
                 });
             } catch (e) {
