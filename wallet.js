@@ -103,8 +103,8 @@ function wsSuccess(ws) {
                     }
                 }
 
-                for (var i = 0; i < tx.out.length; ++i) {
-                    var output = tx.out[i];
+                for (var ii = 0; ii < tx.out.length; ++ii) {
+                    var output = tx.out[ii];
 
                     var addr = addresses[output.addr];
                     if (addr) {
