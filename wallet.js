@@ -49,264 +49,204 @@ function hideNotice(id) {
     $('#'+id).remove();
 }
 
-var websocket_url = getSecureWebSocketURL();
-var websocket_connected_once = false;
+function wsSuccess(ws) {
+    ws.onmessage = function(e) {
 
-//Updates time last block was received and check for websocket connectivity
-function doStuffTimer () {
-    try {
-        if (WebSocket != null) {
-            if ((!offline && isInitialized) && (ws == null || ws.readyState != WebSocket.OPEN)) {
+        try {
+            var obj = $.parseJSON(e.data);
 
-                //Alternate the websocket URL
-                //Prefer Secure but fall back to insecure if the browser doesn't support it
-                if (websocket_url == getWebSocketURL())
-                    websocket_url = getSecureWebSocketURL();
-                else
-                    websocket_url = getWebSocketURL();
+            if (obj.op == 'status') {
+                $('#status').html(obj.msg);
+            } else if (obj.op == 'on_change') {
+                var old_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
+                var new_checksum = obj.checksum;
 
-                _webSocketConnect();
-            }
-        }
-    } catch (e) {
-        console.log(e);
-    }
-}
+                console.log('On change old ' + old_checksum + ' ==  new '+ new_checksum);
 
-function webSocketConnect() {
-    if (!isInitialized || offline) return;
+                if (old_checksum != new_checksum) {
+                    updateCacheManifest();
 
-    try {
-        if (window.WebSocket) {
-            _webSocketConnect();
-        } else {
-            makeNotice('info', 'misc-notice', 'Your Browser Does not support native WebSockets');
+                    //Fetch the updated wallet from the server
+                    setTimeout(getWallet, 250);
+                }
 
-            // Flash fall back for webscoket compatiability
-            window.WEB_SOCKET_SWF_LOCATION = resource + "wallet/WebSocketMain.swf";
-            loadScript(resource + 'wallet/swfobject.js', function() {
-                loadScript(resource + 'wallet/web_socket.js', function() {
-                    _webSocketConnect();
-                });
-            });
-        }
-    } catch (e) {
-        console.log(e);
-    }
-}
+            } else if (obj.op == 'utx') {
 
-function _webSocketConnect() {
+                var tx = TransactionFromJSON(obj.x);
 
-    try {
-        console.log('Connect ' + websocket_url);
+                //Check if this is a duplicate
+                //Maybe should have a map_prev to check for possible double spends
+                for (var key in transactions) {
+                    if (transactions[key].txIndex == tx.txIndex)
+                        return;
+                }
 
-        ws = new WebSocket(websocket_url);
+                /* Calculate the result */
+                var result = 0;
+                var at_least_one_active = false;
 
-        if (!ws) return;
+                for (var i = 0; i < tx.inputs.length; ++i) {
+                    var output = tx.inputs[i].prev_out;
 
-        ws.onmessage = function(e) {
+                    //If it is our address then subtract the value
+                    var addr = addresses[output.addr];
+                    if (addr) {
+                        var value = parseInt(output.value);
 
-            try {
-                var obj = $.parseJSON(e.data);
-
-                if (obj.op == 'status') {
-                    $('#status').html(obj.msg);
-                } else if (obj.op == 'on_change') {
-                    var old_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
-                    var new_checksum = obj.checksum;
-
-                    console.log('On change old ' + old_checksum + ' ==  new '+ new_checksum);
-
-                    if (old_checksum != new_checksum) {
-                        updateCacheManifest();
-
-                        //Fetch the updated wallet from the server
-                        setTimeout(getWallet, 250);
-                    }
-
-                } else if (obj.op == 'utx') {
-
-                    var tx = TransactionFromJSON(obj.x);
-
-                    //Check if this is a duplicate
-                    //Maybe should have a map_prev to check for possible double spends
-                    for (var key in transactions) {
-                        if (transactions[key].txIndex == tx.txIndex)
-                            return;
-                    }
-
-                    /* Calculate the result */
-                    var result = 0;
-                    var at_least_one_active = false;
-
-                    for (var i = 0; i < tx.inputs.length; ++i) {
-                        var output = tx.inputs[i].prev_out;
-
-                        //If it is our address then subtract the value
-                        var addr = addresses[output.addr];
-                        if (addr) {
-                            var value = parseInt(output.value);
-
-                            if (addr.tag != 2) {
-                                result -= value;
-                                total_sent += value;
-                                at_least_one_active = true;
-                            }
-
-                            addr.balance -= value;
+                        if (addr.tag != 2) {
+                            result -= value;
+                            total_sent += value;
+                            at_least_one_active = true;
                         }
+
+                        addr.balance -= value;
                     }
+                }
 
-                    for (var i = 0; i < tx.out.length; ++i) {
-                        var output = tx.out[i];
+                for (var i = 0; i < tx.out.length; ++i) {
+                    var output = tx.out[i];
 
-                        var addr = addresses[output.addr];
-                        if (addr) {
-                            var value = parseInt(output.value);
+                    var addr = addresses[output.addr];
+                    if (addr) {
+                        var value = parseInt(output.value);
 
-                            if (addr.tag != 2) {
-                                result += value;
-                                total_received += value;
-                                at_least_one_active = true;
-                            }
-
-                            addr.balance += value;
+                        if (addr.tag != 2) {
+                            result += value;
+                            total_received += value;
+                            at_least_one_active = true;
                         }
+
+                        addr.balance += value;
                     }
+                }
 
-                    if (!at_least_one_active) return;
+                if (!at_least_one_active) return;
 
-                    if (html5_notifications) {
-                        //Send HTML 5 Notification
-                        var send_notification = function(options) {
-                            try {
-                                if (window.webkitNotifications && navigator.userAgent.indexOf("Chrome") > -1) {
-                                    if (webkitNotifications.checkPermission() == 0) {
-                                        webkitNotifications.createNotification(options.iconUrl, options.title, options.body).show();
-                                    }
-                                } else if (window.Notification) {
-                                    if (Notification.permissionLevel() === 'granted') {
-                                        new Notification(options.title, options).show();
-                                    }
-                                }
-                            } catch (e) {}
-                        };
-
+                if (html5_notifications) {
+                    //Send HTML 5 Notification
+                    var send_notification = function(options) {
                         try {
-                            send_notification({
-                                title : result > 0 ? 'Payment Received' : 'Payment Sent',
-                                body : 'Transaction Value ' + formatBTC(result) + ' BTC',
-                                iconUrl : resource + 'cube48.png'
-                            });
-                        } catch (e) {
-                            console.log(e);
-                        }
+                            if (window.webkitNotifications && navigator.userAgent.indexOf("Chrome") > -1) {
+                                if (webkitNotifications.checkPermission() == 0) {
+                                    webkitNotifications.createNotification(options.iconUrl, options.title, options.body).show();
+                                }
+                            } else if (window.Notification) {
+                                if (Notification.permissionLevel() === 'granted') {
+                                    new Notification(options.title, options).show();
+                                }
+                            }
+                        } catch (e) {}
+                    };
+
+                    try {
+                        send_notification({
+                            title : result > 0 ? 'Payment Received' : 'Payment Sent',
+                            body : 'Transaction Value ' + formatBTC(result) + ' BTC',
+                            iconUrl : resource + 'cube48.png'
+                        });
+                    } catch (e) {
+                        console.log(e);
                     }
+                }
 
-                    tx.result = result;
+                tx.result = result;
 
-                    final_balance += result;
+                final_balance += result;
 
-                    n_tx++;
+                n_tx++;
 
-                    tx.setConfirmations(0);
+                tx.setConfirmations(0);
 
-                    playSound('beep');
+                playSound('beep');
 
+                if (tx_filter == 0 && tx_page == 0) {
+                    transactions.unshift(tx);
+
+                    var did_pop = false;
+                    if (transactions.length > 50) {
+                        transactions.pop();
+                        did_pop = true;
+                    }
+                }
+
+                var id = buildVisibleViewPre();
+                if ("my-transactions" == id) {
                     if (tx_filter == 0 && tx_page == 0) {
-                        transactions.unshift(tx);
+                        $('#transactions-header').show();
+                        $('#no-transactions').hide();
 
-                        var did_pop = false;
-                        if (transactions.length > 50) {
-                            transactions.pop();
-                            did_pop = true;
-                        }
-                    }
+                        if ($('#tx_display').val() == 0) {
+                            var txcontainer = $('#transactions-compact').show();
 
-                    var id = buildVisibleViewPre();
-                    if ("my-transactions" == id) {
-                        if (tx_filter == 0 && tx_page == 0) {
-                            $('#transactions-header').show();
-                            $('#no-transactions').hide();
+                            $(getCompactHTML(tx, addresses, address_book)).prependTo(txcontainer.find('tbody')).find('div').hide().slideDown('slow');
 
-                            if ($('#tx_display').val() == 0) {
-                                var txcontainer = $('#transactions-compact').show();
-
-                                $(getCompactHTML(tx, addresses, address_book)).prependTo(txcontainer.find('tbody')).find('div').hide().slideDown('slow');
-
-                                if (did_pop) {
-                                    txcontainer.find('tbody tr:last-child').remove();
-                                }
-
-                            } else {
-                                var txcontainer = $('#transactions-detailed').show();
-
-                                txcontainer.prepend(tx.getHTML(addresses, address_book));
-
-                                if (did_pop) {
-                                    txcontainer.find('div:last-child').remove();
-                                }
+                            if (did_pop) {
+                                txcontainer.find('tbody tr:last-child').remove();
                             }
-                        }
-                    } else {
-                        buildVisibleView();
-                    }
 
-                }  else if (obj.op == 'block') {
-                    //Check any transactions included in this block, if the match one our ours then set the block index
-                    for (var i = 0; i < obj.x.txIndexes.length; ++i) {
-                        for (var ii = 0; ii < transactions.length; ++ii) {
-                            if (transactions[ii].txIndex == obj.x.txIndexes[i]) {
-                                if (transactions[ii].blockHeight == null || transactions[ii].blockHeight == 0) {
-                                    transactions[ii].blockHeight = obj.x.height;
-                                    break;
-                                }
+                        } else {
+                            var txcontainer = $('#transactions-detailed').show();
+
+                            txcontainer.prepend(tx.getHTML(addresses, address_book));
+
+                            if (did_pop) {
+                                txcontainer.find('div:last-child').remove();
                             }
                         }
                     }
-
-                    setLatestBlock(BlockFromJSON(obj.x));
-
-                    //Need to update latest block
-                    buildTransactionsView();
+                } else {
+                    buildVisibleView();
                 }
 
-            } catch(e) {
-                console.log(e);
-
-                console.log(e.data);
-            }
-        };
-
-        ws.onopen = function() {
-            websocket_connected_once = true;
-
-            $('#status').html('CONNECTED.');
-
-            var msg = '{"op":"blocks_sub"}';
-
-            if (guid != null)
-                msg += '{"op":"wallet_sub","guid":"'+guid+'"}';
-
-            try {
-                var addrs = getActiveAddresses();
-                for (var key in addrs) {
-                    msg += '{"op":"addr_sub", "addr":"'+ addrs[key] +'"}'; //Subscribe to transactions updates through websockets
+            }  else if (obj.op == 'block') {
+                //Check any transactions included in this block, if the match one our ours then set the block index
+                for (var i = 0; i < obj.x.txIndexes.length; ++i) {
+                    for (var ii = 0; ii < transactions.length; ++ii) {
+                        if (transactions[ii].txIndex == obj.x.txIndexes[i]) {
+                            if (transactions[ii].blockHeight == null || transactions[ii].blockHeight == 0) {
+                                transactions[ii].blockHeight = obj.x.height;
+                                break;
+                            }
+                        }
+                    }
                 }
-            } catch (e) {
-                alert(e);
+
+                setLatestBlock(BlockFromJSON(obj.x));
+
+                //Need to update latest block
+                buildTransactionsView();
             }
 
-            ws.send(msg);
-        };
+        } catch(e) {
+            console.log(e);
 
-        ws.onclose = function() {
-            $('#status').html('DISCONNECTED.');
-        };
-    } catch (e) {
+            console.log(e.data);
+        }
+    };
 
-        console.log(e);
-    }
+    ws.onopen = function() {
+        $('#status').html('CONNECTED.');
+
+        var msg = '{"op":"blocks_sub"}';
+
+        if (guid != null)
+            msg += '{"op":"wallet_sub","guid":"'+guid+'"}';
+
+        try {
+            var addrs = getActiveAddresses();
+            for (var key in addrs) {
+                msg += '{"op":"addr_sub", "addr":"'+ addrs[key] +'"}'; //Subscribe to transactions updates through websockets
+            }
+        } catch (e) {
+            alert(e);
+        }
+
+        ws.send(msg);
+    };
+
+    ws.onclose = function() {
+        $('#status').html('DISCONNECTED.');
+    };
 }
 
 function makeNotice(type, id, msg, timeout) {
@@ -1441,7 +1381,7 @@ function restoreWallet() {
 function setIsIntialized() {
     isInitialized = true;
 
-    webSocketConnect();
+    webSocketConnect(wsSuccess);
 
     $('#tech-faq').hide();
 
@@ -3432,8 +3372,6 @@ $(document).ready(function() {
     /*loadScript(resource + 'wallet/electrum.js', function() {
      ElectrumAPI.get_history();
      });*/
-
-    setInterval(doStuffTimer, 10000);
 
     //Disable auotcomplete in firefox
     $("input, button").attr("autocomplete","off");

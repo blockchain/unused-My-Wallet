@@ -271,7 +271,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     });
                 },
                 on_begin_signing : function() {
-                    $('#tx-sign-progress').show(200).find('.t').text(this.tx.ins.length);
+                    $('#tx-sign-progress').show().find('.t').text(this.tx.ins.length);
                 },
                 on_sign_progress : function(i) {
                     $('#tx-sign-progress').find('.n').text(i);
@@ -383,13 +383,13 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
         } else if (type == 'quick' || type == 'email' || type == 'dice' || type == 'facebook' || type == 'sms') {
             var listener = {
                 on_error : function(e) {
-                    el.find('.send').show(200);
+                    el.find('.send').show();
                     if (this.p)
                         this.p.hide();
                 },
                 on_success : function() {
                     try {
-                        el.find('.send').show(200);
+                        el.find('.send').show();
 
                         if (type != 'dice')
                             buildVisibleView(true);
@@ -898,7 +898,6 @@ BlockchainAPI.push_tx = function(tx, note, success, error) {
         };
 
         var s = tx.serialize();
-
         try {
             var buffer = new ArrayBuffer(s.length);
 
@@ -1886,17 +1885,13 @@ function initNewTx() {
             if(e)
                 makeNotice('error', 'tx-error', e);
 
-            $('.send').attr('disabled', false);
+            $('.send-value,.send').attr('disabled', false);
         },
         on_success : function(e) {
-            try {
-                $('.send').attr('disabled', false);
-            } catch (e) {
-                console.log(e);
-            }
+            $('.send-value,.send').attr('disabled', false);
         },
         on_start : function(e) {
-            $('.send').attr('disabled', true);
+            $('.send-value,.send').attr('disabled', true);
         },
         on_begin_signing : function() {
             this.start = new Date().getTime();

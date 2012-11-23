@@ -20,12 +20,60 @@ if (!window.console) {
     }
 }
 
-function getWebSocketURL() {
-    return "ws://api.blockchain.info:8335/inv";
-}
+var ws;
+function webSocketConnect(success) {
+    try {
+        var ii = 0;
+        function reallyConnect(url) {
+            try {
+                if (ii % 2 == 0)
+                    var url = "wss://blockchain.info/inv";
+                else
+                    var url = "ws://api.blockchain.info:8335/inv";
 
-function getSecureWebSocketURL() {
-    return "wss://blockchain.info/inv";
+                ++ii;
+
+                console.log('Connect ' + url);
+
+                ws = new WebSocket(url);
+
+                if (!ws)
+                    return;
+
+                if (success)
+                    success(ws);
+            } catch (e) {
+                console.log(e);
+            }
+        }
+
+        //Updates time last block was received and check for websocket connectivity
+        function reconnectTimer () {
+            if (!ws || ws.readyState != WebSocket.OPEN) {
+                reallyConnect();
+            }
+        }
+
+        if (window.WebSocket) {
+            reallyConnect();
+
+            setInterval(reconnectTimer, 10000);
+        } else {
+            // Flash fall back for websocket compatibility
+            window.WEB_SOCKET_SWF_LOCATION = resource + "wallet/WebSocketMain.swf";
+            loadScript(resource + 'wallet/swfobject.js', function() {
+                loadScript(resource + 'wallet/web_socket.js', function() {
+                    if (window.WebSocket) {
+                        reallyConnect();
+
+                        setInterval(reconnectTimer, 10000);
+                    }
+                });
+            });
+        }
+    } catch (e) {
+        console.log(e);
+    }
 }
 
 function BlockFromJSON(json) {
@@ -259,7 +307,6 @@ function formatMoney(x, span) {
 }
 
 function formatOutput(output, myAddresses, addresses_book) {
-
     function formatOut(addr, out) {
         var myAddr = null;
         if (myAddresses != null)
@@ -274,11 +321,11 @@ function formatOutput(output, myAddresses, addresses_book) {
             if (addresses_book && addresses_book[addr])
                 return '<a target="new" href="'+root+'address/'+addr+'">'+addresses_book[addr]+'</a>';
             else if (out.addr_tag) {
-
+                var link = '';
                 if (out.addr_tag_link)
-                    return '<a target="new" href="'+root+'address/'+addr+'">'+addr.substring(0, 15)+'...</a> <span class="tag">('+out.addr_tag+' <a class="external" rel="nofollow" href="'+root + 'r?url='+out.addr_tag_link+'" target="new"></a>)</span>';
-                else
-                    return '<a target="new" href="'+root+'address/'+addr+'">'+addr.substring(0, 15)+'...</a> <span class="tag">('+out.addr_tag+')</span>';
+                    link = ' <a class="external" rel="nofollow" href="'+root + 'r?url='+out.addr_tag_link+'" target="new"></a>';
+
+                return '<a target="new" href="'+root+'address/'+addr+'" class="tag-address">'+addr+'</a> <span class="tag">('+out.addr_tag+link+')</span>';
             } else {
                 return '<a target="new" href="'+root+'address/'+addr+'">'+addr+'</a>';
             }

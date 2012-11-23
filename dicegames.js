@@ -32,6 +32,51 @@ function calculateProfitLoss(form) {
     });
 }
 
+function multiBetWarningModal(times, success, error) {
+
+    var modal = $('<div class="modal hide">\
+        <div class="modal-header">\
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>\
+            <h3>Confirm Multiple Bets</h3>\
+        </div>\
+        <div class="modal-body">\
+            <p>This bet will be repeated <b class="times"></b> times. Please confirm this is correct.</p>\
+        </div>\
+        <div class="modal-footer">\
+            <a href="#" class="btn btn-secondary">Cancel</a>\
+            <a href="#" class="btn btn-primary">Continue</a>\
+        </div>\
+    </div>');
+
+    $('body').append(modal);
+
+    modal.modal({
+        keyboard: true,
+        backdrop: "static",
+        show: true
+    });
+
+    modal.find('.times').text(times);
+
+    modal.center();
+
+    modal.find('.btn.btn-primary').unbind().click(function() {
+        modal.modal('hide');
+
+        modal.remove();
+
+        if (success) success();
+    });
+
+    modal.find('.btn.btn-secondary').unbind().click(function() {
+        modal.modal('hide');
+
+        modal.remove();
+
+        if (error) error();
+    });
+}
+
 function buildForm(form) {
     var container = form.find('.recipient-container');
 
@@ -84,13 +129,50 @@ function buildForm(form) {
         });
 
         form.find('.send').unbind().click(function() {
-            loadScript(resource + 'wallet/signer.min.js', function() {
-                startTxUI(form, 'dice', initNewTx());
-            });
+            var ii = 0;
+            var repeat = $(this).data('repeat');
+
+            if (!repeat)
+                repeat = 0;
+            else
+                repeat = parseInt(repeat);
+
+
+            var listener = {
+                on_success : function() {
+                    ++ii;
+
+                    if (ii < repeat) {
+                        setTimeout(send, 100);
+                    }
+                }
+            };
+
+            var send = function() {
+                console.log('Send Called');
+
+                var tx = initNewTx();
+
+                tx.addListener(listener);
+
+                startTxUI(form, 'dice', tx);
+            }
+
+            if (repeat > 1) {
+                multiBetWarningModal(repeat, function() {
+                    loadScript(resource + 'wallet/signer.min.js', function() {
+                        send();
+                    });
+                });
+            } else {
+                loadScript(resource + 'wallet/signer.min.js', function() {
+                    send();
+                });
+            }
         });
 
-       calculateProfitLoss(form);
+        calculateProfitLoss(form);
     }).error(function(e) {
-        makeNotice('error', 'misc-error', e)
-    });
+            makeNotice('error', 'misc-error', e)
+        });
 }

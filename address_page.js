@@ -64,15 +64,10 @@ $(document).ready(function() {
     });
 
     $('#filter').change(function(){
-
-        console.log('Change');
-
         $(this).parent().submit();
     });
 
-    try {
-        var ws = new WebSocket(getWebSocketURL());
-
+    webSocketConnect(function(ws) {
         ws.onmessage = function(e) {
             var obj = $.parseJSON(e.data);
 
@@ -148,7 +143,5 @@ $(document).ready(function() {
         ws.onclose = function() {
             $('#status').html('Disconnected');
         };
-    } catch (e) {
-        console.log(e);
-    }
+    });
 });
