@@ -78,9 +78,7 @@ $(document).ready(function() {
 
                     op = obj.x;
 
-                    try {
-                        playSound('beep');
-                    } catch(e) { console.log(e); }
+                    playSound('beep');
 
                     var tx = TransactionFromJSON(op);
 
@@ -123,11 +121,17 @@ $(document).ready(function() {
 
                     $('#no_tx').hide();
 
-                    var tx_html = tx.getHTML();
+                    var tx_html = $(tx.getHTML());
 
-                    $('#tx_container').prepend(tx_html);
+                    var container = $('#tx_container');
+
+                    container.prepend(tx_html);
 
                     tx_html.hide().slideDown('slow');
+
+                    if (container.find('.txdiv').length > 50) {
+                        container.find('.txdiv:last-child').remove();
+                    }
 
                     $('#n_transactions').text(parseInt($('#n_transactions').text())+1);
 

@@ -109,7 +109,7 @@ function TransactionFromJSON(json) {
         getHTML : function(myAddresses, addresses_book) {
             var result = this.result;
 
-            var html = '<div id="tx-'+this.txIndex+'" style="margin-top:10px;">';
+            var html = '<div id="tx-'+this.txIndex+'" class="txdiv" style="padding-top:10px;">';
 
             if (this.note) {
                 html += '<div class="alert note">'+this.note+'</div>';

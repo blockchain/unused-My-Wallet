@@ -1,3 +1,58 @@
+function numberWithCommas(x) {
+    var parts = x.toString().split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return parts.join(".");
+}
+
+//JQuery Count To
+//https://github.com/mhuggins/jquery-countTo
+(function($) {
+    $.fn.countTo = function(options) {
+        // merge the default plugin settings with the custom options
+        options = $.extend({}, $.fn.countTo.defaults, options || {});
+
+        // how many times to update the value, and how much to increment the value on each update
+        var loops = Math.ceil(options.speed / options.refreshInterval),
+            increment = (options.to - options.from) / loops;
+
+        return $(this).each(function() {
+            var self = this,
+                loopCount = 0,
+                value = options.from,
+                interval = setInterval(updateTimer, options.refreshInterval);
+
+            function updateTimer() {
+                value += increment;
+                loopCount++;
+                $(self).html(formatMoney(value, symbol_local));
+
+                if (typeof(options.onUpdate) == 'function') {
+                    options.onUpdate.call(self, value);
+                }
+
+                if (loopCount >= loops) {
+                    clearInterval(interval);
+                    value = options.to;
+
+                    if (typeof(options.onComplete) == 'function') {
+                        options.onComplete.call(self, value);
+                    }
+                }
+            }
+        });
+    };
+
+    $.fn.countTo.defaults = {
+        from: 0,  // the number the element should start at
+        to: 100,  // the number the element should end at
+        speed: 1000,  // how long it should take to count between the target numbers
+        refreshInterval: 100,  // how often the element should be updated
+        decimals: 0,  // the number of decimal places to show
+        onUpdate: null,  // callback method for every time the element is updated,
+        onComplete: null  // callback method for when the element finishes updating
+    };
+}(jQuery));
+
 $(document).ready(function() {
 
     try {
@@ -24,6 +79,44 @@ $(document).ready(function() {
             $('#fade2').hide();
         }
     }, 5000);
+
+    var transacted = $('.transacted');
+    if (transacted.length > 0) {
+        webSocketConnect(function(ws) {
+            ws.onmessage = function(e) {
+                var obj = $.parseJSON(e.data);
+
+                symbol = symbol_local;
+
+                if (obj.op == 'utx') {
+                    var tx = TransactionFromJSON(obj.x);
+
+                    var total_received = 0;
+                    for (var i = 0; i < tx.out.length; i++) {
+                        total_received += parseInt(tx.out[i].value);
+                    }
+
+                    var original_value = parseInt(transacted.find('span').attr('data-c'));
+
+                    var new_value = original_value + total_received;
+
+                    transacted.countTo({
+                        from: original_value,
+                        to: new_value,
+                        speed: 5000,
+                        refreshInterval: 50,
+                        onComplete: function(value) {
+                            console.debug(this);
+                        }
+                    });
+                }
+            };
+
+            ws.onopen = function() {
+                ws.send('{"op":"ip_sub", "ip":"127.0.0.1"}');
+            };
+        });
+    }
 
     $('#youtube-preview').click(function() {
         $(this).empty().append('<iframe width="100%" height="256" src="https://www.youtube.com/embed/Um63OQz3bjo?autohide=1&controls=0&showinfo=0&autoplay=1" frameborder="0" allowfullscreen></iframe>');

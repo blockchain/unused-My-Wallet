@@ -1578,7 +1578,11 @@ function initNewTx() {
                 //Priority under 57 million requires a 0.0005 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
                 if (fee_is_zero && forceFee) {
                     //Forced Fee
-                    self.fee = self.base_fee;
+                    if (kilobytes > 1) {
+                        self.fee = self.base_fee.multiply(BigInteger.valueOf(kilobytes)); //0.0005 BTC * kilobytes + 1
+                    } else {
+                        self.fee = self.base_fee; //0.0005 BTC
+                    }
 
                     self.makeTransaction();
                 } else if (fee_is_zero && (priority < 57600000 || kilobytes > 1 || isEscrow || askforfee)) {
