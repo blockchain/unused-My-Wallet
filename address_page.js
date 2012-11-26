@@ -98,8 +98,6 @@ $(document).ready(function() {
                         }
                     }
 
-                    console.log('result ' + result);
-
                     var total_received = 0;
                     for (var i = 0; i < tx.out.length; i++) {
                         var output = tx.out[i];

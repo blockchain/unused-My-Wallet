@@ -115,7 +115,7 @@ function TransactionFromJSON(json) {
                 html += '<div class="alert note">'+this.note+'</div>';
             }
 
-            html += '<table class="table table-striped" cellpadding="0" cellspacing="0" style="padding:0px;float:left;margin:0px;"><tr><th colspan="4"><div class="hash-link"><a target="new" href="'+root+'tx/'+this.hash+'">'+this.hash+'</a></div> <span style="float:right"><span class="can-hide"><b>';
+            html += '<table class="table table-striped" cellpadding="0" cellspacing="0" style="padding:0px;float:left;margin:0px;"><tr><th colspan="4" align="left"><div class="hash-link"><a target="new" href="'+root+'tx/'+this.hash+'">'+this.hash+'</a></div> <span style="float:right"><span class="can-hide"><b>';
 
             if (this.time > 0) {
                 var date = new Date(this.time * 1000);
@@ -129,7 +129,7 @@ function TransactionFromJSON(json) {
             else
                 tclass = 'class="txtd"';
 
-            html += '</b></span></th></tr><tr><td '+ tclass +'>';
+            html += '</b></span></th></tr><tr><td width="500px" '+ tclass +'>';
 
             if (this.inputs.length > 0) {
                 for (var i = 0; i < this.inputs.length; i++) {
@@ -171,7 +171,7 @@ function TransactionFromJSON(json) {
             else
                 tclass = 'class="txtd"';
 
-            html += '</td><td width="360px" '+tclass+'>';
+            html += '</td><td '+tclass+'>';
 
             var escrow_n = null;
             var escrow_addr = null;

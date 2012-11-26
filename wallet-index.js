@@ -18,8 +18,14 @@ function numberWithCommas(x) {
         return $(this).each(function() {
             var self = this,
                 loopCount = 0,
-                value = options.from,
-                interval = setInterval(updateTimer, options.refreshInterval);
+                value = options.from;
+
+            if (self.interval) {
+                clearInterval(self.interval);
+                self.interval = null;
+            }
+
+            self.interval = setInterval(updateTimer, options.refreshInterval);
 
             function updateTimer() {
                 value += increment;
@@ -31,7 +37,7 @@ function numberWithCommas(x) {
                 }
 
                 if (loopCount >= loops) {
-                    clearInterval(interval);
+                    clearInterval(self.interval);
                     value = options.to;
 
                     if (typeof(options.onComplete) == 'function') {
@@ -54,7 +60,6 @@ function numberWithCommas(x) {
 }(jQuery));
 
 $(document).ready(function() {
-
     try {
         $('.slidedeck').slidedeck();
     } catch(err) {}
@@ -104,10 +109,7 @@ $(document).ready(function() {
                         from: original_value,
                         to: new_value,
                         speed: 5000,
-                        refreshInterval: 50,
-                        onComplete: function(value) {
-                            console.debug(this);
-                        }
+                        refreshInterval: 50
                     });
                 }
             };
