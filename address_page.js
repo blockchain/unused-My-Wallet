@@ -113,8 +113,6 @@ $(document).ready(function() {
 
                     $('#final_balance span').attr('data-c', parseInt($('#final_balance span').attr('data-c')) + result);
 
-                    flashTitle('New Transaction');
-
                     tx.result = result;
 
                     $('#no_tx').hide();

@@ -487,36 +487,6 @@ function registerURIHandler() {
     }
 }
 
-var titleInterval = null;
-var titleStart;
-var titleOldTitle;
-
-function flashTitle(msg, til) {
-    if (til == null) til = 10000;
-
-    function stop() {
-        clearInterval(titleInterval);
-        document.title = titleOldTitle;
-        titleInterval = null;
-    }
-
-    if (titleInterval != null)
-        stop();
-
-    titleOldTitle = document.title;
-    titleStart = new Date().getTime();
-
-    titleInterval = setInterval(function(){
-        if (document.title == titleOldTitle)
-            document.title = msg;
-        else
-            document.title = titleOldTitle;
-
-        if (new Date().getTime() - titleStart > til)
-            stop();
-    }, 750);
-}
-
 function loadScript(src, success, error) {
     src += '?'+war_checksum;
 
