@@ -1315,28 +1315,7 @@ function restoreWallet() {
 
     password = $("#restore-password").val();
 
-    if (password.length == 0 || password.length < 8 || password.length > 255) {
-        makeNotice('error', 'misc-error', 'Password length must be between least 10  & 255 characters');
-        return false;
-    } else {
-        hideNotice('password-error');
-    }
-
-    var toffline = $('#restore-offline').is(':checked');
-
-    if (toffline) {
-        try {
-            if (localStorage == null) {
-                makeNotice('error', 'misc-error', 'Your browser does not support local storage. Cannot login in offline mode.');
-                return false;
-            } else if (localStorage.getItem('multiaddr') != null) {
-                makeNotice('error', 'misc-error', 'Local storage not empty. Have you enabled private browsing?.');
-                return false;
-            }
-        } catch (e) {
-            console.log(e);
-        }
-    }
+    hideNotice('password-error');
 
     //If we don't have any wallet data then we must have two factor authentication enabled
     if (encrypted_wallet_data == null || encrypted_wallet_data.length == 0) {
@@ -1833,7 +1812,7 @@ function checkAndSetPassword() {
     }
 
     if (tpassword.length == 0 || tpassword.length < 10 || tpassword.length > 255) {
-        makeNotice('error', 'misc-error', 'Password must be 10 characters or more in length');
+        makeNotice('error', 'misc-error', 'Password length must be between least 10  & 255 characters');
         return false;
     }
 
