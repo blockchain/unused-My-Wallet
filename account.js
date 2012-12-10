@@ -309,7 +309,6 @@ function getAccountInfo() {
             $('.sms-verified').show().trigger('show');
             $('.sms-unverified').hide();
         }
-
         $.get(resource + 'wallet/country_codes.html').success(function(data) {
             $('select[class="wallet-sms-country-codes"]').html(data).val(country_code);
         }).error(function () {
@@ -549,20 +548,28 @@ function bindAccountButtons() {
         $(this).parent().find('.wallet-sms').trigger('change');
     });
 
+
+    $('select[class="wallet-sms-country-codes"]').change(function(){
+        $('.wallet-sms').trigger('change');
+    });
+
     var wallet_sms_val;
     $('.wallet-sms').unbind().change(function(e) {
 
         var val = $.trim($(this).val());
 
-        if (val == null || val.length == 0 || wallet_sms_val == val) {
+        if (val == null || val.length == 0)
+            return;
+
+        if (val.charAt(0) != '+') {
+            val = '+' + $('select[class="wallet-sms-country-codes"]').val() + val;
+        }
+
+        if (wallet_sms_val == val) {
             return;
         }
 
         wallet_sms_val = val;
-
-        if (val.charAt(0) != '+') {
-            val = '+' + $('.wallet-sms-country-codes').val() + val;
-        }
 
         updateKV('Updating Cell Number', 'update-sms', val, function() {
             $('.sms-unverified').show(200);
