@@ -564,10 +564,10 @@ function bindAccountButtons() {
             val = '+' + $('.wallet-sms-country-codes').val() + val;
         }
 
-        updateKV('Updating Cell Number', 'update-sms', val);
-
-        $('.sms-unverified').show(200);
-        $('.sms-verified').hide();
+        updateKV('Updating Cell Number', 'update-sms', val, function() {
+            $('.sms-unverified').show(200);
+            $('.sms-verified').hide();
+        });
     });
 
     $('#run-key-check').click(function() {
