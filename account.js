@@ -28,10 +28,10 @@ function updateKV(txt, method, value, success, error) {
 
         if (success) success();
     }).error(function(data) {
-            makeNotice('error', method + '-error', data.responseText);
+        makeNotice('error', method + '-error', data.responseText);
 
-            if (error) error();
-        });
+        if (error) error();
+    });
 }
 
 function setDoubleEncryptionButton() {
