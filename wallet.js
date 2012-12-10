@@ -31,12 +31,6 @@ var fee_policy = 0; //Default Fee policy (-1 Tight, 0 Normal, 1 High)
 var pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
 var html5_notifications = false;
 
-$.fn.center = function () {
-    this.css("top", Math.max(( $(window).height() - this.height() ) / 2+$(window).scrollTop(), 10) + "px");
-    this.css("left", Math.max(( $(window).width() - this.width() ) / 2+$(window).scrollLeft(), 10) + "px");
-    return this;
-};
-
 $(window).resize(function() {
     $('.modal:visible').center();
 });

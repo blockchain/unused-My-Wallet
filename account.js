@@ -562,7 +562,7 @@ function bindAccountButtons() {
             return;
 
         if (val.charAt(0) != '+') {
-            val = '+' + $('select[class="wallet-sms-country-codes"]').val() + val;
+            val = '+' + $('.wallet-sms-country-codes').val() + val;
         }
 
         if (wallet_sms_val == val) {

@@ -9,6 +9,13 @@ var root = '/';
 var resource = '/Resources/';
 var war_checksum;
 
+
+$.fn.center = function () {
+    this.css("top", Math.max(( $(window).height() - this.height() ) / 2+$(window).scrollTop(), 10) + "px");
+    this.css("left", Math.max(( $(window).width() - this.width() ) / 2+$(window).scrollLeft(), 10) + "px");
+    return this;
+};
+
 //Ignore Console
 if (!window.console) {
     var names = ["log", "debug", "info", "warn", "error", "assert", "dir", "dirxml",
