@@ -1096,7 +1096,9 @@ function didDecryptWallet() {
         if (local_guid != guid) {
             localStorage.clear();
 
-            localStorage.setItem('guid', guid);
+            //Demo Account Guid
+            if (guid != 'abcaa314-6f67-6705-b384-5d47fbe9d7cc')
+                localStorage.setItem('guid', guid);
         } else {
             //Restore the balance cache
             var multiaddrjson = localStorage.getItem('multiaddr');
@@ -3575,12 +3577,14 @@ function _addPrivateKey(key) {
     if (internalAddKey(addr.toString(), encodePK(key.priv))) {
         addresses[addr].tag = 1; //Mark as unsynced
 
-        makeNotice('info', 'new-address', 'Generated new bitcoin address ' + addr);
+        if (isInitialized) {
+            makeNotice('info', 'new-address', 'Generated new bitcoin address ' + addr);
 
-        //Subscribe to tranaction updates through websockets
-        try {
-            ws.send('{"op":"addr_sub", "addr":"'+addr+'"}');
-        } catch (e) { }
+            //Subscribe to tranaction updates through websockets
+            try {
+                ws.send('{"op":"addr_sub", "addr":"'+addr+'"}');
+            } catch (e) { }
+        }
     } else {
         throw 'Unable to add generated bitcoin address.';
     }

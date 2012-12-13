@@ -22,6 +22,11 @@ function generateNewWallet() {
         sharedKey = guidGenerator();
         guid = guidGenerator();
 
+        if(navigator.userAgent.match(/MeeGo/i)) {
+            makeNotice('error', 'misc-error', 'MeeGo browser currently not supported.');
+            return false;
+        }
+
         if (guid.length != 36) {
             makeNotice('error', 'misc-error', 'Error generating wallet identifier');
             return false;
