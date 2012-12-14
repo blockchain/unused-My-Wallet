@@ -898,6 +898,26 @@ BlockchainAPI.push_tx = function(tx, note, success, error) {
         };
 
         var s = tx.serialize();
+
+        function push_normal() {
+            var hex = Crypto.util.bytesToHex(s);
+
+            var post_data = {
+                format : "plain",
+                tx: hex
+            };
+
+            if (note) {
+                post_data.note = note;
+            }
+
+            $.post(root + 'pushtx', post_data, function() {
+                did_push();
+            }).error(function(data) {
+                error(data ? data.responseText : null);
+            });
+        }
+
         try {
             var buffer = new ArrayBuffer(s.length);
 
@@ -930,29 +950,14 @@ BlockchainAPI.push_tx = function(tx, note, success, error) {
                     did_push();
                 },
                 error : function(data) {
-                    error(data ? data.responseText : null);
+                    push_normal();
                 }
             });
 
         } catch (e) {
             console.log(e);
 
-            var hex = Crypto.util.bytesToHex(s);
-
-            var post_data = {
-                format : "plain",
-                tx: hex
-            };
-
-            if (note) {
-                post_data.note = note;
-            }
-
-            $.post(root + 'pushtx', post_data, function() {
-                did_push();
-            }).error(function(data) {
-                    error(data ? data.responseText : null);
-                });
+            push_normal();
         }
     } catch (e) {
         error(e);
