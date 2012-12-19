@@ -2471,15 +2471,6 @@ function bind() {
         SetCookie('anonymous-never-ask', $(this).is(':checked'));
     });
 
-    $('body').click(function() {
-        rng_seed_time();
-    });
-
-
-    $('body').keypress(function() {
-        rng_seed_time();
-    });
-
     $('.deposit-btn').click(function() {
         var self = $(this);
         var address = getPreferredAddress().addr;
@@ -3344,9 +3335,10 @@ function privateKeyStringToKey(value, format) {
 
 $(document).ready(function() {
 
-    /*loadScript(resource + 'wallet/electrum.js', function() {
-     ElectrumAPI.get_history();
-     });*/
+    if (!$.isEmptyObject({})) {
+        makeNotice('error', 'error', 'Object.prototype has been extended by a browser extension. Please disable this extensions and reload the page.');
+        return;
+    }
 
     //Disable auotcomplete in firefox
     $("input, button").attr("autocomplete","off");
@@ -3402,21 +3394,23 @@ $(document).ready(function() {
 
     var body = $('body');
 
+    body.ajaxStart(function() {
+        $('.loading-indicator').fadeIn(200);
+    }).ajaxStop(function() {
+            $('.loading-indicator').hide();
+   }).click(function() {
+            rng_seed_time();
+    }).keypress(function() {
+            rng_seed_time();
+    });
+
+    bind();
+
     //Load data attributes from html
     encrypted_wallet_data = body.data('payload');
     guid = body.data('guid');
     sharedKey = body.data('sharedkey');
     payload_checksum =  body.data('payload-checksum');
-
-    bind();
-
-    $('body').ajaxStart(function() {
-        $('.loading-indicator').fadeIn(200);
-    });
-
-    $('body').ajaxStop(function() {
-        $('.loading-indicator').hide();
-    });
 
     try {
         if (guid.length == 0) {
