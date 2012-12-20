@@ -672,7 +672,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                                     if (address) {
                                         pending_transaction.to_addresses.push({address: new Bitcoin.Address(address), value : value});
-                                    } else {
+                                    } else if (send_to_address.length < 10) {
                                         //Try and Resolve firstbits
                                         BlockchainAPI.resolve_firstbits(send_to_address, function(data) {
                                             try {
@@ -688,6 +688,8 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                         });
 
                                         return false;
+                                    } else {
+                                        pending_transaction.error('Invalid to address: ' + send_to_address);
                                     }
                                 }
                             }
