@@ -28,10 +28,10 @@ function updateKV(txt, method, value, success, error) {
 
         if (success) success();
     }).error(function(data) {
-        makeNotice('error', method + '-error', data.responseText);
+            makeNotice('error', method + '-error', data.responseText);
 
-        if (error) error();
-    });
+            if (error) error();
+        });
 }
 
 function setDoubleEncryptionButton() {
@@ -169,7 +169,7 @@ function getAccountInfo() {
 
     setLoadingText('Getting Wallet Info');
 
-    $.post("/wallet", { guid: guid, sharedKey: sharedKey, method : 'get-info' },  function(data) {
+    $.post("/wallet", { guid: guid, sharedKey: sharedKey, method : 'get-info', format : 'plain' },  function(data) {
 
         if (data.email != null) {
             $('#wallet-email').val(data.email);
@@ -195,6 +195,7 @@ function getAccountInfo() {
             notifications_type_el.find('.type-'+type).show();
         }
 
+        $('#logging-level').val(data.logging_level);
         $('#notifications-confirmations').val(data.notifications_confirmations);
         $('#notifications-on').val(data.notifications_on);
 
@@ -379,8 +380,8 @@ function getAccountInfo() {
         };
 
     }).error(function(data) {
-        makeNotice('error', 'misc-error', data.responseText);
-    });
+            makeNotice('error', 'misc-error', data.responseText);
+        });
 }
 
 function bindAccountButtons() {
@@ -508,7 +509,7 @@ function bindAccountButtons() {
 
         setLoadingText('Verifying Email');
 
-        $.post("/wallet", { guid: guid, payload: code, sharedKey: sharedKey, length : code.length, method : 'verify-email' },  function(data) {
+        $.post("/wallet", { guid: guid, format : 'plain', payload: code, sharedKey: sharedKey, length : code.length, method : 'verify-email' },  function(data) {
             makeNotice('success', 'misc-success', data);
 
             $('#verify-email').hide();
@@ -532,7 +533,7 @@ function bindAccountButtons() {
 
         setLoadingText('Verifying SMS Code');
 
-        $.post("/wallet", { guid: guid, payload: code, sharedKey : sharedKey, length : code.length, method : 'verify-sms' },  function(data) {
+        $.post("/wallet", { guid: guid, format : 'plain', payload: code, sharedKey : sharedKey, length : code.length, method : 'verify-sms' },  function(data) {
             makeNotice('success', 'misc-success', data);
 
             $('.sms-unverified').hide();
@@ -608,6 +609,47 @@ function bindAccountButtons() {
 
     $('#notifications-confirmations').unbind().change(function(e) {
         updateKV('Updating Notification Confirmations', 'update-notifications-confirmations', $(this).val());
+    });
+
+
+    $('#account-logging').on('show', function() {
+
+        var table = $(this).find('table').hide();
+
+        var tbody = table.find('tbody');
+
+        $.get(root + 'wallet/list-logs?guid='+guid+'&sharedKey='+sharedKey+'&format=plain').success(function(obj) {
+            try {
+                table.show();
+
+                tbody.empty();
+
+                if (obj == null) {
+                    throw 'Failed to get backups';
+                }
+
+                var results = obj.results;
+
+                if (results.length == 0) {
+                    throw 'No backups found';
+                }
+
+                for (var i in results) {
+                    var result = results[i];
+
+
+                    tbody.append('<tr><td style="width:130px">'+dateToString(new Date(result.time))+'</td><td style="width:170px">'+result.action+'</td><td style="text-overflow: ellipsis;max-width:80px;overflow: hidden;">'+result.ip_address+'</td><td>'+result.user_agent+'</td></tr>')
+                }
+            } catch (e) {
+                makeNotice('error', 'misc-error', e);
+            }
+        }).error(function(data) {
+                makeNotice('error', 'misc-error', data.responseText);
+            });
+    });
+
+    $('#logging-level').unbind().change(function(e) {
+        updateKV('Updating Logging Level', 'update-logging-level', $(this).val());
     });
 
     $('#wallet-yubikey').unbind().change(function(e) {

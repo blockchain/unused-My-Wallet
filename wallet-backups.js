@@ -309,7 +309,7 @@ function importTextArea(area) {
 function importS3WalletBackup(id) {
     setLoadingText('Importing Backup');
 
-    $.get(root + 'wallet/get-backup?guid='+guid+'&sharedKey='+sharedKey+'&id='+id).success(function(obj) {
+    $.get(root + 'wallet/get-backup?format=plain&guid='+guid+'&sharedKey='+sharedKey+'&id='+id).success(function(obj) {
         try {
             var payload = obj.payload;
 
@@ -334,7 +334,7 @@ function importS3WalletBackup(id) {
 function loadBackupsList(el) {
     setLoadingText('Loading Backup List');
 
-    $.get(root + 'wallet/list-backups?guid='+guid+'&sharedKey='+sharedKey).success(function(obj) {
+    $.get(root + 'wallet/list-backups?format=plain&guid='+guid+'&sharedKey='+sharedKey).success(function(obj) {
         try {
             if (obj == null) {
                 throw 'Failed to get backups';

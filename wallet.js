@@ -25,7 +25,7 @@ var payload_checksum = null; //SHA256 hash of the current wallet.aes.json
 var addressToAdd = null; //a watch only address to add from #newaddr hash value (String)
 var privateKeyToSweep = null; //a private key to sweep from #newpriv hash value (ECKey)
 var isSignup = false; //Set when on new account signup page
-var archTimer; //Delayed Backuop wallet timer
+var archTimer; //Delayed Backup wallet timer
 var mixer_fee = 1.5; //Default mixer fee 1.5%
 var fee_policy = 0; //Default Fee policy (-1 Tight, 0 Normal, 1 High)
 var pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
