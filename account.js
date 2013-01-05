@@ -189,11 +189,14 @@ function getAccountInfo() {
 
         for (var i in data.notifications_type) {
             var type = data.notifications_type[i];
-            console.log(type);
 
             notifications_type_el.find(':checkbox[value="'+type+'"]').prop("checked", true);
             notifications_type_el.find('.type-'+type).show();
         }
+
+        $('.logl').hide();
+
+        $('.logl.l'+data.logging_level).show();
 
         $('#logging-level').val(data.logging_level);
         $('#notifications-confirmations').val(data.notifications_confirmations);
@@ -638,7 +641,7 @@ function bindAccountButtons() {
                     var result = results[i];
 
 
-                    tbody.append('<tr><td style="width:130px">'+dateToString(new Date(result.time))+'</td><td style="width:170px">'+result.action+'</td><td style="text-overflow: ellipsis;max-width:80px;overflow: hidden;">'+result.ip_address+'</td><td>'+result.user_agent+'</td></tr>')
+                    tbody.append('<tr><td style="width:130px">'+dateToString(new Date(result.time))+'</td><td style="width:170px">'+result.action+'</td><td style="text-overflow: ellipsis;max-width:100px;overflow: hidden;">'+result.ip_address+'</td><td>'+result.user_agent+'</td></tr>')
                 }
             } catch (e) {
                 makeNotice('error', 'misc-error', e);
@@ -649,6 +652,11 @@ function bindAccountButtons() {
     });
 
     $('#logging-level').unbind().change(function(e) {
+
+        $('.logl').hide();
+
+        $('.logl.l'+$(this).val()).show();
+
         updateKV('Updating Logging Level', 'update-logging-level', $(this).val());
     });
 
