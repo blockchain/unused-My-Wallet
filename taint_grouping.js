@@ -8,17 +8,15 @@ function buildTable(groups) {
     var el = $('#active-addresses');
     var table = el.find('table');
 
-    table.find('tbody').remove();
+    var tbody = table.find('tbody').empty();
 
     for (var i in groups) {
         var group = groups[i];
 
         if (i == 0)
-            table.append('<tbody><tr><th colspan="2">Group #'+i+'</th><th colspan="2"><a onclick="removeGrouping();">Hide Grouping</a></th></tr></tbody>');
+            tbody.append('<tr><th>Group #'+i+'</th><th colspan="2"><a onclick="removeGrouping();">Hide Grouping</a></th></tr>');
         else
-            table.append('<tbody><tr><th colspan="4">Group #'+i+'</th></tr></tbody>');
-
-        var tbody = $('<tbody></tbody>').appendTo(table);
+            tbody.append('<tr><th colspan="3">Group #'+i+'</th></tr>');
 
         for (var ii in group) {
             var address = group[ii];
@@ -42,12 +40,10 @@ function buildTable(groups) {
                 extra = '<span class="hidden-phone"> - ' + addr.addr + '</span>';
             }
 
-            var thtml = '<tr style="background-color:#FFFFFF;"><td></td><td style="background-color:#FFFFFF;"><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td style="background-color:#FFFFFF;" colspan="2"><span style="color:green">' + formatBTC(addr.balance) + '<span class="hidden-phone"> BTC</span></span></td></tr>';
+            var thtml = '<tr style="background-color:#FFFFFF;"><td style="background-color:#FFFFFF;"><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td style="background-color:#FFFFFF;" colspan="2"><span style="color:green">' + formatBTC(addr.balance) + '<span class="hidden-phone"> BTC</span></span></td></tr>';
 
             tbody.append(thtml);
         }
-
-        table.append(tbody);
     }
 }
 
