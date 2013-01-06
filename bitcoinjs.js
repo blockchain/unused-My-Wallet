@@ -5408,7 +5408,7 @@ Bitcoin.Message = (function () {
         return Crypto.util.bytesToBase64(sig);
     };
 
-    Message.verifyMessage = function (sig, message) {
+    Message.verifyMessage = function (address, sig, message) {
         sig = Crypto.util.base64ToBytes(sig);
 
         sig = Bitcoin.ECDSA.parseSigCompact(sig);
@@ -5421,7 +5421,10 @@ Bitcoin.Message = (function () {
 
         pubKey.setCompressed(isCompressed);
 
-        return pubKey.getBitcoinAddress().toString();
+        if (pubKey.getBitcoinAddress().toString() == address || pubKey.getBitcoinAddressCompressed().toString() == address)
+            return true;
+        else
+            return false;
     };
 
 

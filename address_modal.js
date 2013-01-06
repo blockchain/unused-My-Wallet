@@ -37,6 +37,8 @@ function verifyMessageModal() {
 
     modal.find('.address-result').hide();
 
+    var address_input = modal.find('input[name="address"]');
+
     var message_textarea = modal.find('textarea[name="message"]');
 
     var signature_textarea = modal.find('textarea[name="signature"]');
@@ -51,21 +53,31 @@ function verifyMessageModal() {
 
     modal.find('.btn.btn-primary').unbind().click(function() {
         try {
+            var address = $.trim(address_input.val());
+            if (!address || address.length == 0) {
+                throw 'Please enter a Bitcoin Address';
+            }
+
+            try {
+                new Bitcoin.Address(address);
+            } catch(e) {
+                throw 'Invalid Bitcoin Address';
+            }
+
             var message = $.trim(message_textarea.val());
             if (!message || message.length == 0) {
-                makeNotice('error', 'misc-error', 'You Must Enter A Message To Verify');
-                return;
+                throw 'You Must Enter A Message To Verify';
             }
 
             var signature = $.trim(signature_textarea.val());
             if (!signature || signature.length == 0) {
-                makeNotice('error', 'misc-error', 'You Must Enter A Signature To Verify');
-                return;
+                throw 'You Must Enter A Signature To Verify';
             }
 
-            var address = Bitcoin.Message.verifyMessage(signature, message);
-
-            modal.find('.address-result-txt').text(address);
+            if (Bitcoin.Message.verifyMessage(address, signature, message))
+                modal.find('.address-result-txt').html('<font color="green">Message Successfully Verified</font>');
+            else
+                modal.find('.address-result-txt').html('<font color="red">Error Verifying Message!</font>');
 
             modal.find('.address-result').show(200);
 
