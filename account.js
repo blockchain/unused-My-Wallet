@@ -634,7 +634,7 @@ function bindAccountButtons() {
                 var results = obj.results;
 
                 if (results.length == 0) {
-                    throw 'No backups found';
+                    throw 'No logs found';
                 }
 
                 for (var i in results) {
