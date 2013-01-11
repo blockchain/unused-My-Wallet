@@ -1328,7 +1328,7 @@ function internalRestoreWallet() {
             }
         }
 
-        tx_notes = obj.tx_notes;
+        if (obj.tx_notes) tx_notes = obj.tx_notes;
 
         sharedKey = obj.sharedKey;
 
