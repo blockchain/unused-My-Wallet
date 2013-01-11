@@ -42,6 +42,16 @@ $(document).ready(function() {
         });
     });
 
+    $('#export-history').click(function() {
+        loadScript(resource + 'wallet/frame-modal.js', function() {
+            showFrameModal({
+                title : 'Export History',
+                description : '',
+                src : root + 'export-history?active='+address
+            });
+        });
+    });
+
     $('#payment-request').click(function() {
         loadScript(resource + 'wallet/frame-modal.js', function() {
             showFrameModal({

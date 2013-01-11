@@ -12,7 +12,7 @@ var n_tx = 0; //Number of transactions
 var n_tx_filtered = 0; //Number of transactions after filtering
 var isInitialized = false; //Wallet is loaded and decrypted
 var latest_block = null; //Chain head block
-var address_book = []; //Holds the address book addr = label
+var address_book = {}; //Holds the address book addr = label
 var transactions = []; //List of all transactions (initially populated from /multiaddr updated through websockets)
 var double_encryption = false; //If wallet has a second password
 var tx_page = 0; //Multi-address page
@@ -30,9 +30,18 @@ var mixer_fee = 1.5; //Default mixer fee 1.5%
 var fee_policy = 0; //Default Fee policy (-1 Tight, 0 Normal, 1 High)
 var pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
 var html5_notifications = false;
+var tx_notes = {}
+
+function hidePopovers() {
+    try {
+        $('.pop').popover('hide');
+    } catch (e) {}
+}
 
 $(window).resize(function() {
     $('.modal:visible').center();
+
+    hidePopovers();
 });
 
 function setLoadingText(txt) {
@@ -166,7 +175,6 @@ function wsSuccess(ws) {
                 var id = buildVisibleViewPre();
                 if ("my-transactions" == id) {
                     if (tx_filter == 0 && tx_page == 0) {
-                        $('#transactions-header').show();
                         $('#no-transactions').hide();
 
                         if ($('#tx_display').val() == 0) {
@@ -376,6 +384,10 @@ function makeWalletJSON(format) {
         out = out.substring(0, out.length-2);
 
         out += "\n	]";
+    }
+
+    if (nKeys(tx_notes) > 0) {
+        out += ',\n	"tx_notes" : ' + JSON.stringify(tx_notes)
     }
 
     out += '\n}';
@@ -599,6 +611,114 @@ function openTransactionSummaryModal(txIndex, result) {
     });
 }
 
+function deleteNote(tx_hash) {
+    delete tx_notes[tx_hash];
+
+    buildVisibleView();
+
+    backupWalletDelayed();
+}
+
+function addNotePopover(el, tx_hash) {
+    (function(el, tx_hash) {
+        el = $(el);
+
+        if (!el.data('popover')) {
+            el.popover({
+                title : 'Add Note',
+                trigger : 'manual',
+                content : '<textarea style="width:97%;height:50px;margin-top:2px" placeholder="Enter the note here..."></textarea><div style="text-align:right"><button class="btn btn-primary">Save</button></div>'
+            });
+        } else if (el.data('popover').tip().is(':visible'))
+            return;
+
+        el.popover('show');
+
+        el.mouseleave(function() {
+            if (!el.__timeout) {
+                el.__timeout = setTimeout(function() {
+                    el.popover('hide');
+                }, 250);
+            }
+        });
+
+        function clearT() {
+            if (el.__timeout) {
+                clearTimeout(el.__timeout);
+                el.__timeout = null;
+            }
+        }
+
+        var tip = el.data('popover').tip().mouseenter(clearT);
+
+        tip.find('textarea').focus(clearT);
+
+        tip.mouseleave(function() {
+            el.__timeout = setTimeout(function() {
+                el.popover('hide');
+            }, 250);
+        });
+
+        tip.find('button').click(function() {
+            //Strip HTML and replace quotes
+            var note = $.trim($('<div>'+tip.find('textarea').val()+'</div>').text().replace(/'/g, '').replace(/"/g, ''));
+
+            if (note.length > 0) {
+                tx_notes[tx_hash] = note;
+
+                backupWalletDelayed();
+            }
+
+            buildVisibleView();
+        });
+    })(el, tx_hash);
+}
+
+function showNotePopover(el, content, tx_hash) {
+    (function(el, content, tx_hash) {
+        el = $(el);
+
+        if (!el.data('popover')) {
+
+            var title = 'Note';
+
+            if (tx_notes[tx_hash])
+                title += ' <span style="float:right"><img src="'+resource+'delete.png" onclick="deleteNote(\''+tx_hash+'\')" /></span>';
+
+            $(el).popover({
+                title : title,
+                trigger : 'manual',
+                content : content
+            })
+        } else if (el.data('popover').tip().is(':visible'))
+            return;
+
+        el.popover('show');
+
+        el.mouseleave(function() {
+            if (!el.__timeout) {
+                el.__timeout = setTimeout(function() {
+                    el.popover('hide');
+                }, 250);
+            }
+        });
+
+        var tip = el.data('popover').tip().mouseenter(function() {
+            if (el.__timeout) {
+                clearTimeout(el.__timeout);
+                el.__timeout = null;
+            }
+        });
+
+        tip.mouseleave(function() {
+            el.__timeout = setTimeout(function() {
+                el.popover('hide');
+            }, 250);
+        });
+    })(el, content, tx_hash);
+}
+
+
 function getCompactHTML(tx, myAddresses, addresses_book) {
     var result = tx.result;
 
@@ -646,8 +766,12 @@ function getCompactHTML(tx, myAddresses, addresses_book) {
 
     html += '</ul></div></td><td><div>';
 
-    if (tx.note) {
-        html += '<img src="'+resource+'note.png" class="pop" title="Note" data-content="'+tx.note+'."> ';
+    var note = tx.note ? tx.note : tx_notes[tx.hash];
+
+    if (note) {
+        html += '<img src="'+resource+'note.png" class="pop" onmouseover="showNotePopover(this, \''+ note +'\', \''+tx.hash+'\')"> ';
+    } else {
+        html += '<img src="'+resource+'note_grey.png" class="pop" onmouseover="addNotePopover(this, \''+tx.hash+'\')"> ';
     }
 
     if (tx.time > 0) {
@@ -682,9 +806,7 @@ function getCompactHTML(tx, myAddresses, addresses_book) {
 //Reset is true when called manually with changeview
 function buildVisibleViewPre(reset) {
     //Hide any popovers as they can get stuck whent the element is re-drawn
-    try {
-        cVisible.find('.pop').popover('hide');
-    } catch (e) {}
+    hidePopovers();
 
     //Update the account balance
     if (final_balance == null) {
@@ -761,11 +883,10 @@ function buildTransactionsView() {
     }
 
     if (transactions.length == 0) {
-        $('#transactions-header, #transactions-detailed, #transactions-compact').hide();
+        $('#transactions-detailed, #transactions-compact').hide();
         $('#no-transactions').show();
         return;
     } else {
-        $('#transactions-header').show();
         $('#no-transactions').hide();
     }
 
@@ -785,8 +906,6 @@ function buildTransactionsView() {
         if (start < transactions.length) {
             interval = setTimeout(buildSome, 15);
         } else {
-            buildPopovers(); //Build the note popover
-
             var pagination = $('.pagination ul').empty();
 
             if (tx_page == 0 && transactions.length < 50) {
@@ -819,7 +938,6 @@ function buildTransactionsView() {
             pagination.append('<li onclick="setPage(tx_page+1)" class="next'+disabled+'"><a>Next &rarr;</a></li>');
         }
     };
-
 
     buildSome();
 }
@@ -1203,12 +1321,14 @@ function internalRestoreWallet() {
             addresses[key.addr] = key;
         }
 
-        address_book = [];
+        address_book = {};
         if (obj.address_book != null) {
             for (var i = 0; i < obj.address_book.length; ++i) {
                 internalAddAddressBookEntry(obj.address_book[i].addr, obj.address_book[i].label);
             }
         }
+
+        tx_notes = obj.tx_notes;
 
         sharedKey = obj.sharedKey;
 
@@ -1555,7 +1675,7 @@ function backupWallet(method, successcallback, errorcallback, extra) {
             throw 'Error encrypting the JSON output';
         }
 
-        //Now Decrypt the it again to double check for any possible currupotion
+        //Now Decrypt the it again to double check for any possible corruption
         var obj = null;
         decrypt(crypted, password, function(decrypted) {
             try {
@@ -2469,6 +2589,16 @@ function bind() {
 
     $('#anonymous-never-ask').click(function() {
         SetCookie('anonymous-never-ask', $(this).is(':checked'));
+    });
+
+    $('#export-history').click(function() {
+        loadScript(resource + 'wallet/frame-modal.js', function() {
+            showFrameModal({
+                title : 'Export History',
+                description : '',
+                src : root + 'export-history?active='+getActiveAddresses().join('|')+'&archived='+getArchivedAddresses().join("|")
+            });
+        });
     });
 
     $('.deposit-btn').click(function() {
@@ -3398,11 +3528,11 @@ $(document).ready(function() {
         $('.loading-indicator').fadeIn(200);
     }).ajaxStop(function() {
             $('.loading-indicator').hide();
-   }).click(function() {
+        }).click(function() {
             rng_seed_time();
-    }).keypress(function() {
+        }).keypress(function() {
             rng_seed_time();
-    });
+        });
 
     bind();
 
