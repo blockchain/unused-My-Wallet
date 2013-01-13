@@ -627,7 +627,7 @@ function addNotePopover(el, tx_hash) {
             el.popover({
                 title : 'Add Note',
                 trigger : 'manual',
-                content : '<textarea style="width:97%;height:50px;margin-top:2px" placeholder="Enter the note here..."></textarea><div style="text-align:right"><button class="btn btn-primary">Save</button></div>'
+                content : '<textarea style="width:97%;height:50px;margin-top:2px" placeholder="Enter the note here..."></textarea><div style="text-align:right"><button class="btn btn-small">Save</button></div>'
             });
         } else if (el.data('popover').tip().is(':visible'))
             return;
@@ -769,9 +769,9 @@ function getCompactHTML(tx, myAddresses, addresses_book) {
     var note = tx.note ? tx.note : tx_notes[tx.hash];
 
     if (note) {
-        html += '<img src="'+resource+'note.png" class="pop" onmouseover="showNotePopover(this, \''+ note +'\', \''+tx.hash+'\')"> ';
+        html += '<img src="'+resource+'note.png" class="pop" onclick="return false;" onmouseover="showNotePopover(this, \''+ note +'\', \''+tx.hash+'\')"> ';
     } else {
-        html += '<img src="'+resource+'note_grey.png" class="pop" onmouseover="addNotePopover(this, \''+tx.hash+'\')"> ';
+        html += '<img src="'+resource+'note_grey.png" class="pop"  onclick="return false;"  onmouseover="addNotePopover(this, \''+tx.hash+'\')"> ';
     }
 
     if (tx.time > 0) {
@@ -1919,8 +1919,8 @@ function checkAllKeys(reencrypt) {
 
 
 function checkAndSetPassword() {
-    var tpassword = $("#password").val();
-    var tpassword2 = $("#password2").val();
+    var tpassword = $.trim($("#password").val());
+    var tpassword2 = $.trim($("#password2").val());
 
     if (tpassword != tpassword2) {
         makeNotice('error', 'misc-error', 'Passwords do not match.');
@@ -1935,41 +1935,6 @@ function checkAndSetPassword() {
     password = tpassword;
 
     return true;
-}
-
-function updatePassword() {
-    if (!isInitialized || offline) return;
-
-    var modal = $('#update-password-modal');
-
-    modal.modal({
-        keyboard: true,
-        backdrop: "static",
-        show: true
-    });
-
-    modal.find('.btn.btn-primary').unbind().click(function() {
-        modal.modal('hide');
-
-        var oldPassword = password;
-
-        if (!checkAndSetPassword()) {
-            return false;
-        }
-
-        backupWallet('update', function() {
-            updateCacheManifest(function() {
-                window.location = root + 'wallet/' + guid + window.location.hash;
-            });
-        }, function() {
-            makeNotice('error', 'misc-error', 'Error syncing wallet. Password Not changed');
-            password = oldPassword;
-        });
-    });
-
-    modal.find('.btn.btn-secondary').unbind().click(function() {
-        modal.modal('hide');
-    });
 }
 
 function changeView(id) {
@@ -2633,6 +2598,11 @@ function bind() {
         $('#import-export-content').show(200);
     });
 
+    $('#show-account-settings').click(function () {
+        $('#account-settings-warning').hide();
+        $('#my-account-content').show(200);
+    });
+
     $('#restore-password').keypress(function(e) {
         if(e.keyCode == 13) { //Pressed the return key
             e.preventDefault();
@@ -2685,10 +2655,6 @@ function bind() {
     if (tx_cookie_val != null) {
         tx_display_el.val(parseInt(tx_cookie_val));
     }
-
-    $('#update-password-btn').click(function() {
-        updatePassword();
-    });
 
     $('#email-backup-btn').click(function() {
         emailBackup();
@@ -2877,17 +2843,27 @@ function bind() {
         if (!isInitialized)
             return;
 
+        changeView($("#my-account"));
+
         loadScript(resource + 'wallet/account.min.js', function() {
+            $.get(root + 'wallet/account-settings-template').success(function(html) {
+                $("#my-account-content").html(html);
 
-            setDoubleEncryptionButton();
+                setDoubleEncryptionButton();
 
-            bindAccountButtons();
+                bindAccountButtons();
 
-            getAccountInfo();
+                getAccountInfo();
 
-            changeView($("#my-account"));
+            }).error(function() {
+                makeNotice('error', 'misc-error', 'Error Downloading Account Settings Template');
+
+                    changeView($("#home-intro"));
+                });
         }, function (e) {
             makeNotice('error', 'misc-error', e);
+
+            changeView($("#home-intro"));
         });
     });
 
@@ -3353,10 +3329,14 @@ function bind() {
     });
 
     $('.modal').on('show', function() {
+        hidePopovers();
+
         $(this).center();
     }).on('shown', function() {
+            hidePopovers();
+
             $(this).center();
-        })
+    })
 }
 
 function parseMiniKey(miniKey) {
@@ -3604,8 +3584,6 @@ function showWatchOnlyWarning(address, success) {
         backdrop: "static",
         show: true
     });
-
-    console.log(address);
 
     modal.find('.address').text(address);
 

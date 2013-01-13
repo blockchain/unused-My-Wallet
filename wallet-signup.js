@@ -1,4 +1,5 @@
 isSignup = true;
+var alias;
 
 function guidGenerator() {
     var S4 = function() {
@@ -32,16 +33,13 @@ function generateNewWallet() {
             return false;
         }
 
-        var alias = encodeURIComponent($.trim($('#alias-value').val()));
+        alias = encodeURIComponent($.trim($('#alias-value').val()));
         var captcha_code = $.trim($('#captcha-value').val());
 
         backupWallet('insert', function(){
             SetCookie('cguid', guid);
 
-            if (alias && alias.length > 0)
-                window.location = root + 'wallet/' + alias + window.location.hash;
-            else
-                window.location = root + 'wallet/' + guid + window.location.hash;
+            showMnemonicModal();
         }, function(e) {
 
             $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
@@ -59,6 +57,40 @@ function generateNewWallet() {
     }
 
     return false;
+}
+
+function showMnemonicModal() {
+    var modal = $('#mnemonic-modal');
+
+    modal.modal({
+        keyboard: true,
+        backdrop: "static",
+        show: true
+    });
+
+    modal.center();
+
+    try {
+        $('#mnemonic').text(mn_encode_pass(password));
+    } catch (e) {
+        console.log(e);
+
+        makeNotice('error', 'misc-error', e);
+
+        modal.modal('hide');
+
+        return;
+    }
+
+    modal.find('.btn.btn-primary').unbind().click(function() {
+        modal.modal('hide');
+
+        //Redirect to Login
+        if (alias && alias.length > 0)
+            window.location = root + 'wallet/' + alias + window.location.hash;
+        else
+            window.location = root + 'wallet/' + guid + window.location.hash;
+    });
 }
 
 $(document).ready(function() {

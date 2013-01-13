@@ -163,6 +163,28 @@ function setDoubleEncryption(value) {
     }
 }
 
+
+function updateMnemonics() {
+    loadScript(resource + 'wallet/mnemonic.js', function() {
+        getSecondPassword(function() {
+            try {
+                $('#password_mnemonic1').show().find('span').text(mn_encode_pass(password));
+
+                if (dpassword)
+                    $('#password_mnemonic2').show().find('span').text(mn_encode_pass(dpassword));
+                else
+                    $('#password_mnemonic2').hide();
+            } catch (e) {
+                console.log(e);
+
+                $('#password_mnemonic').collapse('hide');
+            }
+        }, function() {
+            $('#password_mnemonic').collapse('hide');
+        });
+    });
+}
+
 //Get email address, secret phrase, yubikey etc.
 function getAccountInfo() {
     if (!isInitialized || offline) return;
@@ -193,6 +215,7 @@ function getAccountInfo() {
             notifications_type_el.find(':checkbox[value="'+type+'"]').prop("checked", true);
             notifications_type_el.find('.type-'+type).show();
         }
+
 
         $('.logl').hide();
 
@@ -387,6 +410,45 @@ function getAccountInfo() {
         });
 }
 
+function updatePassword() {
+    $('#password_mnemonic').collapse('hide');
+
+    if (!isInitialized || offline) return;
+
+    var modal = $('#update-password-modal');
+
+    modal.modal({
+        keyboard: true,
+        backdrop: "static",
+        show: true
+    });
+
+    modal.center();
+
+    modal.find('.btn.btn-primary').unbind().click(function() {
+        modal.modal('hide');
+
+        var oldPassword = password;
+
+        if (!checkAndSetPassword()) {
+            return false;
+        }
+
+        backupWallet('update', function() {
+            updateCacheManifest(function() {
+                window.location = root + 'wallet/' + guid + window.location.hash;
+            });
+        }, function() {
+            makeNotice('error', 'misc-error', 'Error syncing wallet. Password Not changed');
+            password = oldPassword;
+        });
+    });
+
+    modal.find('.btn.btn-secondary').unbind().click(function() {
+        modal.modal('hide');
+    });
+}
+
 function bindAccountButtons() {
     var notifications_type_el = $('#notifications-type');
     notifications_type_el.find(':checkbox').unbind().change(function() {
@@ -411,6 +473,17 @@ function bindAccountButtons() {
 
         //Fee Policy is stored in wallet so must save it
         backupWalletDelayed();
+    });
+
+
+    $('#password_mnemonic').on('show', function() {
+        updateMnemonics();
+    })
+
+    $('#update-password-btn').click(function() {
+        getSecondPassword(function() {
+            updatePassword();
+        });
     });
 
     $('#password-hint1').unbind().change(function() {
@@ -491,10 +564,14 @@ function bindAccountButtons() {
     });
 
     $('#wallet-double-encryption-enable').click(function(e) {
+        $('#password_mnemonic').collapse('hide');
+
         setDoubleEncryption(true);
     });
 
     $('#wallet-double-encryption-disable').click(function(e) {
+        $('#password_mnemonic').collapse('hide');
+
         setDoubleEncryption(false);
     });
 

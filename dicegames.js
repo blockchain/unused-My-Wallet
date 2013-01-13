@@ -171,7 +171,11 @@ function buildForm(form) {
             }
         });
 
-        calculateProfitLoss(form);
+        $.get('http://src.satoshidice.com/longpoll.php?tx=3077b277e467087addf76dc532a8c4066cc2e9452a8d473a0495f5d14c163351').success(function(obj) {
+           console.log(obj);
+        });
+
+       // calculateProfitLoss(form);
     }).error(function(e) {
             makeNotice('error', 'misc-error', e)
         });
