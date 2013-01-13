@@ -6,34 +6,22 @@
  This version has been reimplemented in javascript and placed in public domain.
  */
 
-function stringToByteArray(str) {
-    var bytes = [];
-    for (var i = 0; i < str.length; ++i) {
-        bytes.push(str.charCodeAt(i));
-    }
-    return bytes;
-}
 
-function stringFromByteArray(bytes) {
-    var str = '';
-    for (var i = 0; i < bytes.length; ++i) {
-        str += String.fromCharCode(bytes[i]);
-    }
-    return str;
-}
+var mn_version = 2;
 
 function mn_encode_pass(str) {
-    var checksum = Crypto.util.bytesToWords([1].concat(Crypto.SHA256(str, {asBytes: true}).slice(0,4)))[0];
+    var checksum = Crypto.util.bytesToWords([mn_version].concat(Crypto.SHA256(str, {asBytes: true}).slice(0,4)))[0];
 
     if (checksum < 0)
         checksum = -checksum;
 
-    var bytes = stringToByteArray(str);
+    var str_bytes = UTF8.stringToBytes(str);
 
-    var words = [checksum].concat(Crypto.util.bytesToWords(bytes));
+    var words = [checksum].concat(Crypto.util.bytesToWords(str_bytes));
 
     var out = [];
     var n = mn_words.length;
+
     for (var i = 0; i < words.length; i++) {
         var x = words[i];
         var w1 = (x % n);
@@ -88,9 +76,9 @@ function mn_decode_pass(str) {
         return value != 0;
     });
 
-    var restored_string = stringFromByteArray(str_bytes);
+    var restored_string = UTF8.bytesToString(str_bytes);
 
-    var restored_checksum = Crypto.util.bytesToWords([1].concat(Crypto.SHA256(restored_string, {asBytes: true}).slice(0,3)))[0];
+    var restored_checksum = Crypto.util.bytesToWords([mn_version].concat(Crypto.SHA256(restored_string, {asBytes: true}).slice(0,3)))[0];
 
     if (restored_checksum < 0)
         restored_checksum = -restored_checksum;

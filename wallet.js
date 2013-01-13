@@ -1,8 +1,6 @@
 var encrypted_wallet_data = null; //Encrypted wallet data (Base64, AES 256)
 var guid = null; //Wallet identifier
 var cVisible; //currently visible view
-var password; //Password
-var dpassword = null; //double encryption Password
 var dpasswordhash; //double encryption Password
 var sharedKey; //Shared key used to prove that the wallet has succesfully been decrypted, meaning you can't overwrite a wallet backup even if you have the guid
 var final_balance = 0; //Final Satoshi wallet balance
@@ -31,6 +29,18 @@ var fee_policy = 0; //Default Fee policy (-1 Tight, 0 Normal, 1 High)
 var pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
 var html5_notifications = false;
 var tx_notes = {}
+var logout_timeout;
+var logout_time = 300000;
+
+function Secure()
+{
+    var password, dpassword; //double encryption Password
+
+    //bar is inside a closure now, only these functions can access it
+    this.setBar = function() {bar = 5;}
+    this.getBar = function() {return bar;}
+    //Other functions
+}
 
 function hidePopovers() {
     try {
@@ -1173,6 +1183,7 @@ function showClaimModal(key) {
 }
 
 function didDecryptWallet() {
+    logout_timeout = setTimeout(logout, logout_time);
 
     //Add and address form #newaddr K=V tag
     if (addressToAdd != null) {
@@ -1367,6 +1378,61 @@ function getPassword(modal, success, error) {
 
     var input = modal.find('input[name="password"]');
 
+    //Virtual On-Screen Keyboard
+    var $write = input,
+        shift = false,
+        capslock = false;
+
+    modal.find('.vkeyboard li').click(function(){
+        var $this = $(this),
+            character = $this.html(); // If it's a lowercase letter, nothing happens to this variable
+
+        // Shift keys
+        if ($this.hasClass('left-shift') || $this.hasClass('right-shift')) {
+            $('.letter').toggleClass('uppercase');
+            $('.symbol span').toggle();
+
+            shift = (shift === true) ? false : true;
+            capslock = false;
+            return false;
+        }
+
+        // Caps lock
+        if ($this.hasClass('capslock')) {
+            $('.letter').toggleClass('uppercase');
+            capslock = true;
+            return false;
+        }
+
+        // Delete
+        if ($this.hasClass('delete')) {
+            var html = $write.val();
+
+            $write.val(html.substr(0, html.length - 1));
+            return false;
+        }
+
+        // Special characters
+        if ($this.hasClass('symbol')) character = $('span:visible', $this).html();
+        if ($this.hasClass('space')) character = ' ';
+        if ($this.hasClass('tab')) character = "\t";
+        if ($this.hasClass('return')) character = "\n";
+
+        // Uppercase letter
+        if ($this.hasClass('uppercase')) character = character.toUpperCase();
+
+        // Remove shift once a key is clicked.
+        if (shift === true) {
+            $('.symbol span').toggle();
+            if (capslock === false) $('.letter').toggleClass('uppercase');
+
+            shift = false;
+        }
+
+        // Add the character
+        $write.val($write.val() + character);
+    });
+
     input.unbind().keypress(function(e) {
         if(e.keyCode == 13) { //Pressed the return key
             e.preventDefault();
@@ -1393,6 +1459,21 @@ function getPassword(modal, success, error) {
             try { error(); } catch (e) { makeNotice('error', 'misc-error', e); }
         }
     });
+}
+
+function getMainPassword(success, error) {
+    getPassword($('#main-password-modal'), function(_password) {
+        if (password == _password) {
+            if (success) {
+                try { success(); } catch (e) { makeNotice('error', 'misc-error', e); }
+            }
+        } else {
+            makeNotice('error', 'misc-error', 'Password incorrect.');
+            if (error) {
+                try { error(); } catch (e) { makeNotice('error', 'misc-error', e); }
+            }
+        }
+    }, error);
 }
 
 function getSecondPassword(success, error) {
@@ -1429,7 +1510,7 @@ function restoreWallet() {
         hideNotice('guid-error');
     }
 
-    password = $("#restore-password").val();
+    password = $.trim($("#restore-password").val());
 
     hideNotice('password-error');
 
@@ -2073,6 +2154,10 @@ function addAddressBookEntry() {
     });
 }
 
+function logout() {
+    window.location = root + 'wallet/logout';
+}
+
 function deleteAddresses(addrs) {
 
     var modal = $('#delete-address-modal');
@@ -2330,64 +2415,7 @@ function bind() {
         window.open(root + 'wallet/wallet.aes.json?guid=' + guid + '&sharedKey=' + sharedKey);
     });
 
-    //Virtual On-Screen Keyboard
-    var $write = $('#second-password'),
-        shift = false,
-        capslock = false;
-
-    $('#keyboard li').click(function(){
-        var $this = $(this),
-            character = $this.html(); // If it's a lowercase letter, nothing happens to this variable
-
-        // Shift keys
-        if ($this.hasClass('left-shift') || $this.hasClass('right-shift')) {
-            $('.letter').toggleClass('uppercase');
-            $('.symbol span').toggle();
-
-            shift = (shift === true) ? false : true;
-            capslock = false;
-            return false;
-        }
-
-        // Caps lock
-        if ($this.hasClass('capslock')) {
-            $('.letter').toggleClass('uppercase');
-            capslock = true;
-            return false;
-        }
-
-        // Delete
-        if ($this.hasClass('delete')) {
-            var html = $write.val();
-
-            $write.val(html.substr(0, html.length - 1));
-            return false;
-        }
-
-        // Special characters
-        if ($this.hasClass('symbol')) character = $('span:visible', $this).html();
-        if ($this.hasClass('space')) character = ' ';
-        if ($this.hasClass('tab')) character = "\t";
-        if ($this.hasClass('return')) character = "\n";
-
-        // Uppercase letter
-        if ($this.hasClass('uppercase')) character = character.toUpperCase();
-
-        // Remove shift once a key is clicked.
-        if (shift === true) {
-            $('.symbol span').toggle();
-            if (capslock === false) $('.letter').toggleClass('uppercase');
-
-            shift = false;
-        }
-
-        // Add the character
-        $write.val($write.val() + character);
-    });
-
-    $('#logout').click(function () {
-        window.location = root + 'wallet/logout';
-    });
+    $('#logout').click(logout);
 
     $('#refresh').click(function () {
         getWallet();
@@ -2596,11 +2624,6 @@ function bind() {
     $('#show-import-export').click(function () {
         $('#export-warning').hide();
         $('#import-export-content').show(200);
-    });
-
-    $('#show-account-settings').click(function () {
-        $('#account-settings-warning').hide();
-        $('#my-account-content').show(200);
     });
 
     $('#restore-password').keypress(function(e) {
@@ -2845,6 +2868,20 @@ function bind() {
 
         changeView($("#my-account"));
 
+        $('#account-settings-warning').show();
+
+        $('#my-account-content').hide();
+
+        $('#show-account-settings').unbind().click(function () {
+            $('#account-settings-warning').hide();
+
+            getMainPassword(function() {
+               $('#my-account-content').show();
+            }, function() {
+                logout();
+            });
+        });
+
         loadScript(resource + 'wallet/account.min.js', function() {
             $.get(root + 'wallet/account-settings-template').success(function(html) {
                 $("#my-account-content").html(html);
@@ -2858,8 +2895,8 @@ function bind() {
             }).error(function() {
                 makeNotice('error', 'misc-error', 'Error Downloading Account Settings Template');
 
-                    changeView($("#home-intro"));
-                });
+                changeView($("#home-intro"));
+            });
         }, function (e) {
             makeNotice('error', 'misc-error', e);
 
@@ -3509,8 +3546,19 @@ $(document).ready(function() {
     }).ajaxStop(function() {
             $('.loading-indicator').hide();
         }).click(function() {
+
+            if (logout_timeout) {
+                clearTimeout(logout_timeout);
+                logout_timeout = setTimeout(logout, logout_time);
+            }
+
             rng_seed_time();
         }).keypress(function() {
+            if (logout_timeout) {
+                clearTimeout(logout_timeout);
+                logout_timeout = setTimeout(logout, logout_time);
+            }
+
             rng_seed_time();
         });
 
