@@ -92,13 +92,13 @@ function internalApproveRequest(key) {
     //Submit the request
     $.post(root + 'escrow', {'method' : 'approve', 'txIndex' : txIndex, 'txOutputN' : txOutputN, 'pubKey' : pubHex, 'timestamp' : timestamp, 'r' : rs.r.toString(), 's' : rs.s.toString(), 'sig' :sigHex},  function(response) {
 
-        makeNotice('success', 'misc-success', response);
+        MyWallet.makeNotice('success', 'misc-success', response);
 
         showEscrow();
 
     }).error(function(data) {
 
-            makeNotice('error', 'misc-error', data.responseText);
+            MyWallet.makeNotice('error', 'misc-error', data.responseText);
 
             //Clear the key incase the user entered an incorrect one
             key = null;
@@ -156,13 +156,13 @@ function internalMakeRequest(key, addr) {
     //Submit the request
     $.post(root + 'escrow', {'method' : 'request', 'txIndex' : txIndex, 'txOutputN' : txOutputN, 'pubKey' : pubHex, 'timestamp' : timestamp, 'r' : rs.r.toString(), 's' : rs.s.toString(), 'hash' : hashHex, 'sig' :sigHex, 'tx' : txHex},  function(response) {
 
-        makeNotice('success', 'misc-success', response);
+        MyWallet.makeNotice('success', 'misc-success', response);
 
         showEscrow();
 
     }).error(function(data) {
 
-            makeNotice('error', 'misc-error', data.responseText);
+            MyWallet.makeNotice('error', 'misc-error', data.responseText);
 
             //Clear the key incase the user entered an incorrect one
             key = null;
@@ -187,7 +187,7 @@ function showMakeRequest() {
     $('#new-request-btn').unbind().click(function() {
 
         if (addrinput == null) {
-            makeNotice('error', 'misc-error', 'No address entered');
+            MyWallet.makeNotice('error', 'misc-error', 'No address entered');
             return;
         }
 
@@ -196,7 +196,7 @@ function showMakeRequest() {
         try {
             addr = new Bitcoin.Address(addrinput.val());
         } catch (e) {
-            makeNotice('error', 'misc-error', 'Invalid bitcoin address');
+            MyWallet.makeNotice('error', 'misc-error', 'Invalid bitcoin address');
             return;
         }
 
@@ -205,7 +205,7 @@ function showMakeRequest() {
             showPrivateKeyModal(function(nkey) {
                 internalMakeRequest(nkey, addr);
             }, function(e) {
-                makeNotice('error', 'misc-error', e, 5000);
+                MyWallet.makeNotice('error', 'misc-error', e, 5000);
                 return;
             }, 'Multiple Addresses');
         } else {
@@ -223,11 +223,11 @@ function internalDeclineRequest(key) {
     var pubHex = Crypto.util.bytesToHex(key.getPub());
 
     $.post(root + 'escrow', {'method' : 'decline', 'txIndex' : txIndex, 'txOutputN' : txOutputN, 'pubKey' : pubHex, 'timestamp' : timestamp, 'r' : rs.r.toString(), 's' : rs.s.toString()},  function(data) {
-        makeNotice('success', 'misc-success', data);
+        MyWallet.makeNotice('success', 'misc-success', data);
 
         showEscrow();
     }).error(function(data) {
-            makeNotice('error', 'misc-error', data.responseText);
+            MyWallet.makeNotice('error', 'misc-error', data.responseText);
             return;
         });
 }
@@ -238,7 +238,7 @@ function declineRequest() {
         showPrivateKeyModal(function(key) {
             internalDeclineRequest(key);
         }, function(e) {
-            makeNotice('error', 'misc-error', e, 5000);
+            MyWallet.makeNotice('error', 'misc-error', e, 5000);
             return;
         });
     } else {
@@ -252,7 +252,7 @@ function approveRequest() {
         showPrivateKeyModal(function(key) {
             internalApproveRequest(key);
         }, function(e) {
-            makeNotice('error', 'misc-error', e, 5000);
+            MyWallet.makeNotice('error', 'misc-error', e, 5000);
             return;
         });
     } else {
@@ -276,7 +276,7 @@ function showEscrow() {
             showRequest();
         }
     }).error(function(data) {
-            makeNotice('error', 'misc-error', data.responseText);
+            MyWallet.makeNotice('error', 'misc-error', data.responseText);
             return;
         });
 }

@@ -1,15 +1,10 @@
 $(document).ready(function() {
-    isInitialized = true;
-
     setTimeout(function() {
-        try {
-            setDoubleEncryptionButton();
+        loadScript(resource + 'wallet/account.min.js', function() {
+            AccountSettings.bind();
+        }, function (e) {
+            MyWallet.makeNotice('error', 'misc-error', e);
+        });
 
-            bindAccountButtons();
-
-            getAccountInfo();
-        } catch (e) {
-            makeNotice('error', 'misc-error', 'Fatal Error ' + e);
-        }
     }, 500);
 });

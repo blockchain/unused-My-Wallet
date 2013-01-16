@@ -82,7 +82,7 @@ function verifyMessageModal() {
             modal.find('.address-result').show(200);
 
         } catch (e) {
-            makeNotice('error', 'misc-error', 'Error Verifying Message' + e);
+            MyWallet.makeNotice('error', 'misc-error', 'Error Verifying Message' + e);
             modal.modal('hide');
             return;
         }
@@ -91,7 +91,7 @@ function verifyMessageModal() {
 
 
 function showAddressModalSignMessage(address) {
-    getSecondPassword(function() {
+    MyWallet.getSecondPassword(function() {
         var modal = $('#sign-message-modal');
 
         modal.modal({
@@ -115,26 +115,14 @@ function showAddressModalSignMessage(address) {
         });
 
         modal.find('.btn.btn-primary').unbind().click(function() {
-
-            var addr = addresses[address];
-
-            if (!addr || !addr.priv) {
-                modal.modal('hide');
-                return;
-            }
-
             var message = $.trim(textarea.val());
 
             if (!message || message.length == 0) {
-                makeNotice('error', 'misc-error', 'You Must Enter A Message To Sign');
+                MyWallet.makeNotice('error', 'misc-error', 'You Must Enter A Message To Sign');
                 return;
             }
 
-            var decryptedpk = decodePK(addr.priv);
-
-            var key = new Bitcoin.ECKey(decryptedpk);
-
-            var signature = Bitcoin.Message.signMessage(key, message, addr.addr);
+            var signature = MyWallet.signmessage(address, message);
 
             modal.find('.signature').show(200);
 
@@ -166,20 +154,16 @@ function showLabelAddressModal(addr) {
         var label = $.trim($('<div>' + label_input.val() + '</div>').text());
 
         if (label.length == 0) {
-            makeNotice('error', 'misc-error', 'You must enter a label for the address');
+            MyWallet.makeNotice('error', 'misc-error', 'You must enter a label for the address');
             return false;
         }
 
         if (label.indexOf("\"") != -1) {
-            makeNotice('error', 'misc-error', 'Label cannot contain double quotes');
+            MyWallet.makeNotice('error', 'misc-error', 'Label cannot contain double quotes');
             return false;
         }
 
-        addresses[addr].label = label;
-
-        backupWalletDelayed();
-
-        buildVisibleView();
+        MyWallet.setLabel(addr, label);
     });
 
     modal.find('.btn.btn-secondary').unbind().click(function() {

@@ -1,7 +1,6 @@
 var satoshi = 100000000; //One satoshi
 var show_adv = false;
 var adv_rule;
-var open_pk; //Passed to escrow window when redeeming a tx
 var symbol_btc; //BTC Currency Symbol object
 var symbol_local; //Users local currency object
 var symbol; //Active currency object
@@ -9,9 +8,8 @@ var root = '/';
 var resource = '/Resources/';
 var war_checksum;
 
-
 $.fn.center = function () {
-    $(window).scrollTop();
+    scrollTo(0, 0);
     this.css("top", Math.max(($(window).height() / 2) - (this.height() / 2), 10) + "px");
     this.css("left", Math.max(($(window).width() / 2) - (this.width() / 2), 10) + "px");
     return this;
@@ -220,22 +218,10 @@ function TransactionFromJSON(json) {
                 html += '<button class="btn btn-primary">' + this.confirmations + ' Confirmations</button> ';
             }
 
-            html += '<button class="'+button_class+'" onclick="toggleSymbol()">' + formatMoney(result, true) + '</button>';
+            html += '<button class="'+button_class+'">' + formatMoney(result, true) + '</button>';
 
             if (this.double_spend == true) {
                 html += '<button class="btn btn-danger">Double Spend</button> ';
-            }
-
-            //Only show for My Wallet
-            if (myAddresses != null && !offline) {
-                if (escrow_n != null && this.confirmations != 0) {
-
-                    var priv = '';
-                    if (escrow_addr != null)
-                        priv = escrow_addr.priv;
-
-                    html += '<button class="btn btn-info" onclick="openEscrow('+this.txIndex+', '+escrow_n+', \''+priv+'\')">Redeem / Release</button>';
-                }
             }
 
             html += '</span></div>';
@@ -368,19 +354,6 @@ function formatOutput(output, myAddresses, addresses_book) {
     return str;
 }
 
-function openEscrow(txIndex, escrow_n, priv) {
-
-    if (priv != null) {
-        getSecondPassword(function() {
-            open_pk = new Bitcoin.ECKey(decodePK(priv));
-
-            window.open(''+root+'escrow/'+txIndex+'/'+escrow_n);
-        });
-    } else {
-        window.open(''+root+'escrow/'+txIndex+'/'+escrow_n);
-    }
-}
-
 function toggleAdv() {
     setAdv(!show_adv);
 }
@@ -441,9 +414,9 @@ function setupToggle() {
 }
 
 $(document).ready(function() {
-    symbol_btc = $.parseJSON($('#symbol-btc').text());
+    symbol_btc = {"code" : "BTC", "symbol" : "BTC", "name" : "Bitcoin",  "conversion" : satoshi, "symbolAppearsAfter" : true};
     symbol_local = $.parseJSON($('#symbol-local').text());
-    war_checksum = $('body').data('war-checksum');
+    war_checksum = $(document.body).data('war-checksum');
 
     if (getCookie('local') == 'true') {
         symbol = symbol_local;

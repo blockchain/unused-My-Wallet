@@ -1,229 +1,236 @@
-function uploadWallet(url, file, success, error, password, kaptcha) {
-    $('.loading-indicator').fadeIn(200);
+(function() {
+    function uploadWallet(url, file, success, error, password, kaptcha) {
 
-    var formData = new FormData();
+        $('.loading-indicator').fadeIn(200);
 
-    formData.append('file', file);
-    formData.append('password', password);
-    formData.append('kaptcha', kaptcha);
+        var formData = new FormData();
 
-    var xhr = new XMLHttpRequest();
+        formData.append('file', file);
+        formData.append('password', password);
+        formData.append('kaptcha', kaptcha);
 
-    xhr.open('POST', url, true);
+        var xhr = new XMLHttpRequest();
 
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState == 4) {
+        xhr.open('POST', url, true);
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState == 4) {
+                $('.loading-indicator').fadeOut(200);
+
+                if (xhr.status == 200 ) {
+                    success(xhr.responseText);
+                } else {
+                    error(xhr.responseText, xhr.status);
+                }
+            }
+        }
+
+        xhr.onerror = function () {
             $('.loading-indicator').fadeOut(200);
 
-            if (xhr.status == 200 ) {
-                success(xhr.responseText);
-            } else {
-                error(xhr.responseText, xhr.status);
-            }
-        }
+            error(xhr.responseText, xhr.status);
+        };
+
+        xhr.send(formData);  // multipart/form-data
     }
 
-    xhr.onerror = function () {
-        $('.loading-indicator').fadeOut(200);
+    function showKaptchaModal(success) {
+        var modal = $('#kaptcha-modal');
 
-        error(xhr.responseText, xhr.status);
-    };
+        $('#captcha-value').val('');
 
-    xhr.send(formData);  // multipart/form-data
-}
+        $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
 
-function showKaptchaModal(success) {
-    var modal = $('#kaptcha-modal');
+        modal.modal({
+            keyboard: true,
+            backdrop: "static",
+            show: true
+        });
 
-    $('#captcha-value').val('');
+        //Center
+        modal.center();
 
-    $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
+        modal.find('.btn.btn-primary').unbind().click(function() {
+            modal.modal('hide');
 
-    modal.modal({
-        keyboard: true,
-        backdrop: "static",
-        show: true
-    });
+            var code = $.trim($('#captcha-value').val());
 
-    //Center
-    modal.center();
-
-    modal.find('.btn.btn-primary').unbind().click(function() {
-        modal.modal('hide');
-
-        success($('#captcha-value').val());
-    });
-
-    modal.find('.btn.btn-secondary').unbind().click(function() {
-        modal.modal('hide');
-    });
-}
-
-function getNewPassword(success) {
-
-    var modal = $('#new-password-modal');
-
-    modal.modal({
-        keyboard: true,
-        backdrop: "static",
-        show: true
-    });
-
-    //Center
-    modal.center();
-
-    modal.find('.btn.btn-primary').unbind().click(function() {
-        modal.modal('hide');
-
-        if (checkAndSetPassword())
-            success();
-    });
-
-    modal.find('.btn.btn-secondary').unbind().click(function() {
-        modal.modal('hide');
-    });
-}
-
-function guidGenerator() {
-    var S4 = function() {
-        return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
-    };
-    return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
-}
-
-
-function insertWallet() {
-    getNewPassword(function() {
-        showKaptchaModal(function(kaptcha) {
-            sharedKey = guidGenerator();
-
-            guid = guidGenerator();
-
-            if (guid.length != 36) {
-                makeNotice('error', 'misc-error', 'Error generating wallet identifier');
-                return false;
+            if (code.length == 0) {
+                MyWallet.makeNotice('error', 'misc-error', 'You must enter a captcha code');
+                return;
             }
 
-            backupWallet('insert', function(){
-                SetCookie('cguid', guid);
-
-                try {
-                    localStorage.setItem('guid', guid);
-                } catch (e) {}
-
-                window.location = root + 'wallet/' + guid;
-            }, function() {
-
-                $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
-
-            },'?kaptcha='+$('#captcha-value').val());
+            success(code);
         });
-    });
-}
 
-function handleFileSelect(evt) {
-    evt.stopPropagation();
-    evt.preventDefault();
+        modal.find('.btn.btn-secondary').unbind().click(function() {
+            modal.modal('hide');
+        });
+    }
 
-    var files = evt.dataTransfer.files; // FileList object.
-    var r = new FileReader();
+    function getNewPassword(success) {
 
-    // files is a FileList of File objects. List some properties.
-    for (var i = 0, f; f = files[i]; i++) {
+        var modal = $('#new-password-modal');
 
-        if (f.size > 10485760) {
-            makeNotice('error', 'misc-error', 'The maximum file size is 10MB');
-            return;
-        }
+        modal.modal({
+            keyboard: true,
+            backdrop: "static",
+            show: true
+        });
 
-        if (f.name) {
-            if (f.name.indexOf('.aes.json') == f.name.length - 9) {
-                r.onload = function(e) {
+        //Center
+        modal.center();
 
-                    loadScript(resource + 'wallet/wallet-backups.min.js', function() {
-                        appendModals();
+        modal.find('.btn.btn-primary').unbind().click(function() {
+            modal.modal('hide');
 
-                        getPassword($('#import-password-modal'), function(password) {
-                            addresses = [];
+            var tpassword = $.trim(modal.find('input[name="password"]').val());
+            var tpassword2 = $.trim(modal.find('input[name="password2"]').val());
 
+            if (tpassword == null || tpassword.length == 0 || tpassword.length < 10 || tpassword.length > 255) {
+                MyWallet.makeNotice('error', 'misc-error', 'Password must be 10 characters or more in length');
+                return;
+            }
+
+            if (tpassword != tpassword2) {
+                MyWallet.makeNotice('error', 'misc-error', 'Passwords do not match.');
+                return;
+            }
+
+            success(tpassword);
+        });
+
+        modal.find('.btn.btn-secondary').unbind().click(function() {
+            modal.modal('hide');
+        });
+    }
+
+    function guidGenerator() {
+        var S4 = function() {
+            return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
+        };
+        return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
+    }
+
+    function insertWallet() {
+        getNewPassword(function(password) {
+            showKaptchaModal(function(kaptcha) {
+
+                var sharedKey = guidGenerator();
+                var guid = guidGenerator();
+
+                if (guid.length != 36) {
+                    MyWallet.makeNotice('error', 'misc-error', 'Error generating wallet identifier');
+                    return false;
+                }
+
+                MyWallet.insertWallet(guid, sharedKey, password, '?kaptcha='+ $.trim($('#captcha-value').val()), function(){
+                    SetCookie('cguid', guid);
+
+                    try {
+                        localStorage.setItem('guid', guid);
+                    } catch (e) {}
+
+                    window.location = root + 'wallet/' + guid;
+                }, function() {
+                    $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
+                });
+            });
+        });
+    }
+
+    function handleFileSelect(evt) {
+        evt.stopPropagation();
+        evt.preventDefault();
+
+        var files = evt.dataTransfer.files; // FileList object.
+        var r = new FileReader();
+
+        // files is a FileList of File objects. List some properties.
+        for (var i = 0, f; f = files[i]; i++) {
+
+            if (f.size > 10485760) {
+                MyWallet.makeNotice('error', 'misc-error', 'The maximum file size is 10MB');
+                return;
+            }
+
+            if (f.name) {
+                if (f.name.indexOf('.aes.json') == f.name.length - 9) {
+                    r.onload = function(e) {
+
+                        MyWallet.getPassword($('#import-password-modal'), function(password) {
                             $('.loading-indicator').fadeIn(200);
 
-                            importJSON(e.target.result, {password : password}, function() {
+                            ImportExport.importJSON(e.target.result, {main_password : password}, function() {
                                 $('.loading-indicator').fadeOut(200);
 
                                 insertWallet();
                             }, function(e) {
                                 $('.loading-indicator').fadeOut(200);
 
-                                makeNotice('error', 'misc-error', e);
+                                MyWallet.makeNotice('error', 'misc-error', e);
                             });
                         });
-                    });
-                };
+                    };
 
-                r.readAsText(f);
+                    r.readAsText(f);
 
-                return;
-            } else if (f.name.indexOf('.dat') == f.name.length - 4) {
-                loadScript(resource + 'wallet/wallet-backups.min.js', function() {
-                    appendModals();
-
+                    return;
+                } else if (f.name.indexOf('.dat') == f.name.length - 4) {
                     showKaptchaModal(function(kaptcha) {
-                        getPassword($('#import-password-modal'), function(password) {
+                        MyWallet.getPassword($('#import-password-modal'), function(password) {
                             uploadWallet(root + 'upload_wallet', f, function(response) {
-                                addresses = [];
-
                                 $('.loading-indicator').fadeIn(200);
 
-                                importJSON(response, {}, function() {
+                                ImportExport.importJSON(response, {}, function() {
                                     $('.loading-indicator').fadeOut(200);
 
                                     insertWallet();
                                 }, function(e) {
                                     $('.loading-indicator').fadeOut(200);
 
-                                    makeNotice('error', 'misc-error', e);
+                                    MyWallet.makeNotice('error', 'misc-error', e);
                                 });
                             }, function(response) {
-                                makeNotice('error', 'misc-error', response);
+                                MyWallet.makeNotice('error', 'misc-error', response);
                             }, password, kaptcha);
                         });
                     });
-                });
-            } else {
-                makeNotice('error', 'misc-error', 'Unknown File Type ' + f.name);
-            }
+                } else {
+                    MyWallet.makeNotice('error', 'misc-error', 'Unknown File Type ' + f.name);
+                }
 
-            return;
+                return;
+            }
         }
     }
-}
 
-function handleDragOver(evt) {
-    evt.stopPropagation();
-    evt.preventDefault();
-    evt.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
-}
-
-$(document).ready(function() {
-    $('body').ajaxStart(function() {
-        $('.loading-indicator').fadeIn(200);
-    });
-
-    $('body').ajaxStop(function() {
-        $('.loading-indicator').fadeOut(200);
-    });
-
-    // Check for the various File API support.
-    if (window.File && window.FileReader && window.FileList && window.Blob) {
-        // Great success! All the File APIs are supported.
-
-        // Setup the dnd listeners.
-        var dropZone = document.getElementById('holder');
-        dropZone.addEventListener('dragover', handleDragOver, false);
-        dropZone.addEventListener('drop', handleFileSelect, false);
-
-    } else {
-        makeNotice('error', 'misc-error', 'The File APIs are not fully supported in this browser.');
+    function handleDragOver(evt) {
+        evt.stopPropagation();
+        evt.preventDefault();
+        evt.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
     }
-});
+
+    $(document).ready(function() {
+        $('body').ajaxStart(function() {
+            $('.loading-indicator').fadeIn(200);
+        });
+
+        $('body').ajaxStop(function() {
+            $('.loading-indicator').fadeOut(200);
+        });
+
+        // Check for the various File API support.
+        if (window.File && window.FileReader && window.FileList && window.Blob) {
+            // Great success! All the File APIs are supported.
+
+            // Setup the dnd listeners.
+            var dropZone = document.getElementById('holder');
+            dropZone.addEventListener('dragover', handleDragOver, false);
+            dropZone.addEventListener('drop', handleFileSelect, false);
+
+        } else {
+            MyWallet.makeNotice('error', 'misc-error', 'The File APIs are not fully supported in this browser.');
+        }
+    });
+})();

@@ -6,6 +6,31 @@ function exceptionToString(err) {
     return "toString(): " + " value: [" + err.toString() + "]";
 }
 
+function generateNewMiniPrivateKey() {
+    while (true) {
+        //Use a normal ECKey to generate random bytes
+        var key = new Bitcoin.ECKey(false);
+
+        //Make Candidate Mini Key
+        var minikey = 'S' + Bitcoin.Base58.encode(key.priv).substr(0, 21);
+
+        //Append ? & hash it again
+        var bytes_appended = Crypto.SHA256(minikey + '?', {asBytes: true});
+
+        //If zero byte then the key is valid
+        if (bytes_appended[0] == 0) {
+
+            //SHA256
+            var bytes = Crypto.SHA256(minikey, {asBytes: true});
+
+            var eckey = new Bitcoin.ECKey(bytes);
+
+            if (MyWallet.addPrivateKey(eckey))
+                return {key : eckey, miniKey : minikey};
+        }
+    }
+}
+
 try {
 //Init WebWoker
 //Window is not defined in WebWorker
@@ -69,6 +94,8 @@ function showPrivateKeyModal(success, error, addr) {
         show: true
     });
 
+    modal.center();
+
     modal.find('.address').text(addr);
 
     var scanned_key = null;
@@ -79,10 +106,8 @@ function showPrivateKeyModal(success, error, addr) {
         loadScript(resource + 'wallet/qr.code.reader.js', function() {
             //Flash QR Code Reader
             var interval = initQRCodeReader('qr-code-reader', function(code){
-                console.log('Scanned ' + code);
-
                 try {
-                    scanned_key = privateKeyStringToKey(code, detectPrivateKeyFormat(code));
+                    scanned_key = MyWallet.privateKeyStringToKey(code, MyWallet.detectPrivateKeyFormat(code));
 
                     if (scanned_key == null) {
                         throw 'Error decoding private key';
@@ -112,7 +137,7 @@ function showPrivateKeyModal(success, error, addr) {
                 throw  'You must enter a private key to import';
             }
 
-            scanned_key = privateKeyStringToKey(value, detectPrivateKeyFormat(value));
+            scanned_key = MyWallet.privateKeyStringToKey(value, MyWallet.detectPrivateKeyFormat(value));
 
             if (scanned_key == null) {
                 throw 'Could not decode private key';
@@ -145,23 +170,33 @@ function resolveAddress(label) {
 
     label = label.toLowerCase();
 
+    var address_book = MyWallet.getAddressBook();
     for (var key in address_book) {
-        var a_label = address_book[key];
+        var a_label = MyWallet.getAddressBookLabel(key);
         if (a_label.toLowerCase() == label) {
             return $.trim(key);
         }
     }
-    for (var key in addresses) {
-        var a_label = addresses[key].label;
+
+    var addresses = MyWallet.getAllAddresses();
+    for (var i = 0; i < addresses.length; ++i) {
+        var key = addresses[i];
+        var a_label = MyWallet.getAddressLabel(key);
         if (a_label && a_label.toLowerCase() == label)
             return key;
     }
+
     return null;
 }
 
 
 //Check for inputs and get unspent for before signing
 function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
+
+    function resetForm() {
+        el.find('input[name="send-value"]').val('');
+        el.find('input[name="send-to-address"]').val('');
+    }
 
     try {
         var total_value = 0;
@@ -171,8 +206,8 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
         var custom_ask_for_fee = true;
         if (total_value > 10) {
-            if (type == 'email' || type == 'facebook' || type == 'sms') {
-                throw 'Cannot Send More Than 10 BTC via email or facebook';
+            if (type == 'email' || type == 'sms') {
+                throw 'Cannot Send More Than 10 BTC via email or sms';
             } else if (type == 'quick') { //Any quick transactions over 20 BTC make them custom
                 type = 'custom';
                 custom_ask_for_fee = false;
@@ -181,14 +216,14 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
             throw 'The Minimum Amount You Can Send Anonymously is 0.5 BTC';
         }
 
-        if (mixer_fee && mixer_fee < 0 && (type == 'custom' || type == 'quick') && total_value >= 5 && getCookie('anonymous-never-ask') != 'true' && !dont_ask_for_anon) {
+        if (MyWallet.getMixerFee() < 0 && (type == 'custom' || type == 'quick') && total_value >= 5 && getCookie('anonymous-never-ask') != 'true' && !dont_ask_for_anon) {
 
             var last_accepted_time = getCookie('anonymous-accepted-time');
             if (!last_accepted_time || parseInt(last_accepted_time) < new Date().getTime()-43200000) {
                 var modal = $('#ask-for-anonymous');
 
-                modal.find('.bonus-percent').text(- mixer_fee);
-                modal.find('.bonus-value').text((total_value / 100) * - mixer_fee);
+                modal.find('.bonus-percent').text(- MyWallet.getMixerFee());
+                modal.find('.bonus-value').text((total_value / 100) * - MyWallet.getMixerFee());
 
                 var delay_span = modal.find('.delay');
                 if (total_value <= 10)
@@ -237,7 +272,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                         this.modal.modal('hide');
                 },
                 on_success : function() {
-                    buildVisibleView(true);
+                    resetForm();
                 },
                 on_start : function() {
                     //Show the modal on start
@@ -319,10 +354,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
             pending_transaction.ask_to_send = function() {
                 var self = this;
                 try {
-                    if (privateKeyToSweep == null)
-                        self.modal.find('.modal-header h3').html('Transaction Ready to Send.');
-                    else
-                        self.modal.find('.modal-header h3').html('Bitcoins Ready to Claim.');
+                    self.modal.find('.modal-header h3').html(self.ready_to_send_header);
 
                     self.modal.find('#missing-private-key').hide();
 
@@ -337,7 +369,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     //We have the transaction ready to send, check if were online or offline
                     var btn = self.modal.find('.btn.btn-primary');
 
-                    setLoadingText('Checking Connectivity');
+                    MyWallet.setLoadingText('Checking Connectivity');
 
                     //Check if were able to contact blockchain.info
                     $.get(root + 'ping?'+new Date().getTime()).success(function(data) {
@@ -380,7 +412,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     self.error(e);
                 }
             };
-        } else if (type == 'quick' || type == 'email' || type == 'dice' || type == 'facebook' || type == 'sms') {
+        } else if (type == 'quick' || type == 'email' || type == 'dice' || type == 'sms') {
             var listener = {
                 on_error : function(e) {
                     el.find('.send').show();
@@ -391,8 +423,9 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     try {
                         el.find('.send').show();
 
-                        if (type != 'dice')
-                            buildVisibleView(true);
+                        if (type != 'dice') {
+                            resetForm();
+                        }
 
                         if (this.p)
                             this.p.hide();
@@ -422,16 +455,34 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
             pending_transaction.addListener(listener);
 
-            if (type == 'email') {
+            if (type == 'sms') {
+                pending_transaction.ask_to_send = function() {
+                    try {
+                        var self = this;
+
+                        MyWallet.securePost('send-via', {
+                            type : 'sms',
+                            to : self.sms_data.number,
+                            priv : self.sms_data.miniKey,
+                            hash : Crypto.util.bytesToHex(self.tx.getHash().reverse())
+                        }).success(function() {
+                                self.send();
+                            }).error(function(data) {
+                                self.error(data ? data.responseText : null);
+                            });
+                    } catch (e) {
+                        self.error(e);
+                    }
+                };
+            } else if (type == 'email') {
                 pending_transaction.ask_to_send = function() {
                     var self = this;
 
                     var modal = $('#send-email-modal');
 
                     try {
-                        $.post("/wallet", { guid: guid, sharedKey: sharedKey, method : 'get-info', format : 'plain' },  function(data) {
+                        MyWallet.securePost("wallet", { method : 'get-info' }).success(function(data) {
                             try {
-
                                 modal.modal({
                                     keyboard: true,
                                     backdrop: "static",
@@ -460,9 +511,14 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                     modal.modal('hide');
 
                                     try {
-                                        $.get(root + 'send-via?type=email&format=plain&to=' + self.email_data.email + '&guid='+ guid + '&priv='+ decryptPK(self.email_data.addr.priv) + '&sharedKey=' + sharedKey+'&hash='+Crypto.util.bytesToHex(self.tx.getHash().reverse())).success(function(data) {
-                                            self.send();
-                                        }).error(function(data) {
+                                        MyWallet.securePost('send-via', {
+                                            type : 'email',
+                                            to : self.email_data.email,
+                                            priv : self.email_data.priv,
+                                            hash : Crypto.util.bytesToHex(self.tx.getHash().reverse())
+                                        }).success(function(data) {
+                                                self.send();
+                                            }).error(function(data) {
                                                 self.error(data ? data.responseText : null);
                                             });
 
@@ -511,23 +567,21 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
         pending_transaction.type = type;
 
-        if (fee_policy == 1) {
+        if (MyWallet.getFeePolicy() == 1) {
             pending_transaction.fee = BigInteger.valueOf(100000);
-        } else if (fee_policy == -1) {
+        } else if (MyWallet.getFeePolicy() == -1) {
             pending_transaction.ask_for_fee = function(yes, no) {
                 no();
             };
         }
 
-        getSecondPassword(function() {
+        MyWallet.getSecondPassword(function() {
             try {
-                var silentReturn = false;
-
                 //Get the from address, if any
                 var from_select = el.find('select[name="from"]');
                 var fromval = from_select.val();
                 if (fromval == null || fromval == 'any') {
-                    pending_transaction.from_addresses = getActiveAddresses();
+                    pending_transaction.from_addresses = MyWallet.getActiveAddresses();
                 } else if (from_select.attr('multiple') == 'multiple') {
                     pending_transaction.from_addresses = fromval;
                 } else {
@@ -543,15 +597,17 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     pending_transaction.note = note;
                 }
 
-                var changeAddressVal = el.find('select[name="change"]').val();
+                var changeAddressVal = $.trim(el.find('select[name="change"]').val());
 
-                if (changeAddressVal != null) {
+                if (changeAddressVal.length > 0) {
                     if (changeAddressVal == 'new') {
-                        var generatedAddr = generateNewAddressAndKey();
+                        var key = MyWallet.generateNewKey();
 
-                        pending_transaction.change_address = generatedAddr;
+                        var bitcoin_address = key.getBitcoinAddress();
 
-                        pending_transaction.generated_addresses.push(generatedAddr.toString());
+                        pending_transaction.change_address = bitcoin_address;
+
+                        pending_transaction.generated_addresses.push(bitcoin_address.toString());
 
                     } else if (changeAddressVal != 'any') {
                         try {
@@ -562,7 +618,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     }
                 }
 
-                var input_fee = el.find('input[name="fees"]').val();
+                var input_fee = $.trim(el.find('input[name="fees"]').val());
 
                 if (input_fee != null && input_fee.length > 0) {
                     pending_transaction.fee = Bitcoin.Util.parseValue(input_fee);
@@ -608,12 +664,11 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                         var value_input = child.find('input[name="send-value"]');
                         var send_to_input = child.find('input[name="send-to-address"]');
                         var send_to_email_input = child.find('input[name="send-to-email"]');
-                        var send_to_facebook_input = child.find('input[name="send-to-facebook"]');
                         var send_to_sms_input = child.find('input[name="send-to-sms"]');
 
                         var value = 0;
                         try {
-                            value = Bitcoin.Util.parseValue(value_input.val());
+                            value = Bitcoin.Util.parseValue($.trim(value_input.val()));
 
                             if (value == null || value.compareTo(BigInteger.ZERO) <= 0)
                                 throw 'You must enter a value greater than zero';
@@ -642,18 +697,16 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                         throw 'Invalid Bitcoin Address';
                                     }
 
-                                    setLoadingText('Creating Forwarding Address');
+                                    MyWallet.setLoadingText('Creating Forwarding Address');
 
-                                    $.post(root + "forwarder", { action : "create-mix", address : address, format : 'plain' }, function(obj) {
+                                    MyWallet.securePost("forwarder", { action : "create-mix", address : address}).success(function(obj) {
                                         try {
-                                            console.log('Generated Forwarding Address ' + obj.input_address);
-
                                             if (obj.destination != address) {
                                                 throw 'Mismatch between requested and returned destination address';
                                             }
 
-                                            if (obj.fee_percent != mixer_fee) {
-                                                BlockchainAPI.get_history();
+                                            if (obj.fee_percent != MyWallet.getMixerFee()) {
+                                                MyWallet.get_history();
 
                                                 throw 'The mixer fee may have changed';
                                             }
@@ -669,7 +722,6 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                             pending_transaction.error(data ? data.responseText : null);
                                         });
                                 } else {
-
                                     if (address) {
                                         pending_transaction.to_addresses.push({address: new Bitcoin.Address(address), value : value});
                                     } else if (send_to_address.length < 10) {
@@ -693,34 +745,6 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                     }
                                 }
                             }
-                        } else if (send_to_facebook_input.length > 0) {
-                            var send_to_facebook = $.trim(send_to_facebook_input.val());
-
-                            //Send to email address
-                            var generatedAddr = generateNewAddressAndKey();
-
-                            //Fetch the newly generated address
-                            var addr = addresses[generatedAddr.toString()];
-
-                            addr.tag = 2;
-                            addr.label = send_to_facebook + ' (Sent Via Facebook)';
-
-                            pending_transaction.generated_addresses.push(addr.addr);
-
-                            pending_transaction.to_addresses.push({address: generatedAddr, value : value});
-
-                            if (pending_transaction.facebook)
-                                throw 'Cannot send to more than one facebook recipient at a time';
-
-                            var to = send_to_facebook_input.data('fb-id');
-                            if (to == null)
-                                to = send_to_facebook;
-
-                            pending_transaction.facebook = {
-                                to : to,
-                                addr : addr,
-                                amount : value
-                            };
                         } else if (send_to_sms_input.length > 0) {
                             var mobile_number = $.trim(send_to_sms_input.val());
 
@@ -734,62 +758,57 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                             var miniKeyAddrobj = generateNewMiniPrivateKey();
 
                             //Fetch the newly generated address
-                            var addr = addresses[miniKeyAddrobj.addr.toString()];
+                            var address = miniKeyAddrobj.key.getBitcoinAddress().toString();
 
-                            addr.tag = 2;
-                            addr.label = mobile_number + ' (Sent Via SMS)';
+                            //Archive the address
+                            MyWallet.setAddressTag(address, 2);
 
-                            pending_transaction.generated_addresses.push(addr.addr);
+                            MyWallet.setAddressLabel(address, mobile_number + ' (Sent Via SMS)');
 
-                            pending_transaction.to_addresses.push({address: miniKeyAddrobj.addr, value : value});
+                            pending_transaction.generated_addresses.push(address);
 
-                            if (pending_transaction.sms)
+                            pending_transaction.to_addresses.push({address: new Bitcoin.Address(address), value : value});
+
+                            if (pending_transaction.sms_data)
                                 throw 'Cannot send to more than one SMS recipient at a time';
 
-                            pending_transaction.sms = {
+                            pending_transaction.sms_data = {
                                 number : mobile_number,
-                                miniKey:  miniKeyAddrobj.miniKey,
-                                addr : addr,
-                                amount : value
-                            };
-
-                            pending_transaction.ask_to_send = function() {
-                                try {
-                                    var self = this;
-
-                                    $.get(root + 'send-via?type=sms&format=plain&to=' + encodeURIComponent(self.sms.number) + '&guid='+ guid + '&priv='+ self.sms.miniKey + '&sharedKey=' + sharedKey+'&hash='+Crypto.util.bytesToHex(self.tx.getHash().reverse())).success(function(data) {
-                                        self.send();
-                                    }).error(function(data) {
-                                            self.error(data ? data.responseText : null);
-                                        });
-                                } catch (e) {
-                                    self.error(e);
-                                }
+                                miniKey:  miniKeyAddrobj.miniKey
                             };
                         } else if (send_to_email_input.length > 0) {
+                            //Send to email address
+
                             var send_to_email = $.trim(send_to_email_input.val());
 
-                            if (validateEmail(send_to_email)) {
+                            function validateEmail(str) {
+                                var lastAtPos = str.lastIndexOf('@');
+                                var lastDotPos = str.lastIndexOf('.');
+                                return (lastAtPos < lastDotPos && lastAtPos > 0 && str.indexOf('@@') == -1 && lastDotPos > 2 && (str.length - lastDotPos) > 2);
+                            }
 
+                            if (validateEmail(send_to_email)) {
                                 //Send to email address
-                                var generatedAddr = generateNewAddressAndKey();
+                                var key = MyWallet.generateNewKey();
 
                                 //Fetch the newly generated address
-                                var addr = addresses[generatedAddr.toString()];
+                                var address = key.getBitcoinAddress().toString();
 
-                                addr.tag = 2;
-                                addr.label = send_to_email + ' (Sent Via Email)';
+                                //Archive the address
+                                MyWallet.setAddressTag(address, 2);
 
-                                pending_transaction.generated_addresses.push(addr.addr);
+                                MyWallet.setAddressLabel(address, send_to_email + ' (Sent Via Email)');
 
-                                pending_transaction.to_addresses.push({address: generatedAddr, value : value});
+                                pending_transaction.generated_addresses.push(address);
 
-                                if (pending_transaction.email)
+                                pending_transaction.to_addresses.push({address: new Bitcoin.Address(address), value : value});
+
+                                if (pending_transaction.email_data)
                                     throw 'Cannot send to more than one email recipient at a time';
 
                                 pending_transaction.email_data = {
                                     email : send_to_email,
-                                    addr : addr,
+                                    priv : B58.encode(key.priv),
                                     amount : value
                                 }
                             } else {
@@ -815,218 +834,6 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
     return pending_transaction;
 };
-
-if (typeof BlockchainAPI == "undefined" || !BlockchainAPI)
-    var BlockchainAPI = {};
-
-BlockchainAPI.resolve_firstbits = function(addr, success, error) {
-    setLoadingText('Querying Firstbits');
-
-    $.get(root + 'q/resolvefirstbits/'+addr+'?format=plain').success(function(data) {
-
-        if (data == null || data.length == 0)
-            error();
-        else
-            success(data);
-
-    }).error(function(data) {
-            error();
-        });
-}
-
-BlockchainAPI.get_pubkey = function(addr, success, error) {
-    setLoadingText('Resolving Pub Key');
-
-    $.get(root + 'q/pubkeyaddr/'+addr+'?format=plain').success(function(data) {
-
-        if (data == null || data.length == 0)
-            error();
-        else
-            success(Crypto.util.hexToBytes(data));
-
-    }).error(function(data) {
-            error();
-        });
-}
-
-BlockchainAPI.get_rejection_reason = function(hexhash, success, error) {
-    setLoadingText('Querying Rejection Reason');
-
-    $.get(root + 'q/rejected/'+hexhash+'?format=plain').success(function(data) {
-        if (data == null || data.length == 0)
-            error();
-        else
-            success(data);
-    }).error(function(data) {
-            if (error) error();
-        });
-}
-
-BlockchainAPI.push_tx = function(tx, note, success, error) {
-    try {
-        setLoadingText('Pushing Transaction');
-
-        //Record the first transactions we know if it doesn't change then our new transactions wasn't push out propoerly
-        if (transactions.length > 0)
-            var first_tx_index = transactions[0].txIndex;
-
-        function did_push() {
-            success(); //Call success to enable send button again
-
-            function call_history() {
-                BlockchainAPI.get_history(function() {
-                    if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
-                        BlockchainAPI.get_rejection_reason(Crypto.util.bytesToHex(tx.getHash().reverse()), function(reason) {
-                            makeNotice('error', 'tx-error', reason);
-                        }, function() {
-                            makeNotice('error', 'tx-error', 'Unknown Error Pushing Transaction');
-                        });
-                    } else {
-                        playSound('beep');
-                    }
-                });
-            }
-
-            if (!window.WebSocket || ws == null || ws.readyState != WebSocket.OPEN) {
-                call_history(); //If the websocket isn't defined or open call history immediately
-            } else {
-                //Otherwise we set an interval to set for a transaction
-                setTimeout(function() {
-                    if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
-                        call_history();
-                    }
-                }, 2000);
-            }
-        };
-
-        var s = tx.serialize();
-
-        function push_normal() {
-            var hex = Crypto.util.bytesToHex(s);
-
-            var post_data = {
-                format : "plain",
-                tx: hex
-            };
-
-            if (note) {
-                post_data.note = note;
-            }
-
-            $.post(root + 'pushtx', post_data, function() {
-                did_push();
-            }).error(function(data) {
-                error(data ? data.responseText : null);
-            });
-        }
-
-        try {
-            var buffer = new ArrayBuffer(s.length);
-
-            var int8_array = new Int8Array(buffer);
-
-            int8_array.set(s);
-
-            var blob = new Blob([buffer], {type : 'application/octet-stream'});
-
-            if (blob.size != s.length)
-                throw 'Inconsistent Data Sizes (blob : ' + blob.size + ' s : ' + s.length + ' buffer : ' + buffer.byteLength + ')';
-
-            var fd = new FormData();
-
-            fd.append('txbytes', blob);
-
-            if (note) {
-                fd.append('note', note);
-            }
-
-            fd.append('format', 'plain');
-
-            $.ajax({
-                url: root + 'pushtx',
-                data: fd,
-                processData: false,
-                contentType: false,
-                type: 'POST',
-                success: function(){
-                    did_push();
-                },
-                error : function(data) {
-                    push_normal();
-                }
-            });
-
-        } catch (e) {
-            console.log(e);
-
-            push_normal();
-        }
-    } catch (e) {
-        error(e);
-    }
-}
-
-BlockchainAPI.get_unspent = function(fromAddresses, success, error) {
-    //Get unspent outputs
-    setLoadingText('Getting Unspent Outputs');
-
-    $.ajax({
-        type: "POST",
-        url: root +'unspent',
-        data: {active : fromAddresses.join('|'), format : 'json'},
-        converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": $.parseXML},
-        success: function(data) {
-            try {
-                var obj = $.parseJSON(data);
-
-                if (obj == null) {
-                    throw 'Unspent returned null object';
-                }
-
-                if (obj.error != null) {
-                    throw obj.error;
-                }
-
-                if (obj.notice != null) {
-                    makeNotice('notice', 'misc-notice', obj.notice);
-                }
-                //Save the unspent cache
-                try {
-                    localStorage.setItem('unspent', data);
-                } catch (e) { }
-
-                success(obj);
-            } catch (e) {
-                error(e);
-            }
-        },
-        error: function (data) {
-            try {
-                try {
-                    var cache = localStorage.getItem('unspent');
-
-                    if (cache != null) {
-                        var obj = $.parseJSON(cache);
-
-                        success(obj);
-
-                        return;
-                    }
-                } catch (e) {
-                    console.log(e);
-                }
-
-                if (data.responseText)
-                    throw data.responseText;
-                else
-                    throw 'Error Contacting Server. No unspent outputs available in cache.';
-
-            } catch (e) {
-                error(e);
-            }
-        }
-    });
-}
 
 function readVarInt(buff) {
     var tbyte, tbytes;
@@ -1139,10 +946,10 @@ function formatAddresses(m, faddresses, resolve_labels) {
     if (faddresses.length == 1) {
         var addr_string = faddresses[0].toString();
 
-        if (resolve_labels && addresses[addr_string] != null && addresses[addr_string].label != null)
-            str = addresses[addr_string].label;
-        else if (resolve_labels && address_book[addr_string] != null)
-            str = address_book[addr_string];
+        if (resolve_labels && MyWallet.addressExists(addr_string) && MyWallet.getAddressLabel(addr_string))
+            str = MyWallet.getAddressLabel(addr_string);
+        else if (resolve_labels && MyWallet.getAddressBookLabel(addr_string))
+            str = MyWallet.getAddressBookLabel(addr_string);
         else
             str = addr_string;
 
@@ -1236,7 +1043,7 @@ function setReviewTransactionContent(modal, tx, type) {
             //If it is then we don't need to subtract it from wallet effect
         } else if (out_addresses.length > 0) {
             var address = out_addresses[0].toString();
-            if (addresses[address] == null || addresses[address].tag == 2) {
+            if (!MyWallet.addressExists(address)|| MyWallet.getAddressTag(address) == 2) {
 
                 if (val.compareTo(BigInteger.ZERO) == 0)
                     continue;
@@ -1268,10 +1075,7 @@ function setReviewTransactionContent(modal, tx, type) {
     }
 
     if (all_txs_to_self == true) {
-        if (privateKeyToSweep == null)
-            basic_str = 'move <b>' + formatBTC(total.toString()) + ' BTC</b> between your own bitcoin addresses';
-        else
-            basic_str = 'claim <b>' + formatBTC(amount.toString()) + ' BTC</b> into your bitcoin wallet';
+        basic_str = 'move <b>' + formatBTC(total.toString()) + ' BTC</b> between your own bitcoin addresses';
     }
 
     $('#rtc-basic-summary').html(basic_str);
@@ -1281,32 +1085,6 @@ function setReviewTransactionContent(modal, tx, type) {
     $('#rtc-fees').html(formatBTC(total_fees.toString()) + ' BTC');
 
     $('#rtc-value').html(formatBTC(total.toString()) + ' BTC');
-}
-
-function makeArrayOf(value, length) {
-    var arr = [], i = length;
-    while (i--) {
-        arr[i] = value;
-    }
-    return arr;
-}
-
-function stringToBytes ( str ) {
-    var ch, st, re = [];
-    for (var i = 0; i < str.length; i++ ) {
-        ch = str.charCodeAt(i);  // get char
-        st = [];                 // set up "stack"
-        do {
-            st.push( ch & 0xFF );  // push byte to stack
-            ch = ch >> 8;          // shift value down by 1 byte
-        }
-        while ( ch );
-        // add stack contents to result
-        // done because chars have "wrong" endianness
-        re = re.concat( st.reverse() );
-    }
-    // return an array of bytes
-    return re;
 }
 
 /*
@@ -1334,6 +1112,7 @@ function initNewTx() {
         is_cancelled : false,
         ask_to_send_anonymously : false,
         base_fee : BigInteger.valueOf(50000),
+        ready_to_send_header : 'Transaction Ready to Send.',
         addListener : function(listener) {
             this.listeners.push(listener);
         },
@@ -1365,7 +1144,7 @@ function initNewTx() {
                             try {
                                 script = new Bitcoin.Script(Crypto.util.hexToBytes(obj.unspent_outputs[i].script));
                             } catch(e) {
-                                makeNotice('error', 'misc-error', 'Error decoding script: ' + e); //Not a fatal error
+                                MyWallet.makeNotice('error', 'misc-error', 'Error decoding script: ' + e); //Not a fatal error
                                 continue;
                             }
 
@@ -1406,8 +1185,6 @@ function initNewTx() {
                 for (var i = 0; i < self.to_addresses.length; ++i) {
                     txValue = txValue.add(self.to_addresses[i].value);
                 }
-
-                var isSweep = (self.to_addresses.length == 0);
 
                 var isEscrow = false;
 
@@ -1451,7 +1228,7 @@ function initNewTx() {
                                 looping_array = unspent_watch_only;
 
                                 i = -1;
-                            } else if (addresses[addr] != null && addresses[addr].priv == null)  {
+                            } else if (MyWallet.addressExists(addr) && MyWallet.isWatchOnly(addr))  {
                                 unspent_watch_only.push(out); //Skip watch only addresses first
                                 continue;
                             }
@@ -1469,7 +1246,7 @@ function initNewTx() {
 
                         //If the output happens to be greater than tx value then we can make this transaction with one input only
                         //So discard the previous selected outs
-                        if (!isSweep && out.value.compareTo(txValue) >= 0) {
+                        if (out.value.compareTo(txValue) >= 0) {
                             self.selected_outputs = [new_in];
 
                             addresses_used = [addr];
@@ -1489,12 +1266,12 @@ function initNewTx() {
 
                             availableValue = availableValue.add(out.value);
 
-                            if (!isSweep && availableValue.compareTo(txValue) >= 0)
+                            if (availableValue.compareTo(txValue) >= 0)
                                 break;
                         }
                     } catch (e) {
                         //An error, but probably recoverable
-                        makeNotice('info', 'tx-error', e);
+                        MyWallet.makeNotice('info', 'tx-error', e);
                     }
                 }
 
@@ -1534,10 +1311,10 @@ function initNewTx() {
                 if (changeValue.compareTo(BigInteger.ZERO) > 0) {
                     if (self.change_address != null) //If change address speicified return to that
                         sendTx.addOutput(self.change_address, changeValue);
-                    else if (!isSweep && addresses_used.length > 0) { //Else return to a random from address if specified
+                    else if (addresses_used.length > 0) { //Else return to a random from address if specified
                         sendTx.addOutput(new Bitcoin.Address(addresses_used[Math.floor(Math.random() * addresses_used.length)]), changeValue);
                     } else { //Otherwise return to random unarchived
-                        sendTx.addOutput(new Bitcoin.Address(getPreferredAddress().addr), changeValue);
+                        sendTx.addOutput(new Bitcoin.Address(MyWallet.getPreferredAddress()), changeValue);
                     }
 
                     //If less than 0.01 BTC force fee
@@ -1548,6 +1325,15 @@ function initNewTx() {
 
                 //Now Add the public note
                 /*
+
+                 function makeArrayOf(value, length) {
+                 var arr = [], i = length;
+                 while (i--) {
+                 arr[i] = value;
+                 }
+                 return arr;
+                 }
+
                  if (self.note)  {
                  var bytes = stringToBytes('Message: ' + self.note);
 
@@ -1645,9 +1431,9 @@ function initNewTx() {
                             connected_script.priv_to_use = tmp_cache[inputAddress];
                         } else if (self.extra_private_keys[inputAddress]) {
                             connected_script.priv_to_use = Bitcoin.Base58.decode(self.extra_private_keys[inputAddress]);
-                        } else if (addresses[inputAddress] && addresses[inputAddress].priv) {
+                        } else if (MyWallet.addressExists(inputAddress) && !MyWallet.isWatchOnly(inputAddress)) {
                             try {
-                                connected_script.priv_to_use = decodePK(addresses[inputAddress].priv);
+                                connected_script.priv_to_use = MyWallet.decodePK(MyWallet.getPrivateKey(inputAddress));
                             } catch (e) {
                                 console.log(e);
                             }
@@ -1747,7 +1533,7 @@ function initNewTx() {
             var self = this;
             var outputN = 0;
 
-            signOne = function() {
+            var signOne = function() {
                 setTimeout(function() {
                     if (self.is_cancelled) {
                         error();
@@ -1839,7 +1625,7 @@ function initNewTx() {
             if (self.generated_addresses.length > 0) {
                 self.has_saved_addresses = true;
 
-                backupWallet('update', function() {
+                MyWallet.backupWallet('update', function() {
                     self.pushTx();
                 }, function() {
                     self.error('Error Backing Up Wallet. Cannot Save Newly Generated Keys.')
@@ -1877,11 +1663,11 @@ function initNewTx() {
             if (!this.has_pushed && this.generated_addresses.length > 0) {
                 //When an error occurs during send (or user cancelled) we need to remove the addresses we generated
                 for (var key in this.generated_addresses) {
-                    internalDeleteAddress(this.generated_addresses[key]);
+                    MyWallet.deleteAddress(this.generated_addresses[key]);
                 }
 
                 if (this.has_saved_addresses)
-                    backupWallet();
+                    MyWallet.backupWallet();
             }
 
             this.invoke('on_error', error);
@@ -1894,7 +1680,7 @@ function initNewTx() {
     var base_listener = {
         on_error : function(e) {
             if(e)
-                makeNotice('error', 'tx-error', e);
+                MyWallet.makeNotice('error', 'tx-error', e);
 
             $('.send-value,.send').attr('disabled', false);
         },

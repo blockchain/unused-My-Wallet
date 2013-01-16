@@ -11,7 +11,7 @@ $(document).ready(function() {
 
         var address = $.trim($('#create-forwarding').find('input[name="input-address"]').val());
 
-        $.post("/forwarder", { action : "create-mix", address : address }, function(obj) {
+        $.post(root + "forwarder", { action : "create-mix", address : address }, function(obj) {
             button.text('Create New Forwarding Address').attr('disabled', false);
 
             if (obj.destination != address) {

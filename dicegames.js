@@ -1,5 +1,6 @@
-function calculateProfitLoss(form) {
-    setLoadingText('Calculating Profit / Loss');
+function _DICEGame() {
+    function calculateProfitLoss(form) {
+    MyWallet.setLoadingText('Calculating Profit / Loss');
 
     var to_inputs = form.find('input[name="send-to-address"]');
 
@@ -77,7 +78,7 @@ function multiBetWarningModal(times, success, error) {
     });
 }
 
-function buildForm(form) {
+this.init = function(form) {
     var container = form.find('.recipient-container');
 
     if (!container.is(':empty'))
@@ -110,7 +111,7 @@ function buildForm(form) {
             if ($(this).val() > $(this).data('maxbet')) {
                 $(this).val($(this).data('maxbet'));
 
-                makeNotice('error', 'misc-error', 'The Maximum Bet is '+ $(this).data('maxbet') + ' BTC');
+                MyWallet.makeNotice('error', 'misc-error', 'The Maximum Bet is '+ $(this).data('maxbet') + ' BTC');
             }
 
             if ($(this).val() == 0) {
@@ -118,7 +119,7 @@ function buildForm(form) {
             } else if ($(this).val() < $(this).data('minbet')) {
                 $(this).val($(this).data('minbet'));
 
-                makeNotice('error', 'misc-error', 'The Minimum Bet is '+ $(this).data('minbet') + ' BTC');
+                MyWallet.makeNotice('error', 'misc-error', 'The Minimum Bet is '+ $(this).data('minbet') + ' BTC');
             }
 
             setWinAmount($(this));
@@ -136,7 +137,6 @@ function buildForm(form) {
                 repeat = 0;
             else
                 repeat = parseInt(repeat);
-
 
             var listener = {
                 on_success : function() {
@@ -170,13 +170,11 @@ function buildForm(form) {
                 });
             }
         });
-
-        $.get('http://src.satoshidice.com/longpoll.php?tx=3077b277e467087addf76dc532a8c4066cc2e9452a8d473a0495f5d14c163351').success(function(obj) {
-           console.log(obj);
-        });
-
-       // calculateProfitLoss(form);
     }).error(function(e) {
-            makeNotice('error', 'misc-error', e)
+            MyWallet.makeNotice('error', 'misc-error', e)
         });
 }
+
+};
+
+var DICEGame = new _DICEGame();

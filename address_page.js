@@ -1,35 +1,4 @@
-
-function goToWallet(addr) {
-    try {
-        if (localStorage) {
-            var guid = localStorage.getItem('guid');
-
-            if (guid != null) {
-                if (addr == null) {
-                    window.location='https://blockchain.info/wallet/'+guid;
-                } else {
-                    window.location='https://blockchain.info/wallet/'+guid+'#newaddr|'+addr;
-                }
-
-                return;
-            }
-        }
-    } catch(e) {
-        console.log(e);
-    }
-
-    if (addr == null) {
-        window.location='https://blockchain.info/wallet';
-    } else {
-        window.location='https://blockchain.info/wallet/new#newaddr|'+addr;
-    }
-}
-
 $(document).ready(function() {
-
-    $('#add-to-wallet').click(function() {
-        goToWallet(address);
-    });
 
     $('#deposit').click(function() {
         loadScript(resource + 'wallet/frame-modal.js', function() {

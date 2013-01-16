@@ -13,34 +13,41 @@ function buildTable(groups) {
     for (var i in groups) {
         var group = groups[i];
 
-        if (i == 0)
-            tbody.append('<tr><th>Group #'+i+'</th><th colspan="2"><a onclick="removeGrouping();">Hide Grouping</a></th></tr>');
-        else
+        if (i == 0) {
+
+            var tr = $('<tr><th>Group #'+i+'</th><th colspan="2"><a href="#" class="act-hide">Hide Grouping</a></th></tr>');
+
+            (function() {
+                tr.find('.act-hide').click(function() {
+                    removeGrouping();
+                });
+            })();
+
+            tbody.append(tr);
+        } else {
             tbody.append('<tr><th colspan="3">Group #'+i+'</th></tr>');
+        }
 
         for (var ii in group) {
             var address = group[ii];
 
-            var addr = addresses[address];
-
-            if (!addr) continue;
+            if (!MyWallet.addressExists(address))
+                 continue;
 
             var noPrivateKey = '';
 
-            if (addr.tag == 1) {
-                noPrivateKey = ' <font color="red" title="Not Synced">(Not Synced)</font>';
-            } else if (addr.priv == null) {
+            if (MyWallet.isWatchOnly(address)) {
                 noPrivateKey = ' <font color="red" title="Watch Only">(Watch Only)</font>';
             }
 
             var extra = '';
-            var label = addr.addr;
-            if (addr.label != null) {
-                label = addr.label;
-                extra = '<span class="hidden-phone"> - ' + addr.addr + '</span>';
+            var label = address;
+            if (MyWallet.getAddressLabel(address) != null) {
+                label = MyWallet.getAddressLabel(address);
+                extra = '<span class="hidden-phone"> - ' + address + '</span>';
             }
 
-            var thtml = '<tr style="background-color:#FFFFFF;"><td style="background-color:#FFFFFF;"><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td style="background-color:#FFFFFF;" colspan="2"><span style="color:green">' + formatBTC(addr.balance) + '<span class="hidden-phone"> BTC</span></span></td></tr>';
+            var thtml = '<tr style="background-color:#FFFFFF;"><td style="background-color:#FFFFFF;"><div class="short-addr"><a href="'+root+'address/'+address+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td style="background-color:#FFFFFF;" colspan="2"><span style="color:green">' + formatBTC(MyWallet.getAddressBalance(address)) + '<span class="hidden-phone"> BTC</span></span></td></tr>';
 
             tbody.append(thtml);
         }
@@ -48,9 +55,10 @@ function buildTable(groups) {
 }
 
 function loadTaintData() {
-    setLoadingText('Loading Taint Data');
+    MyWallet.setLoadingText('Loading Taint Data');
 
-    $.get(root + 'taint/' + getAllAddresses().join('|') + '?format=json').success(function(obj) {
+    var all_addresses = MyWallet.getAllAddresses();
+    $.get(root + 'taint/' + all_addresses.join('|') + '?format=json').success(function(obj) {
         var groups = [];
         var filteredTaints = obj.filteredTaints;
 
@@ -94,16 +102,12 @@ function loadTaintData() {
 
         buildTable(groups);
 
-        BlockchainAPI.get_balances(getAllAddresses(), function(obj) {
-            for (var key in obj) {
-                addresses[key].balance = obj[key].final_balance;
-            }
-
+        BlockchainAPI.get_balances(all_addresses, function(obj) {
             buildTable(groups);
         }, function(e) {
-            makeNotice('error', 'misc-error', e);
+            MyWallet.makeNotice('error', 'misc-error', e);
         });
     }).error(function() {
-            makeNotice('error', 'misc-error', 'Error Downloading Taint Data')
+            MyWallet.makeNotice('error', 'misc-error', 'Error Downloading Taint Data')
         });
 }
