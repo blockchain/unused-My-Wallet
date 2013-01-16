@@ -304,6 +304,43 @@ var MyWallet = new function() {
         return tx_tr;
     }
 
+    function calcTxResult(tx, is_new) {
+        /* Calculate the result */
+        var result = 0;
+        for (var i = 0; i < tx.inputs.length; ++i) {
+            var output = tx.inputs[i].prev_out;
+
+            //If it is our address then subtract the value
+            var addr = addresses[output.addr];
+            if (addr) {
+                var value = parseInt(output.value);
+
+                result -= value;
+
+                if (is_new) {
+                    total_sent += value;
+                    addr.balance -= value;
+                }
+            }
+        }
+
+        for (var ii = 0; ii < tx.out.length; ++ii) {
+            var output = tx.out[ii];
+
+            var addr = addresses[output.addr];
+            if (addr) {
+                var value = parseInt(output.value);
+
+                result += value;
+
+                if (is_new) {
+                    total_received += value;
+                    addr.balance += value;
+                }
+            }
+        }
+        return result;
+    }
     function wsSuccess(ws) {
         ws.onmessage = function(e) {
 
@@ -336,46 +373,7 @@ var MyWallet = new function() {
                             return;
                     }
 
-                    /* Calculate the result */
-                    var result = 0;
-                    var at_least_one_active = false;
-
-                    for (var i = 0; i < tx.inputs.length; ++i) {
-                        var output = tx.inputs[i].prev_out;
-
-                        //If it is our address then subtract the value
-                        var addr = addresses[output.addr];
-                        if (addr) {
-                            var value = parseInt(output.value);
-
-                            if (addr.tag != 2) {
-                                result -= value;
-                                total_sent += value;
-                                at_least_one_active = true;
-                            }
-
-                            addr.balance -= value;
-                        }
-                    }
-
-                    for (var ii = 0; ii < tx.out.length; ++ii) {
-                        var output = tx.out[ii];
-
-                        var addr = addresses[output.addr];
-                        if (addr) {
-                            var value = parseInt(output.value);
-
-                            if (addr.tag != 2) {
-                                result += value;
-                                total_received += value;
-                                at_least_one_active = true;
-                            }
-
-                            addr.balance += value;
-                        }
-                    }
-
-                    if (!at_least_one_active) return;
+                    var result = calcTxResult(tx, true);
 
                     if (html5_notifications) {
                         //Send HTML 5 Notification
@@ -1294,7 +1292,12 @@ var MyWallet = new function() {
         }
 
         for (var i = 0; i < obj.txs.length; ++i) {
-            transactions.push(TransactionFromJSON(obj.txs[i]));
+            var tx = TransactionFromJSON(obj.txs[i]);
+
+            //Don't use the result given by the api because it doesn't include archived addresses
+            tx.result = calcTxResult(tx, false);
+
+            transactions.push(tx);
         }
 
         if (obj.info) {
@@ -3089,11 +3092,11 @@ var MyWallet = new function() {
             var self = this;
 
             loadScript(resource + 'wallet/dicegames.min.js', function() {
-               // try {
-                    DICEGame.init($(self));
-               // } catch (e) {
-              //      console.log(e);
-               //
+                // try {
+                DICEGame.init($(self));
+                // } catch (e) {
+                //      console.log(e);
+                //
                 //    MyWallet.makeNotice('error', 'misc-error', 'Unable To Load Dice Bets');
                 //}
             }, function (e) {

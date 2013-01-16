@@ -49,6 +49,7 @@ function _ImportExport() {
             obj.data.request_id = request_id;
 
             document.body.setAttribute('data-extension-request', JSON.stringify(obj));
+
             document.body.dispatchEvent(customEvent);
         }
 
@@ -66,8 +67,6 @@ function _ImportExport() {
                 return url + self.settings.rpcserver + ':' + self.settings.rpcport + '/';
             },
             call : function (method, params, success, error) {
-                var self = this;
-
                 sendExtensionRequest({
                     cmd : 'call',
                     success : success,
@@ -102,7 +101,8 @@ function _ImportExport() {
                 },
                 data : {
                     url : 'https://blockchain.info/ping',
-                    method : 'POST'
+                    method : 'POST',
+                    data : ''
                 }
             });
         }
@@ -333,26 +333,24 @@ function _ImportExport() {
             $('#rpc-step-2').hide();
             $('#rpc-body').hide();
 
-            loadScript(resource + 'wallet/import-export.js', function() {
-                DesktopSync.checkForExtension(function(data) {
-                    $('#rpc-step-2').show(200);
+            DesktopSync.checkForExtension(function(data) {
+                $('#rpc-step-2').show(200);
 
-                    DesktopSync.syncWallet(function() {
-                        $('#rpc-step-2').hide();
-                        $('#rpc-body').show();
-                    });
-                }, function(e) {
-                    $('#rpc-step-1').show(200);
-                });
-
-                $("#sync-bitcoind-btn").unbind().click(function() {
-                    DesktopSync.syncWallet();
-                });
-
-                $("#rpc-continue-btn").unbind().click(function() {
+                DesktopSync.syncWallet(function() {
                     $('#rpc-step-2').hide();
-                    $('#rpc-body').show(200);
+                    $('#rpc-body').show();
                 });
+            }, function(e) {
+                $('#rpc-step-1').show(200);
+            });
+
+            $("#sync-bitcoind-btn").unbind().click(function() {
+                DesktopSync.syncWallet();
+            });
+
+            $("#rpc-continue-btn").unbind().click(function() {
+                $('#rpc-step-2').hide();
+                $('#rpc-body').show(200);
             });
         });
 

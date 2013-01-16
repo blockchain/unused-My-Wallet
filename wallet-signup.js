@@ -1,9 +1,7 @@
 (function() {
-    var key;
     var guid;
     var sharedKey;
     var password;
-
 
     function makeNotice(type, id, msg, timeout) {
 
@@ -40,7 +38,8 @@
     }
 
     function generateNewWallet() {
-        key = new Bitcoin.ECKey();
+        if (MyWallet.getAllAddresses().length == 0)
+            MyWallet.generateNewKey();
 
         $('body').click(function() {
             rng_seed_time();
