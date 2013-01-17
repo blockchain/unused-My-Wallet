@@ -60,6 +60,12 @@ function numberWithCommas(x) {
 }(jQuery));
 
 $(document).ready(function() {
+
+    //Iframe breakout
+    if (top.location!= self.location) {
+        top.location = self.location.href
+    }
+
     try {
         $('.slidedeck').slidedeck();
     } catch(err) {}

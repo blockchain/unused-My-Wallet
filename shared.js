@@ -67,8 +67,8 @@ function webSocketConnect(success) {
         } else {
             // Flash fall back for websocket compatibility
             window.WEB_SOCKET_SWF_LOCATION = resource + "wallet/WebSocketMain.swf";
-            loadScript(resource + 'wallet/swfobject.js', function() {
-                loadScript(resource + 'wallet/web_socket.js', function() {
+            loadScript('wallet/swfobject.js', function() {
+                loadScript('wallet/web_socket.js', function() {
                     if (window.WebSocket) {
                         reallyConnect();
 
@@ -469,7 +469,9 @@ function registerURIHandler() {
 }
 
 function loadScript(src, success, error) {
-    src += '?'+war_checksum;
+    src = resource + src + '?'+war_checksum;
+
+    console.log('Load ' + src);
 
     if ($('script[src="'+src+'"]').length > 0) {
         success();

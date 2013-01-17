@@ -47,17 +47,27 @@ function _AccountSettings() {
         $('#double-password2').val('');
     }
 
+    function clearMnemonics() {
+       $('#password_mnemonic1').find('span').empty();
+       $('#password_mnemonic2').find('span').empty();
+    }
+
     function updateMnemonics() {
-        loadScript(resource + 'wallet/mnemonic.js', function() {
+        clearMnemonics();
+
+        var mn1 = $('#password_mnemonic1');
+        var mn2 = $('#password_mnemonic2');
+
+        loadScript('wallet/mnemonic.js', function() {
             MyWallet.getMainPassword(function(main_password){
                 MyWallet.getSecondPassword(function(second_password) {
                     try {
-                        $('#password_mnemonic1').show().find('span').text(mn_encode_pass(main_password));
+                        mn1.show().find('span').text(mn_encode_pass(main_password));
 
                         if (second_password)
-                            $('#password_mnemonic2').show().find('span').text(mn_encode_pass(second_password));
+                            mn2.show().find('span').text(mn_encode_pass(second_password));
                         else
-                            $('#password_mnemonic2').hide();
+                            mn2.hide();
                     } catch (e) {
                         console.log(e);
 
@@ -72,7 +82,7 @@ function _AccountSettings() {
         });
     }
 
-    function bind() {
+    this.bind = function() {
         setDoubleEncryptionButton();
 
         bindAccountButtons();
@@ -84,7 +94,7 @@ function _AccountSettings() {
         MyWallet.setLoadingText('Loading Account Settings');
 
         if (!container.is(':empty')) {
-            bind();
+            AccountSettings.bind();
             success();
             return;
         }
@@ -94,7 +104,7 @@ function _AccountSettings() {
             try {
                 container.html(html);
 
-                bind();
+                AccountSettings.bind();
 
                 success();
             } catch (e) {
@@ -110,7 +120,7 @@ function _AccountSettings() {
     }
 
     //Get email address, secret phrase, yubikey etc.
-    function getAccountInfo(parent_el) {
+    function getAccountInfo() {
 
         $('a[data-toggle="tab"]').on('show', function(e) {
             $(e.target.hash).trigger('show');
@@ -191,7 +201,7 @@ function _AccountSettings() {
 
             //Show Google Auth QR Code
             if (data.google_secret_url != null && data.google_secret_url.length > 0) {
-                loadScript(resource + 'wallet/qr.code.creator.js', function() {
+                loadScript('wallet/qr.code.creator.js', function() {
                     try {
                         var qr = makeQRCode(300, 300, 1 , data.google_secret_url);
 
@@ -403,11 +413,13 @@ function _AccountSettings() {
             MyWallet.backupWallet();
         });
 
-        $('#password_mnemonic').unbind().on('shown', function() {
+        $('#password_mnemonic').unbind().on('show', function() {
             updateMnemonics();
+        }).on('hide', function() {
+            clearMnemonics();
         });
 
-        $('#pairing_code').unbind().on('shown', function() {
+        $('#pairing_code').unbind().on('show', function() {
             var container = $('#device-qr-code');
 
             container.empty();

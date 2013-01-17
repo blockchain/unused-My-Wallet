@@ -9,7 +9,7 @@ function showAddressModalQRCode(address) {
 
     modal.find('.address').text(address);
 
-    loadScript(resource + 'wallet/qr.code.creator.js', function() {
+    loadScript('wallet/qr.code.creator.js', function() {
         var canvas = makeQRCode(300,300,1, address);
 
         modal.find('.address-qr-code').empty().append(canvas);

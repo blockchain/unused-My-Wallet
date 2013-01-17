@@ -113,7 +113,7 @@ $(document).ready(function() {
 
                     button.find('.stage-ready').trigger('show').show().html(button.find('.stage-ready').html().replace('[[address]]', response.input_address));
 
-                    loadScript(root + 'Resources/wallet/qr.code.creator.js', function() {
+                    loadScript('wallet/qr.code.creator.js', function() {
                         var claim_qr = makeQRCode(200, 200, 1 , response.input_address);
 
                         button.find('.qr-code').empty().append(claim_qr);

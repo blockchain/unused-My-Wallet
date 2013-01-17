@@ -15,7 +15,7 @@ function showClaimModal(key) {
 
     var from_address = key.getBitcoinAddress().toString();
 
-    loadScript(resource + 'wallet/qr.code.creator.js', function() {
+    loadScript('wallet/qr.code.creator.js', function() {
         var claim_qr = makeQRCode(300, 300, 1 , from_address);
 
         $('#claim-qr-code').empty().append(claim_qr);
@@ -47,7 +47,7 @@ function showClaimModal(key) {
         $('#claim-manual').show(200);
 
         $('#claim-manual-send').unbind().click(function() {
-            loadScript(resource + 'wallet/signer.min.js', function() {
+            loadScript('wallet/signer.min.js', function() {
                 try {
                     var to_address = $.trim($('#claim-manual-address').val());
 
@@ -111,7 +111,7 @@ $(document).ready(function() {
             MyWallet.addEventListener(function(event) {
                 if (event == 'did_decrypt') {
                     if (privateKeyToSweep) {
-                        loadScript(resource + 'wallet/signer.min.js', function() {
+                        loadScript('wallet/signer.min.js', function() {
                             var from_address = privateKeyToSweep.getBitcoinAddress().toString();
 
                             BlockchainAPI.get_balance([from_address], function(value) {

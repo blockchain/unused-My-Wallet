@@ -1,7 +1,7 @@
 $(document).ready(function() {
 
     $('#deposit').click(function() {
-        loadScript(resource + 'wallet/frame-modal.js', function() {
+        loadScript('wallet/frame-modal.js', function() {
             showFrameModal({
                 title : 'Deposit Using Cash',
                 description : 'Deposit into address <b>'+address+'</b>',
@@ -12,7 +12,7 @@ $(document).ready(function() {
     });
 
     $('#export-history').click(function() {
-        loadScript(resource + 'wallet/frame-modal.js', function() {
+        loadScript('wallet/frame-modal.js', function() {
             showFrameModal({
                 title : 'Export History',
                 description : '',
@@ -22,7 +22,7 @@ $(document).ready(function() {
     });
 
     $('#payment-request').click(function() {
-        loadScript(resource + 'wallet/frame-modal.js', function() {
+        loadScript('wallet/frame-modal.js', function() {
             showFrameModal({
                 title : 'Create Payment Request',
                 description : 'Request Payment into address <b>'+address+'</b>',
@@ -32,7 +32,7 @@ $(document).ready(function() {
     });
 
     $('#create-donation-button').click(function() {
-        loadScript(resource + 'wallet/frame-modal.js', function() {
+        loadScript('wallet/frame-modal.js', function() {
             showFrameModal({
                 title : 'Create Donation Button',
                 description : 'Create Donation Button To Address <b>'+address+'</b>',

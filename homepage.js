@@ -69,5 +69,11 @@ webSocketConnect(function(ws) {
 });
 
 $(document).ready(function() {
+
+    //Iframe breakout
+    if (top.location!= self.location) {
+        top.location = self.location.href
+    }
+
     setInterval(updateTimes, 1000);
 });

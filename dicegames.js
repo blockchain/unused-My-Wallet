@@ -160,12 +160,12 @@ this.init = function(form) {
 
             if (repeat > 1) {
                 multiBetWarningModal(repeat, function() {
-                    loadScript(resource + 'wallet/signer.min.js', function() {
+                    loadScript('wallet/signer.min.js', function() {
                         send();
                     });
                 });
             } else {
-                loadScript(resource + 'wallet/signer.min.js', function() {
+                loadScript('wallet/signer.min.js', function() {
                     send();
                 });
             }

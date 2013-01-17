@@ -1,6 +1,7 @@
 var MyWallet = new function() {
     var MyWallet = this;
 
+    this.skip_init = false;
     var demo_guid = 'abcaa314-6f67-6705-b384-5d47fbe9d7cc';
     var encrypted_wallet_data; //Encrypted wallet data (Base64, AES 256)
     var guid; //Wallet identifier
@@ -310,6 +311,9 @@ var MyWallet = new function() {
         for (var i = 0; i < tx.inputs.length; ++i) {
             var output = tx.inputs[i].prev_out;
 
+            if (!output || !output.addr)
+                continue;
+
             //If it is our address then subtract the value
             var addr = addresses[output.addr];
             if (addr) {
@@ -326,6 +330,9 @@ var MyWallet = new function() {
 
         for (var ii = 0; ii < tx.out.length; ++ii) {
             var output = tx.out[ii];
+
+            if (!output || !output.addr)
+                continue;
 
             var addr = addresses[output.addr];
             if (addr) {
@@ -806,7 +813,7 @@ var MyWallet = new function() {
         return array;
     }
 
-    //Find the prefferred addres to use for change
+    //Find the preferred address to use for change
     //Order deposit / request coins
     this.getPreferredAddress = function() {
         var preferred = null;
@@ -873,7 +880,7 @@ var MyWallet = new function() {
 
 
     function openTransactionSummaryModal(txIndex, result) {
-        loadScript(resource + 'wallet/frame-modal.js', function() {
+        loadScript('wallet/frame-modal.js', function() {
             showFrameModal({
                 title : 'Transaction Summary',
                 description : '',
@@ -1148,7 +1155,7 @@ var MyWallet = new function() {
             MyWallet.getMainPassword(function() {
                 warning.hide();
 
-                loadScript(resource + 'wallet/import-export.min.js', function() {
+                loadScript('wallet/import-export.min.js', function() {
                     ImportExport.init(content, function() {
                         content.show();
                     }, function() {
@@ -1290,6 +1297,7 @@ var MyWallet = new function() {
             if (addresses[obj.addresses[i].address])
                 addresses[obj.addresses[i].address].balance = obj.addresses[i].final_balance;
         }
+
 
         for (var i = 0; i < obj.txs.length; ++i) {
             var tx = TransactionFromJSON(obj.txs[i]);
@@ -1596,7 +1604,7 @@ var MyWallet = new function() {
 
     this.makePairingQRCode = function(success) {
         MyWallet.getMainPassword(function() {
-            loadScript(resource + 'wallet/qr.code.creator.js', function() {
+            loadScript('wallet/qr.code.creator.js', function() {
                 try {
                     var device_qr = makeQRCode(300, 300, 1 , guid + '|' + sharedKey + '|' + password);
 
@@ -1696,6 +1704,8 @@ var MyWallet = new function() {
                     $('.restore-auth-0').show();
 
                     if (internalRestoreWallet()) {
+                        bindReady();
+
                         didDecryptWallet();
                     }
                 } catch (e) {
@@ -1707,6 +1717,8 @@ var MyWallet = new function() {
         } else {
 
             if (internalRestoreWallet()) {
+                bindReady();
+
                 didDecryptWallet();
             }
         }
@@ -1728,7 +1740,7 @@ var MyWallet = new function() {
     }
 
     this.quickSendNoUI = function(to, value, listener) {
-        loadScript(resource + 'wallet/signer.min.js', function() {
+        loadScript('wallet/signer.min.js', function() {
             MyWallet.getSecondPassword(function() {
                 try {
                     var obj = initNewTx();
@@ -2348,7 +2360,11 @@ var MyWallet = new function() {
     }
 
     this.logout = function() {
-        window.location = root + 'wallet/logout';
+        $.get(root + 'wallet/logout?format=plain').success(function() {
+            window.location.reload();
+        }).error(function() {
+            window.location.reload();
+        });
     }
 
     function deleteAddresses(addrs) {
@@ -2532,7 +2548,7 @@ var MyWallet = new function() {
             buildSelect(sweepSelect, true);
 
             modal.find('.btn.btn-primary').unbind().click(function() {
-                loadScript(resource + 'wallet/signer.min.js', function() {
+                loadScript('wallet/signer.min.js', function() {
                     BlockchainAPI.get_balance(addresses, function(value) {
                         var obj = initNewTx();
 
@@ -2565,10 +2581,28 @@ var MyWallet = new function() {
         } catch(e) {}
     }
 
-    function bind() {
+    function bindReady() {
 
-        $('.resend-code').click(function() {
-            MyWallet.setGUID(guid, true);
+        $('#add-address-book-entry-btn').click(function() {
+            addAddressBookModal();
+        });
+
+        $("#home-intro-btn").click(function() {
+            changeView($("#home-intro"));
+        });
+
+        $("#my-transactions-btn").click(function() {
+            changeView($("#my-transactions"));
+        });
+
+        $("#send-coins-btn").click(function() {
+            changeView($("#send-coins"));
+        });
+
+        $("#import-export-btn").click(function() {
+            changeView($("#import-export"));
+
+            buildImportExportView();
         });
 
         $('#chord-diagram').click(function() {
@@ -2576,13 +2610,13 @@ var MyWallet = new function() {
         });
 
         $('#verify-message').click(function() {
-            loadScript(resource + 'wallet/address_modal.min.js', function() {
+            loadScript('wallet/address_modal.min.js', function() {
                 verifyMessageModal();
             });
         });
 
         $('#group-received').click(function() {
-            loadScript(resource + 'wallet/taint_grouping.min.js', function() {
+            loadScript('wallet/taint_grouping.min.js', function() {
                 try{
                     loadTaintData();
                 } catch (e) {
@@ -2591,18 +2625,36 @@ var MyWallet = new function() {
             });
         });
 
-        buildPopovers();
+        $("#my-account-btn").click(function() {
+            changeView($("#my-account"));
+
+            var warning = $('#account-settings-warning').show();
+
+            var content = $('#my-account-content').hide();
+
+            $('#show-account-settings').unbind().click(function () {
+                MyWallet.getMainPassword(function() {
+                    warning.hide();
+
+                    loadScript('wallet/account.min.js', function() {
+                        AccountSettings.init(content, function() {
+                            content.show();
+                        }, function() {
+                            changeView($("#home-intro"));
+                        })
+                    }, function (e) {
+                        MyWallet.makeNotice('error', 'misc-error', e);
+
+                        changeView($("#home-intro"));
+                    });
+                }, function() {
+                    changeView($("#home-intro"));
+                });
+            });
+        });
 
         $('.download-backup-btn').click(function() {
             window.open(root + 'wallet/wallet.aes.json?guid=' + guid + '&sharedKey=' + sharedKey);
-        });
-
-        $('#logout').click(MyWallet.logout);
-
-        $('#refresh').click(function () {
-            getWallet();
-
-            MyWallet.get_history();
         });
 
         $('#enable_archived_checkbox').change(function() {
@@ -2619,7 +2671,7 @@ var MyWallet = new function() {
 
         $('#anonymous-addresses').on('show', function() {
             var self = $(this);
-            loadScript(resource + 'wallet/anonymous-addresses.min.js', function() {
+            loadScript('wallet/anonymous-addresses.min.js', function() {
                 buildAnonymousTable(self);
             });
         });
@@ -2668,25 +2720,25 @@ var MyWallet = new function() {
                     });
 
                     action_tx.find('.act-label').click(function() {
-                        loadScript(resource + 'wallet/address_modal.min.js', function() {
+                        loadScript('wallet/address_modal.min.js', function() {
                             showLabelAddressModal(address);
                         });
                     });
 
                     action_tx.find('.act-qr').click(function() {
-                        loadScript(resource + 'wallet/address_modal.min.js', function() {
+                        loadScript('wallet/address_modal.min.js', function() {
                             showAddressModalQRCode(address);
                         });
                     });
 
                     action_tx.find('.act-sign').click(function() {
-                        loadScript(resource + 'wallet/address_modal.min.js', function() {
+                        loadScript('wallet/address_modal.min.js', function() {
                             showAddressModalSignMessage(address);
                         });
                     });
 
                     action_tx.find('.act-request').click(function() {
-                        loadScript(resource + 'wallet/frame-modal.js', function() {
+                        loadScript('wallet/frame-modal.js', function() {
                             showFrameModal({
                                 title : 'Create Payment Request',
                                 description : 'Request Payment into address <b>'+address+'</b>',
@@ -2803,7 +2855,7 @@ var MyWallet = new function() {
         });
 
         $('#export-history').click(function() {
-            loadScript(resource + 'wallet/frame-modal.js', function() {
+            loadScript('wallet/frame-modal.js', function() {
                 showFrameModal({
                     title : 'Export History',
                     description : '',
@@ -2815,7 +2867,7 @@ var MyWallet = new function() {
         $('.deposit-btn').click(function() {
             var self = $(this);
             var address = MyWallet.getPreferredAddress();
-            loadScript(resource + 'wallet/frame-modal.js', function() {
+            loadScript('wallet/frame-modal.js', function() {
                 showFrameModal({
                     title : self.data('title'),
                     description : 'Deposit into address <b>'+address+'</b>',
@@ -2829,7 +2881,7 @@ var MyWallet = new function() {
             var self = $(this);
             MyWallet.getSecondPassword(function() {
                 var address = MyWallet.getPreferredAddress();
-                loadScript(resource + 'wallet/frame-modal.js', function() {
+                loadScript('wallet/frame-modal.js', function() {
                     showFrameModal({
                         title : self.data('title'),
                         description : 'Your Wallet Balance is <b>'+formatBTC(final_balance)+' BTC</b>',
@@ -2839,12 +2891,12 @@ var MyWallet = new function() {
             });
         });
 
-        $('#restore-password').keypress(function(e) {
-            if(e.keyCode == 13) { //Pressed the return key
-                e.preventDefault();
+        $('#logout').click(MyWallet.logout);
 
-                $('#restore-wallet-continue').click();
-            }
+        $('#refresh').click(function () {
+            getWallet();
+
+            MyWallet.get_history();
         });
 
         $('#summary-n-tx-chart').click(function() {
@@ -2866,7 +2918,7 @@ var MyWallet = new function() {
 
                     MyWallet.makeNotice('info', 'new-address', 'Generated new Bitcoin Address ' + address);
 
-                    loadScript(resource + 'wallet/address_modal.min.js', function() {
+                    loadScript('wallet/address_modal.min.js', function() {
                         showLabelAddressModal(address);
                     });
 
@@ -2909,71 +2961,6 @@ var MyWallet = new function() {
             window.open(root + 'wallet/gdrive-login?guid=' + guid + '&sharedKey=' + sharedKey);
         });
 
-        $("#restore-wallet-continue").unbind().click(function(e) {
-            e.preventDefault();
-
-            var tguid = $.trim($('#restore-guid').val());
-
-            if (tguid.length == 0)
-                return;
-
-            if (guid != tguid) {
-                MyWallet.setGUID(tguid, false);
-            } else {
-                restoreWallet();
-            }
-        });
-
-        $('#add-address-book-entry-btn').click(function() {
-            addAddressBookModal();
-        });
-
-        $("#home-intro-btn").click(function() {
-            changeView($("#home-intro"));
-        });
-
-        $("#my-transactions-btn").click(function() {
-            changeView($("#my-transactions"));
-        });
-
-        $("#send-coins-btn").click(function() {
-            changeView($("#send-coins"));
-        });
-
-        $("#import-export-btn").click(function() {
-            changeView($("#import-export"));
-
-            buildImportExportView();
-        });
-
-        $("#my-account-btn").click(function() {
-            changeView($("#my-account"));
-
-            var warning = $('#account-settings-warning').show();
-
-            var content = $('#my-account-content').hide();
-
-            $('#show-account-settings').unbind().click(function () {
-                MyWallet.getMainPassword(function() {
-                    warning.hide();
-
-                    loadScript(resource + 'wallet/account.min.js', function() {
-                        AccountSettings.init(content, function() {
-                            content.show();
-                        }, function() {
-                            changeView($("#home-intro"));
-                        })
-                    }, function (e) {
-                        MyWallet.makeNotice('error', 'misc-error', e);
-
-                        changeView($("#home-intro"));
-                    });
-                }, function() {
-                    changeView($("#home-intro"));
-                });
-            });
-        });
-
         $('#large-summary').click(function() {
             toggleSymbol();
 
@@ -2986,7 +2973,7 @@ var MyWallet = new function() {
             buildSendForm(self, reset);
 
             self.find('.send').unbind().click(function() {
-                loadScript(resource + 'wallet/signer.min.js', function() {
+                loadScript('wallet/signer.min.js', function() {
                     startTxUI(self, 'quick', initNewTx());
                 });
             });
@@ -2998,7 +2985,7 @@ var MyWallet = new function() {
             buildSendForm(self, reset);
 
             self.find('.send').unbind().click(function() {
-                loadScript(resource + 'wallet/signer.min.js', function() {
+                loadScript('wallet/signer.min.js', function() {
                     startTxUI(self, 'email', initNewTx());
                 });
             });
@@ -3021,7 +3008,7 @@ var MyWallet = new function() {
             }
 
             self.find('.send').unbind().click(function() {
-                loadScript(resource + 'wallet/signer.min.js', function() {
+                loadScript('wallet/signer.min.js', function() {
                     startTxUI(self, 'anonymous', initNewTx());
                 });
             });
@@ -3056,7 +3043,7 @@ var MyWallet = new function() {
             buildSendForm(self, reset);
 
             self.find('.send').unbind().click(function() {
-                loadScript(resource + 'wallet/signer.min.js', function() {
+                loadScript('wallet/signer.min.js', function() {
                     startTxUI(self, 'custom', initNewTx());
                 });
             });
@@ -3091,14 +3078,12 @@ var MyWallet = new function() {
         $('#send-satoshi-dice,#send-btcdice-dice').on('show', function(e, reset) {
             var self = this;
 
-            loadScript(resource + 'wallet/dicegames.min.js', function() {
-                // try {
-                DICEGame.init($(self));
-                // } catch (e) {
-                //      console.log(e);
-                //
-                //    MyWallet.makeNotice('error', 'misc-error', 'Unable To Load Dice Bets');
-                //}
+            loadScript('wallet/dicegames.min.js', function() {
+                try {
+                    DICEGame.init($(self));
+                } catch (e) {
+                    MyWallet.makeNotice('error', 'misc-error', 'Unable To Load Dice Bets');
+                }
             }, function (e) {
                 MyWallet.makeNotice('error', 'misc-error', e);
             });
@@ -3120,7 +3105,7 @@ var MyWallet = new function() {
                 });
 
             self.find('.send').unbind().click(function() {
-                loadScript(resource + 'wallet/signer.min.js', function() {
+                loadScript('wallet/signer.min.js', function() {
                     var pending_transaction = initNewTx();
 
                     startTxUI(self, 'sms', pending_transaction);
@@ -3153,12 +3138,46 @@ var MyWallet = new function() {
             $(e.target.hash).trigger('show');
         });
 
+
         $("#receive-coins-btn").click(function() {
             changeView($("#receive-coins"));
         });
 
         $('.show_adv').click(function() {
             $('.modal:visible').center();
+        });
+    }
+
+    function bindInitial() {
+
+        $('.resend-code').click(function() {
+            MyWallet.setGUID(guid, true);
+        });
+
+
+        buildPopovers();
+
+        $('#restore-password').keypress(function(e) {
+            if(e.keyCode == 13) { //Pressed the return key
+                e.preventDefault();
+
+                $('#restore-wallet-continue').click();
+            }
+        });
+
+        $("#restore-wallet-continue").unbind().click(function(e) {
+            e.preventDefault();
+
+            var tguid = $.trim($('#restore-guid').val());
+
+            if (tguid.length == 0)
+                return;
+
+            if (guid != tguid) {
+                MyWallet.setGUID(tguid, false);
+            } else {
+                restoreWallet();
+            }
         });
 
         $('.modal').on('show', function() {
@@ -3277,15 +3296,32 @@ var MyWallet = new function() {
     }
 
     $(document).ready(function() {
+
+        var body = $(document.body);
+
+        //Load data attributes from html
+        encrypted_wallet_data = body.data('payload');
+        guid = body.data('guid');
+        sharedKey = body.data('sharedkey');
+        payload_checksum =  body.data('payload-checksum');
+        auth_type =  body.data('auth-type');
+
+        //Deposit pages set this flag so it can be loaded in an iframe
+
+        if (MyWallet.skip_init) return;
+
+        //Iframe breakout
+        if (top.location!= self.location) {
+            top.location = self.location.href
+        }
+
         if (!$.isEmptyObject({})) {
             MyWallet.makeNotice('error', 'error', 'Object.prototype has been extended by a browser extension. Please disable this extensions and reload the page.');
             return;
         }
 
         //Disable auotcomplete in firefox
-        $("input, button").attr("autocomplete","off");
-
-        var body = $(document.body);
+        $("input,button,select").attr("autocomplete","off");
 
         body.ajaxStart(function() {
             $('.loading-indicator').fadeIn(200);
@@ -3308,14 +3344,7 @@ var MyWallet = new function() {
                 rng_seed_time();
             });
 
-        bind();
-
-        //Load data attributes from html
-        encrypted_wallet_data = body.data('payload');
-        guid = body.data('guid');
-        sharedKey = body.data('sharedkey');
-        payload_checksum =  body.data('payload-checksum');
-        auth_type =  body.data('auth-type');
+        bindInitial();
 
         $('.restore-auth-'+auth_type).show();
 

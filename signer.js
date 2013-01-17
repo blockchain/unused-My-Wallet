@@ -102,8 +102,8 @@ function showPrivateKeyModal(success, error, addr) {
     var error_msg = null;
 
     //WebCam
-    loadScript(resource + 'wallet/llqrcode.js', function() {
-        loadScript(resource + 'wallet/qr.code.reader.js', function() {
+    loadScript('wallet/llqrcode.js', function() {
+        loadScript('wallet/qr.code.reader.js', function() {
             //Flash QR Code Reader
             var interval = initQRCodeReader('qr-code-reader', function(code){
                 try {
