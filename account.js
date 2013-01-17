@@ -122,7 +122,7 @@ function _AccountSettings() {
     //Get email address, secret phrase, yubikey etc.
     function getAccountInfo() {
 
-        $('a[data-toggle="tab"]').on('show', function(e) {
+        $('a[data-toggle="tab"]').unbind().on('show', function(e) {
             $(e.target.hash).trigger('show');
         });
 
@@ -240,6 +240,13 @@ function _AccountSettings() {
                     $(this).attr('checked', true);
                 }
             });
+
+            $('input[name="inactivity-logout-time"]').each(function() {
+                if (parseInt($(this).val()) == MyWallet.getLogoutTime()) {
+                    $(this).attr('checked', true);
+                }
+            });
+
 
             if (data.email_verified == 0) {
                 $('#verify-email').show();
@@ -408,6 +415,14 @@ function _AccountSettings() {
 
         $('input[name=fee-policy]').unbind().change(function() {
             MyWallet.setFeePolicy($('input[name=fee-policy]:checked').val());
+
+            //Fee Policy is stored in wallet so must save it
+            MyWallet.backupWallet();
+        });
+
+
+        $('input[name=inactivity-logout-time]').unbind().change(function() {
+            MyWallet.setLogoutTime(parseInt($(this).val()));
 
             //Fee Policy is stored in wallet so must save it
             MyWallet.backupWallet();

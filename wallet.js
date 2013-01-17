@@ -26,23 +26,31 @@ var MyWallet = new function() {
     var payload_checksum; //SHA256 hash of the current wallet.aes.json
     var archTimer; //Delayed Backup wallet timer
     var mixer_fee = 1.5; //Default mixer fee 1.5%
-    var fee_policy = 0; //Default Fee policy (-1 Tight, 0 Normal, 1 High)
     var pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
-    var html5_notifications = false;
     var tx_notes = {}
     var logout_timeout;
-    var logout_time = 600000;
     var event_listeners = []; //Emits Did decrypt wallet event (used on claim page)
     var last_input_main_password;
     var main_password_timeout = 60000;
     var auth_type;
-
-    this.setHTML5Notifications = function(func) {
-        html5_notifications = true;
-    }
+    var wallet_options = {
+        fee_policy : 0,
+        html5_notifications : false,
+        logout_time : 300000 //Default 5 minutes
+    }; //Default Fee policy (-1 Tight, 0 Normal, 1 High)
 
     this.addEventListener = function(func) {
         event_listeners.push(func);
+    }
+
+    this.getLogoutTime = function() {
+        return wallet_options.logout_time;
+    }
+
+    this.setLogoutTime = function(logout_time) {
+        wallet_options.logout_time = logout_time;
+
+        logout_timeout = setTimeout(MyWallet.logout, MyWallet.getLogoutTime());
     }
 
     this.getDoubleEncryption = function() {
@@ -54,7 +62,7 @@ var MyWallet = new function() {
     }
 
     this.getFeePolicy = function() {
-        return fee_policy;
+        return wallet_options.fee_policy;
     }
 
     this.getGuid = function() {
@@ -62,15 +70,15 @@ var MyWallet = new function() {
     }
 
     this.setFeePolicy = function(policy) {
-        fee_policy = policy;
+        wallet_options.fee_policy = policy;
     }
 
     this.getHTML5Notifications = function() {
-        return html5_notifications;
+        return wallet_options.html5_notifications;
     }
 
     this.setHTML5Notifications = function(val) {
-        html5_notifications = val;
+        wallet_options.html5_notifications = val;
     }
 
     this.getTransactions = function() {
@@ -594,17 +602,12 @@ var MyWallet = new function() {
             out += '	"double_encryption" : '+double_encryption+',\n	"dpasswordhash" : "'+dpasswordhash+'",\n';
         }
 
-        if (fee_policy != 0) {
-            out += '	"fee_policy" : '+fee_policy+',\n';
-        }
-
-        if (html5_notifications) {
-            out += '	"html5_notifications" : '+html5_notifications+',\n';
+        if (wallet_options) {
+            out += '	"options" : ' + JSON.stringify(wallet_options)+',\n';
         }
 
         out += '	"keys" : [\n';
 
-        var atLeastOne = false;
         for (var key in addresses) {
             var addr = addresses[key];
 
@@ -1327,7 +1330,7 @@ var MyWallet = new function() {
     }
 
     function didDecryptWallet() {
-        logout_timeout = setTimeout(MyWallet.logout, logout_time);
+        logout_timeout = setTimeout(MyWallet.logout, MyWallet.getLogoutTime());
 
         for (var listener in event_listeners) {
             event_listeners[listener]('did_decrypt')
@@ -1429,12 +1432,17 @@ var MyWallet = new function() {
                 dpasswordhash = obj.dpasswordhash;
             }
 
-            if (obj.fee_policy) {
-                fee_policy = obj.fee_policy;
-            }
+            if (obj.options) {
+                $.extend(wallet_options, obj.options);
+            } else {
+                //TODO Depreciate this block
+                if (obj.fee_policy) {
+                    MyWallet.setFeePolicy(obj.fee_policy);
+                }
 
-            if (obj.html5_notifications) {
-                html5_notifications = obj.html5_notifications;
+                if (obj.html5_notifications) {
+                    MyWallet.setHTML5Notifications(obj.html5_notifications);
+                }
             }
 
             addresses.length = 0;
@@ -2362,8 +2370,8 @@ var MyWallet = new function() {
         $.get(root + 'wallet/logout?format=plain').success(function() {
             window.location.reload();
         }).error(function() {
-            window.location.reload();
-        });
+                window.location.reload();
+            });
     }
 
     function deleteAddresses(addrs) {
@@ -2758,6 +2766,7 @@ var MyWallet = new function() {
         });
 
         $('#archived-addresses').on('show', function() {
+
             $('#enable_archived_checkbox').attr('checked', false);
             $('#archived-delete').attr('disabled', true);
             $('#archived-sweep').attr('disabled', true);
@@ -3133,7 +3142,7 @@ var MyWallet = new function() {
             }
         });
 
-        $('a[data-toggle="tab"]').on('show', function(e) {
+        $('a[data-toggle="tab"]').unbind().on('show', function(e) {
             $(e.target.hash).trigger('show');
         });
 
@@ -3330,14 +3339,14 @@ var MyWallet = new function() {
 
                 if (logout_timeout) {
                     clearTimeout(logout_timeout);
-                    logout_timeout = setTimeout(MyWallet.logout, logout_time);
+                    logout_timeout = setTimeout(MyWallet.logout, MyWallet.getLogoutTime());
                 }
 
                 rng_seed_time();
             }).keypress(function() {
                 if (logout_timeout) {
                     clearTimeout(logout_timeout);
-                    logout_timeout = setTimeout(MyWallet.logout, logout_time);
+                    logout_timeout = setTimeout(MyWallet.logout, MyWallet.getLogoutTime());
                 }
 
                 rng_seed_time();

@@ -322,7 +322,7 @@ function _ImportExport() {
     }
 
     function bind() {
-        $('a[data-toggle="tab"]').on('show', function(e) {
+        $('a[data-toggle="tab"]').unbind().on('show', function(e) {
             $(e.target.hash).trigger('show');
         });
 
