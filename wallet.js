@@ -390,7 +390,7 @@ var MyWallet = new function() {
 
                     var result = calcTxResult(tx, true);
 
-                    if (html5_notifications) {
+                    if (MyWallet.getHTML5Notifications()) {
                         //Send HTML 5 Notification
                         var send_notification = function(options) {
                             try {
