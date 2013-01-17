@@ -1619,7 +1619,6 @@ var MyWallet = new function() {
     }
 
     this.getMainPassword = function(success, error) {
-
         //If the user has input their password recently just call the success handler
         if (last_input_main_password > new Date().getTime() - main_password_timeout)
             return success(password);
