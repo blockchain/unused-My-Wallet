@@ -47,8 +47,8 @@
                 rng_seed_time();
             });
 
-        var tpassword = $.trim($("#password").val());
-        var tpassword2 = $.trim($("#password2").val());
+        var tpassword = $("#password").val();
+        var tpassword2 = $("#password2").val();
 
         if (tpassword != tpassword2) {
             makeNotice('error', 'misc-error', 'Passwords do not match.');

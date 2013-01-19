@@ -397,8 +397,8 @@ var AccountSettings = new function() {
 
     function setDoubleEncryption(on_off) {
 
-        var tpassword =  $.trim($('#double-password').val());
-        var tpassword2 = $.trim($('#double-password2').val());
+        var tpassword =  $('#double-password').val();
+        var tpassword2 = $('#double-password2').val();
 
         if (tpassword == null || tpassword.length == 0 || tpassword.length < 4 || tpassword.length > 255) {
             MyWallet.makeNotice('error', 'misc-error', 'Password must be 4 characters or more in length');
