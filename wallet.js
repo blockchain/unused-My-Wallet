@@ -346,6 +346,11 @@ var MyWallet = new function() {
         }
         return result;
     }
+
+    function generatePayloadChecksum() {
+        return Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
+    }
+
     function wsSuccess(ws) {
         ws.onmessage = function(e) {
 
@@ -355,7 +360,7 @@ var MyWallet = new function() {
                 if (obj.op == 'status') {
                     $('#status').html(obj.msg);
                 } else if (obj.op == 'on_change') {
-                    var old_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
+                    var old_checksum = generatePayloadChecksum();
                     var new_checksum = obj.checksum;
 
                     console.log('On change old ' + old_checksum + ' ==  new '+ new_checksum);
@@ -768,7 +773,7 @@ var MyWallet = new function() {
                     return;
                 }
 
-                recipient.find('.send-value').val(formatBTC(parseFloat($(this).val()) * symbol_local.conversion));
+                recipient.find('input[name="send-value"]').val(formatBTC(parseFloat($(this).val()) * symbol_local.conversion));
             });
         }
 
@@ -1360,7 +1365,7 @@ var MyWallet = new function() {
         $('#initial_error,#initial_success').remove();
     }
 
-//Fetch a new wallet from the server
+    //Fetch a new wallet from the server
     function getWallet() {
         for (var key in addresses) {
             var addr = addresses[key];
@@ -1372,7 +1377,12 @@ var MyWallet = new function() {
 
         console.log('Get wallet with checksum ' + payload_checksum);
 
-        $.get(root + 'wallet/wallet.aes.json?guid='+guid+'&sharedKey='+sharedKey+'&checksum='+payload_checksum+'&format=plain').success(function(data) {
+        var obj = {guid : guid, sharedKey : sharedKey, format : 'plain'};
+
+        if (payload_checksum && payload_checksum.length > 0)
+            obj.checksum = payload_checksum;
+
+        $.get(root + 'wallet/wallet.aes.json', obj).success(function(data) {
             if (data == null || data.length == 0)
                 return;
 
@@ -1383,8 +1393,7 @@ var MyWallet = new function() {
                 console.log('Wallet data modified');
 
                 encrypted_wallet_data = data;
-
-                payload_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
+                payload_checksum = generatePayloadChecksum();
 
                 internalRestoreWallet();
 
@@ -1448,7 +1457,7 @@ var MyWallet = new function() {
             }
 
             address_book = {};
-            if (obj.address_book != null) {
+            if (obj.address_book) {
                 for (var i = 0; i < obj.address_book.length; ++i) {
                     MyWallet.addAddressBookEntry(obj.address_book[i].addr, obj.address_book[i].label);
                 }
@@ -1462,12 +1471,11 @@ var MyWallet = new function() {
                 throw 'Shared Key is invalid';
 
             //If we don't have a checksum then the wallet is probably brand new - so we can generate our own
-            if (payload_checksum == null || payload_checksum.length == 0) {
-                payload_checksum = Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
-            } else {
-                //Else we need to check if the wallet has changed
-                getWallet();
-            }
+            if (payload_checksum == null || payload_checksum.length == 0)
+                payload_checksum = generatePayloadChecksum();
+
+            //We need to check if the wallet has changed
+            getWallet();
 
             setIsIntialized();
 
@@ -1666,7 +1674,7 @@ var MyWallet = new function() {
     function restoreWallet() {
 
         if (isInitialized) {
-            console.log('isIntialized true return')
+            console.log('Already initd');
             return;
         }
 
@@ -1699,6 +1707,7 @@ var MyWallet = new function() {
                     }
 
                     encrypted_wallet_data = data;
+                    payload_checksum = generatePayloadChecksum();
 
                     //We can now hide the auth token input
                     $('.auth-'+auth_type).hide();
@@ -2100,11 +2109,14 @@ var MyWallet = new function() {
                 MyWallet.makeNotice('success', 'misc-success', obj.initial_success);
 
             try {
-                localStorage.clear();
+                var local_guid = localStorage.getItem('guid');
+                if (local_guid != guid) {
+                    localStorage.clear();
 
-                //Demo Account Guid
-                if (guid != demo_guid)
-                    localStorage.setItem('guid', guid);
+                    //Demo Account Guid
+                    if (guid != demo_guid)
+                        localStorage.setItem('guid', guid);
+                }
             } catch (e) { }
 
         }).error(function(e) {
@@ -3311,7 +3323,7 @@ var MyWallet = new function() {
         encrypted_wallet_data = body.data('payload');
         guid = body.data('guid');
         sharedKey = body.data('sharedkey');
-        payload_checksum =  body.data('payload-checksum');
+        payload_checksum = body.data('payload-checksum');
         auth_type =  body.data('auth-type');
 
         //Deposit pages set this flag so it can be loaded in an iframe

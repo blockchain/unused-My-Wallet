@@ -1682,13 +1682,13 @@ function initNewTx() {
             if(e)
                 MyWallet.makeNotice('error', 'tx-error', e);
 
-            $('.send-value,.send').attr('disabled', false);
+            $('.send-value,.send-value-usd,.send').attr('disabled', false);
         },
         on_success : function(e) {
-            $('.send-value,.send').attr('disabled', false);
+            $('.send-value,.send-value-usd,.send').attr('disabled', false);
         },
         on_start : function(e) {
-            $('.send-value,.send').attr('disabled', true);
+            $('.send-value,.send-value-usd,.send').attr('disabled', true);
         },
         on_begin_signing : function() {
             this.start = new Date().getTime();
