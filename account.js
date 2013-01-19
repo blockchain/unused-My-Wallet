@@ -1,4 +1,4 @@
-var AccountSettings = function() {
+var AccountSettings = new function() {
     function validateEmail(str) {
         var lastAtPos = str.lastIndexOf('@');
         var lastDotPos = str.lastIndexOf('.');
