@@ -33,6 +33,7 @@ var MyWallet = new function() {
     var last_input_main_password;
     var main_password_timeout = 60000;
     var auth_type;
+    var isInitialized = false;
     var wallet_options = {
         fee_policy : 0,
         html5_notifications : false,
@@ -49,6 +50,8 @@ var MyWallet = new function() {
 
     this.setLogoutTime = function(logout_time) {
         wallet_options.logout_time = logout_time;
+
+        clearInterval(logout_timeout);
 
         logout_timeout = setTimeout(MyWallet.logout, MyWallet.getLogoutTime());
     }
@@ -165,7 +168,12 @@ var MyWallet = new function() {
         return $.post(root + url, clone);
     }
 
-    this.setDoubleEncryption = function(value) {
+
+    this.isCorrectMainPassword = function(_password) {
+        return password == _password;
+    }
+
+    this.setDoubleEncryption = function(value, tpassword, success) {
         var panic = function(e) {
             console.log('Panic ' + e);
 
@@ -180,24 +188,6 @@ var MyWallet = new function() {
                 return;
 
             if (value) {
-                var tpassword = $('#double-password').val();
-                var tpassword2 = $('#double-password2').val();
-
-                if (tpassword == null || tpassword.length == 0 || tpassword.length < 4 || tpassword.length > 255) {
-                    MyWallet.makeNotice('error', 'misc-error', 'Password must be 4 characters or more in length');
-                    return;
-                }
-
-                if (tpassword != tpassword2) {
-                    MyWallet.makeNotice('error', 'misc-error', 'Passwords do not match.');
-                    return;
-                }
-
-                if (tpassword == password) {
-                    MyWallet.makeNotice('error', 'misc-error', 'Second password should not be the same as your main password.');
-                    return;
-                }
-
                 //Ask the use again before we backup
                 MyWallet.getSecondPassword(function() {
                     try {
@@ -228,7 +218,7 @@ var MyWallet = new function() {
                                 MyWallet.checkAllKeys();
 
                                 MyWallet.backupWallet('update', function() {
-                                    setDoubleEncryptionButton();
+                                    success();
                                 }, function() {
                                     panic(e);
                                 });
@@ -264,7 +254,7 @@ var MyWallet = new function() {
                         MyWallet.checkAllKeys();
 
                         MyWallet.backupWallet('update', function() {
-                            setDoubleEncryptionButton();
+                            success();
                         }, function() {
                             panic(e);
                         });
@@ -1493,7 +1483,7 @@ var MyWallet = new function() {
     this.getPassword = function(modal, success, error) {
 
         modal.modal({
-            keyboard: true,
+            keyboard: false,
             backdrop: "static",
             show: true
         });
@@ -1675,9 +1665,14 @@ var MyWallet = new function() {
 
     function restoreWallet() {
 
+        if (isInitialized) {
+            console.log('isIntialized true return')
+            return;
+        }
+
         var input_field = $("#restore-password");
 
-        password = $.trim(input_field.val());
+        password = input_field.val();
 
         //Clear the password field now we are done with it
         input_field.val('');
@@ -1689,7 +1684,7 @@ var MyWallet = new function() {
         if (encrypted_wallet_data == null || encrypted_wallet_data.length == 0) {
             MyWallet.setLoadingText('Validating Authentication key');
 
-            var auth_key = $.trim($('.restore-auth-'+auth_type).find('.code').val());
+            var auth_key = $.trim($('.auth-'+auth_type).find('.code').val());
 
             if (auth_key.length == 0 || auth_key.length > 255) {
                 MyWallet.makeNotice('error', 'misc-error', 'You must enter a Two Factor Authentication code');
@@ -1706,9 +1701,9 @@ var MyWallet = new function() {
                     encrypted_wallet_data = data;
 
                     //We can now hide the auth token input
-                    $('.restore-auth-'+auth_type).hide();
+                    $('.auth-'+auth_type).hide();
 
-                    $('.restore-auth-0').show();
+                    $('.auth-0').show();
 
                     if (internalRestoreWallet()) {
                         bindReady();
@@ -1736,6 +1731,8 @@ var MyWallet = new function() {
 
     function setIsIntialized() {
         webSocketConnect(wsSuccess);
+
+        isInitialized = true;
 
         $('#tech-faq').hide();
 
@@ -2075,12 +2072,15 @@ var MyWallet = new function() {
 
     //Fetch information on a new wallet identfier
     this.setGUID = function(guid_or_alias, resend_code) {
+
+        if (isInitialized) throw 'Cannot Set GUID Once Initialized';
+
         MyWallet.setLoadingText('Changing Wallet Identifier');
 
         $('#initial_error,#initial_success').remove();
 
         $.get(root + 'wallet/'+guid_or_alias, {format : 'json', resend_code : resend_code}).success(function(obj) {
-            $('.restore-auth-'+auth_type).hide();
+            $('.auth-'+auth_type).hide();
 
             guid = obj.guid;
             auth_type = obj.auth_type;
@@ -2091,7 +2091,7 @@ var MyWallet = new function() {
 
             $('#restore-guid').val(guid);
 
-            $('.restore-auth-'+auth_type).show();
+            $('.auth-'+auth_type).show();
 
             if (obj.initial_error)
                 MyWallet.makeNotice('error', 'misc-error', obj.initial_error);
@@ -3165,7 +3165,7 @@ var MyWallet = new function() {
 
         buildPopovers();
 
-        $('#restore-password').keypress(function(e) {
+        $('.auth-0,.auth-1,.auth-2,.auth-3,.auth-4,.auth-5').unbind().keypress(function(e) {
             if(e.keyCode == 13) { //Pressed the return key
                 e.preventDefault();
 
@@ -3315,7 +3315,6 @@ var MyWallet = new function() {
         auth_type =  body.data('auth-type');
 
         //Deposit pages set this flag so it can be loaded in an iframe
-
         if (MyWallet.skip_init) return;
 
         //Iframe breakout
@@ -3335,8 +3334,8 @@ var MyWallet = new function() {
             $('.loading-indicator').fadeIn(200);
         }).ajaxStop(function() {
                 $('.loading-indicator').hide();
-            }).click(function() {
 
+            }).click(function() {
                 if (logout_timeout) {
                     clearTimeout(logout_timeout);
                     logout_timeout = setTimeout(MyWallet.logout, MyWallet.getLogoutTime());
@@ -3354,7 +3353,7 @@ var MyWallet = new function() {
 
         bindInitial();
 
-        $('.restore-auth-'+auth_type).show();
+        $('.auth-'+auth_type).show();
 
         cVisible = $("#restore-wallet");
 

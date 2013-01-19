@@ -1,4 +1,4 @@
-function _AccountSettings() {
+var AccountSettings = function() {
     function validateEmail(str) {
         var lastAtPos = str.lastIndexOf('@');
         var lastDotPos = str.lastIndexOf('.');
@@ -394,6 +394,33 @@ function _AccountSettings() {
         $('.accordion-body').collapse('hide');
     }
 
+
+    function setDoubleEncryption(on_off) {
+
+        var tpassword =  $.trim($('#double-password').val());
+        var tpassword2 = $.trim($('#double-password2').val());
+
+        if (tpassword == null || tpassword.length == 0 || tpassword.length < 4 || tpassword.length > 255) {
+            MyWallet.makeNotice('error', 'misc-error', 'Password must be 4 characters or more in length');
+            return;
+        }
+
+        if (tpassword != tpassword2) {
+            MyWallet.makeNotice('error', 'misc-error', 'Passwords do not match.');
+            return;
+        }
+
+        if (MyWallet.isCorrectMainPassword(tpassword)) {
+            MyWallet.makeNotice('error', 'misc-error', 'Second password should not be the same as your main password.');
+            return;
+        }
+
+        MyWallet.setDoubleEncryption(on_off, tpassword, function() {
+            setDoubleEncryptionButton();
+        });
+
+    }
+
     function bindAccountButtons() {
         var notifications_type_el = $('#notifications-type');
         notifications_type_el.find(':checkbox').unbind().change(function() {
@@ -534,13 +561,14 @@ function _AccountSettings() {
         $('#wallet-double-encryption-enable').unbind().click(function(e) {
             collapseAll();
 
-            MyWallet.setDoubleEncryption(true);
+            setDoubleEncryption(true);
         });
 
         $('#wallet-double-encryption-disable').unbind().click(function(e) {
             collapseAll();
 
-            MyWallet.setDoubleEncryption(false);
+
+            setDoubleEncryption(false);
         });
 
         $('#wallet-email-code').unbind().change(function(e) {
@@ -748,5 +776,3 @@ function _AccountSettings() {
         });
     }
 }
-
-var AccountSettings = new _AccountSettings();

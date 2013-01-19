@@ -107,9 +107,16 @@ $(document).ready(function() {
                         total_received += parseInt(tx.out[i].value);
                     }
 
+
                     var original_value = parseInt(transacted.find('span').attr('data-c'));
 
+                    var target_val = parseInt(transacted.data('target_val'));
+                    if (!isNaN(target_val) && target_val > original_value)
+                        total_received += target_val - original_value;
+
                     var new_value = original_value + total_received;
+
+                    transacted.data('target_val', new_value);
 
                     transacted.countTo({
                         from: original_value,

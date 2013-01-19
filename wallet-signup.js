@@ -101,7 +101,7 @@
         var modal = $('#mnemonic-modal');
 
         modal.modal({
-            keyboard: true,
+            keyboard: false,
             backdrop: "static",
             show: true
         });
