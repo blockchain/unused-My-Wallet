@@ -214,8 +214,6 @@ var AccountSettings = new function() {
             }
 
             $('#wallet-http-url').val(data.http_url);
-
-            $('#wallet-http-url').val(data.http_url);
             $('#wallet-skype').val(data.skype_username);
             $('#wallet-boxcar').val(data.boxcar_email);
 

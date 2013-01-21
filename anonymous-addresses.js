@@ -52,17 +52,23 @@ function buildAnonymousTable(el) {
                     else
                         desintation_desc = forward.destination_address;
 
+                    if (forward.taint < 100) {
+                        desintation_desc += ' <font color="green">(Anonymous)</font>'
+                    } else {
+                        desintation_desc += ' <small>(Non Anonymous)</small>';
+                    }
+
                     if (MyWallet.isWatchOnly(forward.destination_address))
-                        desintation_desc += '<font color="red">(Watch Only!)</font>';
-                    else if (MyWallet.getAddressTag(forward.destination_address) == 2)
-                        desintation_desc += '<font color="red">(Archived)</font>';
+                        desintation_desc += ' <font color="red">(Watch Only!)</font>';
 
-                    if (forward.expires < 0)
-                        var expires = '<font color="red">Removing After Tx Confirms</font>';
+                    if (forward.expires == -1)
+                        var expires = '<font color="green">Never</font>';
+                    else  if (forward.expires == 0)
+                        var expires = '<font color="red">6 Confirmations</font>';
                     else
-                        var expires = milliToStr(time_left);
+                        var expires = milliToStr(time_left) + ' <a class="pull-right hidden-phone act-extend" href="#">(extend)</a>';
 
-                    var tr = $('<tr><td><a class="short-addr" href="'+root+'address/'+forward.input_address+'" target="new">'+forward.input_address+'</a></td><td class="hidden-phone">'+desintation_desc+'</td><td>'+ expires +' <a class="pull-right hidden-phone act-extend" href="#">(extend)</a></td></tr>');
+                    var tr = $('<tr><td><a class="short-addr" href="'+root+'address/'+forward.input_address+'" target="new">'+forward.input_address+'</a></td><td class="hidden-phone">'+desintation_desc+'</td><td>'+ expires +'</td></tr>');
 
                     (function(forward) {
                         tr.find('.act-extend').click(function() {

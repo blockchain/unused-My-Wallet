@@ -22,7 +22,7 @@ var MyWallet = new function() {
     var tx_page = 0; //Multi-address page
     var tx_filter = 0; //Transaction filter (e.g. Sent Received etc)
     var maxAddr = 1000; //Maximum number of addresses
-    var addresses = []; //{addr : address, priv : private key, tag : tag (mark as archived), label : label, balance : balance}
+    var addresses = {}; //{addr : address, priv : private key, tag : tag (mark as archived), label : label, balance : balance}
     var payload_checksum; //SHA256 hash of the current wallet.aes.json
     var archTimer; //Delayed Backup wallet timer
     var mixer_fee = 1.5; //Default mixer fee 1.5%
@@ -34,11 +34,12 @@ var MyWallet = new function() {
     var main_password_timeout = 60000;
     var auth_type;
     var isInitialized = false;
+
     var wallet_options = {
-        fee_policy : 0,
-        html5_notifications : false,
-        logout_time : 300000 //Default 5 minutes
-    }; //Default Fee policy (-1 Tight, 0 Normal, 1 High)
+        fee_policy : 0,  //Default Fee policy (-1 Tight, 0 Normal, 1 High)
+        html5_notifications : false, //HTML 5 Desktop notifications
+        logout_time : 600000 //Default 10 minutes
+    };
 
     this.addEventListener = function(func) {
         event_listeners.push(func);
@@ -347,6 +348,10 @@ var MyWallet = new function() {
         return result;
     }
 
+    function handlePaymentRequestObject(request) {
+
+    }
+
     function generatePayloadChecksum() {
         return Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
     }
@@ -575,10 +580,10 @@ var MyWallet = new function() {
     }
 
     this.makeWalletJSON = function(format) {
-        return makeCustomWalletJSON(format, guid, sharedKey);
+        return MyWallet.makeCustomWalletJSON(format, guid, sharedKey);
     }
 
-    function makeCustomWalletJSON(format, guid, sharedKey) {
+    this.makeCustomWalletJSON = function(format, guid, sharedKey) {
 
         var encode_func = noConvert;
 
@@ -1049,9 +1054,9 @@ var MyWallet = new function() {
         var note = tx.note ? tx.note : tx_notes[tx.hash];
 
         if (note) {
-            html += '<img src="'+resource+'note.png" class="pop show-note"> ';
+            html += '<img src="'+resource+'note.png" class="show-note"> ';
         } else {
-            html += '<img src="'+resource+'note_grey.png" class="pop add-note"> ';
+            html += '<img src="'+resource+'note_grey.png" class="add-note"> ';
         }
 
         if (tx.time > 0) {
@@ -1393,13 +1398,17 @@ var MyWallet = new function() {
                 console.log('Wallet data modified');
 
                 encrypted_wallet_data = data;
-                payload_checksum = generatePayloadChecksum();
 
-                internalRestoreWallet();
+                if (internalRestoreWallet()) {
+                    payload_checksum = generatePayloadChecksum();
 
-                MyWallet.get_history();
+                    MyWallet.get_history();
 
-                buildVisibleView();
+                    buildVisibleView();
+                } else {
+                    //If we failed to decrypt the new data panic and logout
+                    window.location.reload();
+                }
             }
         });
     }
@@ -1444,7 +1453,7 @@ var MyWallet = new function() {
                 }
             }
 
-            addresses.length = 0;
+            addresses = {};
             for (var i = 0; i < obj.keys.length; ++i) {
 
                 var key = obj.keys[i];
@@ -1480,7 +1489,6 @@ var MyWallet = new function() {
             setIsIntialized();
 
             return true;
-
         } catch (e) {
             MyWallet.makeNotice('error', 'misc-error', e);
         }
@@ -1825,91 +1833,6 @@ var MyWallet = new function() {
         archTimer = setTimeout(function (){
             MyWallet.backupWallet(method, success, error, extra);
         }, 3000);
-    }
-
-    //Save the javascript walle to the remote server
-    this.insertWallet = function(guid, sharedKey, password, extra, successcallback, errorcallback) {
-        try {
-            var data = makeCustomWalletJSON(null, guid, sharedKey);
-
-            //Everything looks ok, Encrypt the JSON output
-            var crypted = MyWallet.encrypt(data, password);
-
-            if (crypted.length == 0) {
-                throw 'Error encrypting the JSON output';
-            }
-
-            //Now Decrypt the it again to double check for any possible corruption
-            var obj = null;
-            MyWallet.decrypt(crypted, password, function(decrypted) {
-                try {
-                    obj = $.parseJSON(decrypted);
-                    return (obj != null);
-                } catch (e) {
-                    return false;
-                };
-            });
-
-            if (obj == null) {
-                throw 'Error Decrypting Previously encrypted JSON. Not Saving Wallet.';
-            }
-
-            //SHA256 new_checksum verified by server in case of curruption during transit
-            var new_checksum = Crypto.util.bytesToHex(Crypto.SHA256(crypted, {asBytes: true}));
-
-            MyWallet.setLoadingText('Saving wallet');
-
-            if (extra == null)
-                extra = '';
-
-            encrypted_wallet_data = crypted;
-
-            $.ajax({
-                type: "POST",
-                url: root + 'wallet' + extra,
-                data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: new_checksum, method : 'insert' },
-                converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
-                success: function(data) {
-
-                    var change = false;
-                    for (var key in addresses) {
-                        var addr = addresses[key];
-                        if (addr.tag == 1) {
-                            addr.tag = null; //Make any unsaved addresses as saved
-                            change = true;
-                        }
-                    }
-
-                    //Update to the new payload new_checksum
-                    payload_checksum = new_checksum;
-
-                    MyWallet.makeNotice('success', 'misc-success', data);
-
-                    buildVisibleView();
-
-                    if (successcallback != null)
-                        successcallback();
-
-                    MyWallet.updateCacheManifest();
-                },
-                error : function(data) {
-                    MyWallet.makeNotice('error', 'misc-error', data.responseText, 10000);
-
-                    buildVisibleView();
-
-                    if (errorcallback != null)
-                        errorcallback();
-                }
-            });
-        } catch (e) {
-            MyWallet.makeNotice('error', 'misc-error', 'Error Saving Wallet: ' + e, 10000);
-
-            buildVisibleView();
-
-            if (errorcallback != null)
-                errorcallback(e);
-            else throw e;
-        }
     }
 
     //Save the javascript walle to the remote server

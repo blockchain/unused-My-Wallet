@@ -1,4 +1,69 @@
 (function() {
+    //Save the javascript walle to the remote server
+    function reallyInsertWallet(guid, sharedKey, password, extra, successcallback, errorcallback) {
+        try {
+            var data = MyWallet.makeCustomWalletJSON(null, guid, sharedKey);
+
+            //Everything looks ok, Encrypt the JSON output
+            var crypted = MyWallet.encrypt(data, password);
+
+            if (crypted.length == 0) {
+                throw 'Error encrypting the JSON output';
+            }
+
+            //Now Decrypt the it again to double check for any possible corruption
+            var obj = null;
+            MyWallet.decrypt(crypted, password, function(decrypted) {
+                try {
+                    obj = $.parseJSON(decrypted);
+                    return (obj != null);
+                } catch (e) {
+                    return false;
+                };
+            });
+
+            if (obj == null) {
+                throw 'Error Decrypting Previously encrypted JSON. Not Saving Wallet.';
+            }
+
+            //SHA256 new_checksum verified by server in case of curruption during transit
+            var new_checksum = Crypto.util.bytesToHex(Crypto.SHA256(crypted, {asBytes: true}));
+
+            MyWallet.setLoadingText('Saving wallet');
+
+            if (extra == null)
+                extra = '';
+
+            $.ajax({
+                type: "POST",
+                url: root + 'wallet' + extra,
+                data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: new_checksum, method : 'insert' },
+                converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
+                success: function(data) {
+
+                    MyWallet.makeNotice('success', 'misc-success', data);
+
+                    if (successcallback != null)
+                        successcallback();
+
+                    MyWallet.updateCacheManifest();
+                },
+                error : function(data) {
+                    MyWallet.makeNotice('error', 'misc-error', data.responseText, 10000);
+
+                    if (errorcallback != null)
+                        errorcallback();
+                }
+            });
+        } catch (e) {
+            MyWallet.makeNotice('error', 'misc-error', 'Error Saving Wallet: ' + e, 10000);
+
+            if (errorcallback != null)
+                errorcallback(e);
+            else throw e;
+        }
+    }
+
     function uploadWallet(url, file, success, error, password, kaptcha) {
 
         $('.loading-indicator').fadeIn(200);
@@ -124,7 +189,7 @@
                     return false;
                 }
 
-                MyWallet.insertWallet(guid, sharedKey, password, '?kaptcha='+ $.trim($('#captcha-value').val()), function(){
+                reallyInsertWallet(guid, sharedKey, password, '?kaptcha='+ $.trim($('#captcha-value').val()), function(){
                     SetCookie('cguid', guid);
 
                     try {

@@ -1,4 +1,78 @@
 (function() {
+
+
+    //Save the javascript walle to the remote server
+    function insertWallet(guid, sharedKey, password, extra, successcallback, errorcallback) {
+        try {
+            var data = MyWallet.makeCustomWalletJSON(null, guid, sharedKey);
+
+            //Everything looks ok, Encrypt the JSON output
+            var crypted = MyWallet.encrypt(data, password);
+
+            if (crypted.length == 0) {
+                throw 'Error encrypting the JSON output';
+            }
+
+            //Now Decrypt the it again to double check for any possible corruption
+            var obj = null;
+            MyWallet.decrypt(crypted, password, function(decrypted) {
+                try {
+                    obj = $.parseJSON(decrypted);
+                    return (obj != null);
+                } catch (e) {
+                    return false;
+                };
+            });
+
+            if (obj == null) {
+                throw 'Error Decrypting Previously encrypted JSON. Not Saving Wallet.';
+            }
+
+            //SHA256 new_checksum verified by server in case of curruption during transit
+            var new_checksum = Crypto.util.bytesToHex(Crypto.SHA256(crypted, {asBytes: true}));
+
+            MyWallet.setLoadingText('Saving wallet');
+
+            if (extra == null)
+                extra = '';
+
+            $.ajax({
+                type: "POST",
+                url: root + 'wallet' + extra,
+                data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: new_checksum, method : 'insert' },
+                converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
+                success: function(data) {
+
+                    MyWallet.makeNotice('success', 'misc-success', data);
+
+                    if (successcallback != null)
+                        successcallback();
+
+                    MyWallet.updateCacheManifest();
+                },
+                error : function(data) {
+                    MyWallet.makeNotice('error', 'misc-error', data.responseText, 10000);
+
+                    if (errorcallback != null)
+                        errorcallback();
+                }
+            });
+        } catch (e) {
+            MyWallet.makeNotice('error', 'misc-error', 'Error Saving Wallet: ' + e, 10000);
+
+            if (errorcallback != null)
+                errorcallback(e);
+            else throw e;
+        }
+    }
+
+    function guidGenerator() {
+        var S4 = function() {
+            return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
+        };
+        return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
+    }
+
     var guid;
     var sharedKey;
     var password;
@@ -38,6 +112,9 @@
     }
 
     function generateNewWallet() {
+        guid = guidGenerator();
+        sharedKey = guidGenerator();
+
         if (MyWallet.getAllAddresses().length == 0)
             MyWallet.generateNewKey();
 
@@ -76,7 +153,7 @@
 
         var captcha_code = $.trim($('#captcha-value').val());
 
-        MyWallet.insertWallet(guid, sharedKey, tpassword, '?kaptcha='+encodeURIComponent(captcha_code)+'&alias='+alias, function(){
+        insertWallet(guid, sharedKey, tpassword, '?kaptcha='+encodeURIComponent(captcha_code)+'&alias='+alias, function(){
 
             SetCookie('cguid', guid);
 
@@ -132,9 +209,6 @@
             makeNotice('error', 'error', 'Object.prototype has been extended by a browser extension. Please disable this extensions and reload the page.');
             return;
         }
-
-        guid = $('body').data('guid');
-        sharedKey = $('body').data('sharedkey');
 
         //Disable auotcomplete in firefox
         $("input, button").attr("autocomplete","off");
