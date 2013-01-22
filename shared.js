@@ -401,9 +401,13 @@ function toggleSymbol() {
     calcMoney();
 }
 
+var _sounds = {};
 function playSound(id) {
     try {
-        new Audio(resource+id+'.wav').play();
+        if (!_sounds[id])
+            _sounds[id] = new Audio(resource+id+'.wav');
+
+        _sounds[id].play();
     } catch (e) { }
 };
 
