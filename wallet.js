@@ -38,7 +38,8 @@ var MyWallet = new function() {
     var wallet_options = {
         fee_policy : 0,  //Default Fee policy (-1 Tight, 0 Normal, 1 High)
         html5_notifications : false, //HTML 5 Desktop notifications
-        logout_time : 600000 //Default 10 minutes
+        logout_time : 600000, //Default 10 minutes
+        tx_display : 0 //Compact or detailed transactions
     };
 
     this.addEventListener = function(func) {
@@ -442,7 +443,7 @@ var MyWallet = new function() {
                         if (tx_filter == 0 && tx_page == 0) {
                             $('#no-transactions').hide();
 
-                            if ($('#tx_display').val() == 0) {
+                            if (wallet_options.tx_display == 0) {
                                 var txcontainer = $('#transactions-compact').show();
 
                                 bindTx($(getCompactHTML(tx, addresses, address_book)), tx).prependTo(txcontainer.find('tbody')).find('div').hide().slideDown('slow');
@@ -1185,7 +1186,6 @@ var MyWallet = new function() {
 
     //Display The My Transactions view
     function buildTransactionsView() {
-        var tx_display = $('#tx_display').val();
         var interval = null;
         var start = 0;
 
@@ -1195,7 +1195,7 @@ var MyWallet = new function() {
         }
 
         var txcontainer;
-        if (tx_display == 0) {
+        if (wallet_options.tx_display == 0) {
             $('#transactions-detailed').hide();
             txcontainer = $('#transactions-compact').show().find('tbody').empty();
         } else {
@@ -1215,7 +1215,7 @@ var MyWallet = new function() {
             for (var i = start; i < transactions.length && i < (start+10); ++i) {
                 var tx = transactions[i];
 
-                if (tx_display == 0) {
+                if (wallet_options.tx_display == 0) {
                     txcontainer.append(bindTx($(getCompactHTML(tx, addresses, address_book)), tx));
                 } else {
                     txcontainer.append(tx.getHTML(addresses, address_book));
@@ -2883,25 +2883,20 @@ var MyWallet = new function() {
             }
         });
 
-        $('#filter').change(function(){
+        $('.tx_filter a').click(function(){
             tx_page = 0;
-            tx_filter = $(this).val();
+            tx_filter = $(this).data('value');
 
             MyWallet.get_history();
         });
 
-        var tx_display_el = $('#tx_display');
-        tx_display_el.change(function(){
-            SetCookie("tx_display", $(this).val());
+        $('.tx_display a').click(function(){
+            wallet_options.tx_display = $(this).data('value');
 
             buildVisibleView();
 
+            backupWalletDelayed();
         });
-
-        var tx_cookie_val = getCookie('tx_display');
-        if (tx_cookie_val != null) {
-            tx_display_el.val(parseInt(tx_cookie_val));
-        }
 
         $('#email-backup-btn').click(function() {
             emailBackup();
