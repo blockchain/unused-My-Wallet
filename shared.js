@@ -411,6 +411,12 @@ function playSound(id) {
     } catch (e) { }
 };
 
+function setupSymbolToggle() {
+    $('.cb').unbind().click(function() {
+        toggleSymbol();
+    });
+}
+
 function setupToggle() {
     $('[class=show_adv]').unbind().click(function() {
         toggleAdv();
@@ -448,9 +454,7 @@ $(document).ready(function() {
             }
         });
 
-        $('.cb').click(function() {
-            toggleSymbol();
-        });
+        setupSymbolToggle();
 
         setupToggle();
 

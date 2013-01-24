@@ -273,7 +273,7 @@ var MyWallet = new function() {
 
     function hidePopovers() {
         try {
-            $('.pop').popover('hide');
+            $('.popover').remove();
         } catch (e) {}
     }
 
@@ -459,6 +459,8 @@ var MyWallet = new function() {
                                 if (did_pop) {
                                     txcontainer.find('div:last-child').remove();
                                 }
+
+                                setupSymbolToggle();
                             }
                         }
                     } else {
@@ -906,7 +908,7 @@ var MyWallet = new function() {
 
             if (!el.data('popover')) {
                 el.popover({
-                    title : 'Add Note',
+                    title : 'Add Note <span style="float:right"><i class="icon-remove-sign"></i></span>',
                     trigger : 'manual',
                     content : '<textarea style="width:97%;height:50px;margin-top:2px" placeholder="Enter the note here..."></textarea><div style="text-align:right"><button class="btn btn-small">Save</button></div>'
                 });
@@ -939,6 +941,11 @@ var MyWallet = new function() {
                     el.popover('hide');
                 }, 250);
             });
+
+            tip.find('i').unbind().click(function() {
+                el.popover('hide');
+            });
+
 
             tip.find('button').click(function() {
                 //Strip HTML and replace quotes
@@ -1220,6 +1227,10 @@ var MyWallet = new function() {
             if (start < transactions.length) {
                 interval = setTimeout(buildSome, 15);
             } else {
+                setupSymbolToggle();
+
+                hidePopovers();
+
                 var pagination = $('.pagination ul').empty();
 
                 if (tx_page == 0 && transactions.length < 50) {
@@ -3390,7 +3401,7 @@ var MyWallet = new function() {
         if (internalAddKey(addr.toString(), encodePK(key.priv))) {
             addresses[addr].tag = 1; //Mark as unsynced
 
-            //Subscribe to tranaction updates through websockets
+            //Subscribe to transaction updates through websockets
             try {
                 ws.send('{"op":"addr_sub", "addr":"'+addr+'"}');
             } catch (e) { }

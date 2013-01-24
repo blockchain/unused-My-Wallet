@@ -662,7 +662,7 @@ var AccountSettings = new function() {
             if (symbol != symbol_local)
                 toggleSymbol();
 
-            updateKV('Updating Local Currency', 'update-country', $(this).val(), function() {
+            updateKV('Updating Local Currency', 'update-currency', $(this).val(), function() {
                 MyWallet.get_history();
             });
         });

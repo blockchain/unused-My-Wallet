@@ -102,6 +102,8 @@ $(document).ready(function() {
 
                     container.prepend(tx_html);
 
+                    setupSymbolToggle();
+
                     tx_html.hide().slideDown('slow');
 
                     if (container.find('.txdiv').length > 50) {
