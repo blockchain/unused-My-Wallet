@@ -1,3 +1,29 @@
+function insertParam(key, value) {
+    key = escape(key); value = escape(value);
+
+    var kvp = document.location.search.substr(1).split('&');
+    if (kvp == '') {
+        document.location.search = '?' + key + '=' + value;
+    }
+    else {
+
+        var i = kvp.length; var x; while (i--) {
+            x = kvp[i].split('=');
+
+            if (x[0] == key) {
+                x[1] = value;
+                kvp[i] = x.join('=');
+                break;
+            }
+        }
+
+        if (i < 0) { kvp[kvp.length] = [key, value].join('='); }
+
+        //this will reload the page, it's likely better to store this until finished
+        document.location.search = kvp.join('&');
+    }
+}
+
 $(document).ready(function() {
 
     $('#deposit').click(function() {
@@ -7,16 +33,6 @@ $(document).ready(function() {
                 description : 'Deposit into address <b>'+address+'</b>',
                 top_right : 'Have Questions? Read <a href="https://www.bitinstant.com/howitworks/cash" target="new">How It Works</a>',
                 src : root + 'deposit?address='+address+'&ptype=bitinstant'
-            });
-        });
-    });
-
-    $('#export-history').click(function() {
-        loadScript('wallet/frame-modal.js', function() {
-            showFrameModal({
-                title : 'Export History',
-                description : '',
-                src : root + 'export-history?active='+address
             });
         });
     });
@@ -42,8 +58,22 @@ $(document).ready(function() {
         });
     });
 
-    $('#filter').change(function(){
-        $(this).parent().submit();
+    $('.tx_filter a').click(function(){
+        var value = $(this).data('value');
+        if (value == 'export') {
+            loadScript('wallet/frame-modal.js', function() {
+                showFrameModal({
+                    title : 'Export History',
+                    description : '',
+                    src : root + 'export-history?active='+address
+                });
+            });
+
+            return;
+        }
+
+
+        insertParam('filter', $(this).data('value'));
     });
 
     if (filter == 0) {

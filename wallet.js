@@ -1283,9 +1283,17 @@ var MyWallet = new function() {
         MyWallet.get_history();
     }
 
-    function parseMultiAddressJSON(json, cached) {
-        var obj = $.parseJSON(json);
+    function exportHistory() {
+        loadScript('wallet/frame-modal.js', function() {
+            showFrameModal({
+                title : 'Export History',
+                description : '',
+                src : root + 'export-history?active='+ MyWallet.getActiveAddresses().join('|')+'&archived='+MyWallet.getArchivedAddresses().join("|")
+            });
+        });
+    }
 
+    function parseMultiAddressJSON(obj, cached) {
         if (!cached && obj.mixer_fee) {
             mixer_fee = obj.mixer_fee;
         }
@@ -1365,7 +1373,7 @@ var MyWallet = new function() {
                 var multiaddrjson = localStorage.getItem('multiaddr');
 
                 if (multiaddrjson != null) {
-                    parseMultiAddressJSON(multiaddrjson, true);
+                    parseMultiAddressJSON($.parseJSON(multiaddrjson), true);
 
                     buildVisibleView();
                 }
@@ -2022,7 +2030,8 @@ var MyWallet = new function() {
 
         $('#initial_error,#initial_success').remove();
 
-        $.get(root + 'wallet/'+guid_or_alias, {format : 'json', resend_code : resend_code}).success(function(obj) {
+        $.getJSON(root + 'wallet/'+guid_or_alias, {format : 'json', resend_code : resend_code}).success(function(obj) {
+
             $('.auth-'+auth_type).hide();
 
             guid = obj.guid;
@@ -2808,16 +2817,6 @@ var MyWallet = new function() {
             SetCookie('anonymous-never-ask', $(this).is(':checked'));
         });
 
-        $('#export-history').click(function() {
-            loadScript('wallet/frame-modal.js', function() {
-                showFrameModal({
-                    title : 'Export History',
-                    description : '',
-                    src : root + 'export-history?active='+ MyWallet.getActiveAddresses().join('|')+'&archived='+MyWallet.getArchivedAddresses().join("|")
-                });
-            });
-        });
-
         $('.deposit-btn').click(function() {
             var self = $(this);
             var address = MyWallet.getPreferredAddress();
@@ -2891,7 +2890,13 @@ var MyWallet = new function() {
         });
 
         $('.tx_display a').click(function(){
-            wallet_options.tx_display = $(this).data('value');
+            var value = $(this).data('value');
+            if (value == 'export') {
+                exportHistory();
+                return;
+            }
+
+            wallet_options.tx_display = value;
 
             buildVisibleView();
 

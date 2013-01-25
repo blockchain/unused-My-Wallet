@@ -6,11 +6,10 @@ function _BlockchainAPI() {
 
         $.ajax({
             type: "POST",
-            url: root +'multiaddr?format=json&filter='+tx_filter+'&offset='+tx_page*50,
-            data: {'active' : MyWallet.getActiveAddresses().join('|') },
-            converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": $.parseXML},
+            dataType: 'json',
+            url: root +'multiaddr',
+            data: {active : MyWallet.getActiveAddresses().join('|'), format : 'json', filter : tx_filter, offset : tx_page*50},
             success: function(data) {
-
                 if (data.error != null) {
                     MyWallet.makeNotice('error', 'misc-error', data.error);
                 }
@@ -30,7 +29,6 @@ function _BlockchainAPI() {
                     error();
                 }
             },
-
             error : function(data) {
                 MyWallet.makeNotice('error', 'misc-error', data.responseText);
 
@@ -73,19 +71,27 @@ function _BlockchainAPI() {
     this.get_ticker = function() {
         MyWallet.setLoadingText('Getting Ticker Data');
 
-        $.get(root + 'ticker?format=json').success(function(data) {
-            var container = $('#send-ticker ul').empty();
+        $.ajax({
+            type: "POST",
+            dataType: 'json',
+            crossDomain: true,
+            url: root +'ticker',
+            data: {format : 'json'},
+            success: function(data) {
+                var container = $('#send-ticker ul').empty();
 
-            container.append('<li class="nav-header">Exchange Rates</li>');
+                container.append('<li class="nav-header">Exchange Rates</li>');
 
-            for (var code in data) {
-                container.append('<li><div style="width:35px;padding-left:10px;font-weight:bold;display:inline-block">'+code+'</div>  <i class="icon-user" style="background-image:url('+ resource + ((data[code]['15m'] >= data[code]['24h']) ? 'up_green.png' : 'down_red.png') + ');width:14px;background-position:0px"></i>' + data[code]['15m'] +'</li>');
-            }
+                for (var code in data) {
+                    container.append('<li><div style="width:35px;padding-left:10px;font-weight:bold;display:inline-block">'+code+'</div>  <i class="icon-user" style="background-image:url('+ resource + ((data[code]['15m'] >= data[code]['24h']) ? 'up_green.png' : 'down_red.png') + ');width:14px;background-position:0px"></i>' + data[code]['15m'] +'</li>');
+                }
 
-            container.append('<li style="font-size:10px;padding-left:10px;">Delayed By Up To 15 minutes</li>')
-        }).error(function(e) {
+                container.append('<li style="font-size:10px;padding-left:10px;">Delayed By Up To 15 minutes</li>')
+            },
+            error : function(e) {
                 console.log(e);
-            });
+            }
+        });
     }
 
     this.resolve_firstbits = function(addr, success, error) {
@@ -232,17 +238,11 @@ function _BlockchainAPI() {
 
         $.ajax({
             type: "POST",
+            dataType: 'json',
             url: root +'unspent',
             data: {active : fromAddresses.join('|'), format : 'json'},
-            converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": $.parseXML},
-            success: function(data) {
+            success: function(obj) {
                 try {
-                    var obj = $.parseJSON(data);
-
-                    if (obj == null) {
-                        throw 'Unspent returned null object';
-                    }
-
                     if (obj.error != null) {
                         throw obj.error;
                     }
