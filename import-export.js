@@ -273,27 +273,29 @@ function _ImportExport() {
             return;
         }
 
-        $.get(root + 'wallet/import-export-template').success(function(html) {
-            try {
-                container.html(html);
+        $.ajax({
+            type: "GET",
+            url: root + 'wallet/import-export-template',
+            data : {format : 'plain'},
+            success: function(html) {
+                try {
+                    container.html(html);
 
-                bind();
+                    bind();
 
-                success();
-            } catch (e) {
-                console.log('Calling Error');
+                    success();
+                } catch (e) {
+                    console.log(e);
 
-                console.log(e);
-
-                error();
-            }
-        }).error(function() {
-                console.log('Calling Error');
-
+                    error();
+                }
+            },
+            error : function() {
                 MyWallet.makeNotice('error', 'misc-error', 'Error Downloading Account Settings Template');
 
                 error();
-            });
+            }
+        });
     }
 
     function showWatchOnlyWarning(address, success) {
@@ -488,7 +490,7 @@ function _ImportExport() {
             MyWallet.getSecondPassword(function() {
                 var popup = window.open(null, null, "width=700,height=800,toolbar=1");
 
-                loadScript('wallet/qr.code.creator.js', function() {
+                loadScript('wallet/jquery.qrcode.min.js', function() {
                     try {
                         if (popup == null) {
                             MyWallet.makeNotice('error', 'misc-error', 'Failed to open popup window');
@@ -529,11 +531,9 @@ function _ImportExport() {
                                 var row = $('<tr></tr>', popup.document);
 
                                 //Add Address QR code
-                                var qrspan = $('<td><div style="height:225px;overflow:hidden"></div></td>', popup.document);
+                                var qrspan = $('<td><div style="margin:10px;overflow:hidden"></div></td>', popup.document);
 
-                                var qr = makeQRCode(250, 250, 1 , display_pk, popup.document);
-
-                                qrspan.children(":first").append(qr);
+                                qrspan.children(":first").qrcode({width: 200, height: 200, text: display_pk});
 
                                 row.append(qrspan);
 
@@ -878,7 +878,7 @@ function _ImportExport() {
     function importS3WalletBackup(id) {
         MyWallet.setLoadingText('Importing Backup');
 
-        MyWallet.securePost('wallet', {method: 'get-backup', id : id}).success(function(obj) {
+        MyWallet.securePost('wallet', {method: 'get-backup', id : id, format : 'json'}, function(obj) {
             try {
                 var payload = obj.payload;
 
@@ -897,15 +897,15 @@ function _ImportExport() {
             } catch (e) {
                 MyWallet.makeNotice('error', 'misc-error', e);
             }
-        }).error(function(data) {
-                MyWallet.makeNotice('error', 'misc-error', data.responseText);
-            });
+        }, function(data) {
+            MyWallet.makeNotice('error', 'misc-error', data.responseText);
+        });
     }
 
     function loadBackupsList(el) {
         MyWallet.setLoadingText('Loading Backup List');
 
-        MyWallet.securePost('wallet', {method : 'list-backups'}).success(function(obj) {
+        MyWallet.securePost('wallet', {method : 'list-backups', format : 'json'}, function(obj) {
             try {
                 if (obj == null) {
                     throw 'Failed to get backups';
@@ -935,7 +935,7 @@ function _ImportExport() {
             } catch (e) {
                 MyWallet.makeNotice('error', 'misc-error', e);
             }
-        }).error(function(data) {
+        }, function(data) {
                 MyWallet.makeNotice('error', 'misc-error', data.responseText);
             });
     }

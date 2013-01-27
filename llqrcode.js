@@ -1365,7 +1365,7 @@ qrcode.decode = function (d) {
                 qrcode.result = qrcode.process(h)
             } catch (j) {
                 console.log(j);
-                qrcode.result = "error decoding QR Code"
+                qrcode.result = null;
             }
             if (qrcode.callback != null) {
                 qrcode.callback(qrcode.result)

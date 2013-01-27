@@ -46,89 +46,96 @@ $(document).ready(function() {
 
                 button.find('.stage-loading').trigger('show').show();
 
-                $.getJSON(root + 'api/receive?method=create&address='+encodeURIComponent(receivers_address)+'&anonymous='+anonymous+'&callback='+callback_url).success(function(response) {
-                    button.find('.qr-code').empty();
+                $.ajax({
+                    type: "GET",
+                    dataType: 'json',
+                    url: root + 'api/receive',
+                    data : {method : 'create', address : encodeURIComponent(receivers_address), anonymous:anonymous, callback:callback_url},
+                    success: function(response) {
+                        button.find('.qr-code').empty();
 
-                    button.find('.blockchain').hide();
+                        button.find('.blockchain').hide();
 
-                    if (!response || !response.input_address) {
-                        button.find('.stage-error').trigger('show').show().html(button.find('.stage-error').html().replace('[[error]]', 'Unknown Error'));
-                        return;
-                    }
+                        if (!response || !response.input_address) {
+                            button.find('.stage-error').trigger('show').show().html(button.find('.stage-error').html().replace('[[error]]', 'Unknown Error'));
+                            return;
+                        }
 
-                    function checkBalance() {
-                        $.get(root + 'q/getreceivedbyaddress/'+response.input_address, function(response) {
-                            if (!response) return;
+                        function checkBalance() {
+                            $.ajax({
+                                type: "GET",
+                                url: root + 'q/getreceivedbyaddress/'+response.input_address,
+                                data : {format : 'plain'},
+                                success: function(response) {
+                                    if (!response) return;
 
-                            var value = parseInt(response);
+                                    var value = parseInt(response);
 
-                            if (value > 0 || test) {
-                                button.find('.blockchain').hide();
-                                button.find('.stage-paid').trigger('show').show().html(button.find('.stage-paid').html().replace('[[value]]', value / 100000000));
-                            } else {
-                                setTimeout(checkBalance, 5000);
-                            }
-                        });
-                    }
-
-                    try {
-                        ws = new WebSocket('ws://api.blockchain.info:8335/inv');
-
-                        if (!ws) return;
-
-                        ws.onmessage = function(e) {
-                            try {
-                                var obj = $.parseJSON(e.data);
-
-                                if (obj.op == 'utx') {
-                                    var tx = obj.x;
-
-                                    var result = 0;
-                                    for (var i = 0; i < tx.out.length; i++) {
-                                        var output = tx.out[i];
-
-                                        if (output.addr == response.input_address) {
-                                            result += parseInt(output.value);
-                                        }
+                                    if (value > 0 || test) {
+                                        button.find('.blockchain').hide();
+                                        button.find('.stage-paid').trigger('show').show().html(button.find('.stage-paid').html().replace('[[value]]', value / 100000000));
+                                    } else {
+                                        setTimeout(checkBalance, 5000);
                                     }
                                 }
+                            });
+                        }
 
-                                button.find('.blockchain').hide();
-                                button.find('.stage-paid').trigger('show').show().html(button.find('.stage-paid').html().replace('[[value]]', result / 100000000));
+                        try {
+                            ws = new WebSocket('ws://api.blockchain.info:8335/inv');
 
-                                ws.close();
-                            } catch(e) {
-                                console.log(e);
+                            if (!ws) return;
 
-                                console.log(e.data);
-                            }
-                        };
+                            ws.onmessage = function(e) {
+                                try {
+                                    var obj = $.parseJSON(e.data);
 
-                        ws.onopen = function() {
-                            ws.send('{"op":"addr_sub", "addr":"'+ response.input_address +'"}');
-                        };
-                    } catch (e) {
-                        console.log(e);
-                    }
+                                    if (obj.op == 'utx') {
+                                        var tx = obj.x;
 
-                    button.find('.stage-ready').trigger('show').show().html(button.find('.stage-ready').html().replace('[[address]]', response.input_address));
+                                        var result = 0;
+                                        for (var i = 0; i < tx.out.length; i++) {
+                                            var output = tx.out[i];
 
-                    loadScript('wallet/qr.code.creator.js', function() {
-                        var claim_qr = makeQRCode(200, 200, 1 , response.input_address);
+                                            if (output.addr == response.input_address) {
+                                                result += parseInt(output.value);
+                                            }
+                                        }
+                                    }
 
-                        button.find('.qr-code').empty().append(claim_qr);
-                    });
+                                    button.find('.blockchain').hide();
+                                    button.find('.stage-paid').trigger('show').show().html(button.find('.stage-paid').html().replace('[[value]]', result / 100000000));
 
+                                    ws.close();
+                                } catch(e) {
+                                    console.log(e);
 
-                    button.unbind();
+                                    console.log(e.data);
+                                }
+                            };
 
-                    ///Check for incoming payment
-                    setTimeout(checkBalance, 5000);
-                }).error(function(e) {
+                            ws.onopen = function() {
+                                ws.send('{"op":"addr_sub", "addr":"'+ response.input_address +'"}');
+                            };
+                        } catch (e) {
+                            console.log(e);
+                        }
+
+                        button.find('.stage-ready').trigger('show').show().html(button.find('.stage-ready').html().replace('[[address]]', response.input_address));
+
+                        button.find('.qr-code').html('<img style="margin:5px" src="'+root+'qr?data='+response.input_address+'&size=125">');
+
+                        button.unbind();
+
+                        ///Check for incoming payment
+                        setTimeout(checkBalance, 5000);
+                    },
+                    error : function(e) {
                         button.find('.blockchain').hide();
 
                         button.find('.stage-error').show().trigger('show').html(button.find('.stage-error').html().replace('[[error]]', e.responseText));
-                    });
+                    }
+                });
             });
         })();
     });

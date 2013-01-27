@@ -7,14 +7,8 @@ function showAddressModalQRCode(address) {
         show: true
     });
 
-    modal.find('.address').text(address);
-
-    loadScript('wallet/qr.code.creator.js', function() {
-        var canvas = makeQRCode(300,300,1, address);
-
-        modal.find('.address-qr-code').empty().append(canvas);
-
-        modal.center();
+    loadScript('wallet/jquery.qrcode.min.js', function() {
+        modal.find('.address-qr-code').empty().qrcode({width: 300, height: 300, text: address});
     });
 
     modal.find('.address').text(address);

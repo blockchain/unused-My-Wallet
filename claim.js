@@ -15,12 +15,6 @@ function showClaimModal(key) {
 
     var from_address = key.getBitcoinAddress().toString();
 
-    loadScript('wallet/qr.code.creator.js', function() {
-        var claim_qr = makeQRCode(300, 300, 1 , from_address);
-
-        $('#claim-qr-code').empty().append(claim_qr);
-    });
-
     BlockchainAPI.get_balance([from_address], function(data) {
 
         if (data == 0) {

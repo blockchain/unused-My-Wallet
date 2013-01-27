@@ -1,12 +1,23 @@
 var satoshi = 100000000; //One satoshi
 var show_adv = false;
 var adv_rule;
-var symbol_btc; //BTC Currency Symbol object
-var symbol_local; //Users local currency object
+var symbol_btc = {"code" : "BTC", "symbol" : "BTC", "name" : "Bitcoin",  "conversion" : satoshi, "symbolAppearsAfter" : true}; //BTC Currency Symbol object
+var symbol_local = symbol_btc; //Users local currency object
 var symbol; //Active currency object
 var root = '/';
 var resource = '/Resources/';
 var war_checksum;
+
+function setLocalSymbol(new_symbol) {
+    if (!new_symbol) return;
+
+    if (symbol == symbol_local && symbol_local != symbol_btc)
+        symbol = new_symbol;
+
+    symbol_local = new_symbol;
+
+    calcMoney();
+}
 
 $.fn.center = function () {
     scrollTo(0, 0);
@@ -43,8 +54,9 @@ function webSocketConnect(success) {
 
                 ws = new WebSocket(url);
 
-                if (!ws)
+                if (!ws) {
                     return;
+                }
 
                 if (success)
                     success(ws);
@@ -55,7 +67,7 @@ function webSocketConnect(success) {
 
         //Updates time last block was received and check for websocket connectivity
         function reconnectTimer () {
-            if (!ws || ws.readyState != WebSocket.OPEN) {
+            if (!ws || ws.readyState == WebSocket.CLOSED) {
                 reallyConnect();
             }
         }
@@ -424,15 +436,19 @@ function setupToggle() {
 }
 
 $(document).ready(function() {
-    symbol_btc = {"code" : "BTC", "symbol" : "BTC", "name" : "Bitcoin",  "conversion" : satoshi, "symbolAppearsAfter" : true};
-    symbol_local = $.parseJSON($('#symbol-local').text());
-    war_checksum = $(document.body).data('war-checksum');
 
-    if (getCookie('local') == 'true') {
+    var symtxt = $('#symbol-local').text();
+    if (symtxt && symtxt.length > 0) {
+        symbol_local = $.parseJSON(symtxt);
+    }
+
+    if (symbol_local && getCookie('local') == 'true') {
         symbol = symbol_local;
     } else {
         symbol = symbol_btc;
     }
+
+    war_checksum = $(document.body).data('war-checksum');
 
     show_adv = getCookie('show_adv');
 
@@ -441,7 +457,6 @@ $(document).ready(function() {
             var val = $(this).val();
 
             if (symbol == null || val != symbol.symbol) {
-
                 if (symbol_local != null && val == symbol_local.code) {
                     toggleSymbol();
                 } else if (symbol_btc != null && val == symbol_btc.code) {

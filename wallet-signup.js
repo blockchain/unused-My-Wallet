@@ -47,8 +47,6 @@
 
                     if (successcallback != null)
                         successcallback();
-
-                    MyWallet.updateCacheManifest();
                 },
                 error : function(data) {
                     MyWallet.makeNotice('error', 'misc-error', data.responseText, 10000);

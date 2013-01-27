@@ -18,7 +18,7 @@ function _BlockchainAPI() {
                     try {
                         //Cache results to show next login
                         if (tx_page == 0 && tx_filter == 0)
-                            localStorage.setItem('multiaddr', data);
+                            localStorage.setItem('multiaddr', JSON.stringify(data));
                     } catch (e) {}
 
                     success(data);
@@ -41,17 +41,24 @@ function _BlockchainAPI() {
     this.get_balances = function(addresses, success, error) {
         MyWallet.setLoadingText('Getting Balances');
 
-        $.post(root + "multiaddr", {active : addresses.join('|'), simple : true, format : 'json' },  function(obj) {
-            for (var key in obj) {
+        $.ajax({
+            type: "POST",
+            url: root + 'multiaddr',
+            dataType: 'json',
+            data : {active : addresses.join('|'), simple : true, format : 'json'},
+            success: function(obj) {
+                for (var key in obj) {
 
-                if (MyWallet.addressExists(key))
-                    MyWallet.setAddressBalance(key, obj[key].final_balance);
+                    if (MyWallet.addressExists(key))
+                        MyWallet.setAddressBalance(key, obj[key].final_balance);
+                }
+
+                success(obj);
+            },
+            error : function(e) {
+                error(e.responseText);
             }
-
-            success(obj);
-        }).error(function(data) {
-                error(data.responseText);
-            });
+        });
     }
 
     //Get the balance of an array of addresses
@@ -72,9 +79,8 @@ function _BlockchainAPI() {
         MyWallet.setLoadingText('Getting Ticker Data');
 
         $.ajax({
-            type: "POST",
+            type: "GET",
             dataType: 'json',
-            crossDomain: true,
             url: root +'ticker',
             data: {format : 'json'},
             success: function(data) {
@@ -97,29 +103,39 @@ function _BlockchainAPI() {
     this.resolve_firstbits = function(addr, success, error) {
         MyWallet.setLoadingText('Querying Firstbits');
 
-        $.get(root + 'q/resolvefirstbits/'+addr+'?format=plain').success(function(data) {
-
-            if (data == null || data.length == 0)
-                error();
-            else
-                success(data);
-
-        }).error(function(data) {
-                error(data);
-            });
+        $.ajax({
+            type: "GET",
+            url: root + 'q/resolvefirstbits/'+addr,
+            data : {format : 'plain'},
+            success: function(data) {
+                if (data == null || data.length == 0)
+                    error();
+                else
+                    success(data);
+            },
+            error : function(e) {
+                error(e.responseText);
+            }
+        });
     }
 
     this.get_rejection_reason = function(hexhash, success, error) {
         MyWallet.setLoadingText('Querying Rejection Reason');
 
-        $.get(root + 'q/rejected/'+hexhash+'?format=plain').success(function(data) {
-            if (data == null || data.length == 0)
-                error();
-            else
-                success(data);
-        }).error(function(data) {
-                if (error) error(data);
-            });
+        $.ajax({
+            type: "GET",
+            url: root + 'q/rejected/'+hexhash,
+            data : {format : 'plain'},
+            success: function(data) {
+                if (data == null || data.length == 0)
+                    error();
+                else
+                    success(data);
+            },
+            error : function(e) {
+                error(e.responseText);
+            }
+        });
     }
 
     this.push_tx = function(tx, note, success, error) {
@@ -177,11 +193,17 @@ function _BlockchainAPI() {
                     post_data.note = note;
                 }
 
-                $.post(root + 'pushtx', post_data, function() {
-                    did_push();
-                }).error(function(data) {
-                        error(data ? data.responseText : null);
-                    });
+                $.ajax({
+                    type: "POST",
+                    url: root + 'pushtx',
+                    data : post_data,
+                    success: function() {
+                        did_push();
+                    },
+                    error : function(e) {
+                        error(e ? e.responseText : null);
+                    }
+                });
             }
 
             try {

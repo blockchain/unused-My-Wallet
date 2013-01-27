@@ -27,7 +27,8 @@ var MyWallet = new function() {
     var archTimer; //Delayed Backup wallet timer
     var mixer_fee = 1.5; //Default mixer fee 1.5%
     var pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
-    var tx_notes = {}
+    var tx_notes = {};
+    var real_auth_type = 0;
     var logout_timeout;
     var event_listeners = []; //Emits Did decrypt wallet event (used on claim page)
     var last_input_main_password;
@@ -39,8 +40,30 @@ var MyWallet = new function() {
         fee_policy : 0,  //Default Fee policy (-1 Tight, 0 Normal, 1 High)
         html5_notifications : false, //HTML 5 Desktop notifications
         logout_time : 600000, //Default 10 minutes
-        tx_display : 0 //Compact or detailed transactions
+        tx_display : 0, //Compact or detailed transactions
+        always_keep_local_backup : false //Whether to always keep a backup in localStorage regardless of two factor authentication
     };
+
+    this.setEncryptedWalletData = function(data) {
+        if (!data || data.length == 0) return;
+
+        encrypted_wallet_data = data;
+
+        //Generate a new Checksum
+        payload_checksum = generatePayloadChecksum();
+
+        try {
+            //Save Payload when two factor authentication is disabled
+            if (real_auth_type == 0 || wallet_options.always_keep_local_backup)
+                localStorage.setItem('payload', encrypted_wallet_data);
+        } catch (e) {
+            console.log(e);
+        }
+    }
+
+    this.setRealAuthType = function(val) {
+        this.real_auth_type = val;
+    }
 
     this.addEventListener = function(func) {
         event_listeners.push(func);
@@ -70,12 +93,20 @@ var MyWallet = new function() {
         return wallet_options.fee_policy;
     }
 
-    this.getGuid = function() {
-        return guid;
-    }
-
     this.setFeePolicy = function(policy) {
         wallet_options.fee_policy = policy;
+    }
+
+    this.setAlwaysKeepLocalBackup = function(val) {
+        wallet_options.always_keep_local_backup = val;
+    }
+
+    this.getAlwaysKeepLocalBackup = function() {
+        return wallet_options.always_keep_local_backup;
+    }
+
+    this.getGuid = function() {
+        return guid;
     }
 
     this.getHTML5Notifications = function() {
@@ -156,7 +187,7 @@ var MyWallet = new function() {
         buildVisibleView();
     }
 
-    this.securePost = function(url, data) {
+    this.securePost = function(url, data, success, error) {
         var clone = jQuery.extend({}, data);
 
         if (sharedKey == null || sharedKey.length == 0 || sharedKey.length != 36) {
@@ -165,11 +196,21 @@ var MyWallet = new function() {
 
         clone.sharedKey = sharedKey;
         clone.guid = guid;
-        clone.format = 'plain';
+        clone.format =  data.format ? data.format : 'plain'
 
-        return $.post(root + url, clone);
+        $.ajax({
+            dataType: data.format ? data.format : 'text',
+            type: "POST",
+            url: root + url,
+            data : clone,
+            success: function(data) {
+                success(data)
+            },
+            error : function(e) {
+                error(e)
+            }
+        });
     }
-
 
     this.isCorrectMainPassword = function(_password) {
         return password == _password;
@@ -349,10 +390,6 @@ var MyWallet = new function() {
         return result;
     }
 
-    function handlePaymentRequestObject(request) {
-
-    }
-
     function generatePayloadChecksum() {
         return Crypto.util.bytesToHex(Crypto.SHA256(encrypted_wallet_data, {asBytes: true}));
     }
@@ -363,17 +400,13 @@ var MyWallet = new function() {
             try {
                 var obj = $.parseJSON(e.data);
 
-                if (obj.op == 'status') {
-                    $('#status').html(obj.msg);
-                } else if (obj.op == 'on_change') {
+                if (obj.op == 'on_change') {
                     var old_checksum = generatePayloadChecksum();
                     var new_checksum = obj.checksum;
 
                     console.log('On change old ' + old_checksum + ' ==  new '+ new_checksum);
 
                     if (old_checksum != new_checksum) {
-                        MyWallet.updateCacheManifest();
-
                         //Fetch the updated wallet from the server
                         setTimeout(getWallet, 250);
                     }
@@ -495,7 +528,7 @@ var MyWallet = new function() {
         };
 
         ws.onopen = function() {
-            $('#status').html('CONNECTED.');
+            setLogoutImageStatus('ok');
 
             var msg = '{"op":"blocks_sub"}';
 
@@ -515,8 +548,25 @@ var MyWallet = new function() {
         };
 
         ws.onclose = function() {
-            $('#status').html('DISCONNECTED.');
+            setLogoutImageStatus('error');
         };
+    }
+
+    var logout_status = 'ok';
+    function setLogoutImageStatus(_status) {
+        var logout_btn = $('#logout');
+
+        if (_status == 'loading_start') {
+            logout_btn.attr('src', resource + 'logout-orange.png');
+            return;
+        } else if (_status != 'loading_stop') {
+            logout_status = _status;
+        }
+
+        if (logout_status == 'ok')
+            logout_btn.attr('src', resource + 'logout.png');
+        else if (logout_status == 'error')
+            logout_btn.attr('src', resource + 'logout-red.png');
     }
 
     this.makeNotice = function(type, id, msg, timeout) {
@@ -760,9 +810,38 @@ var MyWallet = new function() {
         }
 
         function bindRecipient(recipient) {
+
             recipient.find('input[name="send-to-address"]').val('').typeahead({
                 source : getActiveLabels()
-            });
+            }).next().click(function() {
+                    var input = $(this).prev();
+                    MyWallet.scanQRCode(function(data) {
+                        console.log(data);
+
+                        try {
+                            new Bitcoin.Address(data);
+
+                            input.val(data);
+                        } catch (e) {
+                            loadScript('wallet/jsuri-1.1.1.min.js', function() {
+                                try {
+                                    var uri = new Uri(data);
+
+                                    input.val(uri.host());
+
+                                    recipient.find('input[name="send-value"]').val(uri.getQueryParamValue('amount'));
+
+                                } catch (e) {
+                                    MyWallet.makeNotice('error', 'error', 'Invalid Bitcoin Address or URI');
+                                }
+                            }, function() {
+                                MyWallet.makeNotice('error', 'error', 'Invalid Bitcoin Address or URI');
+                            });
+                        }
+                    }, function(e) {
+                        MyWallet.makeNotice('error', 'misc-error', e);
+                    });
+                });
 
             recipient.find('.local-symbol').text(symbol_local.symbol);
 
@@ -842,6 +921,56 @@ var MyWallet = new function() {
 
         return preferred.addr;
     }
+
+
+    function backupInstructionsModal() {
+        console.log('backupInstructionsModal');
+
+        var modal = $('#restore-backup-modal');
+
+        modal.modal({
+            keyboard: true,
+            backdrop: "static",
+            show: true
+        });
+
+        modal.find('.btn.btn-secondary').unbind().click(function() {
+            modal.modal('hide');
+        });
+    }
+
+    this.scanQRCode = function(success, error) {
+
+        var modal = $('#qr-code-reader-modal');
+
+        modal.modal({
+            keyboard: false,
+            backdrop: "static",
+            show: true
+        });
+
+        //WebCam
+        loadScript('wallet/qr.code.reader.js', function() {
+            QRCodeReader.init(modal, function(data) {
+                modal.modal('hide');
+
+                success(data);
+            }, function(e) {
+                modal.modal('hide');
+
+                error(e);
+            });
+        }, error);
+
+        modal.find('.btn.btn-secondary').unbind().click(function() {
+            QRCodeReader.stop();
+
+            modal.modal('hide');
+
+            error();
+        });
+    }
+
 
     function getAddressesWithTag(tag) {
         var array = [];
@@ -1112,6 +1241,8 @@ var MyWallet = new function() {
         return cVisible.attr('id');
     }
 
+
+
     //Reset is true when called manually with changeview
     function buildVisibleView(reset) {
 
@@ -1151,7 +1282,9 @@ var MyWallet = new function() {
             if (primary_address.text() != preferred) {
                 primary_address.text(preferred);
 
-                $('#my-primary-addres-qr-code').html('<img style="padding-right:10px;padding-bottom:10px" src="'+root+'qr?data='+preferred+'&size=125">');
+                loadScript('wallet/jquery.qrcode.min.js', function() {
+                    $('#my-primary-addres-qr-code').qrcode({width: 125, height: 125, text: preferred})
+                });
             }
         }
     }
@@ -1336,15 +1469,7 @@ var MyWallet = new function() {
             if (obj.info.latest_block != null)
                 setLatestBlock(obj.info.latest_block);
 
-            var new_symbol_local = obj.info.symbol_local;
-
-            if (symbol == symbol_local) {
-                symbol_local = new_symbol_local;
-                symbol = new_symbol_local;
-                calcMoney();
-            } else if (!cached) {
-                symbol_local = new_symbol_local;
-            }
+            setLocalSymbol(obj.info.symbol_local);
         }
     }
 
@@ -1359,24 +1484,13 @@ var MyWallet = new function() {
         window.location.hash = '';
 
         try {
-            //Make sure the last guid the user logged in the ame as this one, if not clear cache
-            var local_guid = localStorage.getItem('guid');
+            //Restore the balance cache
+            var multiaddrjson = localStorage.getItem('multiaddr');
 
-            if (local_guid != guid) {
-                localStorage.clear();
+            if (multiaddrjson != null) {
+                parseMultiAddressJSON($.parseJSON(multiaddrjson), true);
 
-                //Demo Account Guid
-                if (guid != demo_guid)
-                    localStorage.setItem('guid', guid);
-            } else {
-                //Restore the balance cache
-                var multiaddrjson = localStorage.getItem('multiaddr');
-
-                if (multiaddrjson != null) {
-                    parseMultiAddressJSON($.parseJSON(multiaddrjson), true);
-
-                    buildVisibleView();
-                }
+                buildVisibleView();
             }
 
         } catch (e) { } //Don't care - cache is optional
@@ -1406,20 +1520,19 @@ var MyWallet = new function() {
         if (payload_checksum && payload_checksum.length > 0)
             obj.checksum = payload_checksum;
 
-        $.get(root + 'wallet/wallet.aes.json', obj).success(function(data) {
-            if (data == null || data.length == 0)
-                return;
+        $.ajax({
+            type: "GET",
+            url: root + 'wallet/wallet.aes.json',
+            data : obj,
+            success: function(data) {
+                if (data == null || data.length == 0 || data == 'Not modified')
+                    return;
 
-            if (data == 'Not modified') {
-                console.log('Not modified');
-                return;
-            } else {
                 console.log('Wallet data modified');
 
-                encrypted_wallet_data = data;
+                MyWallet.setEncryptedWalletData(data);
 
                 if (internalRestoreWallet()) {
-                    payload_checksum = generatePayloadChecksum();
 
                     MyWallet.get_history();
 
@@ -1637,11 +1750,9 @@ var MyWallet = new function() {
 
     this.makePairingQRCode = function(success) {
         MyWallet.getMainPassword(function() {
-            loadScript('wallet/qr.code.creator.js', function() {
+            loadScript('wallet/jquery.qrcode.min.js', function() {
                 try {
-                    var device_qr = makeQRCode(300, 300, 1 , guid + '|' + sharedKey + '|' + password);
-
-                    success(device_qr);
+                    success($('<div></div>').qrcode({width: 300, height: 300, text: guid + '|' + sharedKey + '|' + password}));
                 } catch (e) {
                     MyWallet.makeNotice('error', 'misc-error', e);
                 }
@@ -1726,32 +1837,37 @@ var MyWallet = new function() {
                 return false;
             }
 
-            $.post(root + "wallet", { guid: guid, payload: auth_key, length : auth_key.length,  method : 'get-wallet', format : 'plain' },  function(data) {
-                try {
-                    if (data == null || data.length == 0) {
-                        MyWallet.makeNotice('error', 'misc-error', 'Server Return Empty Wallet Data');
-                        return;
+            $.ajax({
+                type: "POST",
+                url: root + "wallet",
+                data :  { guid: guid, payload: auth_key, length : auth_key.length,  method : 'get-wallet', format : 'plain' },
+                success: function(data) {
+                    try {
+                        if (data == null || data.length == 0) {
+                            MyWallet.makeNotice('error', 'misc-error', 'Server Return Empty Wallet Data');
+                            return;
+                        }
+
+                        MyWallet.setEncryptedWalletData(data);
+
+                        //We can now hide the auth token input
+                        $('.auth-'+auth_type).hide();
+
+                        $('.auth-0').show();
+
+                        if (internalRestoreWallet()) {
+                            bindReady();
+
+                            didDecryptWallet();
+                        }
+                    } catch (e) {
+                        MyWallet.makeNotice('error', 'misc-error', e);
                     }
-
-                    encrypted_wallet_data = data;
-                    payload_checksum = generatePayloadChecksum();
-
-                    //We can now hide the auth token input
-                    $('.auth-'+auth_type).hide();
-
-                    $('.auth-0').show();
-
-                    if (internalRestoreWallet()) {
-                        bindReady();
-
-                        didDecryptWallet();
-                    }
-                } catch (e) {
-                    MyWallet.makeNotice('error', 'misc-error', e);
+                },
+                error : function(e) {
+                    MyWallet.makeNotice('error', 'misc-error', e.responseText);
                 }
-            }).error(function(data) {
-                    MyWallet.makeNotice('error', 'misc-error', data.responseText);
-                });
+            });
         } else {
 
             if (internalRestoreWallet()) {
@@ -1766,6 +1882,8 @@ var MyWallet = new function() {
     }
 
     function setIsIntialized() {
+        setLogoutImageStatus('error');
+
         webSocketConnect(wsSuccess);
 
         isInitialized = true;
@@ -1775,8 +1893,6 @@ var MyWallet = new function() {
         $('#intro-text').hide();
 
         $('#large-summary').show();
-
-        $('#status-container').show();
     }
 
     this.quickSendNoUI = function(to, value, listener) {
@@ -1804,42 +1920,17 @@ var MyWallet = new function() {
     function emailBackup() {
         MyWallet.setLoadingText('Sending email backup');
 
-        $.post(root + "wallet", { guid: guid, sharedKey: sharedKey, method : 'email-backup', format : 'plain' },  function(data) {
-            MyWallet.makeNotice('success', 'backup-success', data);
-        }).error(function(data) {
-                MyWallet.makeNotice('error', 'misc-error', data.responseText);
-            });
-    }
-
-    this.updateCacheManifest = function(done) {
-        try {
-            var cache = window.applicationCache;
-
-            console.log('Clear Cache Manifest');
-
-            // Swap in newly download files when update is ready
-            cache.addEventListener('updateready', function(e){
-                cache.swapCache();
-
-                if(done) done();
-            }, false);
-
-            // Swap in newly download files when update is ready
-            cache.addEventListener('noupdate', function(e){
-                if(done) done();
-            }, false);
-
-            // Swap in newly download files when update is ready
-            cache.addEventListener('error', function(e){
-                if(done) done();
-            }, false);
-
-            cache.update();
-        } catch (e) {
-            console.log(e);
-
-            if(done) done();
-        }
+        $.ajax({
+            type: "POST",
+            url: root + 'wallet',
+            data : { guid: guid, sharedKey: sharedKey, method : 'email-backup', format : 'plain' },
+            success: function(data) {
+                MyWallet.makeNotice('success', 'backup-success', data);
+            },
+            error : function(e) {
+                MyWallet.makeNotice('error', 'misc-error', e.responseText);
+            }
+        });
     }
 
     //Can call multiple times in a row and it will backup only once after a certain delay of activity
@@ -1855,7 +1946,7 @@ var MyWallet = new function() {
     }
 
     //Save the javascript walle to the remote server
-    this.backupWallet = function(method, successcallback, errorcallbac) {
+    this.backupWallet = function(method, successcallback, errorcallback) {
         try {
             if (method == null)
                 method = 'update';
@@ -1887,17 +1978,16 @@ var MyWallet = new function() {
                 throw 'Error Decrypting Previously encrypted JSON. Not Saving Wallet.';
             }
 
-            //SHA256 new_checksum verified by server in case of curruption during transit
-            var new_checksum = Crypto.util.bytesToHex(Crypto.SHA256(crypted, {asBytes: true}));
+            var old_checksum = payload_checksum;
 
             MyWallet.setLoadingText('Saving wallet');
 
-            encrypted_wallet_data = crypted;
+            MyWallet.setEncryptedWalletData(crypted);
 
             $.ajax({
                 type: "POST",
                 url: root + 'wallet',
-                data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: new_checksum, old_checksum : payload_checksum,  method : method },
+                data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: payload_checksum, old_checksum : old_checksum,  method : method },
                 converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
                 success: function(data) {
 
@@ -1910,17 +2000,12 @@ var MyWallet = new function() {
                         }
                     }
 
-                    //Update to the new payload new_checksum
-                    payload_checksum = new_checksum;
-
                     MyWallet.makeNotice('success', 'misc-success', data);
 
                     buildVisibleView();
 
                     if (successcallback != null)
                         successcallback();
-
-                    MyWallet.updateCacheManifest();
                 },
                 error : function(data) {
                     MyWallet.makeNotice('error', 'misc-error', data.responseText, 10000);
@@ -2024,46 +2109,73 @@ var MyWallet = new function() {
     //Fetch information on a new wallet identfier
     this.setGUID = function(guid_or_alias, resend_code) {
 
-        if (isInitialized) throw 'Cannot Set GUID Once Initialized';
+        if (isInitialized) {
+            throw 'Cannot Set GUID Once Initialized';
+        }
 
         MyWallet.setLoadingText('Changing Wallet Identifier');
 
         $('#initial_error,#initial_success').remove();
 
-        $.getJSON(root + 'wallet/'+guid_or_alias, {format : 'json', resend_code : resend_code}).success(function(obj) {
+        try {
+            var local_guid = localStorage.getItem('guid');
+        } catch(e) {}
 
-            $('.auth-'+auth_type).hide();
+        $.ajax({
+            type: "GET",
+            dataType: 'json',
+            url: root + 'wallet/'+guid_or_alias,
+            data : {format : 'json', resend_code : resend_code},
+            success: function(obj) {
+                $('.auth-'+auth_type).hide();
 
-            guid = obj.guid;
-            auth_type = obj.auth_type;
-            payload_checksum = obj.payload_checksum;
-            encrypted_wallet_data = obj.payload;
-            war_checksum = obj.war_checksum;
-            symbol_local = obj.symbol_local;
+                guid = obj.guid;
+                auth_type = obj.auth_type;
+                real_auth_type = obj.real_auth_type;
 
-            $('#restore-guid').val(guid);
+                MyWallet.setEncryptedWalletData(obj.payload);
 
-            $('.auth-'+auth_type).show();
+                war_checksum = obj.war_checksum;
 
-            if (obj.initial_error)
-                MyWallet.makeNotice('error', 'misc-error', obj.initial_error);
+                setLocalSymbol(obj.symbol_local);
 
-            if (obj.initial_success)
-                MyWallet.makeNotice('success', 'misc-success', obj.initial_success);
+                $('#restore-guid').val(guid);
 
-            try {
-                var local_guid = localStorage.getItem('guid');
-                if (local_guid != guid) {
-                    localStorage.clear();
+                $('.auth-'+auth_type).show();
 
-                    //Demo Account Guid
-                    if (guid != demo_guid)
-                        localStorage.setItem('guid', guid);
+                if (obj.initial_error)
+                    MyWallet.makeNotice('error', 'misc-error', obj.initial_error);
+
+                if (obj.initial_success)
+                    MyWallet.makeNotice('success', 'misc-success', obj.initial_success);
+
+                try {
+                    if (local_guid != guid) {
+                        localStorage.clear();
+
+                        //Demo Account Guid
+                        if (guid != demo_guid) {
+                            localStorage.setItem('guid', guid);
+                        }
+                    }
+                } catch (e) { }
+            },
+            error : function(e) {
+
+                if (local_guid == guid && encrypted_wallet_data) {
+                    MyWallet.makeNotice('error', 'misc-error', 'Error Contacting Server. Using Local Wallet Cache.');
+
+                    //Generate a new Checksum
+                    guid = local_guid;
+                    payload_checksum = generatePayloadChecksum();
+                    auth_type = 0;
+
+                    $('#restore-guid').val(guid);
+
+                    $('.auth-'+auth_type).show();
+
+                    return;
                 }
-            } catch (e) { }
-
-        }).error(function(e) {
-                console.log(e);
 
                 try {
                     var obj = $.parseJSON(e.responseText);
@@ -2074,8 +2186,12 @@ var MyWallet = new function() {
                     }
                 } catch (e) {}
 
-                MyWallet.makeNotice('error', 'misc-error', 'Error changing wallet identifier');
-            });
+                if (e.responseText)
+                    MyWallet.makeNotice('error', 'misc-error', e.responseText);
+                else
+                    MyWallet.makeNotice('error', 'misc-error', 'Error changing wallet identifier');
+            }
+        });
     }
 
 
@@ -2185,9 +2301,7 @@ var MyWallet = new function() {
             password = new_password;
 
             MyWallet.backupWallet('update', function() {
-                MyWallet.updateCacheManifest(function() {
-                    MyWallet.logout();
-                });
+                MyWallet.logout();
             }, function() {
                 MyWallet.logout();
             });
@@ -2322,11 +2436,17 @@ var MyWallet = new function() {
     }
 
     this.logout = function() {
-        $.get(root + 'wallet/logout?format=plain').success(function() {
-            window.location.reload();
-        }).error(function() {
+        $.ajax({
+            type: "GET",
+            url: root + 'wallet/logout',
+            data : {format : 'plain'},
+            success: function(data) {
                 window.location.reload();
-            });
+            },
+            error : function() {
+                window.location.reload();
+            }
+        });
     }
 
     function deleteAddresses(addrs) {
@@ -2613,10 +2733,6 @@ var MyWallet = new function() {
                     changeView($("#home-intro"));
                 });
             });
-        });
-
-        $('.download-backup-btn').click(function() {
-            window.open(root + 'wallet/wallet.aes.json?guid=' + guid + '&sharedKey=' + sharedKey);
         });
 
         $('#enable_archived_checkbox').change(function() {
@@ -3052,11 +3168,16 @@ var MyWallet = new function() {
 
             buildSendForm(self);
 
-            $.get(resource + 'wallet/country_codes.html').success(function(data) {
-                self.find('select[name="sms-country-code"]').html(data);
-            }).error(function () {
+            $.ajax({
+                type: "GET",
+                url: resource + 'wallet/country_codes.html',
+                success: function(data) {
+                    self.find('select[name="sms-country-code"]').html(data);
+                },
+                error : function() {
                     MyWallet.makeNotice('error', 'misc-error', 'Error Downloading SMS Country Codes')
-                });
+                }
+            });
 
             self.find('.send').unbind().click(function() {
                 loadScript('wallet/signer.min.js', function() {
@@ -3100,16 +3221,43 @@ var MyWallet = new function() {
         $('.show_adv').click(function() {
             $('.modal:visible').center();
         });
+
+        $('.download-backup-btn').show();
+
+        buildPopovers();
     }
 
     function bindInitial() {
-
         $('.resend-code').click(function() {
             MyWallet.setGUID(guid, true);
         });
 
+        $('.download-backup-btn').toggle(encrypted_wallet_data != null).click(function() {
+            $(this).attr('download', "wallet.aes.json");
 
-        buildPopovers();
+            if (!encrypted_wallet_data) {
+                MyWallet.makeNotice('error', 'error', 'No Wallet Data to Download');
+                return;
+            }
+
+            var downloadAttrSupported = ("download" in document.createElement("a"));
+
+            //Chrome supports downloading through the download attribute
+            if (window.Blob && window.URL && downloadAttrSupported) {
+                var blob = new Blob([encrypted_wallet_data]);
+
+                var blobURL = window.URL.createObjectURL(blob);
+
+                $(this).attr('href', blobURL);
+            } else {
+                //Other browsers we just open a popup with the text content
+                var popup = window.open(null, null, "width=700,height=800,toolbar=0");
+
+                popup.document.write('<!DOCTYPE html><html><head></head><body><div style="word-wrap:break-word;" >'+encrypted_wallet_data+'</div></body></html>');
+            }
+
+            backupInstructionsModal();
+        });
 
         $('.auth-0,.auth-1,.auth-2,.auth-3,.auth-4,.auth-5').unbind().keypress(function(e) {
             if(e.keyCode == 13) { //Pressed the return key
@@ -3251,34 +3399,48 @@ var MyWallet = new function() {
 
     $(document).ready(function() {
 
+        if (!$.isEmptyObject({})) {
+            MyWallet.makeNotice('error', 'error', 'Object.prototype has been extended by a browser extension. Please disable this extensions and reload the page.');
+            return;
+        }
+
         var body = $(document.body);
 
         //Load data attributes from html
-        encrypted_wallet_data = body.data('payload');
         guid = body.data('guid');
         sharedKey = body.data('sharedkey');
-        payload_checksum = body.data('payload-checksum');
-        auth_type =  body.data('auth-type');
 
         //Deposit pages set this flag so it can be loaded in an iframe
         if (MyWallet.skip_init) return;
 
-        //Iframe breakout
+        try {
+            encrypted_wallet_data = localStorage.getItem('payload');
+
+            if (!guid || guid.length == 0)
+                guid = localStorage.getItem('guid');
+
+            if (guid && guid.length == 36) {
+                setTimeout(function(){
+                    MyWallet.setGUID(guid, false);
+                }, 10);
+            }
+        } catch (e) {}
+
+        //Frame break
         if (top.location!= self.location) {
             top.location = self.location.href
-        }
-
-        if (!$.isEmptyObject({})) {
-            MyWallet.makeNotice('error', 'error', 'Object.prototype has been extended by a browser extension. Please disable this extensions and reload the page.');
-            return;
         }
 
         //Disable auotcomplete in firefox
         $("input,button,select").attr("autocomplete","off");
 
         body.ajaxStart(function() {
+            setLogoutImageStatus('loading_start');
+
             $('.loading-indicator').fadeIn(200);
         }).ajaxStop(function() {
+                setLogoutImageStatus('loading_stop');
+
                 $('.loading-indicator').hide();
 
             }).click(function() {

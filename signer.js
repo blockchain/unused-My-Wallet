@@ -100,37 +100,38 @@ function showPrivateKeyModal(success, error, addr) {
 
     var scanned_key = null;
     var error_msg = null;
+    var key_input = modal.find('input[name="key"]');
 
-    //WebCam
-    loadScript('wallet/llqrcode.js', function() {
-        loadScript('wallet/qr.code.reader.js', function() {
-            //Flash QR Code Reader
-            var interval = initQRCodeReader('qr-code-reader', function(code){
-                try {
-                    scanned_key = MyWallet.privateKeyStringToKey(code, MyWallet.detectPrivateKeyFormat(code));
+    key_input.val('');
 
-                    if (scanned_key == null) {
-                        throw 'Error decoding private key';
-                    }
-                } catch(e) {
-                    error_msg = 'Error decoding private key ' + e;
+    modal.find('.qrcodeicon span').click(function() {
+        modal.modal('hide');
+
+        MyWallet.scanQRCode(function(code) {
+            console.log('Scanned ' + code);
+
+            try {
+                scanned_key = MyWallet.privateKeyStringToKey(code, MyWallet.detectPrivateKeyFormat(code));
+
+                if (scanned_key == null) {
+                    error_msg = 'Error decoding private key';
                 }
+            } catch(e) {
+                error_msg = 'Error decoding private key ' + e;
+            }
 
-                modal.modal('hide');
+            modal.modal('show');
 
-                if (scanned_key)
-                    success(scanned_key);
-                else
-                    error(error_msg);
+            key_input.val(code);
+        }, function(e) {
+            modal.modal('show');
 
-                clearInterval(interval);
-
-            }, resource + 'wallet/');
+            MyWallet.makeNotice('error', 'misc-error', e);
         });
     });
 
     modal.find('.btn.btn-primary').unbind().click(function() {
-        var value = modal.find('input[name="key"]').val();
+        var value = $.trim(key_input.val());
 
         try {
             if (value.length == 0) {
@@ -199,6 +200,8 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
     }
 
     try {
+        $('.send-value,.send-value-usd,.send').attr('disabled', true);
+
         var total_value = 0;
         el.find('input[name="send-value"]').each(function() {
             total_value += parseFloat($(this).val());
@@ -371,20 +374,24 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                     MyWallet.setLoadingText('Checking Connectivity');
 
-                    //Check if were able to contact blockchain.info
-                    $.get(root + 'ping?'+new Date().getTime()).success(function(data) {
-                        btn.attr('disabled', false);
+                    $.ajax({
+                        type: "GET",
+                        url: root + 'ping',
+                        data : {format : 'plain', date : new Date().getTime()},
+                        success: function() {
+                            btn.attr('disabled', false);
 
-                        btn.text('Send Transaction');
+                            btn.text('Send Transaction');
 
-                        btn.unbind().click(function() {
-                            btn.attr('disabled', true);
+                            btn.unbind().click(function() {
+                                btn.attr('disabled', true);
 
-                            self.modal.modal('hide');
+                                self.modal.modal('hide');
 
-                            self.send();
-                        });
-                    }).error(function(data) {
+                                self.send();
+                            });
+                        },
+                        error : function() {
                             self.modal.find('.modal-header h3').html('Created Offline Transaction.');
 
                             btn.attr('disabled', false);
@@ -407,7 +414,8 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                             });
 
                             self.modal.center();
-                        });
+                        }
+                    });
                 } catch (e) {
                     self.error(e);
                 }
@@ -465,11 +473,11 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                             to : self.sms_data.number,
                             priv : self.sms_data.miniKey,
                             hash : Crypto.util.bytesToHex(self.tx.getHash().reverse())
-                        }).success(function() {
-                                self.send();
-                            }).error(function(data) {
-                                self.error(data ? data.responseText : null);
-                            });
+                        }, function() {
+                            self.send();
+                        }, function(data) {
+                            self.error(data ? data.responseText : null);
+                        });
                     } catch (e) {
                         self.error(e);
                     }
@@ -481,7 +489,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     var modal = $('#send-email-modal');
 
                     try {
-                        MyWallet.securePost("wallet", { method : 'get-info' }).success(function(data) {
+                        MyWallet.securePost("wallet", { method : 'get-info', format : 'json' }, function(data) {
                             try {
                                 modal.modal({
                                     keyboard: true,
@@ -516,11 +524,11 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                             to : self.email_data.email,
                                             priv : self.email_data.priv,
                                             hash : Crypto.util.bytesToHex(self.tx.getHash().reverse())
-                                        }).success(function(data) {
-                                                self.send();
-                                            }).error(function(data) {
-                                                self.error(data ? data.responseText : null);
-                                            });
+                                        }, function(data) {
+                                            self.send();
+                                        }, function(data) {
+                                            self.error(data ? data.responseText : null);
+                                        });
 
                                     } catch (e) {
                                         self.error(e);
@@ -531,11 +539,11 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                                 self.error(e);
                             }
-                        }).error(function(e) {
-                                modal.modal('hide');
+                        }, function(e) {
+                            modal.modal('hide');
 
-                                self.error('Error Getting Account Data');
-                            });
+                            self.error('Error Getting Account Data');
+                        });
                     } catch (e) {
                         modal.modal('hide');
 
@@ -699,7 +707,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                                     MyWallet.setLoadingText('Creating Forwarding Address');
 
-                                    MyWallet.securePost("forwarder", { action : "create-mix", address : address}).success(function(obj) {
+                                    MyWallet.securePost("forwarder", { action : "create-mix", address : address, format : 'json'}, function(obj) {
                                         try {
                                             if (obj.destination != address) {
                                                 throw 'Mismatch between requested and returned destination address';
@@ -718,9 +726,9 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                         } catch (e) {
                                             pending_transaction.error(e);
                                         }
-                                    }).error(function(data) {
-                                            pending_transaction.error(data ? data.responseText : null);
-                                        });
+                                    }, function(data) {
+                                        pending_transaction.error(data ? data.responseText : null);
+                                    });
                                 } else {
                                     if (address) {
                                         pending_transaction.to_addresses.push({address: new Bitcoin.Address(address), value : value});
@@ -1679,8 +1687,9 @@ function initNewTx() {
 
     var base_listener = {
         on_error : function(e) {
-            if(e)
+            if(e) {
                 MyWallet.makeNotice('error', 'tx-error', e);
+            }
 
             $('.send-value,.send-value-usd,.send').attr('disabled', false);
         },

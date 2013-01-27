@@ -2,20 +2,20 @@ var forwards;
 
 function extendForwarding(input_address) {
 
-    MyWallet.securePost("forwarder", { method : "extend", input_address : input_address, time : 86400000 }).success(function(data) {
+    MyWallet.securePost("forwarder", { method : "extend", input_address : input_address, time : 86400000 }, function(data) {
         MyWallet.makeNotice('success', 'misc-success', data);
 
         buildAnonymousTable($('#anonymous-addresses'));
-    }).error(function(data) {
-            MyWallet.makeNotice('error', 'misc-error', data.responseText);
-        });
+    }, function(data) {
+        MyWallet.makeNotice('error', 'misc-error', data.responseText);
+    });
 }
 
 function buildAnonymousTable(el) {
     var forward_table = el.find('table');
     var forward_tbody =  forward_table.find('tbody');
 
-    MyWallet.securePost("forwarder", { method : "get" }).success(function(obj) {
+    MyWallet.securePost("forwarder", { method : "get", format : 'json'}, function(obj) {
         MyWallet.setLoadingText('Loading Anonymous Addresses');
 
         forward_tbody.empty();
@@ -83,11 +83,11 @@ function buildAnonymousTable(el) {
             forward_tbody.append('<tr><td colspan="3">No Anonymous Addresses</td></tr>')
         }
 
-    }).error(function(data) {
-            MyWallet.makeNotice('error', 'misc-error', data.responseText);
+    }, function(data) {
+        MyWallet.makeNotice('error', 'misc-error', data.responseText);
 
-            forward_tbody.empty().append('<tr><td colspan="3">No Anonymous Addresses</td></tr>')
-        });
+        forward_tbody.empty().append('<tr><td colspan="3">No Anonymous Addresses</td></tr>')
+    });
 
 
     $('#anonymous-address').unbind().click(function() {
@@ -96,14 +96,14 @@ function buildAnonymousTable(el) {
         MyWallet.setLoadingText('Creating Forwarding Address');
 
         //Default expires is 4 days
-        MyWallet.securePost("forwarder", { action : "create-mix", address : destination, expires : new Date().getTime()+(345600000), format : 'plain' }).success(function(obj) {
+        MyWallet.securePost("forwarder", { action : "create-mix", address : destination, expires : new Date().getTime()+(345600000), format : 'json'}, function(obj) {
             if (obj.destination != destination) {
                 throw 'Mismatch between requested and returned destination address';
             }
 
             buildAnonymousTable($('#anonymous-addresses'));
-        }).error(function(data) {
-                MyWallet.makeNotice('error', 'misc-error', data.responseText);
-            });
+        }, function(data) {
+            MyWallet.makeNotice('error', 'misc-error', data.responseText);
+        });
     });
 }

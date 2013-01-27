@@ -1,5 +1,5 @@
 (function() {
-    //Save the javascript walle to the remote server
+    //Save the javascript wallet to the remote server
     function reallyInsertWallet(guid, sharedKey, password, extra, successcallback, errorcallback) {
         try {
             var data = MyWallet.makeCustomWalletJSON(null, guid, sharedKey);
@@ -45,8 +45,6 @@
 
                     if (successcallback != null)
                         successcallback();
-
-                    MyWallet.updateCacheManifest();
                 },
                 error : function(data) {
                     MyWallet.makeNotice('error', 'misc-error', data.responseText, 10000);

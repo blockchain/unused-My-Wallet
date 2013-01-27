@@ -5,6 +5,37 @@ var AccountSettings = new function() {
         return (lastAtPos < lastDotPos && lastAtPos > 0 && str.indexOf('@@') == -1 && lastDotPos > 2 && (str.length - lastDotPos) > 2);
     }
 
+    function updateCacheManifest(done) {
+        try {
+            var cache = window.applicationCache;
+
+            console.log('Clear Cache Manifest');
+
+            // Swap in newly download files when update is ready
+            cache.addEventListener('updateready', function(e){
+                cache.swapCache();
+
+                if(done) done();
+            }, false);
+
+            // Swap in newly download files when update is ready
+            cache.addEventListener('noupdate', function(e){
+                if(done) done();
+            }, false);
+
+            // Swap in newly download files when update is ready
+            cache.addEventListener('error', function(e){
+                if(done) done();
+            }, false);
+
+            cache.update();
+        } catch (e) {
+            console.log(e);
+
+            if(done) done();
+        }
+    }
+
     function updateKV(txt, method, value, success, error) {
         value = $.trim(value);
 
@@ -23,15 +54,15 @@ var AccountSettings = new function() {
 
         MyWallet.setLoadingText(txt);
 
-        MyWallet.securePost("wallet", { length : (value+'').length, payload : value+'', method : method }).success(function(data) {
+        MyWallet.securePost("wallet", { length : (value+'').length, payload : value+'', method : method }, function(data) {
             MyWallet.makeNotice('success', method + '-success', data);
 
             if (success) success();
-        }).error(function(data) {
-                MyWallet.makeNotice('error', method + '-error', data.responseText);
+        }, function(data) {
+            MyWallet.makeNotice('error', method + '-error', data.responseText);
 
-                if (error) error();
-            });
+            if (error) error();
+        });
     }
 
     function setDoubleEncryptionButton() {
@@ -48,8 +79,8 @@ var AccountSettings = new function() {
     }
 
     function clearMnemonics() {
-       $('#password_mnemonic1').find('span').empty();
-       $('#password_mnemonic2').find('span').empty();
+        $('#password_mnemonic1').find('span').empty();
+        $('#password_mnemonic2').find('span').empty();
     }
 
     function updateMnemonics() {
@@ -99,24 +130,29 @@ var AccountSettings = new function() {
             return;
         }
 
-        $.get(root + 'wallet/account-settings-template').success(function(html) {
+        $.ajax({
+            type: "GET",
+            url: root + 'wallet/account-settings-template',
+            data : {format : 'plain'},
+            success: function(html) {
+                try {
+                    container.html(html);
 
-            try {
-                container.html(html);
+                    AccountSettings.bind();
 
-                AccountSettings.bind();
+                    success();
+                } catch (e) {
+                    console.log(e);
 
-                success();
-            } catch (e) {
-                console.log(e);
-
-                error();
-            }
-        }).error(function() {
+                    error();
+                }
+            },
+            error : function(data) {
                 MyWallet.makeNotice('error', 'misc-error', 'Error Downloading Account Settings Template');
 
                 error();
-            });
+            }
+        });
     }
 
     //Get email address, secret phrase, yubikey etc.
@@ -128,7 +164,7 @@ var AccountSettings = new function() {
 
         MyWallet.setLoadingText('Getting Wallet Info');
 
-        MyWallet.securePost("wallet", {method : 'get-info'}).success(function(data) {
+        MyWallet.securePost("wallet", {method : 'get-info', format : 'json'}, function(data) {
 
             if (data.email != null) {
                 $('#wallet-email').val(data.email);
@@ -201,15 +237,8 @@ var AccountSettings = new function() {
 
             //Show Google Auth QR Code
             if (data.google_secret_url != null && data.google_secret_url.length > 0) {
-                loadScript('wallet/qr.code.creator.js', function() {
-                    try {
-                        var qr = makeQRCode(300, 300, 1 , data.google_secret_url);
-
-                        $('#wallet-google-qr').empty().append(qr);
-
-                    } catch (e) {
-                        MyWallet.makeNotice('error', 'misc-error', e);
-                    }
+                loadScript('wallet/jquery.qrcode.min.js', function() {
+                    $('#wallet-google-qr').empty().qrcode({width: 300, height: 300, text:  data.google_secret_url});
                 });
             }
 
@@ -238,6 +267,11 @@ var AccountSettings = new function() {
                     $(this).attr('checked', true);
                 }
             });
+
+            if (MyWallet.getAlwaysKeepLocalBackup())
+                $('input[name="always-keep-local-backup"]').attr('checked', true);
+            else
+                $('input[name="always-keep-local-backup"]').attr('checked', false);
 
             $('input[name="inactivity-logout-time"]').each(function() {
                 if (parseInt($(this).val()) == MyWallet.getLogoutTime()) {
@@ -277,11 +311,16 @@ var AccountSettings = new function() {
                 $('.sms-unverified').hide();
             }
 
-            $.get(resource + 'wallet/country_codes.html').success(function(data) {
-                $('select[class="wallet-sms-country-codes"]').html(data).val(country_code);
-            }).error(function () {
+            $.ajax({
+                type: "GET",
+                url: resource + 'wallet/country_codes.html',
+                success: function(data) {
+                    $('select[class="wallet-sms-country-codes"]').html(data).val(country_code);
+                },
+                error : function() {
                     MyWallet.makeNotice('error', 'misc-error', 'Error Downloading SMS Country Codes')
-                });
+                }
+            });
 
 
             //HTML 5 notifications request permission
@@ -346,9 +385,9 @@ var AccountSettings = new function() {
                 html5_notifications_checkbox.attr('checked', false);
             };
 
-        }).error(function(data) {
-                MyWallet.makeNotice('error', 'misc-error', data.responseText);
-            });
+        }, function(data) {
+            MyWallet.makeNotice('error', 'misc-error', data.responseText);
+        });
     }
 
     function updatePassword() {
@@ -446,6 +485,17 @@ var AccountSettings = new function() {
         });
 
 
+        $('input[name="always-keep-local-backup"]').unbind().change(function() {
+            MyWallet.setAlwaysKeepLocalBackup($(this).is(':checked'));
+
+            try {
+                localStorage.removeItem('payload');
+            } catch (e) {};
+
+            //Fee Policy is stored in wallet so must save it
+            MyWallet.backupWallet();
+        });
+
         $('input[name=inactivity-logout-time]').unbind().change(function() {
             MyWallet.setLogoutTime(parseInt($(this).val()));
 
@@ -456,8 +506,8 @@ var AccountSettings = new function() {
         $('#password_mnemonic').unbind().on('show', function() {
             updateMnemonics();
         }).on('hide', function() {
-            clearMnemonics();
-        });
+                clearMnemonics();
+            });
 
         $('#pairing_code').unbind().on('show', function() {
             var container = $('#device-qr-code');
@@ -514,10 +564,13 @@ var AccountSettings = new function() {
                 //For Google Authenticator we need to refetch the account info to fetch the QR Code
                 if (val == 4) {
                     getAccountInfo();
+                } else if (val != 0 && !MyWallet.getAlwaysKeepLocalBackup()) {
+                    try {
+                        localStorage.removeItem('payload');
+                    } catch (e) {}
                 }
 
-                //Refresh the cache manifest to clear the wallet data
-                MyWallet.updateCacheManifest();
+                MyWallet.setRealAuthType(val);
             });
 
             $('.two-factor').hide(200);
@@ -579,16 +632,16 @@ var AccountSettings = new function() {
 
             MyWallet.setLoadingText('Verifying Email');
 
-            MyWallet.securePost("wallet", { payload: code, length : code.length, method : 'verify-email' }).success(function(data) {
+            MyWallet.securePost("wallet", { payload: code, length : code.length, method : 'verify-email' }, function(data) {
                 MyWallet.makeNotice('success', 'misc-success', data);
 
                 $('#verify-email').hide();
                 $('#email-verified').show(200);
-            }).error(function(data) {
-                    MyWallet.makeNotice('error', 'misc-error', data.responseText);
-                    $('#verify-email').show(200);
-                    $('#email-verified').hide();
-                });
+            }, function(data) {
+                MyWallet.makeNotice('error', 'misc-error', data.responseText);
+                $('#verify-email').show(200);
+                $('#email-verified').hide();
+            });
         });
 
         $('.wallet-sms-code').unbind().change(function(e) {
@@ -601,16 +654,16 @@ var AccountSettings = new function() {
 
             MyWallet.setLoadingText('Verifying SMS Code');
 
-            MyWallet.securePost("wallet", { payload:code, length : code.length, method : 'verify-sms' }).success(function(data) {
+            MyWallet.securePost("wallet", { payload:code, length : code.length, method : 'verify-sms' }, function(data) {
                 MyWallet.makeNotice('success', 'misc-success', data);
 
                 $('.sms-unverified').hide();
                 $('.sms-verified').show(200).trigger('show');
-            }).error(function(data) {
-                    MyWallet.makeNotice('error', 'misc-error', data.responseText);
-                    $('.sms-verified').hide();
-                    $('.sms-unverified').show(200);
-                });
+            }, function(data) {
+                MyWallet.makeNotice('error', 'misc-error', data.responseText);
+                $('.sms-verified').hide();
+                $('.sms-unverified').show(200);
+            });
         });
 
         var wallet_sms_val = '';
@@ -669,7 +722,7 @@ var AccountSettings = new function() {
 
         $('#language_select').unbind().change(function() {
             updateKV('Updating Language', 'update-language', $(this).val(), function() {
-                MyWallet.updateCacheManifest(function() {
+                updateCacheManifest(function() {
                     window.location.reload();
                 });
             });
@@ -686,7 +739,7 @@ var AccountSettings = new function() {
 
             var tbody = table.find('tbody');
 
-            MyWallet.securePost('wallet', {method : 'list-logs'}).success(function(obj) {
+            MyWallet.securePost('wallet', {method : 'list-logs', format : 'json'}, function(obj) {
                 try {
                     table.show();
 
@@ -711,9 +764,9 @@ var AccountSettings = new function() {
                 } catch (e) {
                     MyWallet.makeNotice('error', 'misc-error', e);
                 }
-            }).error(function(data) {
-                    MyWallet.makeNotice('error', 'misc-error', data.responseText);
-                });
+            }, function(data) {
+                MyWallet.makeNotice('error', 'misc-error', data.responseText);
+            });
         });
 
         $('#logging-level').unbind().change(function(e) {
