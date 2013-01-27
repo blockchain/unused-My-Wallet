@@ -835,6 +835,8 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
             } catch (e) {
                 pending_transaction.error(e);
             }
+        }, function() {
+            pending_transaction.error();
         });
     } catch (e) {
         pending_transaction.error(e);
