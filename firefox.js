@@ -1,5 +1,6 @@
 
 $(document).ready(function() {
+
     $.ajax = function(obj) {
         var requests = {};
         var initd = false;
@@ -15,7 +16,7 @@ $(document).ready(function() {
 
             obj.request_id = request_id;
 
-            document.body.setAttribute('data-ajax', JSON.stringify(obj));
+            document.body.setAttribute('data-ajax-request', JSON.stringify(obj));
 
             document.body.dispatchEvent(customEvent);
         }
@@ -24,7 +25,7 @@ $(document).ready(function() {
             document.body.addEventListener('ajax_response', function() {
                 console.log('Received Response');
 
-                var obj = JSON.parse(document.body.getAttribute('data-ajax'));
+                var obj = JSON.parse(document.body.getAttribute('data-ajax-response'));
 
                 var request = requests[obj.request_id];
                 if (!request)  {
@@ -41,6 +42,8 @@ $(document).ready(function() {
                 } else {
                     request.error({responseText : obj.response, status : obj.status});
                 }
+
+                delete requests[obj.request_id];
             });
 
             initd = true;
@@ -59,5 +62,5 @@ $(document).ready(function() {
     if (data_resource)
         resource = data_resource;
 
-    $.ajax({data : 'TEST'});
-})
+    $('head').append('<style type="text/css">.external { background: url('+resource+'external.png); }\n span.qrcodeicon span { background: url("'+resource+'qrcode.png"); };</style>');
+});

@@ -113,19 +113,19 @@ var AccountSettings = new function() {
         });
     }
 
-    this.bind = function() {
+    this.bind = function(success, error) {
         setDoubleEncryptionButton();
 
         bindAccountButtons();
 
-        getAccountInfo();
+        getAccountInfo(success, error);
     }
 
     this.init = function(container, success, error) {
         MyWallet.setLoadingText('Loading Account Settings');
 
         if (!container.is(':empty')) {
-            AccountSettings.bind();
+            AccountSettings.bind(success, error);
             success();
             return;
         }
@@ -138,7 +138,7 @@ var AccountSettings = new function() {
                 try {
                     container.html(html);
 
-                    AccountSettings.bind();
+                    AccountSettings.bind(success, error);
 
                     success();
                 } catch (e) {
@@ -156,7 +156,7 @@ var AccountSettings = new function() {
     }
 
     //Get email address, secret phrase, yubikey etc.
-    function getAccountInfo() {
+    function getAccountInfo(success, error) {
 
         $('a[data-toggle="tab"]').unbind().on('show', function(e) {
             $(e.target.hash).trigger('show');
@@ -386,7 +386,12 @@ var AccountSettings = new function() {
             };
 
         }, function(data) {
-            MyWallet.makeNotice('error', 'misc-error', data.responseText);
+            if (data.responseText)
+                MyWallet.makeNotice('error', 'misc-error', data.responseText);
+            else
+                MyWallet.makeNotice('error', 'misc-error', 'Error Downloading Account Settings');
+
+            if (error) error();
         });
     }
 

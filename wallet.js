@@ -29,11 +29,11 @@ var MyWallet = new function() {
     var pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
     var tx_notes = {};
     var real_auth_type = 0;
+    var auth_type;
     var logout_timeout;
     var event_listeners = []; //Emits Did decrypt wallet event (used on claim page)
     var last_input_main_password;
     var main_password_timeout = 60000;
-    var auth_type;
     var isInitialized = false;
 
     var wallet_options = {
@@ -2121,12 +2121,18 @@ var MyWallet = new function() {
             var local_guid = localStorage.getItem('guid');
         } catch(e) {}
 
+        var open_wallet_btn = $('#restore-wallet-continue');
+
+        open_wallet_btn.attr('disabled', true);
+
         $.ajax({
             type: "GET",
             dataType: 'json',
             url: root + 'wallet/'+guid_or_alias,
             data : {format : 'json', resend_code : resend_code},
             success: function(obj) {
+                open_wallet_btn.attr('disabled', false);
+
                 $('.auth-'+auth_type).hide();
 
                 guid = obj.guid;
@@ -2161,8 +2167,9 @@ var MyWallet = new function() {
                 } catch (e) { }
             },
             error : function(e) {
+                open_wallet_btn.attr('disabled', false);
 
-                if (local_guid == guid && encrypted_wallet_data) {
+                if (local_guid == guid_or_alias && encrypted_wallet_data) {
                     MyWallet.makeNotice('error', 'misc-error', 'Error Contacting Server. Using Local Wallet Cache.');
 
                     //Generate a new Checksum
@@ -3418,13 +3425,13 @@ var MyWallet = new function() {
 
             if (!guid || guid.length == 0)
                 guid = localStorage.getItem('guid');
-
-            if (guid && guid.length == 36) {
-                setTimeout(function(){
-                    MyWallet.setGUID(guid, false);
-                }, 10);
-            }
         } catch (e) {}
+
+        if (guid && guid.length == 36) {
+            setTimeout(function(){
+                MyWallet.setGUID(guid, false);
+            }, 10);
+        }
 
         //Frame break
         if (top.location!= self.location) {

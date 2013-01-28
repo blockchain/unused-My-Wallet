@@ -506,8 +506,16 @@ function loadScript(src, success, error) {
     s.type = "text/javascript";
     s.async = true;
     s.src = src;
-    s.addEventListener('error', function(e){ error_fired = true;  if (error) error('Error Loading Script. Are You Offline?'); }, false);
-    s.addEventListener('load', function (e) { if (error_fired) return; success(); }, false);
+    try {
+        s.addEventListener('error', function(e){ error_fired = true;  if (error) error('Error Loading Script. Are You Offline?'); }, false);
+        s.addEventListener('load', function (e) { if (!error_fired) success(); }, false);
+    } catch (e) {
+        //IE 7 & 8 Will throw an exception here
+        setTimeout(function() {
+            if (!error_fired) success();
+        }, 2000);
+    }
+
     var head = document.getElementsByTagName('head')[0];
     head.appendChild(s);
 }

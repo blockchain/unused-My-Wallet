@@ -30,7 +30,10 @@ function _BlockchainAPI() {
                 }
             },
             error : function(data) {
-                MyWallet.makeNotice('error', 'misc-error', data.responseText);
+                if (data.responseText)
+                    MyWallet.makeNotice('error', 'misc-error', data.responseText);
+                else
+                    MyWallet.makeNotice('error', 'misc-error', 'Error Downloading Wallet Balance');
 
                 error();
             }
