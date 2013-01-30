@@ -126,7 +126,7 @@ Script.prototype.simpleOutHash = function ()
         case 'Pubkey':
             return Bitcoin.Util.sha256ripe160(this.chunks[0]);
         default:
-            throw new Error("Encountered non-standard scriptPubKey " + this.getOutType());
+            throw new Error("Encountered non-standard scriptPubKey " + this.getOutType() + ' Hex: ' + Bitcoin.Util.bytesToHex(this.buffer));
     }
 };
 
@@ -295,7 +295,7 @@ Script.prototype.extractAddresses = function (addresses)
             }
             return this.chunks[0] - Opcode.map.OP_1 + 1;
         default:
-            throw new Error('ExtractAddresses Encountered non-standard scriptPubKey ' + this.getOutType());
+            throw new Error('ExtractAddresses Encountered non-standard scriptPubKey ' + this.getOutType()+ ' Hex: ' + Bitcoin.Util.bytesToHex(this.serialize()));
     }
 };
 

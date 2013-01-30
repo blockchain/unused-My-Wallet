@@ -313,6 +313,88 @@ var MyWallet = new function() {
         }
     }
 
+    this.unArchiveAddr = function(addr) {
+        var addr = addresses[addr];
+        if (addr.tag == 2) {
+            addr.tag = null;
+
+            buildVisibleView();
+
+            backupWalletDelayed('update', function() {
+                MyWallet.get_history();
+            });
+        } else {
+            MyWallet.makeNotice('error', 'add-error', 'Cannot Unarchive This Address');
+        }
+    }
+
+    this.archiveAddr = function(addr) {
+        if (MyWallet.getActiveAddresses().length <= 1) {
+            MyWallet.makeNotice('error', 'add-error', 'You must leave at least one active address');
+            return;
+        }
+
+        var addr = addresses[addr];
+        if (addr.tag == null || addr.tag == 0) {
+            addr.tag = 2;
+
+            buildVisibleView();
+
+            backupWalletDelayed('update', function() {
+                MyWallet.get_history();
+            });
+
+        } else {
+            MyWallet.makeNotice('error', 'add-error', 'Cannot Archive This Address');
+        }
+    }
+    this.addWatchOnlyAddress = function(address) {
+        return internalAddKey(address);
+    }
+
+    this.addPrivateKey = function(key, compressed) {
+        if (walletIsFull())
+            return false;
+
+        if (key == null) {
+            throw 'Unable to generate a new bitcoin address.';
+        }
+
+        if (compressed)
+            var addr = key.getBitcoinAddressCompressed();
+        else
+            var addr = key.getBitcoinAddress();
+
+        if (addr == null) {
+            throw 'Generated invalid bitcoin address.';
+        }
+
+        if (internalAddKey(addr.toString(), encodePK(key.priv))) {
+            addresses[addr].tag = 1; //Mark as unsynced
+
+            //Subscribe to transaction updates through websockets
+            try {
+                ws.send('{"op":"addr_sub", "addr":"'+addr+'"}');
+            } catch (e) { }
+        } else {
+            throw 'Unable to add generated bitcoin address.';
+        }
+
+        return addr;
+    }
+
+    this.generateNewKey = function() {
+        var key = new Bitcoin.ECKey(false);
+
+        if (MyWallet.addPrivateKey(key)) {
+            return key;
+        }
+    }
+
+    this.setLoadingText = function(txt) {
+        $('.loading-text').text(txt);
+    }
+
     function hidePopovers() {
         try {
             $('.popover').remove();
@@ -324,10 +406,6 @@ var MyWallet = new function() {
 
         hidePopovers();
     });
-
-    this.setLoadingText = function(txt) {
-        $('.loading-text').text(txt);
-    }
 
     function bindTx(tx_tr, tx) {
         tx_tr.click(function(){
@@ -3411,6 +3489,9 @@ var MyWallet = new function() {
             return;
         }
 
+        //Disable auotcomplete in firefox
+        $("input,button,select").attr("autocomplete","off");
+
         var body = $(document.body);
 
         //Load data attributes from html
@@ -3437,9 +3518,6 @@ var MyWallet = new function() {
         if (top.location!= self.location) {
             top.location = self.location.href
         }
-
-        //Disable auotcomplete in firefox
-        $("input,button,select").attr("autocomplete","off");
 
         body.ajaxStart(function() {
             setLogoutImageStatus('loading_start');
@@ -3504,88 +3582,9 @@ var MyWallet = new function() {
             });
     });
 
-    this.unArchiveAddr = function(addr) {
-        var addr = addresses[addr];
-        if (addr.tag == 2) {
-            addr.tag = null;
-
-            buildVisibleView();
-
-            backupWalletDelayed('update', function() {
-                MyWallet.get_history();
-            });
-        } else {
-            MyWallet.makeNotice('error', 'add-error', 'Cannot Unarchive This Address');
-        }
-    }
-
-    this.archiveAddr = function(addr) {
-        if (MyWallet.getActiveAddresses().length <= 1) {
-            MyWallet.makeNotice('error', 'add-error', 'You must leave at least one active address');
-            return;
-        }
-
-        var addr = addresses[addr];
-        if (addr.tag == null || addr.tag == 0) {
-            addr.tag = 2;
-
-            buildVisibleView();
-
-            backupWalletDelayed('update', function() {
-                MyWallet.get_history();
-            });
-
-        } else {
-            MyWallet.makeNotice('error', 'add-error', 'Cannot Archive This Address');
-        }
-    }
-
     function buildReceiveCoinsView() {
         $('#receive-coins').find('.tab-pane.active').trigger('show');
 
         setupToggle();
-    }
-
-    this.addWatchOnlyAddress = function(address) {
-        return internalAddKey(address);
-    }
-
-    this.addPrivateKey = function(key, compressed) {
-        if (walletIsFull())
-            return false;
-
-        if (key == null) {
-            throw 'Unable to generate a new bitcoin address.';
-        }
-
-        if (compressed)
-            var addr = key.getBitcoinAddressCompressed();
-        else
-            var addr = key.getBitcoinAddress();
-
-        if (addr == null) {
-            throw 'Generated invalid bitcoin address.';
-        }
-
-        if (internalAddKey(addr.toString(), encodePK(key.priv))) {
-            addresses[addr].tag = 1; //Mark as unsynced
-
-            //Subscribe to transaction updates through websockets
-            try {
-                ws.send('{"op":"addr_sub", "addr":"'+addr+'"}');
-            } catch (e) { }
-        } else {
-            throw 'Unable to add generated bitcoin address.';
-        }
-
-        return addr;
-    }
-
-    this.generateNewKey = function() {
-        var key = new Bitcoin.ECKey(false);
-
-        if (MyWallet.addPrivateKey(key)) {
-            return key;
-        }
     }
 };

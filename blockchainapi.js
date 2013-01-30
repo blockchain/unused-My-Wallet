@@ -1,4 +1,4 @@
-function _BlockchainAPI() {
+var BlockchainAPI = new function() {
     var BlockchainAPI = this;
 
     this.get_history = function(success, error, tx_filter, tx_page) {
@@ -30,6 +30,7 @@ function _BlockchainAPI() {
                 }
             },
             error : function(data) {
+
                 if (data.responseText)
                     MyWallet.makeNotice('error', 'misc-error', data.responseText);
                 else
@@ -314,5 +315,3 @@ function _BlockchainAPI() {
         });
     }
 }
-
-var BlockchainAPI = new _BlockchainAPI();

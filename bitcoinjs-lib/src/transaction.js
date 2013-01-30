@@ -215,6 +215,24 @@
         return newTx;
     };
 
+    Transaction.prototype.addOutputScript = function (script, value) {
+        if (arguments[0] instanceof TransactionOut) {
+            this.outs.push(arguments[0]);
+        } else {
+            if (value instanceof BigInteger) {
+                value = value.toByteArrayUnsigned().reverse();
+                while (value.length < 8) value.push(0);
+            } else if (Bitcoin.Util.isArray(value)) {
+                // Nothing to do
+            }
+
+            this.outs.push(new TransactionOut({
+                value: value,
+                script: script
+            }));
+        }
+    };
+
     /**
      * Analyze how this transaction affects a wallet.
      *

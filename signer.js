@@ -35,11 +35,12 @@ try {
 //Init WebWoker
 //Window is not defined in WebWorker
     if (typeof window == "undefined" || !window) {
-        importScripts('/Resources/wallet/bitcoinjs.min.js');
-
         self.addEventListener('message', function(e) {
             var data = e.data;
             switch (data.cmd) {
+                case 'load_resource':
+                    importScripts(data.path);
+                    break;
                 case 'sign_input':
                     try {
                         var tx = new Bitcoin.Transaction(data.tx);
@@ -63,26 +64,6 @@ try {
         }, false);
     }
 } catch (e) { }
-
-Bitcoin.Transaction.prototype.addOutputScript = function (script, value) {
-    if (arguments[0] instanceof Bitcoin.TransactionOut) {
-        this.outs.push(arguments[0]);
-    } else {
-        if (value instanceof BigInteger) {
-            value = value.toByteArrayUnsigned().reverse();
-            while (value.length < 8) value.push(0);
-        } else if (Bitcoin.Util.isArray(value)) {
-            // Nothing to do
-        }
-
-        this.outs.push(new Bitcoin.TransactionOut({
-            value: value,
-            script: script
-        }));
-    }
-};
-
-
 
 function showPrivateKeyModal(success, error, addr) {
 
@@ -867,6 +848,7 @@ function readUInt32(buffer) {
     return new BigInteger(buffer.splice(0, 4).reverse()).intValue();
 }
 
+/*
 Bitcoin.Transaction.deserialize = function (buffer)
 {
     var tx = new Bitcoin.Transaction();
@@ -906,7 +888,7 @@ Bitcoin.Transaction.deserialize = function (buffer)
     tx.lock_time = readUInt32(buffer);
 
     return tx;
-};
+};   */
 
 function signInput(tx, inputN, base58Key, connected_script) {
 
@@ -937,7 +919,6 @@ function signInput(tx, inputN, base58Key, connected_script) {
     signature.push(hashType);
 
     var script;
-
     if (compressed)
         script = Bitcoin.Script.createInputScript(signature, key.getPubCompressed());
     else
@@ -1153,6 +1134,10 @@ function initNewTx() {
                             var script;
                             try {
                                 script = new Bitcoin.Script(Crypto.util.hexToBytes(obj.unspent_outputs[i].script));
+
+                                if (script.getOutType() == 'Strange')
+                                    throw 'Strange Script';
+
                             } catch(e) {
                                 MyWallet.makeNotice('error', 'misc-error', 'Error decoding script: ' + e); //Not a fatal error
                                 continue;
@@ -1420,6 +1405,7 @@ function initNewTx() {
             yes();
         },
         determinePrivateKeys: function(success) {
+
             var self = this;
 
             try {
@@ -1488,7 +1474,12 @@ function initNewTx() {
                 self.error(e);
             }
         },
-        signWebWorker : function(success, error) {
+        signWebWorker : function(success, _error) {
+            var didError = false;
+            var error = function(e) {
+                if (!didError) { _error(e); didError = true; }
+            }
+
             try {
                 var self = this;
                 var nSigned = 0;
@@ -1496,7 +1487,7 @@ function initNewTx() {
 
                 self.worker = [];
                 for (var i = 0; i < nWorkers; ++i)  {
-                    self.worker[i] =  new Worker('/Resources/wallet/signer.min.js');
+                    self.worker[i] =  new Worker(resource + 'wallet/signer.min.js');
 
                     self.worker[i].addEventListener('message', function(e) {
                         var data = e.data;
@@ -1506,7 +1497,7 @@ function initNewTx() {
                                 case 'on_sign':
                                     self.invoke('on_sign_progress', parseInt(data.outputN)+1);
 
-                                    self.tx.ins[data.outputN].script  = new Bitcoin.Script(data.script);
+                                    self.tx.ins[data.outputN].script = new Bitcoin.Script(data.script);
 
                                     ++nSigned;
 
@@ -1516,23 +1507,30 @@ function initNewTx() {
                                     }
 
                                     break;
+                                case 'on_message': {
+                                    console.log(data.message);
+                                    break;
+                                }
                                 case 'on_error': {
                                     throw data.e;
                                 }
                             };
                         } catch (e) {
                             self.terminateWorkers();
-                            self.error(e);
+                            error(e);
                         }
                     }, false);
 
                     self.worker[i].addEventListener('error', function(e) {
                         error(e);
                     });
+
+                    self.worker[i].postMessage({cmd : 'load_resource' , path : resource + 'wallet/bitcoinjs.min.js'});
                 }
 
                 for (var outputN in self.selected_outputs) {
                     var connected_script = self.selected_outputs[outputN].script;
+
                     self.worker[outputN % nWorkers].postMessage({cmd : 'sign_input', tx : self.tx, outputN : outputN, priv_to_use : connected_script.priv_to_use, connected_script : connected_script});
                 }
             } catch (e) {
@@ -1560,7 +1558,7 @@ function initNewTx() {
                         if (signed_script) {
                             self.tx.ins[outputN].script = signed_script;
 
-                            ++outputN;
+                            outputN++;
 
                             if (outputN == self.tx.ins.length) {
                                 success();
@@ -1594,6 +1592,7 @@ function initNewTx() {
 
                 self.signWebWorker(success, function(e) {
                     console.log(e);
+
                     self.signNormal(success, function(e){
                         self.error(e);
                     });

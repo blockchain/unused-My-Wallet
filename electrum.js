@@ -1,4 +1,4 @@
-var default_servers = ['ecdsa.org'];
+var default_servers = ['localhost','ecdsa.org'];
 
 var JSONRPCoverHTTP = (function (host, port) {
     var polling_interval = 5000,     // interval at which to poll
@@ -187,10 +187,19 @@ var JSONRPCoverHTTP = (function (host, port) {
 var ElectrumAPI = {
     rpc: JSONRPCoverHTTP(default_servers[0]),
     get_history : function () {
-        this.rpc.send([["blockchain.address.get_history", [getActiveAddresses()]]], function(response) {
+        this.rpc.send([["blockchain.address.get_history", [MyWallet.getActiveAddresses()]]], function(response) {
             console.log(response);
         }, function(response) {
             console.log(response);
         });
     }
 }
+
+console.log('Load Electrum');
+
+BlockchainAPI.get_history = function(success, error, tx_filter, tx_page) {
+    console.log('Get History');
+
+    ElectrumAPI.get_history();
+}
+
