@@ -152,13 +152,17 @@ var BlockchainAPI = new function() {
             if (transactions.length > 0)
                 var first_tx_index = transactions[0].txIndex;
 
+            var s = tx.serialize();
+
+            var tx_hash = Crypto.util.bytesToHex(Crypto.SHA256(Crypto.SHA256(s, {asBytes: true}), {asBytes: true}).reverse());
+
             function did_push() {
                 success(); //Call success to enable send button again
 
                 function call_history() {
                     MyWallet.get_history(function() {
                         if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
-                            BlockchainAPI.get_rejection_reason(Crypto.util.bytesToHex(tx.getHash().reverse()), function(reason) {
+                            BlockchainAPI.get_rejection_reason(tx_hash, function(reason) {
                                 MyWallet.makeNotice('error', 'tx-error', reason);
                             }, function() {
                                 MyWallet.makeNotice('error', 'tx-error', 'Unknown Error Pushing Transaction');
@@ -183,14 +187,13 @@ var BlockchainAPI = new function() {
                 }
             };
 
-            var s = tx.serialize();
-
             function push_normal() {
                 var hex = Crypto.util.bytesToHex(s);
 
                 var post_data = {
                     format : "plain",
-                    tx: hex
+                    tx: hex,
+                    hash : tx_hash
                 };
 
                 if (note) {
@@ -231,6 +234,7 @@ var BlockchainAPI = new function() {
                 }
 
                 fd.append('format', 'plain');
+                fd.append('hash', tx_hash);
 
                 $.ajax({
                     url: root + 'pushtx',
@@ -241,8 +245,12 @@ var BlockchainAPI = new function() {
                     success: function(){
                         did_push();
                     },
-                    error : function(data) {
-                        push_normal();
+                    error : function(e) {
+                        if (!e.responseText || e.responseText.indexOf('Parse:') == 0) {
+                            push_normal();
+                        } else {
+                            error(e ? e.responseText : null);
+                        }
                     }
                 });
 
