@@ -1351,7 +1351,7 @@ var MyWallet = new function() {
             window.open('https://twitter.com/share?url=https://blockchain.info/wallet&hashtags=tweet4btc,bitcoin,'+preferred+'&text=Sign Up For a Free Bitcoin Wallet @ Blockchain.info', "", "toolbar=0, status=0, width=650, height=360");
         });
 
-        if (MyWallet.isWatchOnly(preferred) == null) {
+        if (MyWallet.isWatchOnly(preferred)) {
             $('.no-watch-only').hide();
         } else {
             $('.no-watch-only').show();
@@ -1361,7 +1361,7 @@ var MyWallet = new function() {
                 primary_address.text(preferred);
 
                 loadScript('wallet/jquery.qrcode.min.js', function() {
-                    $('#my-primary-addres-qr-code').qrcode({width: 125, height: 125, text: preferred})
+                    $('#my-primary-addres-qr-code').empty().qrcode({width: 125, height: 125, text: preferred})
                 });
             }
         }
