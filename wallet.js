@@ -2521,17 +2521,22 @@ var MyWallet = new function() {
     }
 
     this.logout = function() {
-        $.ajax({
-            type: "GET",
-            url: root + 'wallet/logout',
-            data : {format : 'plain'},
-            success: function(data) {
-                window.location.reload();
-            },
-            error : function() {
-                window.location.reload();
-            }
-        });
+
+        if (guid == demo_guid) {
+            window.location = root + 'wallet/logout';
+        } else {
+            $.ajax({
+                type: "GET",
+                url: root + 'wallet/logout',
+                data : {format : 'plain'},
+                success: function(data) {
+                    window.location.reload();
+                },
+                error : function() {
+                    window.location.reload();
+                }
+            });
+        }
     }
 
     function deleteAddresses(addrs) {

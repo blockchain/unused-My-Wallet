@@ -437,8 +437,14 @@ var AccountSettings = new function() {
     }
 
 
-    function setDoubleEncryption(on_off) {
 
+    function setDoubleEncryptionOff() {
+        MyWallet.setDoubleEncryption(false, null, function() {
+            setDoubleEncryptionButton();
+        });
+    }
+
+    function setDoubleEncryptionOn() {
         var tpassword =  $('#double-password').val();
         var tpassword2 = $('#double-password2').val();
 
@@ -457,7 +463,7 @@ var AccountSettings = new function() {
             return;
         }
 
-        MyWallet.setDoubleEncryption(on_off, tpassword, function() {
+        MyWallet.setDoubleEncryption(true, tpassword, function() {
             setDoubleEncryptionButton();
         });
 
@@ -617,14 +623,14 @@ var AccountSettings = new function() {
         $('#wallet-double-encryption-enable').unbind().click(function(e) {
             collapseAll();
 
-            setDoubleEncryption(true);
+            setDoubleEncryptionOn();
         });
 
         $('#wallet-double-encryption-disable').unbind().click(function(e) {
             collapseAll();
 
 
-            setDoubleEncryption(false);
+            setDoubleEncryptionOff();
         });
 
         $('#wallet-email-code').unbind().change(function(e) {
