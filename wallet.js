@@ -2203,6 +2203,8 @@ var MyWallet = new function() {
 
         open_wallet_btn.attr('disabled', true);
 
+
+
         $.ajax({
             type: "GET",
             dataType: 'json',
@@ -2226,6 +2228,14 @@ var MyWallet = new function() {
                 $('#restore-guid').val(guid);
 
                 $('.auth-'+auth_type).show();
+
+                $('#forgot-password-btn').attr('disabled', false).click(function() {
+                    window.location = root + 'wallet/forgot-password?guid='+guid
+                });
+
+                $('#reset-two-factor-btn').attr('disabled', false).show().click(function() {
+                    window.location = root + 'wallet/reset-two-factor?guid='+guid
+                });
 
                 if (obj.initial_error)
                     MyWallet.makeNotice('error', 'misc-error', obj.initial_error);
@@ -3026,12 +3036,16 @@ var MyWallet = new function() {
         $('.deposit-btn').click(function() {
             var self = $(this);
             var address = MyWallet.getPreferredAddress();
+
+            var extra = self.data('extra');
+            if (extra == null) extra = '';
+
             loadScript('wallet/frame-modal.js', function() {
                 showFrameModal({
                     title : self.data('title'),
                     description : 'Deposit into address <b>'+address+'</b>',
                     top_right : 'Have Questions? Read <a href="'+self.data('link')+'" target="new">How It Works</a>',
-                    src : root + 'deposit?address='+address+'&ptype='+self.data('type')+'&guid='+guid+'&sharedKey='+sharedKey
+                    src : root + 'deposit?address='+address+'&ptype='+self.data('type')+'&guid='+guid+'&sharedKey='+sharedKey+extra
                 });
             });
         });
@@ -3321,6 +3335,7 @@ var MyWallet = new function() {
         $('.resend-code').click(function() {
             MyWallet.setGUID(guid, true);
         });
+
 
         $('.download-backup-btn').toggle(encrypted_wallet_data != null).click(function() {
             $(this).attr('download', "wallet.aes.json");
