@@ -2150,9 +2150,21 @@ var MyWallet = new function() {
             console.log(e);
         }
 
+        //Othwise try the old default settings
+        try {
+            var decoded = Crypto.AES.decrypt(data, password);
+
+            if (decoded != null && decoded.length > 0) {
+                if (success(decoded)) {
+                    return decoded;
+                };
+            };
+        } catch (e) {
+            console.log(e);
+        }
+
         //OFB iso7816 padding with one iteration
         try {
-            //Othwise try the old default settings
             var decoded = Crypto.AES.decrypt(data, password, {mode: new Crypto.mode.OFB(Crypto.pad.iso7816), iterations : 1});
 
             if (decoded != null && decoded.length > 0) {
