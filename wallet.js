@@ -1586,7 +1586,7 @@ var MyWallet = new function() {
         for (var key in addresses) {
             var addr = addresses[key];
             if (addr.tag == 1) { //Don't fetch a new wallet if we have any keys which are marked un-synced
-                alert('Warning! wallet data may have changed but cannot sync as you have uns-saved keys');
+                alert('Warning! wallet data may have changed but cannot sync as you have un-saved keys');
                 return;
             }
         }
@@ -2086,7 +2086,19 @@ var MyWallet = new function() {
                         successcallback();
                 },
                 error : function(data) {
-                    MyWallet.makeNotice('error', 'misc-error', data.responseText, 10000);
+
+                    for (var key in addresses) {
+                        var addr = addresses[key];
+                        if (addr.tag == 1) {
+                            $('#not-synced-warning-modal').modal('show');
+                            break;
+                        }
+                    }
+
+                    if (data.responseText == null)
+                        MyWallet.makeNotice('error', 'misc-error', 'Error Saving Wallet', 10000);
+                    else
+                        MyWallet.makeNotice('error', 'misc-error', data.responseText, 10000);
 
                     buildVisibleView();
 
