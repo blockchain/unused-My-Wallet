@@ -3115,11 +3115,11 @@ var MyWallet = new function() {
 
                     MyWallet.makeNotice('info', 'new-address', 'Generated new Bitcoin Address ' + address);
 
-                    loadScript('wallet/address_modal.min.js', function() {
-                        showLabelAddressModal(address);
+                    MyWallet.backupWallet('update', function() {
+                        loadScript('wallet/address_modal.min.js', function() {
+                            showLabelAddressModal(address);
+                        });
                     });
-
-                    MyWallet.backupWallet();
                 });
             } catch (e) {
                 MyWallet.makeNotice('error', 'misc-error', e);
