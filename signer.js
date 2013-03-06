@@ -196,8 +196,10 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                 type = 'custom';
                 custom_ask_for_fee = false;
             }
-        } else if ( type == 'anonymous' && total_value < 0.5) {
+        } else if (type == 'anonymous' && total_value < 0.5) {
             throw 'The Minimum Amount You Can Send Anonymously is 0.5 BTC';
+        } else if (type == 'anonymous' && total_value > 500) {
+            throw 'The Maximum Amount You Can Send Anonymously is 500 BTC';
         }
 
         if (MyWallet.getMixerFee() < 0 && (type == 'custom' || type == 'quick') && total_value >= 5 && getCookie('anonymous-never-ask') != 'true' && !dont_ask_for_anon) {
