@@ -15,7 +15,7 @@ $(document).ready(function() {
             type: "POST",
             url: root + "forwarder",
             dataType: 'json',
-            data : { action : "create-mix", address : address},
+            data : { action : "create-mix", address : address, shared : true},
             success: function(obj) {
                 button.text('Create New Forwarding Address').attr('disabled', false);
 

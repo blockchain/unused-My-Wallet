@@ -196,17 +196,17 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                 type = 'custom';
                 custom_ask_for_fee = false;
             }
-        } else if (type == 'anonymous' && total_value < 0.5) {
-            throw 'The Minimum Amount You Can Send Anonymously is 0.5 BTC';
-        } else if (type == 'anonymous' && total_value > 500) {
-            throw 'The Maximum Amount You Can Send Anonymously is 500 BTC';
+        } else if (type == 'shared' && total_value < 0.2) {
+            throw 'The Minimum Amount You Can Send Shared is 0.2 BTC';
+        } else if (type == 'shared' && total_value > 250) {
+            throw 'The Maximum Amount You Can Send Shared is 250 BTC';
         }
 
-        if (MyWallet.getMixerFee() < 0 && (type == 'custom' || type == 'quick') && total_value >= 5 && getCookie('anonymous-never-ask') != 'true' && !dont_ask_for_anon) {
+        if (MyWallet.getMixerFee() < 0 && (type == 'custom' || type == 'quick') && total_value >= 5 && getCookie('shared-never-ask') != 'true' && !dont_ask_for_anon) {
 
-            var last_accepted_time = getCookie('anonymous-accepted-time');
+            var last_accepted_time = getCookie('shared-accepted-time');
             if (!last_accepted_time || parseInt(last_accepted_time) < new Date().getTime()-43200000) {
-                var modal = $('#ask-for-anonymous');
+                var modal = $('#ask-for-shared');
 
                 modal.find('.bonus-percent').text(- MyWallet.getMixerFee());
                 modal.find('.bonus-value').text((total_value / 100) * - MyWallet.getMixerFee());
@@ -228,12 +228,12 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                 });
 
                 modal.find('.btn.btn-primary').unbind().click(function() {
-                    var anon_pending = startTxUI(el, 'anonymous', pending_transaction);
+                    var anon_pending = startTxUI(el, 'shared', pending_transaction);
 
                     anon_pending.addListener({
                         on_success : function() {
                             //Set a cookie to not ask again within 12 hours
-                            SetCookie('anonymous-accepted-time', new Date().getTime());
+                            SetCookie('shared-accepted-time', new Date().getTime());
                         }
                     });
 
@@ -251,7 +251,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
         }
 
         var listener = {};
-        if (type == 'custom' || type == 'anonymous') {
+        if (type == 'custom' || type == 'shared') {
             var listener = {
                 on_error : function(e) {
                     if (this.modal)
@@ -485,7 +485,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                     from_name = data.email
 
                                 if (from_name == null)
-                                    from_name = 'Anonymous'
+                                    from_name = 'Shared'
 
                                 modal.find('.amount').text(formatBTC(self.email_data.amount.toString()));
 
@@ -683,14 +683,14 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                                 var address = resolveAddress(send_to_address);
 
-                                if (type == 'anonymous') {
+                                if (type == 'shared') {
                                     if (!address) {
                                         throw 'Invalid Bitcoin Address';
                                     }
 
                                     MyWallet.setLoadingText('Creating Forwarding Address');
 
-                                    MyWallet.securePost("forwarder", { action : "create-mix", address : address, format : 'json'}, function(obj) {
+                                    MyWallet.securePost("forwarder", { action : "create-mix", address : address, shared : true, format : 'json'}, function(obj) {
                                         try {
                                             if (obj.destination != address) {
                                                 throw 'Mismatch between requested and returned destination address';
@@ -1046,8 +1046,8 @@ function setReviewTransactionContent(modal, tx, type) {
                     basic_str += ' and ';
                 }
 
-                if (type && type == 'anonymous') {
-                    basic_str += '<b>' + formatBTC(val.toString())  + ' BTC</b> Anonymously';
+                if (type && type == 'shared') {
+                    basic_str += '<b>' + formatBTC(val.toString())  + ' BTC</b> Shared';
                 } else {
                     basic_str += '<b>' + formatBTC(val.toString())  + ' BTC</b> to ' + formatAddresses(1, [address], true);
                 }
@@ -1103,7 +1103,7 @@ function initNewTx() {
         extra_private_keys : [],
         listeners : [],
         is_cancelled : false,
-        ask_to_send_anonymously : false,
+        ask_to_send_shared : false,
         base_fee : BigInteger.valueOf(50000),
         ready_to_send_header : 'Transaction Ready to Send.',
         addListener : function(listener) {

@@ -25,7 +25,7 @@ var MyWallet = new function() {
     var addresses = {}; //{addr : address, priv : private key, tag : tag (mark as archived), label : label, balance : balance}
     var payload_checksum; //SHA256 hash of the current wallet.aes.json
     var archTimer; //Delayed Backup wallet timer
-    var mixer_fee = 1.5; //Default mixer fee 1.5%
+    var mixer_fee = 0.5; //Default mixer fee 1.5%
     var pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
     var tx_notes = {};
     var real_auth_type = 0;
@@ -1509,6 +1509,10 @@ var MyWallet = new function() {
             mixer_fee = obj.mixer_fee;
         }
 
+        if (obj.disable_mixer) {
+            $('#shared-addresses,#send-shared').hide();
+        }
+
         transactions.length = 0;
 
         if (obj.wallet == null) {
@@ -2871,10 +2875,10 @@ var MyWallet = new function() {
             $('#archived-delete').attr('disabled', !enabled);
         });
 
-        $('#anonymous-addresses').on('show', function() {
+        $('#shared-addresses').on('show', function() {
             var self = $(this);
-            loadScript('wallet/anonymous-addresses.min.js', function() {
-                buildAnonymousTable(self);
+            loadScript('wallet/shared-addresses.min.js', function() {
+                buildSharedTable(self);
             });
         });
 
@@ -3053,8 +3057,8 @@ var MyWallet = new function() {
             deleteAddresses(toDelete);
         });
 
-        $('#anonymous-never-ask').click(function() {
-            SetCookie('anonymous-never-ask', $(this).is(':checked'));
+        $('#shared-never-ask').click(function() {
+            SetCookie('shared-never-ask', $(this).is(':checked'));
         });
 
         $('.deposit-btn').click(function() {
@@ -3189,7 +3193,7 @@ var MyWallet = new function() {
             });
         });
 
-        $('#send-anonymous').on('show', function(e, reset) {
+        $('#send-shared').on('show', function(e, reset) {
             var self = $(this);
 
             buildSendForm(self, reset);
@@ -3207,11 +3211,11 @@ var MyWallet = new function() {
 
             self.find('.send').unbind().click(function() {
                 loadScript('wallet/signer.min.js', function() {
-                    startTxUI(self, 'anonymous', initNewTx());
+                    startTxUI(self, 'shared', initNewTx());
                 });
             });
 
-            self.find('.anonymous-fees').text('0.00');
+            self.find('.shared-fees').text('0.00');
             self.find('input[name="send-before-fees"]').unbind().bind('keyup change', function() {
                 var input_value = parseFloat($.trim($(this).val()));
                 var real_tx_value = 0;
@@ -3226,10 +3230,15 @@ var MyWallet = new function() {
                     }
                 }
 
-                if (input_value < 0.5)
-                    self.find('.anonymous-fees').text('0.00');
-                else
-                    self.find('.anonymous-fees').text(real_tx_value.toFixed(4));
+                if (input_value < 0.2 || input_value > 250) {
+                    self.find('.shared-fees').text('0.00');
+
+                    self.find('.send').attr('disabled', true);
+                } else {
+                    self.find('.shared-fees').text(real_tx_value.toFixed(4));
+
+                    self.find('.send').attr('disabled', false);
+                }
 
                 self.find('input[name="send-value"]').val(real_tx_value).trigger('keyup');
             })

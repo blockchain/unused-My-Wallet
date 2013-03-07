@@ -33,10 +33,10 @@ $(document).ready(function() {
 
             button.click(function() {
                 var receivers_address = $(this).data('address');
-                var anonymous = $(this).data('anonymous');
+                var shared = $(this).data('shared');
                 var test = $(this).data('test');
 
-                if (!anonymous) anonymous = false;
+                if (!shared) shared = false;
 
                 var callback_url = $(this).data('callback');
 
@@ -50,7 +50,7 @@ $(document).ready(function() {
                     type: "GET",
                     dataType: 'json',
                     url: root + 'api/receive',
-                    data : {method : 'create', address : encodeURIComponent(receivers_address), anonymous:anonymous, callback:callback_url},
+                    data : {method : 'create', address : encodeURIComponent(receivers_address), shared:shared, callback:callback_url},
                     success: function(response) {
                         button.find('.qr-code').empty();
 
