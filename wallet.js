@@ -360,21 +360,17 @@ var MyWallet = new function() {
             throw 'Unable to generate a new bitcoin address.';
         }
 
-        var addr = compressed ? key.getBitcoinAddressCompressed() : key.getBitcoinAddress();
-
-        if (addr == null) {
-            throw 'Generated invalid bitcoin address.';
-        }
+        var addr = compressed ? key.getBitcoinAddressCompressed().toString() : key.getBitcoinAddress().toString();
 
         var encoded = encodePK(key.priv);
 
         var decoded_key = new Bitcoin.ECKey(MyWallet.decodePK(encodePK(key.priv)));
 
-        if (addr != decoded_key.getBitcoinAddressCompressed().toString() && addr != decoded_key.getBitcoinAddress().toString()) {
+        if (addr != decoded_key.getBitcoinAddress().toString() && addr != decoded_key.getBitcoinAddressCompressed().toString()) {
             throw 'Decoded Key address does not match generated address';
         }
 
-        if (internalAddKey(addr.toString(), encoded)) {
+        if (internalAddKey(addr, encoded)) {
             addresses[addr].tag = 1; //Mark as unsynced
 
             //Subscribe to transaction updates through websockets
