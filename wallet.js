@@ -1050,24 +1050,27 @@ var MyWallet = new function() {
         });
     }
 
-
-    function getAddressesWithTag(tag) {
+    this.getActiveAddresses = function() {
         var array = [];
         for (var key in addresses) {
             var addr = addresses[key];
             //Don't include archived addresses
-            if (addr.tag == tag)
+            if (addr.tag != 2)
                 array.push(addr.addr);
         }
         return array;
     }
 
-    this.getActiveAddresses = function() {
-        return getAddressesWithTag();
-    }
 
     this.getArchivedAddresses = function() {
-        return getAddressesWithTag(2);
+        var array = [];
+        for (var key in addresses) {
+            var addr = addresses[key];
+            //Don't include archived addresses
+            if (addr.tag == 2)
+                array.push(addr.addr);
+        }
+        return array;
     }
 
     function setLatestBlock(block) {
@@ -1670,12 +1673,14 @@ var MyWallet = new function() {
 
             addresses = {};
             for (var i = 0; i < obj.keys.length; ++i) {
-
                 var key = obj.keys[i];
                 if (key.addr == null || key.addr.length == 0 || key.addr == 'undefined') {
                     MyWallet.makeNotice('error', 'null-error', 'Your wallet contains an undefined address. This is a sign of possible corruption, please double check all your BTC is accounted for. Backup your wallet to remove this error.', 15000);
                     continue;
                 }
+
+                if (key.tag == 1)
+                    key.tag = null;
 
                 addresses[key.addr] = key;
             }
