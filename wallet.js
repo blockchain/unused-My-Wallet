@@ -370,7 +370,7 @@ var MyWallet = new function() {
 
         var decoded_key = new Bitcoin.ECKey(MyWallet.decodePK(encodePK(key.priv)));
 
-        if (addr != decoded_key.getBitcoinAddressCompressed() && addr != decoded_key.getBitcoinAddress()) {
+        if (addr != decoded_key.getBitcoinAddressCompressed().toString() && addr != decoded_key.getBitcoinAddress().toString()) {
             throw 'Decoded Key address does not match generated address';
         }
 
