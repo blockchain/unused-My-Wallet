@@ -44,9 +44,9 @@ function webSocketConnect(success) {
         function reallyConnect(url) {
             try {
                 if (ii % 2 == 0)
-                    var url = "wss://blockchain.info/inv";
+                    var url = "wss://ws.blockchain.info/inv";
                 else
-                    var url = "ws://api.blockchain.info:8335/inv";
+                    var url = "ws://ws.blockchain.info:8335/inv";
 
                 ++ii;
 
