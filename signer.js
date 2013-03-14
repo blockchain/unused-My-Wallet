@@ -1489,7 +1489,7 @@ function initNewTx() {
 
                 self.worker = [];
                 for (var i = 0; i < nWorkers; ++i)  {
-                    self.worker[i] =  new Worker(resource + 'wallet/signer.min.js');
+                    self.worker[i] =  new Worker(resource + 'wallet/signer' + (min ? '.min.js' : '.js'));
 
                     self.worker[i].addEventListener('message', function(e) {
                         var data = e.data;
@@ -1527,7 +1527,7 @@ function initNewTx() {
                         error(e);
                     });
 
-                    self.worker[i].postMessage({cmd : 'load_resource' , path : resource + 'wallet/bitcoinjs.min.js'});
+                    self.worker[i].postMessage({cmd : 'load_resource' , path : resource + 'wallet/bitcoinjs' + (min ? '.min.js' : '.js')});
                 }
 
                 for (var outputN in self.selected_outputs) {

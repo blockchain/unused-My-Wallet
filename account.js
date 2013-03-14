@@ -89,7 +89,7 @@ var AccountSettings = new function() {
         var mn1 = $('#password_mnemonic1');
         var mn2 = $('#password_mnemonic2');
 
-        loadScript('wallet/mnemonic.js', function() {
+        loadScript('wallet/mnemonic', function() {
             MyWallet.getMainPassword(function(main_password){
                 MyWallet.getSecondPassword(function(second_password) {
                     try {
@@ -237,7 +237,7 @@ var AccountSettings = new function() {
 
             //Show Google Auth QR Code
             if (data.google_secret_url != null && data.google_secret_url.length > 0) {
-                loadScript('wallet/jquery.qrcode.min.js', function() {
+                loadScript('wallet/jquery.qrcode', function() {
                     $('#wallet-google-qr').empty().qrcode({width: 300, height: 300, text:  data.google_secret_url});
                 });
             }

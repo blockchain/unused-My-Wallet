@@ -902,7 +902,7 @@ var MyWallet = new function() {
 
                             input.val(data);
                         } catch (e) {
-                            loadScript('wallet/jsuri-1.1.1.min.js', function() {
+                            loadScript('wallet/jsuri-1.1.1', function() {
                                 try {
                                     var uri = new Uri(data);
 
@@ -1029,7 +1029,7 @@ var MyWallet = new function() {
         });
 
         //WebCam
-        loadScript('wallet/qr.code.reader.js', function() {
+        loadScript('wallet/qr.code.reader', function() {
             QRCodeReader.init(modal, function(data) {
                 modal.modal('hide');
 
@@ -1097,7 +1097,7 @@ var MyWallet = new function() {
 
 
     function openTransactionSummaryModal(txIndex, result) {
-        loadScript('wallet/frame-modal.js', function() {
+        loadScript('wallet/frame-modal', function() {
             showFrameModal({
                 title : 'Transaction Summary',
                 description : '',
@@ -1364,7 +1364,7 @@ var MyWallet = new function() {
             if (primary_address.text() != preferred) {
                 primary_address.text(preferred);
 
-                loadScript('wallet/jquery.qrcode.min.js', function() {
+                loadScript('wallet/jquery.qrcode', function() {
                     $('#my-primary-addres-qr-code').empty().qrcode({width: 125, height: 125, text: preferred})
                 });
             }
@@ -1381,7 +1381,7 @@ var MyWallet = new function() {
             MyWallet.getMainPassword(function() {
                 warning.hide();
 
-                loadScript('wallet/import-export.min.js', function() {
+                loadScript('wallet/import-export', function() {
                     ImportExport.init(content, function() {
                         content.show();
                     }, function() {
@@ -1499,7 +1499,7 @@ var MyWallet = new function() {
     }
 
     function exportHistory() {
-        loadScript('wallet/frame-modal.js', function() {
+        loadScript('wallet/frame-modal', function() {
             showFrameModal({
                 title : 'Export History',
                 description : '',
@@ -1838,7 +1838,7 @@ var MyWallet = new function() {
 
     this.makePairingQRCode = function(success) {
         MyWallet.getMainPassword(function() {
-            loadScript('wallet/jquery.qrcode.min.js', function() {
+            loadScript('wallet/jquery.qrcode', function() {
                 try {
                     success($('<div></div>').qrcode({width: 300, height: 300, text: guid + '|' + sharedKey + '|' + password}));
                 } catch (e) {
@@ -1984,7 +1984,7 @@ var MyWallet = new function() {
     }
 
     this.quickSendNoUI = function(to, value, listener) {
-        loadScript('wallet/signer.min.js', function() {
+        loadScript('wallet/signer', function() {
             MyWallet.getSecondPassword(function() {
                 try {
                     var obj = initNewTx();
@@ -2221,6 +2221,8 @@ var MyWallet = new function() {
     //Fetch information on a new wallet identfier
     this.setGUID = function(guid_or_alias, resend_code) {
 
+        console.log('Set GUID ' + guid_or_alias);
+
         if (isInitialized) {
             throw 'Cannot Set GUID Once Initialized';
         }
@@ -2237,7 +2239,7 @@ var MyWallet = new function() {
 
         open_wallet_btn.attr('disabled', true);
 
-
+        console.log('Set GUID ajax');
 
         $.ajax({
             type: "GET",
@@ -2245,6 +2247,8 @@ var MyWallet = new function() {
             url: root + 'wallet/'+guid_or_alias,
             data : {format : 'json', resend_code : resend_code},
             success: function(obj) {
+                console.log('Set GUID Error');
+
                 open_wallet_btn.attr('disabled', false);
 
                 $('.auth-'+auth_type).hide();
@@ -2289,6 +2293,8 @@ var MyWallet = new function() {
                 } catch (e) { }
             },
             error : function(e) {
+                console.log('Set GUID Success');
+
                 open_wallet_btn.attr('disabled', false);
 
                 if (local_guid == guid_or_alias && encrypted_wallet_data) {
@@ -2764,7 +2770,7 @@ var MyWallet = new function() {
             buildSelect(sweepSelect, true);
 
             modal.find('.btn.btn-primary').unbind().click(function() {
-                loadScript('wallet/signer.min.js', function() {
+                loadScript('wallet/signer', function() {
                     BlockchainAPI.get_balance(addresses, function(value) {
                         var obj = initNewTx();
 
@@ -2826,13 +2832,13 @@ var MyWallet = new function() {
         });
 
         $('#verify-message').click(function() {
-            loadScript('wallet/address_modal.min.js', function() {
+            loadScript('wallet/address_modal', function() {
                 verifyMessageModal();
             });
         });
 
         $('#group-received').click(function() {
-            loadScript('wallet/taint_grouping.min.js', function() {
+            loadScript('wallet/taint_grouping', function() {
                 try{
                     loadTaintData();
                 } catch (e) {
@@ -2852,7 +2858,7 @@ var MyWallet = new function() {
                 MyWallet.getMainPassword(function() {
                     warning.hide();
 
-                    loadScript('wallet/account.min.js', function() {
+                    loadScript('wallet/account', function() {
                         AccountSettings.init(content, function() {
                             content.show();
                         }, function() {
@@ -2883,7 +2889,7 @@ var MyWallet = new function() {
 
         $('#shared-addresses').on('show', function() {
             var self = $(this);
-            loadScript('wallet/shared-addresses.min.js', function() {
+            loadScript('wallet/shared-addresses', function() {
                 buildSharedTable(self);
             });
         });
@@ -2932,25 +2938,25 @@ var MyWallet = new function() {
                     });
 
                     action_tx.find('.act-label').click(function() {
-                        loadScript('wallet/address_modal.min.js', function() {
+                        loadScript('wallet/address_modal', function() {
                             showLabelAddressModal(address);
                         });
                     });
 
                     action_tx.find('.act-qr').click(function() {
-                        loadScript('wallet/address_modal.min.js', function() {
+                        loadScript('wallet/address_modal', function() {
                             showAddressModalQRCode(address);
                         });
                     });
 
                     action_tx.find('.act-sign').click(function() {
-                        loadScript('wallet/address_modal.min.js', function() {
+                        loadScript('wallet/address_modal', function() {
                             showAddressModalSignMessage(address);
                         });
                     });
 
                     action_tx.find('.act-request').click(function() {
-                        loadScript('wallet/frame-modal.js', function() {
+                        loadScript('wallet/frame-modal', function() {
                             showFrameModal({
                                 title : 'Create Payment Request',
                                 description : 'Request Payment into address <b>'+address+'</b>',
@@ -3074,7 +3080,7 @@ var MyWallet = new function() {
             var extra = self.data('extra');
             if (extra == null) extra = '';
 
-            loadScript('wallet/frame-modal.js', function() {
+            loadScript('wallet/frame-modal', function() {
                 showFrameModal({
                     title : self.data('title'),
                     description : 'Deposit into address <b>'+address+'</b>',
@@ -3088,7 +3094,7 @@ var MyWallet = new function() {
             var self = $(this);
             MyWallet.getSecondPassword(function() {
                 var address = MyWallet.getPreferredAddress();
-                loadScript('wallet/frame-modal.js', function() {
+                loadScript('wallet/frame-modal', function() {
                     showFrameModal({
                         title : self.data('title'),
                         description : 'Your Wallet Balance is <b>'+formatBTC(final_balance)+' BTC</b>',
@@ -3126,7 +3132,7 @@ var MyWallet = new function() {
                     MyWallet.makeNotice('info', 'new-address', 'Generated new Bitcoin Address ' + address);
 
                     MyWallet.backupWallet('update', function() {
-                        loadScript('wallet/address_modal.min.js', function() {
+                        loadScript('wallet/address_modal', function() {
                             showLabelAddressModal(address);
                         });
                     });
@@ -3181,7 +3187,7 @@ var MyWallet = new function() {
             buildSendForm(self, reset);
 
             self.find('.send').unbind().click(function() {
-                loadScript('wallet/signer.min.js', function() {
+                loadScript('wallet/signer', function() {
                     startTxUI(self, 'quick', initNewTx());
                 });
             });
@@ -3193,7 +3199,7 @@ var MyWallet = new function() {
             buildSendForm(self, reset);
 
             self.find('.send').unbind().click(function() {
-                loadScript('wallet/signer.min.js', function() {
+                loadScript('wallet/signer', function() {
                     startTxUI(self, 'email', initNewTx());
                 });
             });
@@ -3216,7 +3222,7 @@ var MyWallet = new function() {
             }
 
             self.find('.send').unbind().click(function() {
-                loadScript('wallet/signer.min.js', function() {
+                loadScript('wallet/signer', function() {
                     startTxUI(self, 'shared', initNewTx());
                 });
             });
@@ -3256,7 +3262,7 @@ var MyWallet = new function() {
             buildSendForm(self, reset);
 
             self.find('.send').unbind().click(function() {
-                loadScript('wallet/signer.min.js', function() {
+                loadScript('wallet/signer', function() {
                     startTxUI(self, 'custom', initNewTx());
                 });
             });
@@ -3291,7 +3297,7 @@ var MyWallet = new function() {
         $('#send-satoshi-dice,#send-btcdice-dice').on('show', function(e, reset) {
             var self = this;
 
-            loadScript('wallet/dicegames.min.js', function() {
+            loadScript('wallet/dicegames', function() {
                 try {
                     DICEGame.init($(self));
                 } catch (e) {
@@ -3323,7 +3329,7 @@ var MyWallet = new function() {
             });
 
             self.find('.send').unbind().click(function() {
-                loadScript('wallet/signer.min.js', function() {
+                loadScript('wallet/signer', function() {
                     var pending_transaction = initNewTx();
 
                     startTxUI(self, 'sms', pending_transaction);

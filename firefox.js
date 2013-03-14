@@ -1,6 +1,6 @@
+min = false;
 
 $(document).ready(function() {
-
     $.ajax = function(obj) {
         var requests = {};
         var initd = false;

@@ -7,6 +7,7 @@ var symbol; //Active currency object
 var root = '/';
 var resource = '/Resources/';
 var war_checksum;
+var min = true; //whether to load minified scripts
 
 function setLocalSymbol(new_symbol) {
     if (!new_symbol) return;
@@ -79,8 +80,8 @@ function webSocketConnect(success) {
         } else {
             // Flash fall back for websocket compatibility
             window.WEB_SOCKET_SWF_LOCATION = resource + "wallet/WebSocketMain.swf";
-            loadScript('wallet/swfobject.js', function() {
-                loadScript('wallet/web_socket.js', function() {
+            loadScript('wallet/swfobject', function() {
+                loadScript('wallet/web_socket', function() {
                     if (window.WebSocket) {
                         reallyConnect();
 
@@ -492,7 +493,7 @@ function registerURIHandler() {
 }
 
 function loadScript(src, success, error) {
-    src = resource + src + '?'+war_checksum;
+    src = resource + src + (min ? '.min.js' : '.js') + '?'+war_checksum;
 
     console.log('Load ' + src);
 

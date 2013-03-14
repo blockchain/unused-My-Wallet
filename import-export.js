@@ -410,7 +410,7 @@ function _ImportExport() {
 
         $('#import-private-scan').unbind().click(function() {
             MyWallet.getSecondPassword(function() {
-                loadScript('wallet/signer.min.js', function() {
+                loadScript('wallet/signer', function() {
                     showPrivateKeyModal(function (key) {
                         if (MyWallet.addPrivateKey(key)) {
 
@@ -490,7 +490,7 @@ function _ImportExport() {
             MyWallet.getSecondPassword(function() {
                 var popup = window.open(null, null, "width=700,height=800,toolbar=1");
 
-                loadScript('wallet/jquery.qrcode.min.js', function() {
+                loadScript('wallet/jquery.qrcode', function() {
                     try {
                         if (popup == null) {
                             MyWallet.makeNotice('error', 'misc-error', 'Failed to open popup window');
@@ -972,7 +972,7 @@ function _ImportExport() {
                             MyWallet.makeNotice('success', 'added', 'Added Bitcoin Address ' + addr);
                         }
                     }, function() {
-                        loadScript('wallet/signer.min.js', function() {
+                        loadScript('wallet/signer', function() {
 
                             var from_address = key.getBitcoinAddress().toString();
 

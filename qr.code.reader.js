@@ -102,7 +102,7 @@ var QRCodeReader = {
             if(navigator.mimeTypes ["application/x-shockwave-flash"] != undefined) hasFlash = true;
         }
 
-        loadScript('wallet/llqrcode.js', function() {
+        loadScript('wallet/llqrcode', function() {
 
             // Standard and prefixed methods for hooking into stream
             navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.msGetUserMedia;

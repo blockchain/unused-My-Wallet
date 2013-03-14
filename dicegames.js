@@ -170,12 +170,12 @@ function _DICEGame() {
 
                     if (repeat > 1) {
                         multiBetWarningModal(repeat, function() {
-                            loadScript('wallet/signer.min.js', function() {
+                            loadScript('wallet/signer', function() {
                                 send();
                             });
                         });
                     } else {
-                        loadScript('wallet/signer.min.js', function() {
+                        loadScript('wallet/signer', function() {
                             send();
                         });
                     }

@@ -41,7 +41,7 @@ function showClaimModal(key) {
         $('#claim-manual').show(200);
 
         $('#claim-manual-send').unbind().click(function() {
-            loadScript('wallet/signer.min.js', function() {
+            loadScript('wallet/signer', function() {
                 try {
                     var to_address = $.trim($('#claim-manual-address').val());
 
@@ -105,7 +105,7 @@ $(document).ready(function() {
             MyWallet.addEventListener(function(event) {
                 if (event == 'did_decrypt') {
                     if (privateKeyToSweep) {
-                        loadScript('wallet/signer.min.js', function() {
+                        loadScript('wallet/signer', function() {
                             var from_address = privateKeyToSweep.getBitcoinAddress().toString();
 
                             BlockchainAPI.get_balance([from_address], function(value) {
