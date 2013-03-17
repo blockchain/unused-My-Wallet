@@ -165,7 +165,9 @@ var BlockchainAPI = new function() {
                             BlockchainAPI.get_rejection_reason(tx_hash, function(reason) {
                                 MyWallet.makeNotice('error', 'tx-error', reason);
                             }, function() {
-                                MyWallet.makeNotice('error', 'tx-error', 'Unknown Error Pushing Transaction');
+                                if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
+                                    MyWallet.makeNotice('error', 'tx-error', 'Unknown Error Pushing Transaction');
+                                }
                             });
                         } else {
                             playSound('beep');
