@@ -287,7 +287,9 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     this.modal.find('.btn.btn-primary').text('Send Transaction');
 
                     this.modal.find('.btn.btn-secondary').unbind().click(function() {
-                        self.modal.modal('hide');
+                        if (self.modal)
+                            self.modal.modal('hide');
+
                         self.cancel();
                     });
                 },
@@ -309,7 +311,8 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                 pending_transaction.ask_for_fee = function(yes, no) {
                     var self = this;
 
-                    self.modal.modal('hide'); //Hide the transaction progress modal
+                    if (self.modal)
+                        self.modal.modal('hide'); //Hide the transaction progress modal
 
                     var modal = $('#ask-for-fee');
 
@@ -332,7 +335,8 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     });
 
                     modal.unbind().on('hidden', function () {
-                        self.modal.modal('show'); //Show the progress modal again
+                        if (self.modal)
+                            self.modal.modal('show'); //Show the progress modal again
                     });
                 };
             }
@@ -369,7 +373,8 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                             btn.unbind().click(function() {
                                 btn.attr('disabled', true);
 
-                                self.modal.modal('hide');
+                                if (self.modal)
+                                    self.modal.modal('hide');
 
                                 self.send();
                             });
@@ -535,6 +540,42 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                 };
             }
         }
+
+        //Modal for when private key is missing (Watch Only)
+        pending_transaction.insufficient_funds = function(amount_required, amount_available, yes, no) {
+            var self = this;
+
+            if (self.modal)
+                self.modal.modal('hide'); //Hide the transaction progress modal
+
+            var modal = $('#insufficient-funds');
+
+
+            modal.find('.amount-required').text(formatBTC(amount_required));
+
+            modal.find('.amount-available').text(formatBTC(amount_available));
+
+            modal.modal({
+                keyboard: false,
+                backdrop: "static",
+                show: true
+            });
+
+            modal.find('.btn.btn-primary').unbind().click(function() {
+                modal.modal('hide');
+                yes();
+            });
+
+            modal.find('.btn.btn-secondary').unbind().click(function() {
+                modal.modal('hide');
+                no();
+            });
+
+            modal.unbind().on('hidden', function () {
+                if (self.modal)
+                    self.modal.modal('show'); //Show the progress modal again
+            });
+        };
 
         //Modal for when private key is missing (Watch Only)
         pending_transaction.ask_for_private_key = function(success, error, addr) {
@@ -851,46 +892,46 @@ function readUInt32(buffer) {
 }
 
 /*
-Bitcoin.Transaction.deserialize = function (buffer)
-{
-    var tx = new Bitcoin.Transaction();
+ Bitcoin.Transaction.deserialize = function (buffer)
+ {
+ var tx = new Bitcoin.Transaction();
 
-    tx.version = readUInt32(buffer);
+ tx.version = readUInt32(buffer);
 
-    var txInCount = readVarInt(buffer).intValue();
+ var txInCount = readVarInt(buffer).intValue();
 
-    for (var i = 0; i < txInCount; i++) {
+ for (var i = 0; i < txInCount; i++) {
 
-        var outPointHashBytes = buffer.splice(0,32);
-        var outPointHash = Crypto.util.bytesToBase64(outPointHashBytes);
+ var outPointHashBytes = buffer.splice(0,32);
+ var outPointHash = Crypto.util.bytesToBase64(outPointHashBytes);
 
-        var outPointIndex = readUInt32(buffer);
+ var outPointIndex = readUInt32(buffer);
 
-        var scriptLength = readVarInt(buffer).intValue();
-        var script = new Bitcoin.Script(buffer.splice(0, scriptLength));
-        var sequence = readUInt32(buffer);
+ var scriptLength = readVarInt(buffer).intValue();
+ var script = new Bitcoin.Script(buffer.splice(0, scriptLength));
+ var sequence = readUInt32(buffer);
 
-        var input = new Bitcoin.TransactionIn({outpoint : {hash: outPointHash, index : outPointIndex}, script: script,  sequence: sequence});
+ var input = new Bitcoin.TransactionIn({outpoint : {hash: outPointHash, index : outPointIndex}, script: script,  sequence: sequence});
 
-        tx.ins.push(input);
-    }
+ tx.ins.push(input);
+ }
 
-    var txOutCount = readVarInt(buffer).intValue();
-    for (var i = 0; i < txOutCount; i++) {
+ var txOutCount = readVarInt(buffer).intValue();
+ for (var i = 0; i < txOutCount; i++) {
 
-        var valueBytes = buffer.splice(0, 8);
-        var scriptLength = readVarInt(buffer).intValue();
-        var script = new Bitcoin.Script(buffer.splice(0, scriptLength));
+ var valueBytes = buffer.splice(0, 8);
+ var scriptLength = readVarInt(buffer).intValue();
+ var script = new Bitcoin.Script(buffer.splice(0, scriptLength));
 
-        var out = new Bitcoin.TransactionOut({script : script, value : valueBytes})
+ var out = new Bitcoin.TransactionOut({script : script, value : valueBytes})
 
-        tx.outs.push(out);
-    }
+ tx.outs.push(out);
+ }
 
-    tx.lock_time = readUInt32(buffer);
+ tx.lock_time = readUInt32(buffer);
 
-    return tx;
-};   */
+ return tx;
+ };   */
 
 function signInput(tx, inputN, base58Key, connected_script) {
 
@@ -1272,8 +1313,34 @@ function initNewTx() {
                     }
                 }
 
-                if (availableValue.compareTo(txValue) < 0) {
+                function insufficientError() {
                     self.error('Insufficient funds. Value Needed ' +  formatBTC(txValue.toString()) + ' BTC. Available amount ' + formatBTC(availableValue.toString()) + ' BTC');
+                }
+
+                var difference = availableValue.subtract(txValue);
+                if (difference.compareTo(BigInteger.ZERO) < 0) {
+
+                    //Can only adjust when there is one recipient
+                    if (self.to_addresses.length == 1) {
+                        self.insufficient_funds(txValue, availableValue, function() {
+
+                            //Subtract the difference from the to address
+                            if (self.to_addresses[0].value.add(difference).compareTo(BigInteger.ZERO) > 0) {
+                                self.to_addresses[0].value = self.to_addresses[0].value.add(difference);
+
+                                self.makeTransaction();
+
+                                return;
+                            } else {
+                                insufficientError();
+                            }
+                        }, function() {
+                            insufficientError();
+                        });
+                    } else {
+                        insufficientError();
+                    }
+
                     return;
                 }
 
@@ -1405,6 +1472,9 @@ function initNewTx() {
         },
         ask_for_fee : function(yes, no) {
             yes();
+        },
+        insufficient_funds : function(amount_required, amount_available, yes, no) {
+            no();
         },
         determinePrivateKeys: function(success) {
 
@@ -1663,7 +1733,7 @@ function initNewTx() {
             error('Cannot ask for private key without user interaction disabled');
         },
         ask_to_send : function() {
-            this.send(); //By Defualt Just Send
+            this.send(); //By Default Just Send
         },
         error : function(error) {
             if (this.is_cancelled) //Only call once

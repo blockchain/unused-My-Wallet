@@ -45,7 +45,11 @@ var MyWallet = new function() {
     };
 
     this.setEncryptedWalletData = function(data) {
-        if (!data || data.length == 0) return;
+        if (!data || data.length == 0) {
+            encrypted_wallet_data = null;
+            payload_checksum = null;
+            return;
+        }
 
         encrypted_wallet_data = data;
 
@@ -1095,7 +1099,6 @@ var MyWallet = new function() {
         }
     }
 
-
     function openTransactionSummaryModal(txIndex, result) {
         loadScript('wallet/frame-modal', function() {
             showFrameModal({
@@ -1322,8 +1325,6 @@ var MyWallet = new function() {
         //Only build when visible
         return cVisible.attr('id');
     }
-
-
 
     //Reset is true when called manually with changeview
     function buildVisibleView(reset) {

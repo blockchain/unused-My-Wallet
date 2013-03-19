@@ -575,11 +575,11 @@ var AccountSettings = new function() {
                 //For Google Authenticator we need to refetch the account info to fetch the QR Code
                 if (val == 4) {
                     getAccountInfo();
-                } else if (val != 0 && !MyWallet.getAlwaysKeepLocalBackup()) {
-                    try {
-                        localStorage.removeItem('payload');
-                    } catch (e) {}
                 }
+
+                try {
+                    localStorage.removeItem('payload');
+                } catch (e) {}
 
                 MyWallet.setRealAuthType(val);
             });
