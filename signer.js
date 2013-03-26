@@ -1321,7 +1321,7 @@ function initNewTx() {
                 if (difference.compareTo(BigInteger.ZERO) < 0) {
 
                     //Can only adjust when there is one recipient
-                    if (self.to_addresses.length == 1) {
+                    if (self.to_addresses.length == 1 && availableValue.compareTo(BigInteger.ZERO) > 0) {
                         self.insufficient_funds(txValue, availableValue, function() {
 
                             //Subtract the difference from the to address
