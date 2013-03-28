@@ -47,7 +47,7 @@ webSocketConnect(function(ws) {
         } else if (obj.op == 'block') {
             var block = BlockFromJSON(obj.x);
 
-            if ($('#bi:'+block.blockIndex+'').length > 0)
+            if ($('#bi:'+block.blockIndex).length > 0)
                 return;
 
             var foundByTxt = 'Unknown';
