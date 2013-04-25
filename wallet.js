@@ -2572,10 +2572,8 @@ var MyWallet = new function() {
     }
 
     this.logout = function() {
-        if (logout_timeout) {
-            clearTimeout(logout_timeout);
-            logout_timeout = null;
-        }
+        if (logout_timeout)
+        clearTimeout(logout_timeout);
 
         if (guid == demo_guid) {
             window.location = root + 'wallet/logout';
