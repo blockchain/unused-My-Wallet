@@ -1,13 +1,12 @@
 (function() {
 
-
     //Save the javascript walle to the remote server
     function insertWallet(guid, sharedKey, password, extra, successcallback, errorcallback) {
         try {
             var data = MyWallet.makeCustomWalletJSON(null, guid, sharedKey);
 
             //Everything looks ok, Encrypt the JSON output
-            var crypted = MyWallet.encrypt(data, password);
+            var crypted = MyWallet.encrypt(data, password, MyWallet.getDefaultPbkdf2Iterations());
 
             if (crypted.length == 0) {
                 throw 'Error encrypting the JSON output';
@@ -15,7 +14,7 @@
 
             //Now Decrypt the it again to double check for any possible corruption
             var obj = null;
-            MyWallet.decrypt(crypted, password, function(decrypted) {
+            MyWallet.decrypt(crypted, password, MyWallet.getDefaultPbkdf2Iterations(), function(decrypted) {
                 try {
                     obj = $.parseJSON(decrypted);
                     return (obj != null);

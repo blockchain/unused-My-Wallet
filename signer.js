@@ -599,9 +599,12 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
         pending_transaction.type = type;
 
+        //Default is 0.0005 Base Fee, No fee
         if (MyWallet.getFeePolicy() == 1) {
-            pending_transaction.fee = BigInteger.valueOf(100000);
+            pending_transaction.base_fee = BigInteger.valueOf(100000); //0.001 BTC
+            pending_transaction.fee = BigInteger.valueOf(100000); //0.001 BTC
         } else if (MyWallet.getFeePolicy() == -1) {
+            pending_transaction.base_fee = BigInteger.valueOf(10000); //0.0001 BTC
             pending_transaction.ask_for_fee = function(yes, no) {
                 no();
             };

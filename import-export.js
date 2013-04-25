@@ -593,7 +593,7 @@ function _ImportExport() {
                     throw 'null input_text';
             } catch(e) {
                 //Maybe it's encrypted?
-                MyWallet.decrypt(input_text, opt.main_password, function(decrypted) {
+                MyWallet.decrypt(input_text, opt.main_password, MyWallet.getDefaultPbkdf2Iterations(), function(decrypted) {
                     try {
                         obj = $.parseJSON(decrypted);
 
@@ -625,10 +625,15 @@ function _ImportExport() {
 
                             //If there is a private key we first need to decrypt it, detect the format then re-insert
                             if (priv != null) {
+
+                                var tmp_pbkdf2_iterations = MyWallet.getDefaultPbkdf2Iterations();
+                                if (obj.options && obj.options.pbkdf2_iterations)
+                                    tmp_pbkdf2_iterations = obj.options.pbkdf2_iterations;
+
                                 //If the wallet is double encrypted we need to decrypt the key first
                                 if (obj.double_encryption) {
                                     if (opt.second_password) {
-                                        var decrypted = MyWallet.decrypt(priv, obj.sharedKey + opt.second_password, MyWallet.isBase58);
+                                        var decrypted = MyWallet.decrypt(priv, obj.sharedKey + opt.second_password, tmp_pbkdf2_iterations, MyWallet.isBase58);
 
                                         if (decrypted == null)
                                             throw 'Error decrypting private key for address ' + addr;

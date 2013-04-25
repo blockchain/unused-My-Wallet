@@ -197,6 +197,7 @@ var AccountSettings = new function() {
             $('#logging-level').val(data.logging_level);
             $('#notifications-confirmations').val(data.notifications_confirmations);
             $('#notifications-on').val(data.notifications_on);
+            $('#pbkdf2-iterations').val(MyWallet.getPbkdf2Iterations());
 
             if (data.alias != null && data.alias.length > 0) {
                 $('#wallet-alias').val(data.alias);
@@ -223,17 +224,9 @@ var AccountSettings = new function() {
 
             language_select.val(data.language);
 
-            if (data.auto_email_backup == 1)
-                $('#auto-email-backup').prop("checked", true);
-            else
-                $('#auto-email-backup').prop("checked", false);
+            $('#auto-email-backup').prop("checked", data.auto_email_backup == 1 ? true : false);
 
-
-            if (data.never_save_auth_type == 1)
-                $('#never-save-auth-type').prop("checked", true);
-            else
-                $('#never-save-auth-type').prop("checked", false);
-
+            $('#never-save-auth-type').prop("checked", data.never_save_auth_type == 1 ? true : false);
 
             //Show Google Auth QR Code
             if (data.google_secret_url != null && data.google_secret_url.length > 0) {
@@ -257,10 +250,8 @@ var AccountSettings = new function() {
             $('#ip-lock').val(data.ip_lock);
             $('#my-ip').text(data.my_ip);
 
-            if (data.ip_lock_on == 1)
-                $('#ip-lock-on').prop("checked", true);
-            else
-                $('#ip-lock-on').prop("checked", false);
+            $('#ip-lock-on').prop("checked", data.ip_lock_on == 1 ? true : false);
+            $('#block-tor-ips').prop("checked", data.block_tor_ips == 1 ? true : false);
 
             $('input[name="fee-policy"]').each(function() {
                 if (parseInt($(this).val()) == MyWallet.getFeePolicy()) {
@@ -268,10 +259,7 @@ var AccountSettings = new function() {
                 }
             });
 
-            if (MyWallet.getAlwaysKeepLocalBackup())
-                $('input[name="always-keep-local-backup"]').attr('checked', true);
-            else
-                $('input[name="always-keep-local-backup"]').attr('checked', false);
+            $('input[name="always-keep-local-backup"]').attr('checked', MyWallet.getAlwaysKeepLocalBackup() ? true : false);
 
             $('input[name="inactivity-logout-time"]').each(function() {
                 if (parseInt($(this).val()) == MyWallet.getLogoutTime()) {
@@ -493,6 +481,20 @@ var AccountSettings = new function() {
 
             //Fee Policy is stored in wallet so must save it
             MyWallet.backupWallet();
+        });
+
+
+        $('#pbkdf2-iterations').unbind().change(function(e) {
+            var iterations = parseInt($(this).val());
+
+            if (iterations <= 0) {
+                MyWallet.makeNotice('error', 'misc-error', 'Iterations must be greater than 0');
+                return;
+            }
+
+            MyWallet.setPbkdf2Iterations(iterations, function() {
+                MyWallet.makeNotice('success', 'misc-success', 'Iterations set.');
+            });
         });
 
 
@@ -789,6 +791,10 @@ var AccountSettings = new function() {
             updateKV('Updating Logging Level', 'update-logging-level', $(this).val(), function() {
                 $('#account-logging').trigger('show');
             });
+        });
+
+        $('#block-tor-ips').unbind().change(function(e) {
+            updateKV('Updating TOR ip block', 'update-block-tor-ips', $(this).is(':checked') ? 1 : 0);
         });
 
         $('#wallet-yubikey').unbind().change(function(e) {
