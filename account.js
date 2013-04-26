@@ -36,7 +36,7 @@ var AccountSettings = new function() {
         }
     }
 
-    function updateKV(txt, method, value, success, error) {
+    function updateKV(txt, method, value, success, error, extra) {
         value = $.trim(value);
 
         if ( value.length == 0) {
@@ -54,7 +54,11 @@ var AccountSettings = new function() {
 
         MyWallet.setLoadingText(txt);
 
-        MyWallet.securePost("wallet", { length : (value+'').length, payload : value+'', method : method }, function(data) {
+        if (!extra)
+            extra = '';
+
+
+        MyWallet.securePost("wallet"+extra, { length : (value+'').length, payload : value+'', method : method }, function(data) {
             MyWallet.makeNotice('success', method + '-success', data);
 
             if (success) success();
@@ -227,13 +231,6 @@ var AccountSettings = new function() {
             $('#auto-email-backup').prop("checked", data.auto_email_backup == 1 ? true : false);
 
             $('#never-save-auth-type').prop("checked", data.never_save_auth_type == 1 ? true : false);
-
-            //Show Google Auth QR Code
-            if (data.google_secret_url != null && data.google_secret_url.length > 0) {
-                loadScript('wallet/jquery.qrcode', function() {
-                    $('#wallet-google-qr').empty().qrcode({width: 300, height: 300, text:  data.google_secret_url});
-                });
-            }
 
             $('#wallet-http-url').val(data.http_url);
             $('#wallet-skype').val(data.skype_username);
@@ -484,19 +481,6 @@ var AccountSettings = new function() {
         });
 
 
-        $('#pbkdf2-iterations').unbind().change(function(e) {
-            var iterations = parseInt($(this).val());
-
-            if (iterations <= 0) {
-                MyWallet.makeNotice('error', 'misc-error', 'Iterations must be greater than 0');
-                return;
-            }
-
-            MyWallet.setPbkdf2Iterations(iterations, function() {
-                MyWallet.makeNotice('success', 'misc-success', 'Iterations set.');
-            });
-        });
-
 
         $('input[name="always-keep-local-backup"]').unbind().change(function() {
             MyWallet.setAlwaysKeepLocalBackup($(this).is(':checked'));
@@ -523,20 +507,21 @@ var AccountSettings = new function() {
             });
 
         $('#pairing_code').unbind().on('show', function() {
-            var container = $('#device-qr-code');
-
-            container.empty();
+            MyWallet.makePairingQRCode(function(device_qr) {
+                $('#pairing-code-v0').html(device_qr);
+            }, 0);
 
             MyWallet.makePairingQRCode(function(device_qr) {
-                container.empty().append(device_qr);
+                $('#pairing-code-v1').html(device_qr);
+            }, 1);
 
-                setTimeout(function() {
-                    container.empty();
-
-                    collapseAll();
-                }, 30000);
+            setTimeout(function() {
+                collapseAll();
+            }, 30000);
+        }).on('hide', function() {
+                $('#pairing-code-v1').empty();
+                $('#pairing-code-v0').empty();
             });
-        })
 
         $('#update-password-btn').unbind().click(function() {
             updatePassword();
@@ -570,24 +555,46 @@ var AccountSettings = new function() {
             updateKV('Updating Auth Saving Settings', 'update-never-save-auth-type', $(this).is(':checked'));
         });
 
+        $('#wallet-google-qr-code').unbind().change(function() {
+            var code = $(this).val();
+
+            updateKV('Updating Two Factor Authentication', 'update-auth-type', 4, function() {
+                $('.two-factor.t4').children().hide().eq(0).show();
+
+                MyWallet.setRealAuthType(4);
+            }, null, '?code='+code);
+        });
+
         $('#two-factor-select').unbind().change(function() {
             var val = parseInt($(this).val());
 
-            updateKV('Updating Two Factor Authentication', 'update-auth-type', val, function() {
-                //For Google Authenticator we need to refetch the account info to fetch the QR Code
-                if (val == 4) {
-                    getAccountInfo();
-                }
+            try {
+                localStorage.removeItem('payload');
+            } catch (e) {}
 
-                try {
-                    localStorage.removeItem('payload');
-                } catch (e) {}
+            var el = $('.two-factor.t'+val);
 
-                MyWallet.setRealAuthType(val);
-            });
+            if (val == 4) {
+                el.children().hide().eq(1).show();
+
+                MyWallet.securePost("wallet", { method : 'generate-google-secret' }, function(google_secret_url) {
+                    //Show Google Auth QR Code
+                    if (google_secret_url != null && google_secret_url.length > 0) {
+                        loadScript('wallet/jquery.qrcode', function() {
+                            $('#wallet-google-qr').empty().qrcode({width: 300, height: 300, text:  google_secret_url});
+                        });
+                    }
+                }, function(data) {
+                    MyWallet.makeNotice('error', 'misc-error', data.responseText);
+                });
+            } else {
+                updateKV('Updating Two Factor Authentication', 'update-auth-type', val, function() {
+                    MyWallet.setRealAuthType(val);
+                });
+            }
 
             $('.two-factor').hide(200);
-            $('.two-factor.t'+val).show(200);
+            el.show(200);
         });
 
         var previous_email = '';

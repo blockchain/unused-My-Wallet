@@ -1794,6 +1794,11 @@ var MyWallet = new function() {
 
     this.getPassword = function(modal, success, error) {
 
+        if (!modal.is(':visible')) {
+            modal.trigger('hidden');
+            modal.unbind();
+        }
+
         modal.modal({
             keyboard: false,
             backdrop: "static",
@@ -1810,7 +1815,7 @@ var MyWallet = new function() {
             shift = false,
             capslock = false;
 
-        modal.find('.vkeyboard li').click(function(){
+        modal.find('.vkeyboard li').unbind().click(function(){
 
             var $this = $(this),
                 character = $this.html(); // If it's a lowercase letter, nothing happens to this variable
@@ -1920,11 +1925,21 @@ var MyWallet = new function() {
         });
     }
 
-    this.makePairingQRCode = function(success) {
+    this.makePairingQRCode = function(success, version) {
         MyWallet.getMainPassword(function() {
             loadScript('wallet/jquery.qrcode', function() {
                 try {
-                    success($('<div></div>').qrcode({width: 300, height: 300, text: guid + '|' + sharedKey + '|' + password}));
+                    if (version == 1) {
+                        MyWallet.securePost("wallet", { method : 'pairing-encryption-password' }, function(encryption_phrase) {
+                            success($('<div></div>').qrcode({width: 300, height: 300, text: '1|'+ guid + '|' + MyWallet.encrypt(sharedKey + '|' + Crypto.util.bytesToHex(UTF8.stringToBytes(password)), encryption_phrase, default_pbkdf2_iterations)}));
+
+                        }, function(e) {
+                            MyWallet.makeNotice('error', 'misc-error', e);
+                        });
+                    } else if (version == 0) {
+                        //Depreciate this ASAP
+                        success($('<div></div>').qrcode({width: 300, height: 300, text: guid + '|' + sharedKey + '|' + password}));
+                    }
                 } catch (e) {
                     MyWallet.makeNotice('error', 'misc-error', e);
                 }
@@ -2110,7 +2125,7 @@ var MyWallet = new function() {
         });
     }
 
-    //Can call multiple times in a row and it will backup only once after a certain delay of activity
+//Can call multiple times in a row and it will backup only once after a certain delay of activity
     function backupWalletDelayed(method, success, error, extra) {
         if (archTimer != null) {
             clearInterval(archTimer);
@@ -2122,7 +2137,7 @@ var MyWallet = new function() {
         }, 3000);
     }
 
-    //Save the javascript walle to the remote server
+//Save the javascript walle to the remote server
     this.backupWallet = function(method, successcallback, errorcallback) {
         try {
             if (method == null)
@@ -2238,13 +2253,13 @@ var MyWallet = new function() {
         return true;
     }
 
-    //Changed padding to CBC iso10126 9th March 2012 & iterations to pbkdf2_iterations
+//Changed padding to CBC iso10126 9th March 2012 & iterations to pbkdf2_iterations
     this.encrypt = function(data, password, pbkdf2_iterations) {
         return Crypto.AES.encrypt(data, password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : pbkdf2_iterations});
     }
 
-    //When the ecryption format changes it can produce data which appears to decrypt fine but actually didn't
-    //So we call success(data) and if it returns true the data was formatted correctly
+//When the ecryption format changes it can produce data which appears to decrypt fine but actually didn't
+//So we call success(data) and if it returns true the data was formatted correctly
     this.decrypt = function(data, password, pbkdf2_iterations, success, error) {
 
         //iso10126 with pbkdf2_iterations iterations
@@ -3661,6 +3676,11 @@ var MyWallet = new function() {
 
         if (!$.isEmptyObject({})) {
             MyWallet.makeNotice('error', 'error', 'Object.prototype has been extended by a browser extension. Please disable this extensions and reload the page.');
+            return;
+        }
+
+        if (navigator.javaEnabled()) {
+            MyWallet.makeNotice('error', 'error', 'For security reasons please disable Java.');
             return;
         }
 
