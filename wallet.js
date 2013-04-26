@@ -3679,6 +3679,7 @@ var MyWallet = new function() {
             return;
         }
 
+        /*
         if (navigator.javaEnabled()) {
             loadScript('wallet/deployJava', function() {
                 var ver = deployJava.getJREs()[0];
@@ -3686,12 +3687,12 @@ var MyWallet = new function() {
                 var jsEnabled = navigator.javaEnabled() && !!ver;
 
                 if (jsEnabled) {
-                    $('#restore-wallet').hide();//Hide the Login Form
+                    $('#restore-wallet').hide(); //Hide the Login Form
 
                     MyWallet.makeNotice('error', 'error', 'For security reasons please disable Java.');
                 }
             });
-        }
+        }*/
 
         //Disable auotcomplete in firefox
         $("input,button,select").attr("autocomplete","off");
