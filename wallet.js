@@ -3680,8 +3680,17 @@ var MyWallet = new function() {
         }
 
         if (navigator.javaEnabled()) {
-            MyWallet.makeNotice('error', 'error', 'For security reasons please disable Java.');
-            return;
+            loadScript('wallet/deployJava', function() {
+                var ver = deployJava.getJREs()[0];
+
+                var jsEnabled = navigator.javaEnabled() && !!ver;
+
+                if (jsEnabled) {
+                    $('#restore-wallet').hide();//Hide the Login Form
+
+                    MyWallet.makeNotice('error', 'error', 'For security reasons please disable Java.');
+                }
+            });
         }
 
         //Disable auotcomplete in firefox
