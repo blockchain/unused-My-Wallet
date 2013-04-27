@@ -112,16 +112,6 @@
         guid = guidGenerator();
         sharedKey = guidGenerator();
 
-        $('body').click(function() {
-            rng_seed_time();
-        }).keypress(function() {
-                rng_seed_time();
-            }).mousemove(function(event) {
-                if (event) {
-                    rng_seed_int(event.clientX * event.clientY);
-                }
-            });
-
         var tpassword = $("#password").val();
         var tpassword2 = $("#password2").val();
 
@@ -206,6 +196,16 @@
             makeNotice('error', 'error', 'Object.prototype has been extended by a browser extension. Please disable this extensions and reload the page.');
             return;
         }
+
+        $('body').click(function() {
+            rng_seed_time();
+        }).keypress(function() {
+                rng_seed_time();
+            }).mousemove(function(event) {
+                if (event) {
+                    rng_seed_int(event.clientX * event.clientY);
+                }
+            });
 
         //Disable auotcomplete in firefox
         $("input, button").attr("autocomplete","off");
