@@ -488,6 +488,17 @@ var MyWallet = new function() {
             }
         }
 
+        //Use window.crypto.getRandomValues if available
+        try {
+            var word_array = new Uint32Array(16);
+
+            window.crypto.getRandomValues(word_array);
+
+            for (var i = 0; i < word_array.length; i++) {
+                rng_seed_int(word_array[i]);
+            }
+        } catch (e) {}
+
         var key = new Bitcoin.ECKey(false);
 
         if (MyWallet.addPrivateKey(key)) {
