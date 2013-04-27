@@ -1,3 +1,5 @@
+isExtension = true;
+
 $(document).ready(function() {
     var body = $(document.body);
 

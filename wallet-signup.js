@@ -112,13 +112,14 @@
         guid = guidGenerator();
         sharedKey = guidGenerator();
 
-        if (MyWallet.getAllAddresses().length == 0)
-            MyWallet.generateNewKey();
-
         $('body').click(function() {
             rng_seed_time();
         }).keypress(function() {
                 rng_seed_time();
+            }).mousemove(function(event) {
+                if (event) {
+                    rng_seed_int(event.clientX * event.clientY);
+                }
             });
 
         var tpassword = $("#password").val();
@@ -129,12 +130,15 @@
             return false;
         }
 
-        if (tpassword.length == 0 || tpassword.length < 10 || tpassword.length > 255) {
+        if (tpassword.length == 0 || tpassword.length < 11 || tpassword.length > 255) {
             makeNotice('error', 'misc-error', 'Password length must be between 10 and 255 characters in length');
             return false;
         }
 
         password = tpassword;
+
+        if (MyWallet.getAllAddresses().length == 0)
+            MyWallet.generateNewKey();
 
         if(navigator.userAgent.match(/MeeGo/i)) {
             makeNotice('error', 'misc-error', 'MeeGo browser currently not supported.');
@@ -146,20 +150,16 @@
             return false;
         }
 
-        var alias = encodeURIComponent($.trim($('#alias-value').val()));
+        var email = encodeURIComponent($.trim($('#email').val()));
 
         var captcha_code = $.trim($('#captcha-value').val());
 
-        insertWallet(guid, sharedKey, tpassword, '?kaptcha='+encodeURIComponent(captcha_code)+'&alias='+alias, function(){
+        insertWallet(guid, sharedKey, tpassword, '?kaptcha='+encodeURIComponent(captcha_code)+'&email='+email, function(){
 
             SetCookie('cguid', guid);
 
             showMnemonicModal(tpassword, function() {
-                //Redirect to Login
-                if (alias && alias.length > 0)
-                    window.location = root + 'wallet/' + alias + window.location.hash;
-                else
-                    window.location = root + 'wallet/' + guid + window.location.hash;
+                window.location = root + 'wallet/' + guid + window.location.hash;
             });
         }, function(e) {
             $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());

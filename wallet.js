@@ -35,6 +35,7 @@ var MyWallet = new function() {
     var last_input_main_password;
     var main_password_timeout = 60000;
     var isInitialized = false;
+    var extra_seed;
 
     var wallet_options = {
         pbkdf2_iterations : 10, //Number of pbkdf2 iterations to default to for second password and dpasswordhash
@@ -464,6 +465,29 @@ var MyWallet = new function() {
     }
 
     this.generateNewKey = function() {
+
+        //rng pool is seeded on key press and mouse movements
+        //Add extra entropy from the user's password
+        if (password) {
+            var word_array = Crypto.util.bytesToWords(Crypto.SHA256(password, {asBytes: true}));
+
+            for (var i in word_array) {
+                rng_seed_int(word_array[i]);
+            }
+        }
+
+        if (!extra_seed)
+             extra_seed = $('body').data('extra_seed');
+
+        //Extra entropy from a random number provided by server
+        if (extra_seed) {
+            var word_array = Crypto.util.bytesToWords(Crypto.util.hexToBytes(extra_seed));
+
+            for (var i in word_array) {
+                rng_seed_int(word_array[i]);
+            }
+        }
+
         var key = new Bitcoin.ECKey(false);
 
         if (MyWallet.addPrivateKey(key)) {
@@ -2127,7 +2151,7 @@ var MyWallet = new function() {
 
 //Can call multiple times in a row and it will backup only once after a certain delay of activity
     function backupWalletDelayed(method, success, error, extra) {
-        if (archTimer != null) {
+        if (archTimer) {
             clearInterval(archTimer);
             archTimer = null;
         }
@@ -2139,6 +2163,11 @@ var MyWallet = new function() {
 
 //Save the javascript walle to the remote server
     this.backupWallet = function(method, successcallback, errorcallback) {
+        if (archTimer) {
+            clearInterval(archTimer);
+            archTimer = null;
+        }
+
         try {
             if (method == null)
                 method = 'update';
@@ -2278,7 +2307,7 @@ var MyWallet = new function() {
         //iso10126 with 10 iterations  (old default)
         if (pbkdf2_iterations != 10) {
             try {
-                var decoded = Crypto.AES.decrypt(data, password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : pbkdf2_iterations });
+                var decoded = Crypto.AES.decrypt(data, password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : 10 });
 
                 if (decoded != null && decoded.length > 0) {
                     if (success(decoded)) {
@@ -2371,6 +2400,7 @@ var MyWallet = new function() {
 
                 $('.auth-'+auth_type).hide();
 
+                extra_seed = obj.extra_seed;
                 guid = obj.guid;
                 auth_type = obj.auth_type;
                 real_auth_type = obj.real_auth_type;
@@ -3679,22 +3709,7 @@ var MyWallet = new function() {
             return;
         }
 
-        /*
-        if (navigator.javaEnabled()) {
-            loadScript('wallet/deployJava', function() {
-                var ver = deployJava.getJREs()[0];
-
-                var jsEnabled = navigator.javaEnabled() && !!ver;
-
-                if (jsEnabled) {
-                    $('#restore-wallet').hide(); //Hide the Login Form
-
-                    MyWallet.makeNotice('error', 'error', 'For security reasons please disable Java.');
-                }
-            });
-        }*/
-
-        //Disable auotcomplete in firefox
+        //Disable autocomplete in firefox
         $("input,button,select").attr("autocomplete","off");
 
         var body = $(document.body);
@@ -3709,7 +3724,7 @@ var MyWallet = new function() {
         try {
             encrypted_wallet_data = localStorage.getItem('payload');
 
-            if (!guid || guid.length == 0)
+            if ((!guid || guid.length == 0) && (isExtension || window.location.href.indexOf('/login') > 0))
                 guid = localStorage.getItem('guid');
         } catch (e) {}
 
@@ -3747,6 +3762,10 @@ var MyWallet = new function() {
                 }
 
                 rng_seed_time();
+            }).mousemove(function(event) {
+                if (event) {
+                    rng_seed_int(event.clientX * event.clientY);
+                }
             });
 
         bindInitial();

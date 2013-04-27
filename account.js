@@ -404,8 +404,8 @@ var AccountSettings = new function() {
                 return false;
             }
 
-            if (tpassword.length == 0 || tpassword.length < 10 || tpassword.length > 255) {
-                MyWallet.makeNotice('error', 'misc-error', 'Password length must be between least 10  & 255 characters');
+            if (tpassword.length == 0 || tpassword.length < 11 || tpassword.length > 255) {
+                MyWallet.makeNotice('error', 'misc-error', 'Password length must be between least 11  & 255 characters');
                 return false;
             }
 

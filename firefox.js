@@ -1,4 +1,5 @@
 min = false;
+isExtension = true;
 
 $(document).ready(function() {
     $.ajax = function(obj) {

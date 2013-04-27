@@ -8,6 +8,7 @@ var root = '/';
 var resource = '/Resources/';
 var war_checksum;
 var min = true; //whether to load minified scripts
+var isExtension = false;
 
 function setLocalSymbol(new_symbol) {
     if (!new_symbol) return;
