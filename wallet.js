@@ -444,7 +444,7 @@ var MyWallet = new function() {
 
         var encoded = encodePK(key.priv);
 
-        var decoded_key = new Bitcoin.ECKey(MyWallet.decodePK(encodePK(key.priv)));
+        var decoded_key = new Bitcoin.ECKey(MyWallet.decodePK(encoded));
 
         if (addr != decoded_key.getBitcoinAddress().toString() && addr != decoded_key.getBitcoinAddressCompressed().toString()) {
             throw 'Decoded Key address does not match generated address';
@@ -487,17 +487,6 @@ var MyWallet = new function() {
                 rng_seed_int(word_array[i]);
             }
         }
-
-        //Use window.crypto.getRandomValues if available
-        try {
-            var word_array = new Uint32Array(16);
-
-            window.crypto.getRandomValues(word_array);
-
-            for (var i = 0; i < word_array.length; i++) {
-                rng_seed_int(word_array[i]);
-            }
-        } catch (e) {}
 
         var key = new Bitcoin.ECKey(false);
 
@@ -3730,7 +3719,8 @@ var MyWallet = new function() {
         sharedKey = body.data('sharedkey');
 
         //Deposit pages set this flag so it can be loaded in an iframe
-        if (MyWallet.skip_init) return;
+        if (MyWallet.skip_init)
+            return;
 
         try {
             encrypted_wallet_data = localStorage.getItem('payload');

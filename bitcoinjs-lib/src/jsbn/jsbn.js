@@ -127,6 +127,10 @@ function nbv(i) { var r = nbi(); r.fromInt(i); return r; }
 
 // (protected) set from string and radix
 function bnpFromString(s,b) {
+
+
+  console.log('bnpFromString ' + s);
+
   var k;
   if(b == 16) k = 4;
   else if(b == 8) k = 3;
