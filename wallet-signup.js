@@ -120,8 +120,13 @@
             return false;
         }
 
-        if (tpassword.length == 0 || tpassword.length < 11 || tpassword.length > 255) {
-            makeNotice('error', 'misc-error', 'Password length must be between 10 and 255 characters in length');
+        if (tpassword.length < 11) {
+            makeNotice('error', 'misc-error', 'Passwords must be at least 11 characters long');
+            return false;
+        }
+
+        if (tpassword.length > 255) {
+            makeNotice('error', 'misc-error', 'Passwords must be at shorter than 256 characters');
             return false;
         }
 
