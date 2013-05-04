@@ -477,7 +477,7 @@ var MyWallet = new function() {
         }
 
         if (!extra_seed)
-             extra_seed = $('body').data('extra_seed');
+            extra_seed = $('body').data('extra_seed');
 
         //Extra entropy from a random number provided by server
         if (extra_seed) {
@@ -1819,6 +1819,9 @@ var MyWallet = new function() {
     this.getPassword = function(modal, success, error) {
 
         if (!modal.is(':visible')) {
+
+            console.log('Modal is not visible');
+
             modal.trigger('hidden');
             modal.unbind();
         }
@@ -1903,15 +1906,18 @@ var MyWallet = new function() {
         primary_button.click(function() {
             if (success) {
                 error = null;
+
                 var ccopy = success;
                 success = null;
 
                 setTimeout(function() {
+                    modal.modal('hide');
+
                     ccopy(input.val());
                 }, 10);
+            } else {
+                modal.modal('hide');
             }
-
-            modal.modal('hide');
         });
 
         var secondary_button = modal.find('.btn.btn-secondary');
@@ -1923,11 +1929,13 @@ var MyWallet = new function() {
                 success = null;
 
                 setTimeout(function() {
+                    modal.modal('hide');
+
                     try { ccopy(); } catch (e) { MyWallet.makeNotice('error', 'misc-error', e); }
                 }, 10);
+            } else {
+                modal.modal('hide');
             }
-
-            modal.modal('hide');
         });
 
         modal.on('hidden', function () {
@@ -1950,6 +1958,7 @@ var MyWallet = new function() {
     }
 
     this.makePairingQRCode = function(success, version) {
+
         MyWallet.getMainPassword(function() {
             loadScript('wallet/jquery.qrcode', function() {
                 try {
@@ -2028,7 +2037,6 @@ var MyWallet = new function() {
     function restoreWallet() {
 
         if (isInitialized) {
-            console.log('Already initd');
             return;
         }
 

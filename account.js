@@ -266,11 +266,11 @@ var AccountSettings = new function() {
 
 
             if (data.email_verified == 0) {
-                $('#verify-email').show();
-                $('#email-verified').hide();
+                $('.email-unverified').show();
+                $('.email-verified').hide();
             } else {
-                $('#verify-email').hide();
-                $('#email-verified').show();
+                $('.email-unverified').hide();
+                $('.email-verified').show();
             }
 
             $('#my-ip').text(data.my_ip);
@@ -625,8 +625,8 @@ var AccountSettings = new function() {
 
             previous_email = email;
 
-            $('#verify-email').show(200);
-            $('#email-verified').hide();
+            $('.email-unverified').show(200);
+            $('.email-verified').hide();
         });
 
         $('#wallet-double-encryption-enable').unbind().click(function(e) {
@@ -655,12 +655,12 @@ var AccountSettings = new function() {
             MyWallet.securePost("wallet", { payload: code, length : code.length, method : 'verify-email' }, function(data) {
                 MyWallet.makeNotice('success', 'misc-success', data);
 
-                $('#verify-email').hide();
-                $('#email-verified').show(200);
+                $('.email-unverified').hide();
+                $('.email-verified').show(200);
             }, function(data) {
                 MyWallet.makeNotice('error', 'misc-error', data.responseText);
-                $('#verify-email').show(200);
-                $('#email-verified').hide();
+                $('.email-unverified').show(200);
+                $('.email-verified').hide();
             });
         });
 

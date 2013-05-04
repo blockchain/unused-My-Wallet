@@ -21,10 +21,11 @@ function setLocalSymbol(new_symbol) {
     calcMoney();
 }
 
+//Assumes 10px margin (modals)
 $.fn.center = function () {
     scrollTo(0, 0);
-    this.css("top", Math.max(($(window).height() / 2) - (this.height() / 2), 10) + "px");
-    this.css("left", Math.max(($(window).width() / 2) - (this.width() / 2), 10) + "px");
+    this.css("top", Math.max(($(window).height() / 2) - (this.height() / 2), 0) + "px");
+    this.css("left", Math.max(($(window).width() / 2) - (this.width() / 2), 0) + "px");
     return this;
 };
 
