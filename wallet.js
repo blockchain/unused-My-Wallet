@@ -3093,6 +3093,7 @@ var MyWallet = new function() {
             <li><a href="#" class="pop act-qr" title="Show QR Code" data-content="Show a QR Code for this address.">QR Code</a></li>\
             <li><a href="#" class="pop act-sign" title="Sign Message" data-content="Sign A message with this address.">Sign Message</a></li>\
             <li><a href="#" class="pop act-request" title="Request Payment" data-content="Click here to create a new QR Code payment request. The QR Code can be scanned using most popular bitcoin software and mobile apps.">Create Payment Request</a></li>\
+            <li><a href="#" class="pop act-pubkey">Show Public Key</a></li>\
             </ul></div></td></tr>');
 
                 (function(address) {
@@ -3109,6 +3110,21 @@ var MyWallet = new function() {
                     action_tx.find('.act-qr').click(function() {
                         loadScript('wallet/address_modal', function() {
                             showAddressModalQRCode(address);
+                        });
+                    });
+
+                    action_tx.find('.act-pubkey').click(function() {
+                        MyWallet.getSecondPassword(function() {
+                            var key = new Bitcoin.ECKey(MyWallet.decodePK(MyWallet.getPrivateKey(address)));
+
+                            if (key.getBitcoinAddressCompressed().toString == address) {
+                                var pub = key.getPubCompressed();
+                            } else {
+                                var pub = key.getPub();
+                            }
+
+                            MyWallet.makeNotice('success', 'backup-success', 'Public Key of '+ address +' is ' + Crypto.util.bytesToHex(pub), 20000);
+
                         });
                     });
 
