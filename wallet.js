@@ -464,12 +464,12 @@ var MyWallet = new function() {
         return addr;
     }
 
-    this.generateNewKey = function() {
+    this.generateNewKey = function(_password) {
 
         //rng pool is seeded on key press and mouse movements
         //Add extra entropy from the user's password
-        if (password) {
-            var word_array = Crypto.util.bytesToWords(Crypto.SHA256(password, {asBytes: true}));
+        if (password || _password) {
+            var word_array = Crypto.util.bytesToWords(Crypto.SHA256(password ? password : _password, {asBytes: true}));
 
             for (var i in word_array) {
                 rng_seed_int(word_array[i]);
@@ -477,7 +477,7 @@ var MyWallet = new function() {
         }
 
         if (!extra_seed)
-            extra_seed = $('body').data('extra_seed');
+            extra_seed = $('body').data('extra-seed');
 
         //Extra entropy from a random number provided by server
         if (extra_seed) {
@@ -3115,7 +3115,14 @@ var MyWallet = new function() {
 
                     action_tx.find('.act-pubkey').click(function() {
                         MyWallet.getSecondPassword(function() {
-                            var key = new Bitcoin.ECKey(MyWallet.decodePK(MyWallet.getPrivateKey(address)));
+                            var priv = MyWallet.getPrivateKey(address);
+
+                            if (priv == null) {
+                                MyWallet.makeNotice('eror', 'misc-error', 'Public Key Unknown');
+                                return;
+                            }
+
+                            var key = new Bitcoin.ECKey(MyWallet.decodePK(priv));
 
                             if (key.getBitcoinAddressCompressed().toString == address) {
                                 var pub = key.getPubCompressed();
@@ -3123,7 +3130,7 @@ var MyWallet = new function() {
                                 var pub = key.getPub();
                             }
 
-                            MyWallet.makeNotice('success', 'backup-success', 'Public Key of '+ address +' is ' + Crypto.util.bytesToHex(pub), 20000);
+                            MyWallet.makeNotice('success', 'pub-key', 'Public Key of '+ address +' is ' + Crypto.util.bytesToHex(pub), 20000);
 
                         });
                     });

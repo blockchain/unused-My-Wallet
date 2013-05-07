@@ -133,7 +133,7 @@
         password = tpassword;
 
         if (MyWallet.getAllAddresses().length == 0)
-            MyWallet.generateNewKey();
+            MyWallet.generateNewKey(password);
 
         if(navigator.userAgent.match(/MeeGo/i)) {
             makeNotice('error', 'misc-error', 'MeeGo browser currently not supported.');
