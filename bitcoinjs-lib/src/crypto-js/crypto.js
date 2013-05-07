@@ -8,10 +8,12 @@
 var base64map = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 if (typeof window == "undefined" || !window)
-    var window = {};
+    var _window = {};
+else
+    var _window = window;
 
 // Global Crypto object
-var Crypto = window.Crypto = {};
+var Crypto = _window.Crypto = {};
 
 // Crypto utilities
 var util = Crypto.util = {

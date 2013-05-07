@@ -28,10 +28,10 @@ if(rng_pool == null) {
     rng_pptr = 0;
     var t;
 
-    if(window.crypto && window.crypto.getRandomValues && typeof Int32Array != 'undefined') {
+    if(_window.crypto && _window.crypto.getRandomValues && typeof Int32Array != 'undefined') {
         var word_array = new Int32Array(32);
 
-        window.crypto.getRandomValues(word_array);
+        _window.crypto.getRandomValues(word_array);
 
         for(t = 0; t < word_array.length; ++t)
             rng_seed_int(word_array[t]);
@@ -45,8 +45,8 @@ if(rng_pool == null) {
 
     rng_pptr = 0;
     rng_seed_time();
-    //rng_seed_int(window.screenX);
-    //rng_seed_int(window.screenY);
+//rng_seed_int(window.screenX);
+//rng_seed_int(window.screenY);
 }
 
 function rng_get_byte() {
