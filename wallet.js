@@ -36,6 +36,7 @@ var MyWallet = new function() {
     var main_password_timeout = 60000;
     var isInitialized = false;
     var extra_seed;
+    var show_unsynced = false;
 
     var wallet_options = {
         pbkdf2_iterations : 10, //Number of pbkdf2 iterations to default to for second password and dpasswordhash
@@ -437,12 +438,15 @@ var MyWallet = new function() {
             return false;
 
         if (key == null) {
-            throw 'Unable to generate a new bitcoin address.';
+            throw 'Cannot add null key.';
         }
 
         var addr = compressed ? key.getBitcoinAddressCompressed().toString() : key.getBitcoinAddress().toString();
 
         var encoded = encodePK(key.priv);
+
+        if (encoded == null)
+            throw 'Error Encoding key';
 
         var decoded_key = new Bitcoin.ECKey(MyWallet.decodePK(encoded));
 
@@ -452,6 +456,9 @@ var MyWallet = new function() {
 
         if (internalAddKey(addr, encoded)) {
             addresses[addr].tag = 1; //Mark as unsynced
+
+            if (addresses[addr].priv != encoded)
+                throw 'Address priv does not match encoded';
 
             //Subscribe to transaction updates through websockets
             try {
@@ -2105,6 +2112,17 @@ var MyWallet = new function() {
         return true;
     }
 
+    function showNotSyncedModal() {
+        $('#not-synced-warning-modal').modal('show').find('.btn.btn-danger').unbind().click(function() {
+            $(this).modal('hide');
+
+            show_unsynced = true;
+
+            buildVisibleView();
+        });;
+
+    }
+
     function setIsIntialized() {
         setLogoutImageStatus('error');
 
@@ -2241,7 +2259,7 @@ var MyWallet = new function() {
                     for (var key in addresses) {
                         var addr = addresses[key];
                         if (addr.tag == 1) {
-                            $('#not-synced-warning-modal').modal('show');
+                            showNotSyncedModal();
                             break;
                         }
                     }
@@ -3067,8 +3085,8 @@ var MyWallet = new function() {
             for (var key in addresses) {
                 var addr = addresses[key];
 
-                //Hide Archived
-                if (addr.tag == 2)
+                //Hide Archived or un-synced
+                if (addr.tag == 2 || (addr.tag == 1 && !show_unsynced))
                     continue;
 
                 var noPrivateKey = '';
@@ -3124,7 +3142,7 @@ var MyWallet = new function() {
 
                             var key = new Bitcoin.ECKey(MyWallet.decodePK(priv));
 
-                            if (key.getBitcoinAddressCompressed().toString == address) {
+                            if (key.getBitcoinAddressCompressed().toString() == address) {
                                 var pub = key.getPubCompressed();
                             } else {
                                 var pub = key.getPub();
@@ -3179,7 +3197,8 @@ var MyWallet = new function() {
                 for (var key in archived) {
                     var addr = addresses[archived[key]];
 
-                    if (addr.tag != 2)
+                    //Hide none archived and unsynced
+                    if (addr.tag != 2 || (addr.tag == 1 && !show_unsynced))
                         continue;
 
                     var noPrivateKey = '';
@@ -3313,11 +3332,15 @@ var MyWallet = new function() {
         $("#new-addr").click(function() {
             try {
                 MyWallet.getSecondPassword(function() {
-                    var address = MyWallet.generateNewKey().getBitcoinAddress().toString();
+                    var key = MyWallet.generateNewKey();
 
-                    MyWallet.makeNotice('info', 'new-address', 'Generated new Bitcoin Address ' + address);
+                    if (!key) return;
+
+                    var address = key.getBitcoinAddress().toString();
 
                     MyWallet.backupWallet('update', function() {
+                        MyWallet.makeNotice('info', 'new-address', 'Generated new Bitcoin Address ' + address);
+
                         loadScript('wallet/address_modal', function() {
                             showLabelAddressModal(address);
                         });
@@ -3825,7 +3848,7 @@ var MyWallet = new function() {
                         if (addr.priv == null) {
                             $('#watch-only-copy-warning-modal').modal('show');
                         } else if (addr.tag == 1) {
-                            $('#not-synced-warning-modal').modal('show');
+                            showNotSyncedModal();
                         }
                     }
                 }
