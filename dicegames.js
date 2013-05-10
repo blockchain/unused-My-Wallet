@@ -106,30 +106,34 @@ function _DICEGame() {
                     var game = obj[i];
 
                     if (game.popular) {
-                        container.append('<div class="control-group recipient"><label class="control-label">'+game.odds+'%</label><div class="controls"><input name="send-to-address" type="hidden" value="'+game.address+'" /><div class="input-append"> <input class="send-value" style="width:auto;max-width:145px;" data-optional="true" name="send-value" data-multiplier="'+game.multiplier+'" data-minbet="'+game.minBet+'" data-maxbet="'+game.maxBet+'" placeholder="Bet Amount (BTC)" type="text" /><span class="add-on send-win-amount">No Bet</span> </div></div></div>');
+                        container.append('<div class="control-group recipient"><label class="control-label">'+game.odds+'%</label><div class="controls"><input name="send-to-address" type="hidden" value="'+game.address+'" /><div class="input-append input-prepend"><span class="add-on btc-symbol">'+symbol_btc.symbol+'</span><input class="send-value" style="width:auto;max-width:145px;" data-optional="true" name="send-value" data-multiplier="'+game.multiplier+'" data-minbet="'+game.minBet+'" data-maxbet="'+game.maxBet+'" placeholder="Bet Amount" type="text" /><span class="add-on send-win-amount">No Bet</span> </div></div></div>');
                     }
                 }
 
                 function setWinAmount(el) {
                     if (el.val() > 0)
-                        el.parent().find('.send-win-amount').html('Win Amount: ' + (parseFloat(el.val()) *  parseFloat(el.data('multiplier'))).toFixed(4) + ' BTC');
+                        el.parent().find('.send-win-amount').html('Win Amount: ' + formatPrecision((parseFloat(el.val()) *  parseFloat(el.data('multiplier')))));
                     else
                         el.parent().find('.send-win-amount').html('No Bet');
                 }
 
-                container.find('input[name="send-value"]').change(function() {
-                    if ($(this).val() > $(this).data('maxbet')) {
-                        $(this).val($(this).data('maxbet'));
+                container.find('input[name="send-value"]').bind('change', function() {
+                    var input_value = parseFloat($(this).val());
+                    var max_bet = precisionFromBTC($(this).data('maxbet'));
+                    var min_bet = precisionFromBTC($(this).data('minbet'));
 
-                        MyWallet.makeNotice('error', 'misc-error', 'The Maximum Bet is '+ $(this).data('maxbet') + ' BTC');
+                    if (input_value > max_bet) {
+                        $(this).val(max_bet);
+
+                        MyWallet.makeNotice('error', 'misc-error', 'The Maximum Bet is '+ formatPrecision(max_bet));
                     }
 
-                    if ($(this).val() == 0) {
+                    if (input_value == 0) {
                         $(this).val('');
-                    } else if ($(this).val() < $(this).data('minbet')) {
-                        $(this).val($(this).data('minbet'));
+                    } else if (input_value < min_bet) {
+                        $(this).val(min_bet);
 
-                        MyWallet.makeNotice('error', 'misc-error', 'The Minimum Bet is '+ $(this).data('minbet') + ' BTC');
+                        MyWallet.makeNotice('error', 'misc-error', 'The Minimum Bet is '+ formatPrecision(min_bet));
                     }
 
                     setWinAmount($(this));

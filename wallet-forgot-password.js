@@ -1,19 +1,32 @@
 $(document).ready(function() {
 
     $('input[name="mnemonic"]').change(function() {
+        var container = $('#mnemonic-result-container');
+        var error_container = $('#mnemonic-result-error');
+
+        container.hide();
+        error_container.hide();
+
+        container.find('.guid-result-container').hide();
+
         var val = $.trim($(this).val());
 
         if (val.length == 0)
             return;
 
-        try {
-            if (check_mn(val)) {
-                $('#mnemonic-result').show().text(mn_decode_pass(val));
+        mn_decode_pass(val, function(obj) {
+            container.show();
+
+            if (obj.guid) {
+                container.find('.guid-result-container').show();
+                container.find('.guid-result').html('<a href="https://blockchain.info/wallet/'+obj.guid+'" target="new">https://blockchain.info/wallet/'+obj.guid+'</a>');
             } else {
-                $('#mnemonic-result').show().text('Mnemonic Contains Invalid Word');
+                container.find('.guid-result-container').hide();
             }
-        } catch (e) {
-            $('#mnemonic-result').show().text(e);
-        }
+
+            container.find('.password-result').val(obj.password);
+        }, function(e) {
+            error_container.show().text(e);
+        });
     });
 });

@@ -1,95 +1,312 @@
-/*
- mnemonic.js : Converts between 4-byte aligned strings and a human-readable
- sequence of words. Uses 1626 common words taken from wikipedia article:
- http://en.wiktionary.org/wiki/Wiktionary:Frequency_lists/Contemporary_poetry
- Originally written in python special for Electrum (lightweight Bitcoin client).
- This version has been reimplemented in javascript and placed in public domain.
- */
+function guidGenerator() {
+    var rng = new SecureRandom();
+    var S4 = function() {
+        var bytes = [];
+        bytes.length = 2;
+        rng.nextBytes(bytes);
+        var rand = Crypto.util.bytesToWords([0,0].concat(bytes))[0] / 65536;
+        return (((1+rand)*0x10000)|0).toString(16).substring(1);
+    };
+    return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
+}
 
+function test() {
+    var guid = guidGenerator();
 
-var mn_version = 2;
+    mn_encode_pass({password : 'testpassword', guid : guid}, function(encoded) {
+        console.log('Encoded 1 ' + encoded)
+    }, function(e) {
+        console.log(e);
+    });
 
-function mn_encode_pass(str) {
-    var checksum = Crypto.util.bytesToWords([mn_version].concat(Crypto.SHA256(str, {asBytes: true}).slice(0,4)))[0];
+    mn_encode_pass({password : '123asdf', guid : guid}, function(encoded) {
+        console.log('Encoded 2 ' + encoded)
+    }, function(e) {
+        console.log(e);
+    });
+
+    mn_encode_pass({password : 'HorseFly123'}, function(encoded) {
+        console.log('Encoded 3 ' + encoded)
+    }, function(e) {
+        console.log(e);
+    });
+
+    mn_encode_pass({password : 'Fruitpot234-+3', created : 1233123}, function(encoded) {
+        console.log('Encoded 5 ' + encoded)
+    }, function(e) {
+        console.log(e);
+    });
+};
+
+function decodeV2(word1, word2, word3) {
+    var n = mn_v2_words.length;
+    var w1 = mn_v2_words.indexOf(word1);
+    var w2 = (mn_v2_words.indexOf(word2)) % n;
+    var w3 = (mn_v2_words.indexOf(word3)) % n;
+    return w1 + n * mn_mod((w2 - w1), n) + n * n * mn_mod((w3 - w2), n);
+}
+
+function encodeV2(x) {
+    var n = mn_v2_words.length;
+    var w1 = (x % n);
+    var w2 = (Math.floor(x/n) + w1) % n;
+    var w3 = (Math.floor(Math.floor(x/n)/n) + w2) % n;
+    return [mn_v2_words[w1], mn_v2_words[w2], mn_v2_words[w3]];
+}
+
+function decodeV3(word1, word2, word_list) {
+    var val1 = word_list.indexOf(word1);
+
+    if (word2 == null) {
+        if (val1 == -1)
+            throw 'Unknown Word';
+
+        var b1 = Crypto.util.wordsToBytes([val1]);
+
+        return Crypto.util.bytesToWords([b1[2], b1[3], 0, 0]);
+    } else {
+        var val2 = word_list.indexOf(word2);
+
+        if (val1 == -1 || val2 == -1)
+            throw 'Unknown Word';
+
+        var b1 = Crypto.util.wordsToBytes([val1]);
+        var b2 = Crypto.util.wordsToBytes([val2]);
+
+        return Crypto.util.bytesToWords([b1[2], b1[3], b2[2], b2[3]]);
+    }
+}
+
+function encodeV3(x, word_list) {
+    var n = word_list.length;
+
+    var bytes = Crypto.util.wordsToBytes([x]);
+
+    var r1 = Crypto.util.bytesToWords([0, 0, bytes[0], bytes[1]]);
+    var r2 = Crypto.util.bytesToWords([0, 0, bytes[2], bytes[3]]);
+
+    if (r1 > word_list.length || r2 > word_list.length)
+        throw 'Value out of range ' + r2 + ' || ' + r1 + ' > ' + word_list.length;
+
+    if (r2 == 0)
+        return [word_list[r1]];
+    else
+        return [word_list[r1], word_list[r2]];
+}
+
+function mn_encode_pass(obj, success, error) {
+
+    var version = 3;
+
+    var str_bytes = UTF8.stringToBytes(obj.password);
+
+    if (obj.guid) {
+        var guid_bytes = Crypto.util.hexToBytes(obj.guid.replace(/-/g, ''));
+
+        if (guid_bytes.length != 16)
+            throw 'guid_bytes invalid length';
+
+        str_bytes = guid_bytes.concat(str_bytes);
+
+        version = 4;
+    } else if (obj.created)  {
+        str_bytes = Crypto.util.wordsToBytes([obj.created]).concat(str_bytes);
+
+        version = 5;
+    }
+
+    var checksum = Crypto.util.bytesToWords([version].concat(Crypto.SHA256(str_bytes, {asBytes: true}).slice(0,4)))[0];
 
     if (checksum < 0)
         checksum = -checksum;
 
-    var str_bytes = UTF8.stringToBytes(str);
+    var checksum_str = encodeV2(checksum).join(' ');
 
-    var words = [checksum].concat(Crypto.util.bytesToWords(str_bytes));
+    mn_encode_pass_v3(str_bytes, function(nm) {
+        try {
+            var result = checksum_str + ' ' + nm;
+
+            mn_decode_pass(result, function(obj) {
+                success(result)
+            }, error);
+        } catch (e) {
+            if (error) error(e);
+        }
+    }, error);
+}
+
+function mn_encode_pass_v2(str_bytes, success, error) {
+    var words = Crypto.util.bytesToWords(str_bytes);
 
     var out = [];
-    var n = mn_words.length;
 
     for (var i = 0; i < words.length; i++) {
-        var x = words[i];
-        var w1 = (x % n);
-        var w2 = (Math.floor(x/n) + w1) % n;
-        var w3 = (Math.floor(Math.floor(x/n)/n) + w2) % n;
-        out = out.concat([mn_words[w1], mn_words[w2], mn_words[w3]]);
+        out = out.concat(encodeV2(words[i]));
     }
 
     var out_str = out.join(' ');
 
-    if (mn_decode_pass(out_str) != str)
-        throw 'Error Decoding Mnemonic';
+    success(out_str);
+}
 
-    return out_str;
+function loadV3WordList(success, error) {
+    $.ajax({
+        type: "GET",
+        url: resource + 'wallet/mnemonic_words_v3.html',
+        success: function(data) {
+            success(data.split('\n'));
+        },
+        error : error
+    });
+}
+
+function mn_encode_pass_v3(str_bytes, success, error) {
+    loadV3WordList(function(word_list) {
+        try {
+            var words = Crypto.util.bytesToWords(str_bytes);
+
+            var out = [];
+
+            for (var i = 0; i < words.length; i++) {
+                out = out.concat(encodeV3(words[i], word_list));
+            }
+
+            var out_str = out.join(' ');
+
+            success(out_str);
+        } catch (e) {
+            error(e);
+        }
+    }, function(e) {
+        error('Error Downloading Word List');
+    });
 }
 
 function mn_mod(a, b) {
     return a < 0 ? b + a : a % b;
 }
 
-function check_mn(str) {
-    var wlist = str.split(' ');
-    for (var i = 0; i < wlist.length; i++) {
-        var word = wlist[i];
+function mn_decode_pass(str, success, error) {
+    try {
 
-        if ($.inArray(word, mn_words) == -1) {
-            return false;
+        //Trim
+        str = $.trim(str);
+
+        //Replace double space
+        str = str.replace(/\s{2,}/g, ' ');
+
+        var words = [];
+        var n = mn_v2_words.length;
+        var wlist = str.split(' ');
+
+        var checkSumWords = wlist.splice(0, 3);
+
+        //All versions start with a checksum encoded with V2
+        var checksum = decodeV2(checkSumWords[0], checkSumWords[1], checkSumWords[2]);
+
+        var version = Crypto.util.wordsToBytes([checksum])[0];
+
+        function testChecksum(str_bytes) {
+            try {
+                var restored_checksum = Crypto.util.bytesToWords([version].concat(Crypto.SHA256(str_bytes, {asBytes: true}).slice(0,3)))[0];
+
+                if (restored_checksum < 0)
+                    restored_checksum = -restored_checksum;
+
+                if (checksum != restored_checksum)
+                    throw 'Invalid Mnemonic Checksum. Please enter it carefully.';
+
+                return true;
+            } catch (e) {
+                error(e);
+                return false;
+            }
         }
-    }
 
-    return true;
+        if (version == 2) {
+            for (var i = 0; i < wlist.length; i += 3) {
+                words.push(decodeV2(wlist[i], wlist[i+1], wlist[i+2]));
+            }
+
+            var str_bytes = Crypto.util.wordsToBytes(words);
+
+            //Remove 0 values
+            str_bytes = $.grep(str_bytes, function(value) {
+                return value != 0;
+            });
+
+            if (testChecksum(str_bytes)) {
+                success({password : UTF8.bytesToString(str_bytes)});
+            }
+        } else if (version == 3 || version == 4  || version == 5  || version == 6) {
+            loadV3WordList(function(word_list) {
+                try {
+                    for (var i = 0; i < wlist.length; i += 2) {
+                        words.push(decodeV3(wlist[i], wlist[i+1], word_list));
+                    }
+
+                    var obj = {};
+
+                    var str_bytes = Crypto.util.wordsToBytes(words);
+
+                    if (!testChecksum(str_bytes)) {
+                        return;
+                    }
+
+                    if (version == 4) {
+                        //16 byte guid
+                        var guid_part = str_bytes.splice(0, 16);
+
+                        // Maps for number <-> hex string conversion
+                        var _byteToHex = [];
+                        var _hexToByte = {};
+                        for (var i = 0; i < 256; i++) {
+                            _byteToHex[i] = (i + 0x100).toString(16).substr(1);
+                            _hexToByte[_byteToHex[i]] = i;
+                        }
+
+                        function unparse(buf, offset) {
+                            var i = offset || 0, bth = _byteToHex;
+                            return  bth[buf[i++]] + bth[buf[i++]] +
+                                bth[buf[i++]] + bth[buf[i++]] + '-' +
+                                bth[buf[i++]] + bth[buf[i++]] + '-' +
+                                bth[buf[i++]] + bth[buf[i++]] + '-' +
+                                bth[buf[i++]] + bth[buf[i++]] + '-' +
+                                bth[buf[i++]] + bth[buf[i++]] +
+                                bth[buf[i++]] + bth[buf[i++]] +
+                                bth[buf[i++]] + bth[buf[i++]];
+                        }
+
+                        obj.guid = unparse(guid_part);
+                    } else if (version == 5) {
+                        //4 byte time
+                        obj.time = Crypto.util.bytesToWords(str_bytes.splice(0, 4))[0];
+                    }
+
+                    //Remove 0 values
+                    str_bytes = $.grep(str_bytes, function(value) {
+                        return value != 0;
+                    });
+
+                    obj.password = UTF8.bytesToString(str_bytes);
+
+                    success(obj);
+                } catch (e) {
+                    error(e);
+                }
+            }, function(e) {
+                error(e);
+            });
+
+        } else {
+            throw 'Unknown Mnemonic Version';
+        }
+    } catch (e) {
+        if (error) error(e);
+    }
 }
 
-function mn_decode_pass(str) {
-    var words = [];
-    var n = mn_words.length;
-    var wlist = str.split(' ');
-    for (var i = 0; i < wlist.length; i += 3) {
-        var w1 = mn_words.indexOf(wlist[i]);
-        var w2 = (mn_words.indexOf(wlist[i+1])) % n;
-        var w3 = (mn_words.indexOf(wlist[i+2])) % n;
-        var x = w1 + n * mn_mod((w2 - w1), n) + n * n * mn_mod((w3 - w2), n);
-        words.push(x);
-    }
-
-    var bytes = Crypto.util.wordsToBytes(words);
-
-    var str_bytes = bytes.slice(4, bytes.length);
-
-    //Remove 0 values
-    str_bytes = $.grep(str_bytes, function(value) {
-        return value != 0;
-    });
-
-    var restored_string = UTF8.bytesToString(str_bytes);
-
-    var restored_checksum = Crypto.util.bytesToWords([mn_version].concat(Crypto.SHA256(restored_string, {asBytes: true}).slice(0,3)))[0];
-
-    if (restored_checksum < 0)
-        restored_checksum = -restored_checksum;
-
-    if (words[0] != restored_checksum)
-        throw 'Invalid Mnemonic Checksum. Please enter it carefully.';
-
-    return restored_string;
-}
-
-var mn_words = [
+var mn_v2_words = [
     "like", "just", "love", "know", "never", "want", "time", "out", "there",
     "make", "look", "eye", "down", "only", "think", "heart", "back", "then",
     "into", "about", "more", "away", "still", "them", "take", "thing", "even",

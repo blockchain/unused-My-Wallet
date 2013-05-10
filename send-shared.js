@@ -7,7 +7,9 @@ $(document).ready(function() {
     var button = $('#create-forwarding').find('button');
 
     button.click(function() {
-        $(this).text('Working...').attr('disabled', true);
+        var self = $(this);
+
+        self.text('Working...').prop('disabled', true);
 
         var address = $.trim($('#create-forwarding').find('input[name="input-address"]').val());
 
@@ -17,7 +19,7 @@ $(document).ready(function() {
             dataType: 'json',
             data : { action : "create-mix", address : address, shared : true},
             success: function(obj) {
-                button.text('Create New Forwarding Address').attr('disabled', false);
+                self.text('Create New Forwarding Address').prop('disabled', false);
 
                 if (obj.destination != address) {
                     throw 'Mismatch between requested and returned destination address';
@@ -44,7 +46,7 @@ $(document).ready(function() {
                 }
             },
             error : function(e) {
-                button.text('Create New Forwarding Address').attr('disabled', false);
+                self.text('Create New Forwarding Address').prop('disabled', false);
 
                 alert(e.responseText);
             }

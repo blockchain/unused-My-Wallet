@@ -1,9 +1,9 @@
 var satoshi = 100000000; //One satoshi
 var show_adv = false;
 var adv_rule;
-var symbol_btc = {"code" : "BTC", "symbol" : "BTC", "name" : "Bitcoin",  "conversion" : satoshi, "symbolAppearsAfter" : true}; //BTC Currency Symbol object
-var symbol_local = symbol_btc; //Users local currency object
-var symbol; //Active currency object
+var symbol_btc = {code : "BTC", symbol : "BTC", name : "Bitcoin",  conversion : satoshi, symbolAppearsAfter : true, local : false}; //Default BTC Currency Symbol object
+var symbol_local; //Users local currency object
+var symbol = symbol_btc; //Active currency object
 var root = '/';
 var resource = '/Resources/';
 var war_checksum;
@@ -13,12 +13,25 @@ var isExtension = false;
 function setLocalSymbol(new_symbol) {
     if (!new_symbol) return;
 
-    if (symbol == symbol_local && symbol_local != symbol_btc)
-        symbol = new_symbol;
+    if (symbol === symbol_local) {
+        symbol_local = new_symbol;
+        symbol = symbol_local;
+        calcMoney();
+    } else {
+        symbol_local = new_symbol;
+    }
+}
 
-    symbol_local = new_symbol;
+function setBTCSymbol(new_symbol) {
+    if (!new_symbol) return;
 
-    calcMoney();
+    if (symbol === symbol_btc) {
+        symbol_btc = new_symbol;
+        symbol = symbol_btc;
+        calcMoney();
+    } else {
+        symbol_btc = new_symbol;
+    }
 }
 
 //Assumes 10px margin (modals)
@@ -177,13 +190,13 @@ function TransactionFromJSON(json) {
 
             var button_class;
             if (result == null || result > 0) {
-                button_class = 'btn btn-success';
+                button_class = 'btn btn-success cb';
                 html += '<img src="'+resource+'arrow_right_green.png" />';
             } else if (result < 0) {
-                button_class = 'btn btn-danger';
+                button_class = 'btn btn-danger cb';
                 html += '<img src="'+resource+'arrow_right_red.png" />';
             } else  {
-                button_class = 'btn';
+                button_class = 'btn cb';
                 html += '&nbsp;';
             }
 
@@ -262,8 +275,8 @@ function dateToString(d) {
     }
 }
 
-function formatBTC(value) {
-    if (value == null)
+function formatSatoshi(value, shift, no_comma) {
+    if (!value)
         return '0.00';
 
     var neg = '';
@@ -272,13 +285,19 @@ function formatBTC(value) {
         neg = '-';
     }
 
+    if (!shift) shift = 0;
+
     value = ''+parseInt(value);
 
-    var integerPart = value.length > 8 ? value.substr(0, value.length-8) : '0';
-    var decimalPart = value.length > 8 ? value.substr(value.length-8) : value;
+    //TODO Clean this up
+    var integerPart = (value.length > (8-shift) ? value.substr(0, value.length-(8-shift)) : '0')
 
-    if (decimalPart != null) {
-        while (decimalPart.length < 8) decimalPart = "0"+decimalPart;
+    if (!no_comma) integerPart = integerPart.replace(/(\d)(?=(\d\d\d)+(?!\d))/g, "$1,");
+
+    var decimalPart = value.length > (8-shift) ? value.substr(value.length-(8-shift)) : value;
+
+    if (decimalPart && decimalPart != 0) {
+        while (decimalPart.length < (8-shift)) decimalPart = "0"+decimalPart;
         decimalPart = decimalPart.replace(/0*$/, '');
         while (decimalPart.length < 2) decimalPart += "0";
 
@@ -288,19 +307,35 @@ function formatBTC(value) {
     return neg + integerPart;
 }
 
-
 function convert(x, conversion) {
     return (x / conversion).toFixed(2).toString().replace(/(\d)(?=(\d\d\d)+(?!\d))/g, "$1,");
 }
 
-function formatSymbol(x, symbol) {
+//Convenience format satoshi as BTC value string
+function formatBTC(x) {
+    return formatSymbol(x, symbol_btc);
+}
+
+//The current 'shift' value - BTC = 1, mBTC = 3, uBTC = 6
+function sShift(symbol) {
+    return (satoshi / symbol.conversion).toString().length-1;
+}
+
+function formatSymbol(x, symbol, html) {
     var str;
 
-    if (symbol.code != 'BTC') {
-        str = symbol.symbol + ' ' +  convert(x, symbol.conversion);
+    if (symbol !== symbol_btc) {
+        str = convert(x, symbol.conversion);
     } else {
-        str = formatBTC(x) + ' ' + symbol.symbol;
+        str = formatSatoshi(x, sShift(symbol))
     }
+
+    if (html) str = str.replace(/([1-9]\d*\.\d{2}?)(.*)/, "$1<span style=\"font-size:85%;\">$2</span>");
+
+    if (symbol.symbolAppearsAfter)
+        str += ' ' +symbol.symbol;
+    else
+        str = symbol.symbol + ' ' + str;
 
     return str;
 }
@@ -391,19 +426,15 @@ function setAdv(isOn) {
     }
 }
 
-function selectOption(select_id, option_val) {
-    $('#'+select_id+' option:selected').removeAttr('selected');
-    $('#'+select_id+' option[value='+option_val+']').attr('selected','selected');
-}
-
 function calcMoney() {
     $('span[data-c]').each(function(index) {
-        $(this).text(formatMoney($(this).attr('data-c')));
+        $(this).text(formatMoney($(this).data('c')));
     });
 }
 
 function toggleSymbol() {
-    if (symbol === symbol_btc) {
+
+    if (symbol_local && symbol === symbol_btc) {
         symbol = symbol_local;
         SetCookie('local', 'true');
     } else {
@@ -411,7 +442,7 @@ function toggleSymbol() {
         SetCookie('local', 'false');
     }
 
-    selectOption('currencies', symbol.code);
+    $('#currencies').val(symbol.code);
 
     calcMoney();
 }
@@ -438,11 +469,41 @@ function setupToggle() {
     });
 }
 
+function updateQueryString(key, value, url) {
+    if (!url) url = window.location.href;
+    var re = new RegExp("([?|&])" + key + "=.*?(&|#|$)(.*)", "gi");
+
+    if (re.test(url)) {
+        if (typeof value !== 'undefined' && value !== null)
+            return url.replace(re, '$1' + key + "=" + value + '$2$3');
+        else {
+            return url.replace(re, '$1$3').replace(/(&|\?)$/, '');
+        }
+    }
+    else {
+        if (typeof value !== 'undefined' && value !== null) {
+            var separator = url.indexOf('?') !== -1 ? '&' : '?',
+                hash = url.split('#');
+            url = hash[0] + separator + key + '=' + value;
+            if (hash[1]) url += '#' + hash[1];
+            return url;
+        }
+        else
+            return url;
+    }
+}
+
 $(document).ready(function() {
 
-    var symtxt = $('#symbol-local').text();
-    if (symtxt && symtxt.length > 0) {
-        symbol_local = $.parseJSON(symtxt);
+    var footer = $('.footer');
+    var obj1 = footer.data('symbol-local');
+    if (obj1) {
+        symbol_local = obj1;
+    }
+
+    var obj2 = footer.data('symbol-btc');
+    if (obj2) {
+        symbol_btc = obj2;
     }
 
     if (symbol_local && getCookie('local') == 'true') {
@@ -465,9 +526,7 @@ $(document).ready(function() {
                 } else if (symbol_btc != null && val == symbol_btc.code) {
                     toggleSymbol();
                 } else {
-                    SetCookie('currency', val);
-                    SetCookie('local', 'true');
-                    location.reload();
+                    document.location.href = updateQueryString('currency', val, document.location.href);
                 }
             }
         });
@@ -480,19 +539,21 @@ $(document).ready(function() {
     } catch (e) {}
 });
 
-function registerURIHandler() {
-    if (navigator && getCookie('protoreg') == null) {
-        try {
-            navigator.registerProtocolHandler("bitcoin",
-                window.location.protocol + '//' + window.location.hostname + "/uri?uri=%s",
-                "Blockchain.info");
 
-            setCooke('protoreg', true);
-        } catch(e) {
-            console.log(e);
-        }
-    }
-}
+/*
+ function registerURIHandler() {
+ if (navigator && getCookie('protoreg') == null) {
+ try {
+ navigator.registerProtocolHandler("bitcoin",
+ window.location.protocol + '//' + window.location.hostname + "/uri?uri=%s",
+ "Blockchain.info");
+
+ SetCookie('protoreg', true);
+ } catch(e) {
+ console.log(e);
+ }
+ }
+ }*/
 
 function loadScript(src, success, error) {
     src = resource + src + (min ? '.min.js' : '.js') + '?'+war_checksum;

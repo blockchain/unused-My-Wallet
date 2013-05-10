@@ -107,8 +107,7 @@ $(document).ready(function() {
                         total_received += parseInt(tx.out[i].value);
                     }
 
-
-                    var original_value = parseInt(transacted.find('span').attr('data-c'));
+                    var original_value = parseInt(transacted.find('span').data('c'));
 
                     var target_val = parseInt(transacted.data('target_val'));
                     if (!isNaN(target_val) && target_val > original_value)

@@ -1,5 +1,8 @@
 // BigInteger monkey patching
-BigInteger.valueOf = nbv;
+BigInteger.valueOf = function (x) {
+    if (!x) return BigInteger.ZERO;
+    return new BigInteger(''+x, 10);
+}
 
 /**
  * Returns a byte array representation of the big integer.
@@ -190,6 +193,14 @@ Bitcoin.Util = {
      * correctly.
      */
     parseValue: function (valueString) {
+        if (!valueString) return BigInteger.ZERO;
+
+        valueString = ''+valueString;
+
+        if (!/^[\d.]+$/.test(valueString)) {
+            return BigInteger.ZERO;
+        }
+
         // TODO: Detect other number formats (e.g. comma as decimal separator)
         var valueComp = valueString.split('.');
         var integralPart = valueComp[0];
@@ -200,9 +211,9 @@ Bitcoin.Util = {
         while (fractionalPart.length < 8) fractionalPart += "0";
 
         fractionalPart = fractionalPart.replace(/^0+/g, '');
-        var value = BigInteger.valueOf(parseInt(integralPart));
+        var value = BigInteger.valueOf(integralPart);
         value = value.multiply(BigInteger.valueOf(100000000));
-        value = value.add(BigInteger.valueOf(parseInt(fractionalPart)));
+        value = value.add(BigInteger.valueOf(fractionalPart));
         return value;
     },
 

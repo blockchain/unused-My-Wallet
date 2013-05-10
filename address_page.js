@@ -116,11 +116,11 @@ $(document).ready(function() {
                         }
                     }
 
-                    $('#total_received span').attr('data-c', parseInt($('#total_received span').attr('data-c')) + total_received);
+                    $('#total_received span').data('c', parseInt($('#total_received span').data('c')) + total_received);
 
                     result += total_received;
 
-                    $('#final_balance span').attr('data-c', parseInt($('#final_balance span').attr('data-c')) + result);
+                    $('#final_balance span').data('c', parseInt($('#final_balance span').data('c')) + result);
 
                     tx.result = result;
 

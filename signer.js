@@ -181,7 +181,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
     }
 
     try {
-        $('.send-value,.send-value-usd,.send').attr('disabled', true);
+        $('.send-value,.send-value-usd,.send').prop('disabled', true);
 
         var total_value = 0;
         el.find('input[name="send-value"]').each(function() {
@@ -189,34 +189,34 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
         });
 
         var custom_ask_for_fee = true;
-        if (total_value > 10) {
+        if (total_value > precisionFromBTC(10)) {
             if (type == 'email' || type == 'sms') {
                 throw 'Cannot Send More Than 10 BTC via email or sms';
-            } else if (type == 'quick') { //Any quick transactions over 20 BTC make them custom
+            } else if (type == 'quick') { //Any quick transactions over 10 BTC make them custom
                 type = 'custom';
                 custom_ask_for_fee = false;
             }
-        } else if (type == 'shared' && total_value < 0.2) {
-            throw 'The Minimum Amount You Can Send Shared is 0.2 BTC';
-        } else if (type == 'shared' && total_value > 250) {
-            throw 'The Maximum Amount You Can Send Shared is 250 BTC';
+        } else if (type == 'shared' && total_value < precisionFromBTC(0.2)) {
+            throw 'The Minimum Amount You Can Send Shared is ' + formatPrecision(precisionFromBTC(0.2));
+        } else if (type == 'shared' && total_value > precisionFromBTC(250)) {
+            throw 'The Maximum Amount You Can Send Shared is ' +  formatPrecision(precisionFromBTC(250));
         }
 
-        if (MyWallet.getMixerFee() < 0 && (type == 'custom' || type == 'quick') && total_value >= 5 && getCookie('shared-never-ask') != 'true' && !dont_ask_for_anon) {
+        if (MyWallet.getMixerFee() < 0 && (type == 'custom' || type == 'quick') && total_value >= precisionFromBTC(5) && getCookie('shared-never-ask') != 'true' && !dont_ask_for_anon) {
 
             var last_accepted_time = getCookie('shared-accepted-time');
             if (!last_accepted_time || parseInt(last_accepted_time) < new Date().getTime()-43200000) {
                 var modal = $('#ask-for-shared');
 
                 modal.find('.bonus-percent').text(- MyWallet.getMixerFee());
-                modal.find('.bonus-value').text((total_value / 100) * - MyWallet.getMixerFee());
+                modal.find('.bonus-value').text(formatPrecision((total_value / 100) * - MyWallet.getMixerFee()));
 
                 var delay_span = modal.find('.delay');
-                if (total_value <= 10)
+                if (total_value <= precisionFromBTC(10))
                     delay_span.text('20 Seconds');
-                else if (total_value <= 25)
+                else if (total_value <= precisionFromBTC(25))
                     delay_span.text('10 Minutes');
-                else if (total_value <= 250)
+                else if (total_value <= precisionFromBTC(250))
                     delay_span.text('20 Minutes');
                 else
                     delay_span.text('1 hour');
@@ -282,7 +282,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     this.modal.find('#tx-sign-progress').hide();
 
                     //disable primary for now
-                    this.modal.find('.btn.btn-primary').attr('disabled', true);
+                    this.modal.find('.btn.btn-primary').prop('disabled', true);
 
                     this.modal.find('.btn.btn-primary').text('Send Transaction');
 
@@ -366,12 +366,12 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                         url: root + 'ping',
                         data : {format : 'plain', date : new Date().getTime()},
                         success: function() {
-                            btn.attr('disabled', false);
+                            btn.removeAttr('disabled');
 
                             btn.text('Send Transaction');
 
                             btn.unbind().click(function() {
-                                btn.attr('disabled', true);
+                                btn.prop('disabled', true);
 
                                 if (self.modal)
                                     self.modal.modal('hide');
@@ -382,13 +382,13 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                         error : function() {
                             self.modal.find('.modal-header h3').html('Created Offline Transaction.');
 
-                            btn.attr('disabled', false);
+                            btn.removeAttr('disabled');
 
                             btn.text('Show Offline Instructions');
 
                             btn.unbind().click(function() {
 
-                                btn.attr('disabled', true);
+                                btn.prop('disabled', true);
 
                                 self.modal.find('#missing-private-key').hide();
                                 self.modal.find('#review-tx').hide();
@@ -653,13 +653,9 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     }
                 }
 
-                var input_fee = $.trim(el.find('input[name="fees"]').val());
-
-                if (input_fee != null && input_fee.length > 0) {
-                    pending_transaction.fee = Bitcoin.Util.parseValue(input_fee);
-
-                    if (pending_transaction.fee.compareTo(BigInteger.ZERO) < 0)
-                        throw 'Fees cannot be negative';
+                var input_fee = precisionToSatoshiBN(el.find('input[name="fees"]').val());
+                if (input_fee.compareTo(BigInteger.ZERO) > 0) {
+                    pending_transaction.fee = input_fee;
                 }
 
                 var recipients = el.find(".recipient");
@@ -703,7 +699,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                         var value = 0;
                         try {
-                            value = Bitcoin.Util.parseValue($.trim(value_input.val()));
+                            value = precisionToSatoshiBN(value_input.val());
 
                             if (value == null || value.compareTo(BigInteger.ZERO) <= 0)
                                 throw 'You must enter a value greater than zero';
@@ -1031,7 +1027,7 @@ function setReviewTransactionContent(modal, tx, type) {
             addr = 'Unable To Decode Address';
         }
 
-        $('#rtc-from').append(addr + ' <font color="green">' + formatBTC(input.outpoint.value.toString()) + ' BTC <br />');
+        $('#rtc-from').append(addr + ' <font color="green">' + formatBTC(input.outpoint.value.toString()) + ' <br />');
     }
 
     var isFirst = true;
@@ -1056,7 +1052,7 @@ function setReviewTransactionContent(modal, tx, type) {
             out_addresses.push('Unknown Address!');
         }
 
-        $('#rtc-to').append(formatAddresses(m, out_addresses) + ' <font color="green">' + formatBTC(val.toString()) + ' BTC </font><br />');
+        $('#rtc-to').append(formatAddresses(m, out_addresses) + ' <font color="green">' + formatBTC(val.toString()) + ' </font><br />');
 
         total = total.add(val);
 
@@ -1070,7 +1066,7 @@ function setReviewTransactionContent(modal, tx, type) {
                 basic_str += ' and ';
             }
 
-            basic_str += '<b>' + formatBTC(val.toString())  + ' BTC</b> to ' + formatAddresses(m, out_addresses, true);
+            basic_str += '<b>' + formatBTC(val.toString())  + '</b> to ' + formatAddresses(m, out_addresses, true);
 
             all_txs_to_self = false;
 
@@ -1091,9 +1087,9 @@ function setReviewTransactionContent(modal, tx, type) {
                 }
 
                 if (type && type == 'shared') {
-                    basic_str += '<b>' + formatBTC(val.toString())  + ' BTC</b> Shared';
+                    basic_str += '<b>' + formatBTC(val.toString())  + '</b> Shared';
                 } else {
-                    basic_str += '<b>' + formatBTC(val.toString())  + ' BTC</b> to ' + formatAddresses(1, [address], true);
+                    basic_str += '<b>' + formatBTC(val.toString())  + '</b> to ' + formatAddresses(1, [address], true);
                 }
 
                 all_txs_to_self = false;
@@ -1112,16 +1108,16 @@ function setReviewTransactionContent(modal, tx, type) {
     }
 
     if (all_txs_to_self == true) {
-        basic_str = 'move <b>' + formatBTC(total.toString()) + ' BTC</b> between your own bitcoin addresses';
+        basic_str = 'move <b>' + formatBTC(total.toString()) + '</b> between your own bitcoin addresses';
     }
 
     $('#rtc-basic-summary').html(basic_str);
 
-    $('#rtc-effect').html("-" + formatBTC(wallet_effect.toString()) + ' BTC');
+    $('#rtc-effect').html("-" + formatBTC(wallet_effect.toString()));
 
-    $('#rtc-fees').html(formatBTC(total_fees.toString()) + ' BTC');
+    $('#rtc-fees').html(formatBTC(total_fees.toString()));
 
-    $('#rtc-value').html(formatBTC(total.toString()) + ' BTC');
+    $('#rtc-value').html(formatBTC(total.toString()));
 }
 
 /*
@@ -1149,6 +1145,7 @@ function initNewTx() {
         is_cancelled : false,
         ask_to_send_shared : false,
         base_fee : BigInteger.valueOf(50000),
+        min_free_output_size : BigInteger.valueOf(1000000),
         ready_to_send_header : 'Transaction Ready to Send.',
         addListener : function(listener) {
             this.listeners.push(listener);
@@ -1247,77 +1244,94 @@ function initNewTx() {
 
                 var priority = 0;
                 var addresses_used = [];
-                var unspent_watch_only = [];
-                var looping_array = self.unspent;
-
                 var forceFee = false;
 
-                for (var i = 0; i < looping_array.length; ++i) {
-                    var out = looping_array[i];
+                //First try without including watch only
+                //If we don't have enough funds ask for the watch only private key
+                var includeWatchOnly = false;
+                var unspent_copy = self.unspent.slice(0);
 
-                    try {
-                        var addr = new Bitcoin.Address(out.script.simpleOutPubKeyHash()).toString();
+                function parseOut(out) {
+                    var addr = new Bitcoin.Address(out.script.simpleOutPubKeyHash()).toString();
 
-                        if (addr == null) {
-                            throw 'Unable to decode output address from transaction hash ' + out.tx_hash;
-                        }
+                    if (addr == null) {
+                        throw 'Unable to decode output address from transaction hash ' + out.tx_hash;
+                    }
 
-                        if (looping_array != unspent_watch_only) {
-                            //When we have reached the last one element add the watch only addresses back in
-                            if (i == looping_array.length-1) {
-                                //Change the looping array to loop over the watch only
-                                looping_array = unspent_watch_only;
+                    var hexhash = Crypto.util.hexToBytes(out.tx_hash);
 
-                                i = -1;
-                            } else if (MyWallet.addressExists(addr) && MyWallet.isWatchOnly(addr))  {
-                                unspent_watch_only.push(out); //Skip watch only addresses first
+                    var b64hash = Crypto.util.bytesToBase64(Crypto.util.hexToBytes(out.tx_hash));
+
+                    var input =  new Bitcoin.TransactionIn({outpoint: {hash: b64hash, hexhash: hexhash, index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295});
+
+                    return {addr : addr , input : input}
+                }
+
+                while(true) {
+                    for (var i = 0; i < unspent_copy.length; ++i) {
+                        var out = unspent_copy[i];
+
+                        if (!out) continue;
+
+                        try {
+                            var addr_input_obj = parseOut(out);
+
+                            if (!MyWallet.addressExists(addr_input_obj.addr) || (!includeWatchOnly && MyWallet.isWatchOnly(addr_input_obj.addr))) {
                                 continue;
                             }
-                        }
 
-                        if (self.from_addresses != null && $.inArray(addr, self.from_addresses) == -1) {
-                            continue;
-                        }
+                            if (self.from_addresses != null && $.inArray(addr_input_obj.addr, self.from_addresses) == -1) {
+                                continue;
+                            }
 
-                        var hexhash = Crypto.util.hexToBytes(out.tx_hash);
+                            //If the output happens to be greater than tx value then we can make this transaction with one input only
+                            //So discard the previous selected outs
+                            //out.value.compareTo(self.min_free_output_size) >= 0 because we want to prefer a change output of greater than 0.01 BTC
+                            //Unless we have the extact tx value
+                            if (out.value.compareTo(txValue) == 0 || out.value.compareTo(txValue.add(self.min_free_output_size)) >= 0) {
+                                self.selected_outputs = [addr_input_obj.input];
 
-                        var b64hash = Crypto.util.bytesToBase64(Crypto.util.hexToBytes(out.tx_hash));
+                                unspent_copy[i] = null; //Mark it null so we know it is used
 
-                        var new_in =  new Bitcoin.TransactionIn({outpoint: {hash: b64hash, hexhash: hexhash, index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295});
+                                addresses_used = [addr_input_obj.addr];
 
-                        //If the output happens to be greater than tx value then we can make this transaction with one input only
-                        //So discard the previous selected outs
-                        if (out.value.compareTo(txValue) >= 0) {
-                            self.selected_outputs = [new_in];
+                                priority = out.value * out.confirmations;
 
-                            addresses_used = [addr];
+                                availableValue = out.value;
 
-                            priority = out.value * out.confirmations;
-
-                            availableValue = out.value;
-
-                            break;
-                        } else {
-                            //Otherwise we add the value of the selected output and continue looping if we don't have sufficient funds yet
-                            self.selected_outputs.push(new_in);
-
-                            addresses_used.push(addr);
-
-                            priority += out.value * out.confirmations;
-
-                            availableValue = availableValue.add(out.value);
-
-                            if (availableValue.compareTo(txValue) >= 0)
                                 break;
+                            } else {
+                                //Otherwise we add the value of the selected output and continue looping if we don't have sufficient funds yet
+                                self.selected_outputs.push(addr_input_obj.input);
+
+                                unspent_copy[i] = null; //Mark it null so we know it is used
+
+                                addresses_used.push(addr_input_obj.addr);
+
+                                priority += out.value * out.confirmations;
+
+                                availableValue = availableValue.add(out.value);
+
+                                if (availableValue.compareTo(txValue) == 0 || availableValue.compareTo(txValue.add(self.min_free_output_size)) >= 0)
+                                    break;
+                            }
+                        } catch (e) {
+                            //An error, but probably recoverable
+                            MyWallet.makeNotice('info', 'tx-error', e);
                         }
-                    } catch (e) {
-                        //An error, but probably recoverable
-                        MyWallet.makeNotice('info', 'tx-error', e);
                     }
+
+                    if (availableValue.compareTo(txValue) >= 0)
+                        break;
+
+                    if (includeWatchOnly)
+                        break;
+
+                    includeWatchOnly = true;
                 }
 
                 function insufficientError() {
-                    self.error('Insufficient funds. Value Needed ' +  formatBTC(txValue.toString()) + ' BTC. Available amount ' + formatBTC(availableValue.toString()) + ' BTC');
+                    self.error('Insufficient funds. Value Needed ' +  formatBTC(txValue.toString()) + '. Available amount ' + formatBTC(availableValue.toString()));
                 }
 
                 var difference = availableValue.subtract(txValue);
@@ -1368,7 +1382,7 @@ function initNewTx() {
                     }
 
                     //If less than 0.01 BTC force fee
-                    if (addrObj.value.compareTo(BigInteger.valueOf(1000000)) <= 0) {
+                    if (addrObj.value.compareTo(self.min_free_output_size) < 0) {
                         forceFee = true;
                     }
                 }
@@ -1385,7 +1399,7 @@ function initNewTx() {
                     }
 
                     //If less than 0.01 BTC force fee
-                    if (changeValue.compareTo(BigInteger.valueOf(1000000)) <= 0) {
+                    if (changeValue.compareTo(min_free_output_size) < 0) {
                         forceFee = true;
                     }
                 }
@@ -1436,23 +1450,14 @@ function initNewTx() {
                 var fee_is_zero = (!self.fee || self.fee.compareTo(self.base_fee) < 0);
 
                 //Priority under 57 million requires a 0.0005 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
-                if (fee_is_zero && forceFee) {
+                if (fee_is_zero && (forceFee || kilobytes > 1)) {
                     //Forced Fee
-                    if (kilobytes > 1) {
-                        self.fee = self.base_fee.multiply(BigInteger.valueOf(kilobytes)); //0.0005 BTC * kilobytes + 1
-                    } else {
-                        self.fee = self.base_fee; //0.0005 BTC
-                    }
+                    self.fee = self.base_fee.multiply(BigInteger.valueOf(kilobytes+1)); //0.0005 BTC * kilobytes + 1
 
                     self.makeTransaction();
-                } else if (fee_is_zero && (priority < 57600000 || kilobytes > 1 || isEscrow || askforfee)) {
+                } else if (fee_is_zero && (priority < 77600000 || isEscrow || askforfee)) { //Bit extra added to priority
                     self.ask_for_fee(function() {
-
-                        if (kilobytes > 1) {
-                            self.fee = self.base_fee.multiply(BigInteger.valueOf(kilobytes)); //0.0005 BTC * kilobytes + 1
-                        } else {
-                            self.fee = self.base_fee; //0.0005 BTC
-                        }
+                        self.fee = self.base_fee.multiply(BigInteger.valueOf(kilobytes+1)); //0.0005 BTC * kilobytes + 1
 
                         self.makeTransaction();
                     }, function() {
@@ -1767,13 +1772,13 @@ function initNewTx() {
                 MyWallet.makeNotice('error', 'tx-error', e);
             }
 
-            $('.send-value,.send-value-usd,.send').attr('disabled', false);
+            $('.send-value,.send-value-usd,.send').removeAttr('disabled');
         },
         on_success : function(e) {
-            $('.send-value,.send-value-usd,.send').attr('disabled', false);
+            $('.send-value,.send-value-usd,.send').removeAttr('disabled');
         },
         on_start : function(e) {
-            $('.send-value,.send-value-usd,.send').attr('disabled', true);
+            $('.send-value,.send-value-usd,.send').prop('disabled', true);
         },
         on_begin_signing : function() {
             this.start = new Date().getTime();

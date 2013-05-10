@@ -1,7 +1,30 @@
+//------
+//Should find somewhere else for these
+//user precision (e.g. BTC or mBTC) to satoshi big int
+function precisionToSatoshiBN(x) {
+    return Bitcoin.Util.parseValue(x).divide(BigInteger.valueOf(Math.pow(10, sShift(symbol_btc)).toString()));
+}
+
+//user precision (e.g. BTC or mBTC) to BTC decimal
+function precisionToBTC(x) {
+    return Bitcoin.Util.formatValue(precisionToSatoshiBN(x));
+}
+
+//BTC decimal to user precision (e.g. BTC or mBTC)
+function precisionFromBTC(x) {
+    return Bitcoin.Util.formatValue(Bitcoin.Util.parseValue(x).multiply(BigInteger.valueOf(Math.pow(10, sShift(symbol_btc)))));
+}
+
+//user precision to display string
+function formatPrecision(x) {
+    return formatBTC(precisionToSatoshiBN(x).toString());
+}
+//-----
+
 var MyWallet = new function() {
     var MyWallet = this;
 
-    this.skip_init = false;
+    this.skip_init = false; //Set on sign up page
     var demo_guid = 'abcaa314-6f67-6705-b384-5d47fbe9d7cc';
     var encrypted_wallet_data; //Encrypted wallet data (Base64, AES 256)
     var guid; //Wallet identifier
@@ -27,7 +50,7 @@ var MyWallet = new function() {
     var archTimer; //Delayed Backup wallet timer
     var mixer_fee = 0.5; //Default mixer fee 1.5%
     var default_pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
-    var tx_notes = {};
+    var tx_notes = {}; //A map of transaction notes, hash -> note
     var real_auth_type = 0;
     var auth_type;
     var logout_timeout;
@@ -35,7 +58,7 @@ var MyWallet = new function() {
     var last_input_main_password;
     var main_password_timeout = 60000;
     var isInitialized = false;
-    var extra_seed;
+    var extra_seed; //Help for browsers that don't support window.crypto
     var show_unsynced = false;
 
     var wallet_options = {
@@ -110,7 +133,7 @@ var MyWallet = new function() {
     }
 
     this.setFeePolicy = function(policy) {
-        wallet_options.fee_policy = policy;
+        wallet_options.fee_policy = parseInt(policy);
     }
 
     this.setAlwaysKeepLocalBackup = function(val) {
@@ -622,7 +645,7 @@ var MyWallet = new function() {
                                         webkitNotifications.createNotification(options.iconUrl, options.title, options.body).show();
                                     }
                                 } else if (window.Notification) {
-                                    if (Notification.permissionLevel() === 'granted') {
+                                    if (Notification.permissionLevel() == 'granted') {
                                         new Notification(options.title, options).show();
                                     }
                                 }
@@ -632,7 +655,7 @@ var MyWallet = new function() {
                         try {
                             send_notification({
                                 title : result > 0 ? 'Payment Received' : 'Payment Sent',
-                                body : 'Transaction Value ' + formatBTC(result) + ' BTC',
+                                body : 'Transaction Value ' + formatBTC(result),
                                 iconUrl : resource + 'cube48.png'
                             });
                         } catch (e) {
@@ -933,7 +956,7 @@ var MyWallet = new function() {
         if (reset) {
             BlockchainAPI.get_ticker();
 
-            $('.send').attr('disabled', false);
+            $('.send').prop('disabled', false);
         }
     }
 
@@ -956,7 +979,7 @@ var MyWallet = new function() {
 
             if (zero_balance || addr.balance > 0) {
                 //On the sent transactions page add the address to the from address options
-                select.prepend('<option value="'+addr.addr+'">' + label + ' - ' + formatBTC(addr.balance) + ' BTC</option>');
+                select.prepend('<option value="'+addr.addr+'">' + label + ' - ' + formatBTC(addr.balance) + '</option>');
             }
         }
 
@@ -974,6 +997,10 @@ var MyWallet = new function() {
 
         el.find('select[name="change"]').prepend('<option value="new">New Address</option>');
 
+        el.find('.local-symbol').text(symbol_local.symbol);
+
+        el.find('.btc-symbol').text(symbol_btc.symbol);
+
         if (reset) {
             el.find('input').val('');
             el.find('.send-value-usd').text(formatSymbol(0, symbol_local)).val('');
@@ -988,12 +1015,10 @@ var MyWallet = new function() {
             recipient_container.empty().append(first_child);
         }
 
-        function totalValue() {
-            var total_value = 0;
+        function totalValueBN() {
+            var total_value = BigInteger.ZERO;
             el.find('input[name="send-value"]').each(function(){
-                var el_val = parseFloat($(this).val());
-                if (!isNaN(el_val))
-                    total_value += el_val;
+                total_value = total_value.add(precisionToSatoshiBN($(this).val()));
             });
             return total_value;
         }
@@ -1032,16 +1057,14 @@ var MyWallet = new function() {
                     });
                 });
 
-            recipient.find('.local-symbol').text(symbol_local.symbol);
-
             recipient.find('input[name="send-value"]').val('').bind('keyup change', function(e) {
                 if (e.keyCode == '9') {
                     return;
                 }
 
-                el.find('.amount-needed').text(formatBTC(Bitcoin.Util.parseValue(totalValue().toFixed(8)).toString()));
+                el.find('.amount-needed').text(formatBTC(totalValueBN().toString()));
 
-                recipient.find('.send-value-usd').val(convert($(this).val() *  100000000, symbol_local.conversion)).text(formatSymbol($(this).val() *  100000000, symbol_local));
+                recipient.find('.send-value-usd').val(convert($(this).val() *  symbol_btc.conversion, symbol_local.conversion)).text(formatSymbol($(this).val() *  symbol_btc.conversion, symbol_local));
             });
 
             recipient.find('.send-value-usd').val('').text(formatSymbol(0, symbol_local)).bind('keyup change', function(e) {
@@ -1049,7 +1072,7 @@ var MyWallet = new function() {
                     return;
                 }
 
-                recipient.find('input[name="send-value"]').val(formatBTC(parseFloat($(this).val()) * symbol_local.conversion));
+                recipient.find('input[name="send-value"]').val(formatSatoshi(parseFloat($(this).val()) * symbol_local.conversion, sShift(symbol_btc), true));
             });
         }
 
@@ -1424,8 +1447,8 @@ var MyWallet = new function() {
         if (final_balance == null) {
             $('#balance').html('Loading...');
         } else {
-            $('#balance').html(formatSymbol(final_balance, symbol));
-            $('#balance2').html(formatSymbol(final_balance, (symbol == symbol_local) ? symbol_btc : symbol_local));
+            $('#balance').html(formatSymbol(final_balance, symbol, true));
+            $('#balance2').html(formatSymbol(final_balance, (symbol === symbol_local) ? symbol_btc : symbol_local), true);
         }
 
         //Only build when visible
@@ -1659,10 +1682,15 @@ var MyWallet = new function() {
         if (obj.info) {
             $('#nodes-connected').html(obj.info.nconnected);
 
-            if (obj.info.latest_block != null)
+            if (obj.info.latest_block)
                 setLatestBlock(obj.info.latest_block);
 
-            setLocalSymbol(obj.info.symbol_local);
+
+            if (obj.info.symbol_local)
+                setLocalSymbol(obj.info.symbol_local);
+
+            if (obj.info.symbol_btc)
+                setBTCSymbol(obj.info.symbol_btc);
         }
     }
 
@@ -1767,15 +1795,6 @@ var MyWallet = new function() {
 
             if (obj.options) {
                 $.extend(wallet_options, obj.options);
-            } else {
-                //TODO Depreciate this block
-                if (obj.fee_policy) {
-                    MyWallet.setFeePolicy(obj.fee_policy);
-                }
-
-                if (obj.html5_notifications) {
-                    MyWallet.setHTML5Notifications(obj.html5_notifications);
-                }
             }
 
             addresses = {};
@@ -1826,9 +1845,6 @@ var MyWallet = new function() {
     this.getPassword = function(modal, success, error) {
 
         if (!modal.is(':visible')) {
-
-            console.log('Modal is not visible');
-
             modal.trigger('hidden');
             modal.unbind();
         }
@@ -2410,9 +2426,7 @@ var MyWallet = new function() {
 
         var open_wallet_btn = $('#restore-wallet-continue');
 
-        open_wallet_btn.attr('disabled', true);
-
-        console.log('Set GUID ajax');
+        open_wallet_btn.prop('disabled', true);
 
         $.ajax({
             type: "GET",
@@ -2420,9 +2434,7 @@ var MyWallet = new function() {
             url: root + 'wallet/'+guid_or_alias,
             data : {format : 'json', resend_code : resend_code},
             success: function(obj) {
-                console.log('Set GUID Error');
-
-                open_wallet_btn.attr('disabled', false);
+                open_wallet_btn.prop('disabled', false);
 
                 $('.auth-'+auth_type).hide();
 
@@ -2441,11 +2453,11 @@ var MyWallet = new function() {
 
                 $('.auth-'+auth_type).show();
 
-                $('#forgot-password-btn').attr('disabled', false).click(function() {
+                $('.recover-wallet-btn').prop('disabled', false).click(function() {
                     window.location = root + 'wallet/forgot-password?guid='+guid
                 });
 
-                $('#reset-two-factor-btn').attr('disabled', false).show().click(function() {
+                $('#reset-two-factor-btn').prop('disabled', false).show().click(function() {
                     window.location = root + 'wallet/reset-two-factor?guid='+guid
                 });
 
@@ -2469,7 +2481,7 @@ var MyWallet = new function() {
             error : function(e) {
                 console.log('Set GUID Success');
 
-                open_wallet_btn.attr('disabled', false);
+                open_wallet_btn.prop('disabled', false);
 
                 if (local_guid == guid_or_alias && encrypted_wallet_data) {
                     MyWallet.makeNotice('error', 'misc-error', 'Error Contacting Server. Using Local Wallet Cache.');
@@ -2803,7 +2815,7 @@ var MyWallet = new function() {
             modal.find('.btn.btn-primary').show(200);
             modal.find('.btn.btn-danger').show(200);
 
-            dbalance.html('Balance ' + formatBTC(data) + ' BTC');
+            dbalance.html('Balance ' + formatBTC(data));
 
             if (data > 0)
                 dbalance.css('color', 'red');
@@ -2941,7 +2953,7 @@ var MyWallet = new function() {
 
 
             BlockchainAPI.get_balance(addresses, function(data) {
-                modal.find('.balance').text('Amount: ' + formatBTC(data) + ' BTC');
+                modal.find('.balance').text('Amount: ' + formatBTC(data));
             }, function() {
                 modal.find('.balance').text('Error Fetching Balance');
             });
@@ -3059,13 +3071,13 @@ var MyWallet = new function() {
         $('#enable_archived_checkbox').change(function() {
             var enabled = $(this).is(':checked');
 
-            $('.archived_checkbox').attr('checked', false);
+            $('.archived_checkbox').prop('checked', false);
 
-            $('.archived_checkbox').attr('disabled', !enabled);
+            $('.archived_checkbox').prop('disabled', !enabled);
 
-            $('#archived-sweep').attr('disabled', !enabled);
+            $('#archived-sweep').prop('disabled', !enabled);
 
-            $('#archived-delete').attr('disabled', !enabled);
+            $('#archived-delete').prop('disabled', !enabled);
         });
 
         $('#shared-addresses').on('show', function() {
@@ -3182,9 +3194,9 @@ var MyWallet = new function() {
 
         $('#archived-addresses').on('show', function() {
 
-            $('#enable_archived_checkbox').attr('checked', false);
-            $('#archived-delete').attr('disabled', true);
-            $('#archived-sweep').attr('disabled', true);
+            $('#enable_archived_checkbox').prop('checked', false);
+            $('#archived-delete').prop('disabled', true);
+            $('#archived-sweep').prop('disabled', true);
             $('#archived-addr tbody').empty();
 
             var table = $(this).find('tbody');
@@ -3213,7 +3225,7 @@ var MyWallet = new function() {
                         extra = '<span class="hidden-phone"> - ' + addr.addr + '</span>';
                     }
 
-                    var tr = $('<tr><td style="width:20px;"><input type="checkbox" class="archived_checkbox" value="'+addr.addr+'" disabled></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatBTC(addr.balance) + '<span class="hidden-phone"> BTC</span></span></td><td style="width:16px"><img src="'+resource+'unarchive.png" class="act-unarchive" /></td></tr>');
+                    var tr = $('<tr><td style="width:20px;"><input type="checkbox" class="archived_checkbox" value="'+addr.addr+'" disabled></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatBTC(addr.balance) + '</span></td><td style="width:16px"><img src="'+resource+'unarchive.png" class="act-unarchive" /></td></tr>');
 
                     (function(address) {
                         tr.find('.act-unarchive').click(function() {
@@ -3302,7 +3314,7 @@ var MyWallet = new function() {
                 loadScript('wallet/frame-modal', function() {
                     showFrameModal({
                         title : self.data('title'),
-                        description : 'Your Wallet Balance is <b>'+formatBTC(final_balance)+' BTC</b>',
+                        description : 'Your Wallet Balance is <b>'+formatBTC(final_balance)+'</b>',
                         src : root + 'withdraw?method='+self.data('type')+'&address='+address+'&balance='+final_balance+'&guid='+guid+'&sharedKey='+sharedKey
                     });
                 });
@@ -3438,7 +3450,8 @@ var MyWallet = new function() {
 
             self.find('.shared-fees').text('0.00');
             self.find('input[name="send-before-fees"]').unbind().bind('keyup change', function() {
-                var input_value = parseFloat($.trim($(this).val()));
+                var input_value = parseFloat($(this).val());
+
                 var real_tx_value = 0;
 
                 if (input_value > 0) {
@@ -3447,18 +3460,18 @@ var MyWallet = new function() {
                     } else {
                         real_tx_value = parseFloat(input_value);
 
-                        self.find('.bonus-value').text(- (Math.min($(this).val(), 200) / 100) * mixer_fee);
+                        self.find('.bonus-value').text(formatPrecision((Math.min(input_value, precisionFromBTC(200)) / 100) * mixer_fee));
                     }
                 }
 
-                if (input_value < 0.2 || input_value > 250) {
+                if (precisionToBTC(input_value) < 0.1 || precisionToBTC(input_value) > 250) {
                     self.find('.shared-fees').text('0.00');
 
-                    self.find('.send').attr('disabled', true);
+                    self.find('.send').prop('disabled', true);
                 } else {
-                    self.find('.shared-fees').text(real_tx_value.toFixed(4));
+                    self.find('.shared-fees').text(formatBTC(real_tx_value*symbol_btc.conversion));
 
-                    self.find('.send').attr('disabled', false);
+                    self.find('.send').prop('disabled', false);
                 }
 
                 self.find('input[name="send-value"]').val(real_tx_value).trigger('keyup');
@@ -3516,7 +3529,6 @@ var MyWallet = new function() {
                 MyWallet.makeNotice('error', 'misc-error', e);
             });
         });
-
 
         $('#send-sms').on('show', function(e, reset) {
             if (reset)
@@ -3589,7 +3601,6 @@ var MyWallet = new function() {
         $('.resend-code').click(function() {
             MyWallet.setGUID(guid, true);
         });
-
 
         $('.download-backup-btn').toggle(encrypted_wallet_data != null).click(function() {
             $(this).attr('download', "wallet.aes.json");
@@ -3794,23 +3805,14 @@ var MyWallet = new function() {
             top.location = self.location.href
         }
 
-        body.ajaxStart(function() {
-            setLogoutImageStatus('loading_start');
+        body.click(function() {
+            if (logout_timeout) {
+                clearTimeout(logout_timeout);
+                logout_timeout = setTimeout(MyWallet.logout, MyWallet.getLogoutTime());
+            }
 
-            $('.loading-indicator').fadeIn(200);
-        }).ajaxStop(function() {
-                setLogoutImageStatus('loading_stop');
-
-                $('.loading-indicator').hide();
-
-            }).click(function() {
-                if (logout_timeout) {
-                    clearTimeout(logout_timeout);
-                    logout_timeout = setTimeout(MyWallet.logout, MyWallet.getLogoutTime());
-                }
-
-                rng_seed_time();
-            }).keypress(function() {
+            rng_seed_time();
+        }).keypress(function() {
                 if (logout_timeout) {
                     clearTimeout(logout_timeout);
                     logout_timeout = setTimeout(MyWallet.logout, MyWallet.getLogoutTime());
@@ -3834,7 +3836,7 @@ var MyWallet = new function() {
         //Show a warning when the Users copies a watch only address to the clipboard
         var ctrlDown = false;
         var ctrlKey = 17, vKey = 86, cKey = 67, appleKey = 67;
-        $(document).keydown(function(e) {
+       $(document).keydown(function(e) {
             try {
                 if (e.keyCode == ctrlKey || e.keyCode == appleKey)
                     ctrlDown = true;
@@ -3858,6 +3860,15 @@ var MyWallet = new function() {
         }).keyup(function(e) {
                 if (e.keyCode == ctrlKey || e.keyCode == appleKey)
                     ctrlDown = false;
+            }).ajaxStart(function() {
+                setLogoutImageStatus('loading_start');
+
+                $('.loading-indicator').fadeIn(200);
+            }).ajaxStop(function() {
+                setLogoutImageStatus('loading_stop');
+
+                $('.loading-indicator').hide();
+
             });
     });
 

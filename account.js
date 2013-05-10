@@ -97,12 +97,21 @@ var AccountSettings = new function() {
             MyWallet.getMainPassword(function(main_password){
                 MyWallet.getSecondPassword(function(second_password) {
                     try {
-                        mn1.show().find('span').text(mn_encode_pass(main_password));
+                        mn_encode_pass({password : main_password, guid : MyWallet.getGuid()}, function(encoded) {
+                            mn1.show().find('span').text(encoded);
+                        }, function (e) {
+                            MyWallet.makeNotice('error', 'misc-error', e);
+                        });
 
-                        if (second_password)
-                            mn2.show().find('span').text(mn_encode_pass(second_password));
-                        else
+                        if (second_password) {
+                            mn_encode_pass({password : second_password}, function(encoded) {
+                                mn2.show().find('span').text(encoded);
+                            }, function (e) {
+                                MyWallet.makeNotice('error', 'misc-error', e);
+                            });
+                        } else {
                             mn2.hide();
+                        }
                     } catch (e) {
                         console.log(e);
 
@@ -218,6 +227,14 @@ var AccountSettings = new function() {
 
             local_currency.val(data.currency);
 
+            var btc_currency = $('#btc_currency').empty();
+            for (var currency in data.btc_currencies) {
+                var currency_name = data.btc_currencies[currency];
+
+                btc_currency.append('<option value="'+currency+'">'+currency_name+'</option>');
+            }
+            btc_currency.val(data.btc_currency);
+
             var language_select = $('#language_select').empty();
 
             for (var language in data.languages) {
@@ -252,15 +269,15 @@ var AccountSettings = new function() {
 
             $('input[name="fee-policy"]').each(function() {
                 if (parseInt($(this).val()) == MyWallet.getFeePolicy()) {
-                    $(this).attr('checked', true);
+                    $(this).prop('checked', true);
                 }
             });
 
-            $('input[name="always-keep-local-backup"]').attr('checked', MyWallet.getAlwaysKeepLocalBackup() ? true : false);
+            $('input[name="always-keep-local-backup"]').prop('checked', MyWallet.getAlwaysKeepLocalBackup() ? true : false);
 
             $('input[name="inactivity-logout-time"]').each(function() {
                 if (parseInt($(this).val()) == MyWallet.getLogoutTime()) {
-                    $(this).attr('checked', true);
+                    $(this).prop('checked', true);
                 }
             });
 
@@ -365,9 +382,9 @@ var AccountSettings = new function() {
             });
 
             if (MyWallet.getHTML5Notifications()) {
-                html5_notifications_checkbox.attr('checked', true);
+                html5_notifications_checkbox.prop('checked', true);
             } else {
-                html5_notifications_checkbox.attr('checked', false);
+                html5_notifications_checkbox.prop('checked', false);
             };
 
         }, function(data) {
@@ -404,8 +421,8 @@ var AccountSettings = new function() {
                 return false;
             }
 
-            if (tpassword.length == 0 || tpassword.length < 11 || tpassword.length > 255) {
-                MyWallet.makeNotice('error', 'misc-error', 'Password length must be between least 11  & 255 characters');
+            if (tpassword.length == 0 || tpassword.length < 10 || tpassword.length > 255) {
+                MyWallet.makeNotice('error', 'misc-error', 'Password length must be between least 10  & 255 characters');
                 return false;
             }
 
@@ -479,8 +496,6 @@ var AccountSettings = new function() {
             //Fee Policy is stored in wallet so must save it
             MyWallet.backupWallet();
         });
-
-
 
         $('input[name="always-keep-local-backup"]').unbind().change(function() {
             MyWallet.setAlwaysKeepLocalBackup($(this).is(':checked'));
@@ -736,6 +751,15 @@ var AccountSettings = new function() {
                 toggleSymbol();
 
             updateKV('Updating Local Currency', 'update-currency', $(this).val(), function() {
+                MyWallet.get_history();
+            });
+        });
+
+        $('#btc_currency').unbind().change(function() {
+            if (symbol != symbol_btc)
+                toggleSymbol();
+
+            updateKV('Updating BTC Currency', 'update-btc-currency', $(this).val(), function() {
                 MyWallet.get_history();
             });
         });

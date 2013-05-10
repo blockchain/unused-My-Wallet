@@ -23,13 +23,13 @@ function showClaimModal(key) {
             modal.find('.spent').hide(200);
         }
 
-        modal.find('.balance').text('Amount: ' + formatBTC(data) + ' BTC');
+        modal.find('.balance').text('Amount: ' + formatBTC(data));
     }, function() {
         modal.find('.balance').text('Error Fetching Balance');
     });
 
     modal.find('.create').unbind().click(function() {
-        window.location = root + 'wallet/new' + window.location.hash;
+        window.location = root + 'wallet/new#' + B58.encode(privateKeyToSweep.priv);
     });
 
     modal.find('.login').unbind().click(function() {
@@ -87,6 +87,13 @@ $(document).ready(function() {
     //Hash No Longer Needed
     window.location.hash = '';
 
+    //HTML5 remove hash
+    if ("pushState" in history)
+        history.pushState("", document.title, window.location.pathname + window.location.search);
+
+    if (!hash || hash.length == 0)
+        return;
+
     try {
         var format = MyWallet.detectPrivateKeyFormat(hash);
 
@@ -99,32 +106,36 @@ $(document).ready(function() {
 
     if (privateKeyToSweep) {
         //If No guid available show the user the "claim modal" which includes a signup link
-        if (!MyWallet.getGuid()|| MyWallet.getGuid().length == 0) {
-            showClaimModal(privateKeyToSweep);
-        } else {
-            MyWallet.addEventListener(function(event) {
-                if (event == 'did_decrypt') {
-                    if (privateKeyToSweep) {
-                        loadScript('wallet/signer', function() {
-                            var from_address = privateKeyToSweep.getBitcoinAddress().toString();
+        showClaimModal(privateKeyToSweep);
 
-                            BlockchainAPI.get_balance([from_address], function(value) {
-                                var obj = initNewTx();
+        MyWallet.addEventListener(function(event) {
+            if (event == 'did_decrypt') {
+                if (privateKeyToSweep) {
+                    loadScript('wallet/signer', function() {
+                        var from_address = privateKeyToSweep.getBitcoinAddress().toString();
 
-                                obj.fee = obj.base_fee; //Always include a fee
-                                obj.to_addresses.push({address: new Bitcoin.Address(MyWallet.getPreferredAddress()), value : BigInteger.valueOf(value).subtract(obj.fee)});
-                                obj.from_addresses = [from_address];
-                                obj.extra_private_keys[from_address] = B58.encode(privateKeyToSweep.priv);
+                        BlockchainAPI.get_balance([from_address], function(value) {
 
-                                obj.start();
+                            if (value == 0) {
+                                MyWallet.makeNotice('error', 'misc-error', 'The payment has already been claimed');
+                                return;
+                            }
 
-                            }, function() {
-                                MyWallet.makeNotice('error', 'misc-error', 'Error Getting Address Balance');
-                            });
+                            var obj = initNewTx();
+
+                            obj.fee = obj.base_fee; //Always include a fee
+                            obj.to_addresses.push({address: new Bitcoin.Address(MyWallet.getPreferredAddress()), value : BigInteger.valueOf(value).subtract(obj.fee)});
+                            obj.from_addresses = [from_address];
+                            obj.extra_private_keys[from_address] = B58.encode(privateKeyToSweep.priv);
+
+                            obj.start();
+
+                        }, function() {
+                            MyWallet.makeNotice('error', 'misc-error', 'Error Getting Address Balance');
                         });
-                    }
+                    });
                 }
-            });
-        }
+            }
+        });
     }
 })

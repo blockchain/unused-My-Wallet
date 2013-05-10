@@ -64,8 +64,13 @@
     }
 
     function guidGenerator() {
+        var rng = new SecureRandom();
         var S4 = function() {
-            return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
+            var bytes = [];
+            bytes.length = 2;
+            rng.nextBytes(bytes);
+            var rand = Crypto.util.bytesToWords([0,0].concat(bytes))[0] / 65536;
+            return (((1+rand)*0x10000)|0).toString(16).substring(1);
         };
         return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
     }
@@ -108,62 +113,57 @@
         }
     }
 
-    function generateNewWallet() {
-        guid = guidGenerator();
-        sharedKey = guidGenerator();
+    function generateNewWallet(success, error) {
+        try {
+            guid = guidGenerator();
+            sharedKey = guidGenerator();
 
-        var tpassword = $("#password").val();
-        var tpassword2 = $("#password2").val();
+            rng_seed_time();
 
-        if (tpassword != tpassword2) {
-            makeNotice('error', 'misc-error', 'Passwords do not match.');
-            return false;
-        }
+            var tpassword = $("#password").val();
+            var tpassword2 = $("#password2").val();
 
-        if (tpassword.length < 11) {
-            makeNotice('error', 'misc-error', 'Passwords must be at least 11 characters long');
-            return false;
-        }
+            if (tpassword != tpassword2) {
+                throw 'Passwords do not match.';
+            }
 
-        if (tpassword.length > 255) {
-            makeNotice('error', 'misc-error', 'Passwords must be at shorter than 256 characters');
-            return false;
-        }
+            if (tpassword.length < 10) {
+                throw 'Passwords must be at least 10 characters long';
+            }
 
-        password = tpassword;
+            if (tpassword.length > 255) {
+                throw 'Passwords must be at shorter than 256 characters';
+            }
 
-        if (MyWallet.getAllAddresses().length == 0)
-            MyWallet.generateNewKey(password);
+            password = tpassword;
 
-        if(navigator.userAgent.match(/MeeGo/i)) {
-            makeNotice('error', 'misc-error', 'MeeGo browser currently not supported.');
-            return false;
-        }
+            if (MyWallet.getAllAddresses().length == 0)
+                MyWallet.generateNewKey(password);
 
-        if (guid.length != 36 || sharedKey.length != 36) {
-            makeNotice('error', 'misc-error', 'Error generating wallet identifier');
-            return false;
-        }
+            if(navigator.userAgent.match(/MeeGo/i)) {
+                throw 'MeeGo browser currently not supported.';
+            }
 
-        var email = encodeURIComponent($.trim($('#email').val()));
+            if (guid.length != 36 || sharedKey.length != 36) {
+                throw 'Error generating wallet identifier';
+            }
 
-        var captcha_code = $.trim($('#captcha-value').val());
+            var email = encodeURIComponent($.trim($('#email').val()));
 
-        insertWallet(guid, sharedKey, tpassword, '?kaptcha='+encodeURIComponent(captcha_code)+'&email='+email, function(){
+            var captcha_code = $.trim($('#captcha-value').val());
 
-            SetCookie('cguid', guid);
+            insertWallet(guid, sharedKey, tpassword, '?kaptcha='+encodeURIComponent(captcha_code)+'&email='+email, function(){
+                success(guid, sharedKey, tpassword);
+            }, function(e) {
+                $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
 
-            showMnemonicModal(tpassword, function() {
-                window.location = root + 'wallet/' + guid + window.location.hash;
+                $('#captcha-value').val('');
+
+                error(e);
             });
-        }, function(e) {
-            $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
-
-            $('#captcha-value').val('');
-
-            makeNotice('error', 'misc-error', e);
-
-        });
+        } catch (e) {
+            error(e);
+        }
     }
 
     function showMnemonicModal(password, success) {
@@ -177,17 +177,13 @@
 
         modal.center();
 
-        try {
-            $('#mnemonic').text(mn_encode_pass(password));
-        } catch (e) {
-            console.log(e);
-
+        mn_encode_pass({password : password, guid : guid}, function(encoded) {
+            $('#mnemonic').text(encoded);
+        }, function (e) {
             makeNotice('error', 'misc-error', e);
 
             modal.modal('hide');
-
-            return;
-        }
+        });
 
         modal.find('.btn.btn-primary').unbind().click(function() {
             modal.modal('hide');
@@ -218,17 +214,33 @@
         $('#password-strength').fadeIn(200);
 
         $("#new-wallet-continue").click(function() {
-            $(this).attr("disabled", true);
+            var self = $(this);
 
-            try {
-                generateNewWallet();
+            self.prop("disabled", true);
 
-                $(this).attr("disabled", false);
-            } catch (e) {
+            generateNewWallet(function(guid, sharedKey, password) {
+                SetCookie('cguid', guid);
+
+                try {
+                    localStorage.clear();
+
+                    localStorage.setItem('guid', guid);
+                } catch (e) {
+                    console.log(e);
+                }
+
+                showMnemonicModal(password, function() {
+                    //Redirect to the claim page when we have a private key embedded in the URL
+                    if (window.location.hash && window.location.hash.length > 0)
+                        window.location = root + 'wallet/claim' + window.location.hash;
+                    else
+                        window.location = root + 'wallet/' + guid + window.location.hash;
+                });
+            }, function (e) {
+                self.removeAttr("disabled");
+
                 makeNotice('error', 'misc-error', e, 5000);
-
-                $(this).attr("disabled", false);
-            }
+            });
         });
 
         $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
