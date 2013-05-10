@@ -1399,7 +1399,7 @@ function initNewTx() {
                     }
 
                     //If less than 0.01 BTC force fee
-                    if (changeValue.compareTo(min_free_output_size) < 0) {
+                    if (changeValue.compareTo(self.min_free_output_size) < 0) {
                         forceFee = true;
                     }
                 }
