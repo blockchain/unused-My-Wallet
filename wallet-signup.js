@@ -63,18 +63,6 @@
         }
     }
 
-    function guidGenerator() {
-        var rng = new SecureRandom();
-        var S4 = function() {
-            var bytes = [];
-            bytes.length = 2;
-            rng.nextBytes(bytes);
-            var rand = Crypto.util.bytesToWords([0,0].concat(bytes))[0] / 65536;
-            return (((1+rand)*0x10000)|0).toString(16).substring(1);
-        };
-        return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
-    }
-
     var guid;
     var sharedKey;
     var password;
@@ -113,57 +101,78 @@
         }
     }
 
+    function generateUUIDs(n, success, error) {
+        $.ajax({
+            type: "GET",
+            url: root + 'uuid-generator',
+            data: { format : 'json', n : n },
+            success: function(data) {
+
+                if (data.uuids && data.uuids.length == n)
+                    success(data.uuids);
+                else
+                    error('Unknown Error');
+            },
+            error : function(data) {
+                error(data.responseText);
+            }
+        });
+
+    }
+
     function generateNewWallet(success, error) {
-        try {
-            guid = guidGenerator();
-            sharedKey = guidGenerator();
+        generateUUIDs(2, function(uuids) {
+            try {
+                guid = uuids[0];
+                sharedKey = uuids[1];
 
-            rng_seed_time();
+                rng_seed_time();
 
-            var tpassword = $("#password").val();
-            var tpassword2 = $("#password2").val();
+                var tpassword = $("#password").val();
+                var tpassword2 = $("#password2").val();
 
-            if (tpassword != tpassword2) {
-                throw 'Passwords do not match.';
-            }
+                if (tpassword != tpassword2) {
+                    throw 'Passwords do not match.';
+                }
 
-            if (tpassword.length < 10) {
-                throw 'Passwords must be at least 10 characters long';
-            }
+                if (tpassword.length < 10) {
+                    throw 'Passwords must be at least 10 characters long';
+                }
 
-            if (tpassword.length > 255) {
-                throw 'Passwords must be at shorter than 256 characters';
-            }
+                if (tpassword.length > 255) {
+                    throw 'Passwords must be at shorter than 256 characters';
+                }
 
-            password = tpassword;
+                password = tpassword;
 
-            if (MyWallet.getAllAddresses().length == 0)
-                MyWallet.generateNewKey(password);
+                if (MyWallet.getAllAddresses().length == 0)
+                    MyWallet.generateNewKey(password);
 
-            if(navigator.userAgent.match(/MeeGo/i)) {
-                throw 'MeeGo browser currently not supported.';
-            }
+                if(navigator.userAgent.match(/MeeGo/i)) {
+                    throw 'MeeGo browser currently not supported.';
+                }
 
-            if (guid.length != 36 || sharedKey.length != 36) {
-                throw 'Error generating wallet identifier';
-            }
+                if (guid.length != 36 || sharedKey.length != 36) {
+                    throw 'Error generating wallet identifier';
+                }
 
-            var email = encodeURIComponent($.trim($('#email').val()));
+                var email = encodeURIComponent($.trim($('#email').val()));
 
-            var captcha_code = $.trim($('#captcha-value').val());
+                var captcha_code = $.trim($('#captcha-value').val());
 
-            insertWallet(guid, sharedKey, tpassword, '?kaptcha='+encodeURIComponent(captcha_code)+'&email='+email, function(){
-                success(guid, sharedKey, tpassword);
-            }, function(e) {
-                $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
+                insertWallet(guid, sharedKey, tpassword, '?kaptcha='+encodeURIComponent(captcha_code)+'&email='+email, function(){
+                    success(guid, sharedKey, tpassword);
+                }, function(e) {
+                    $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
 
-                $('#captcha-value').val('');
+                    $('#captcha-value').val('');
 
+                    error(e);
+                });
+            } catch (e) {
                 error(e);
-            });
-        } catch (e) {
-            error(e);
-        }
+            }
+        }, error);
     }
 
     function showMnemonicModal(password, success) {

@@ -30,6 +30,7 @@ function numberWithCommas(x) {
             function updateTimer() {
                 value += increment;
                 loopCount++;
+
                 $(self).html(formatMoney(value, symbol_local));
 
                 if (typeof(options.onUpdate) == 'function') {
