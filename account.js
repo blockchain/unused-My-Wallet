@@ -765,10 +765,22 @@ var AccountSettings = new function() {
         });
 
         $('#language_select').unbind().change(function() {
-            updateKV('Updating Language', 'update-language', $(this).val(), function() {
-                updateCacheManifest(function() {
-                    window.location.reload();
-                });
+            var language = $(this).val();
+
+            updateKV('Updating Language', 'update-language', language, function() {
+                //Chrome extension reads language from localStorage
+                if (isExtension) {
+                    try {
+                        localStorage.setItem('language', language);
+                    } catch (e) {};
+
+                    window.location.href =  '/index.html';
+                } else {
+                    //Otherwise the language is cached in the html page so we need to clear the cache manifest
+                    updateCacheManifest(function() {
+                        window.location.reload();
+                    });
+                }
             });
         });
 

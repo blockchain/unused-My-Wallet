@@ -5,7 +5,7 @@ function precisionToSatoshiBN(x) {
     return Bitcoin.Util.parseValue(x).divide(BigInteger.valueOf(Math.pow(10, sShift(symbol_btc)).toString()));
 }
 
-//user precision (e.g. BTC or mBTC) to BTC decimal
+//user precision (e.g. 0.02 BTC or 0.02 mBTC) to BTC decimal
 function precisionToBTC(x) {
     return Bitcoin.Util.formatValue(precisionToSatoshiBN(x));
 }
@@ -494,7 +494,8 @@ var MyWallet = new function() {
         return addr;
     }
 
-    this.generateNewKey = function(_password) {
+    this._seed = function(_password) {
+        rng_seed_time();
 
         //rng pool is seeded on key press and mouse movements
         //Add extra entropy from the user's password
@@ -517,6 +518,10 @@ var MyWallet = new function() {
                 rng_seed_int(word_array[i]);
             }
         }
+    }
+
+    this.generateNewKey = function(_password) {
+        this._seed(_password);
 
         var key = new Bitcoin.ECKey(false);
 
@@ -815,13 +820,7 @@ var MyWallet = new function() {
         }
     }
 
-    function noConvert(x) { return x; }
-    function base58ToBase58(x) { return MyWallet.decryptPK(x); }
-    function base58ToBase64(x) { var bytes = MyWallet.decodePK(x); return Crypto.util.bytesToBase64(bytes); }
-    function base58ToHex(x) { var bytes = MyWallet.decodePK(x); return Crypto.util.bytesToHex(bytes); }
-    this.base58ToSipa = function(x, addr) {
-        var bytes = MyWallet.decodePK(x);
-
+    this.pkBytesToSipa = function(bytes, addr) {
         var eckey = new Bitcoin.ECKey(bytes);
 
         while (bytes.length < 32) bytes.unshift(0);
@@ -842,6 +841,14 @@ var MyWallet = new function() {
         var privWif = B58.encode(bytes);
 
         return privWif;
+    }
+
+    function noConvert(x) { return x; }
+    function base58ToBase58(x) { return MyWallet.decryptPK(x); }
+    function base58ToBase64(x) { var bytes = MyWallet.decodePK(x); return Crypto.util.bytesToBase64(bytes); }
+    function base58ToHex(x) { var bytes = MyWallet.decodePK(x); return Crypto.util.bytesToHex(bytes); }
+    this.base58ToSipa = function(x, addr) {
+        return this.pkBytesToSipa(MyWallet.decodePK(x), addr);
     }
 
     this.makeWalletJSON = function(format) {
@@ -1483,6 +1490,12 @@ var MyWallet = new function() {
 
         $('#tweet-for-btc').unbind().click(function() {
             window.open('https://twitter.com/share?url=https://blockchain.info/wallet&hashtags=tweet4btc,bitcoin,'+preferred+'&text=Sign Up For a Free Bitcoin Wallet @ Blockchain.info', "", "toolbar=0, status=0, width=650, height=360");
+        });
+
+        $('.paper-wallet-btn').unbind().click(function() {
+            loadScript('wallet/paper-wallet', function() {
+                PaperWallet.showModal();
+            });
         });
 
         if (MyWallet.isWatchOnly(preferred)) {
@@ -3030,6 +3043,12 @@ var MyWallet = new function() {
             });
         });
 
+        $('#generate-cold-storage').click(function() {
+            loadScript('wallet/paper-wallet', function() {
+                PaperWallet.showColdStorageModal();
+            }, null, true);
+        });
+
         $('#group-received').click(function() {
             loadScript('wallet/taint_grouping', function() {
                 try{
@@ -3801,7 +3820,7 @@ var MyWallet = new function() {
         }
 
         //Frame break
-        if (top.location!= self.location) {
+        if (top.location != self.location) {
             top.location = self.location.href
         }
 

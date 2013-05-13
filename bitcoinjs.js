@@ -4907,7 +4907,14 @@ Script.createInputScript = function (signature, pubKey)
 Script.prototype.clone = function ()
 {
     return new Script(this.buffer);
-};(function() {
+};var OP_CODESEPARATOR = 171;
+
+var SIGHASH_ALL = 1;
+var SIGHASH_NONE = 2;
+var SIGHASH_SINGLE = 3;
+var SIGHASH_ANYONECANPAY = 80;
+
+(function() {
     var Script = Bitcoin.Script;
 
     var Transaction = Bitcoin.Transaction = function (doc) {
@@ -5035,13 +5042,6 @@ Script.prototype.clone = function ()
 
         return buffer;
     };
-
-    var OP_CODESEPARATOR = 171;
-
-    var SIGHASH_ALL = 1;
-    var SIGHASH_NONE = 2;
-    var SIGHASH_SINGLE = 3;
-    var SIGHASH_ANYONECANPAY = 80;
 
     /**
      * Hash transaction for signing a specific input.

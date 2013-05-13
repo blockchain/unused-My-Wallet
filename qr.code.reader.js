@@ -50,6 +50,8 @@ var QRCodeReader = {
     out:'',
     found:false,
     timer:'',
+    _stream : null,
+
 
     isCanvasSupported : function(){
         var elem = document.createElement('canvas');
@@ -83,6 +85,15 @@ var QRCodeReader = {
         if (QRCodeReader.reader_container) {
             QRCodeReader.reader_container.empty();
             QRCodeReader.reader_container = null;
+        }
+
+        try {
+            if (this._stream) {
+                this._stream.stop();
+                this._stream = null;
+            }
+        } catch (e) {
+            console.log(e);
         }
     },
 
@@ -119,6 +130,8 @@ var QRCodeReader = {
                 QRCodeReader.flash = null;
 
                 navigator.getUserMedia({video: true}, function(stream) {
+
+                    QRCodeReader._stream = stream;
 
                     QRCodeReader.video.src = window.URL.createObjectURL(stream) || stream;
 
@@ -159,7 +172,7 @@ var QRCodeReader = {
                 error('Sorry your browser is not supported. Please try Firefox, Chrome or safari.');
             }
 
-            qrcode.callback = function(data) { if (data) { QRCodeReader.stop(); success(data) } };
+            qrcode.callback = function(data) { if (data) { QRCodeReader.stop(); success(data); } };
         });
     }
 };

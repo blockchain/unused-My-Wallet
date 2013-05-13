@@ -92,18 +92,6 @@ function webSocketConnect(success) {
             reallyConnect();
 
             setInterval(reconnectTimer, 10000);
-        } else {
-            // Flash fall back for websocket compatibility
-            window.WEB_SOCKET_SWF_LOCATION = resource + "wallet/WebSocketMain.swf";
-            loadScript('wallet/swfobject', function() {
-                loadScript('wallet/web_socket', function() {
-                    if (window.WebSocket) {
-                        reallyConnect();
-
-                        setInterval(reconnectTimer, 10000);
-                    }
-                });
-            });
         }
     } catch (e) {
         console.log(e);

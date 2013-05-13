@@ -1,6 +1,6 @@
 (function() {
 
-    //Save the javascript walle to the remote server
+    //Save the javascript wallet to the remote server
     function insertWallet(guid, sharedKey, password, extra, successcallback, errorcallback) {
         try {
             var data = MyWallet.makeCustomWalletJSON(null, guid, sharedKey);
@@ -175,7 +175,7 @@
         }, error);
     }
 
-    function showMnemonicModal(password, success) {
+    function showMnemonicModal(password, guid, success) {
         var modal = $('#mnemonic-modal');
 
         modal.modal({
@@ -186,8 +186,29 @@
 
         modal.center();
 
-        mn_encode_pass({password : password, guid : guid}, function(encoded) {
-            $('#mnemonic').text(encoded);
+        var paper_wallet_btn = modal.find('.btn.btn-success');
+
+        paper_wallet_btn.prop('disabled', true);
+
+        mn_encode_pass({password : password, guid : guid}, function(mnemonic) {
+            $('#mnemonic').text(mnemonic);
+
+            loadScript('wallet/paper-wallet', function() {
+                PaperWallet.preLoad(function() {
+                    paper_wallet_btn.prop('disabled', false);
+
+                    paper_wallet_btn.unbind().click(function() {
+                        modal.modal('hide');
+
+                        PaperWallet.showModal();
+
+                        success();
+                    });
+                }, {
+                    guid : guid,
+                    password : password
+                });
+            });
         }, function (e) {
             makeNotice('error', 'misc-error', e);
 
@@ -238,7 +259,7 @@
                     console.log(e);
                 }
 
-                showMnemonicModal(password, function() {
+                showMnemonicModal(password, guid, function() {
                     //Redirect to the claim page when we have a private key embedded in the URL
                     if (window.location.hash && window.location.hash.length > 0)
                         window.location = root + 'wallet/claim' + window.location.hash;

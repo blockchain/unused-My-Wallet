@@ -31,6 +31,49 @@ function generateNewMiniPrivateKey() {
     }
 }
 
+function IsCanonicalSignature(vchSig) {
+    if (vchSig.length < 9)
+        throw 'Non-canonical signature: too short';
+    if (vchSig.length > 73)
+        throw 'Non-canonical signature: too long';
+    var nHashType = vchSig[vchSig.length - 1] & (~(SIGHASH_ANYONECANPAY));
+    if (nHashType < SIGHASH_ALL || nHashType > SIGHASH_SINGLE)
+        throw 'Non-canonical signature: unknown hashtype byte';
+    if (vchSig[0] != 0x30)
+        throw 'Non-canonical signature: wrong type';
+    if (vchSig[1] != vchSig.length-3)
+        throw 'Non-canonical signature: wrong length marker';
+    var nLenR = vchSig[3];
+    if (5 + nLenR >= vchSig.length)
+        throw 'Non-canonical signature: S length misplaced';
+    var nLenS = vchSig[5+nLenR];
+    if (nLenR+nLenS+7 != vchSig.length)
+        throw 'Non-canonical signature: R+S length mismatch';
+
+    var n = 4;
+    if (vchSig[n-2] != 0x02)
+        throw 'Non-canonical signature: R value type mismatch';
+    if (nLenR == 0)
+        throw 'Non-canonical signature: R length is zero';
+    if (vchSig[n+0] & 0x80)
+        throw 'Non-canonical signature: R value negative';
+    if (nLenR > 1 && (vchSig[n+0] == 0x00) && !(vchSig[n+1] & 0x80))
+        throw 'Non-canonical signature: R value excessively padded';
+
+    var n = 6+nLenR;
+    if (vchSig[n-2] != 0x02)
+        throw 'Non-canonical signature: S value type mismatch';
+    if (nLenS == 0)
+        throw 'Non-canonical signature: S length is zero';
+    if (vchSig[n+0] & 0x80)
+        throw 'Non-canonical signature: S value negative';
+    if (nLenS > 1 && (vchSig[n+0] == 0x00) && !(vchSig[n+1] & 0x80))
+        throw 'Non-canonical signature: S value excessively padded';
+
+    return true;
+}
+
+
 try {
 //Init WebWoker
 //Window is not defined in WebWorker
@@ -48,6 +91,7 @@ try {
                         var connected_script = new Bitcoin.Script(data.connected_script);
 
                         var signed_script = signInput(tx, data.outputN, data.priv_to_use, connected_script);
+
                         if (signed_script) {
                             self.postMessage({cmd : 'on_sign', script : signed_script, outputN : data.outputN});
                         } else {
@@ -949,16 +993,18 @@ function signInput(tx, inputN, base58Key, connected_script) {
         throw 'Private key does not match bitcoin address ' + inputBitcoinAddress.toString() + ' = ' + key.getBitcoinAddress().toString() + ' | '+ key.getBitcoinAddressCompressed().toString();
     }
 
-    var hashType = parseInt(1); // SIGHASH_ALL
-
-    var hash = tx.hashTransactionForSignature(connected_script, inputN, hashType);
+    var hash = tx.hashTransactionForSignature(connected_script, inputN, SIGHASH_ALL);
 
     var rs = key.sign(hash);
 
     var signature = Bitcoin.ECDSA.serializeSig(rs.r, rs.s);
 
     // Append hash type
-    signature.push(hashType);
+    signature.push(SIGHASH_ALL);
+
+    if (!IsCanonicalSignature(signature)) {
+        throw 'IsCanonicalSignature returned false';
+    }
 
     var script;
     if (compressed)
@@ -1516,6 +1562,7 @@ function initNewTx() {
                         }
 
                         if (connected_script.priv_to_use == null) {
+                            //No private key found, ask the user to provide it
                             self.ask_for_private_key(function (key) {
                                 try {
                                     if (inputAddress == key.getBitcoinAddress().toString() || inputAddress == key.getBitcoinAddressCompressed().toString()) {
@@ -1529,7 +1576,7 @@ function initNewTx() {
                                     self.error(e);
                                 }
                             }, function(e) {
-
+                                //User did not provide it, try and re-construct without it
                                 //Remove the address from the from list
                                 self.from_addresses = $.grep(self.from_addresses, function(v) {
                                     return v != inputAddress;

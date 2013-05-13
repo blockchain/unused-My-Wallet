@@ -194,91 +194,9 @@ function _ImportExport() {
             loadBackupsList($(self));
         });
 
-        $('#export-paper-btn').click(function() {
-            MyWallet.getSecondPassword(function() {
-                var popup = window.open(null, null, "width=700,height=800,toolbar=1");
-
-                loadScript('wallet/jquery.qrcode', function() {
-                    try {
-                        if (popup == null) {
-                            MyWallet.makeNotice('error', 'misc-error', 'Failed to open popup window');
-                            return;
-                        }
-
-                        var addresses_array = MyWallet.getAllAddresses();
-
-                        popup.document.write('<!DOCTYPE html><html><head></head><body><h1>Paper Wallet</h1></body></html>');
-
-                        var container = $('body', popup.document);
-
-                        var table = $('<table style="page-break-after:always;"></table>', popup.document);
-
-                        container.append(table);
-
-                        var ii = 0;
-                        var ii_appended = 0;
-                        var append = function() {
-                            try {
-                                var address = addresses_array[ii];
-
-                                if (!MyWallet.addressExists(address))
-                                    return;
-
-                                ++ii;
-
-                                if (MyWallet.getAddressTag(address) == 2) {//Skip archived
-                                    setTimeout(append, 10);
-                                    return;
-                                } else if (MyWallet.isWatchOnly(address)) {
-                                    setTimeout(append, 10);
-                                    return;
-                                }
-
-                                var display_pk = MyWallet.base58ToSipa(MyWallet.getPrivateKey(address), address);
-
-                                var row = $('<tr></tr>', popup.document);
-
-                                //Add Address QR code
-                                var qrspan = $('<td><div style="margin:10px;overflow:hidden"></div></td>', popup.document);
-
-                                qrspan.children(":first").qrcode({width: 200, height: 200, text: display_pk});
-
-                                row.append(qrspan);
-
-                                var label = '';
-                                if (MyWallet.getAddressLabel(address))
-                                    label = MyWallet.getAddressLabel(address) + ' - ';
-
-                                var body = $('<td><h3>' + address + '</h3><small><p><b>' + display_pk + '</b></p></small><p>'+label+'Balance ' + formatBTC(MyWallet.getAddressBalance(address)) + ' </p> </td>', popup.document);
-
-                                row.append(body);
-
-                                if (MyWallet.getAddressBalance(address) > 0)
-                                    table.prepend(row);
-                                else
-                                    table.append(row);
-
-                                if ((ii_appended+1) % 3 == 0) {
-                                    table = $('<table style="page-break-after:always;"></table>', popup.document);
-                                    container.append(table);
-                                }
-
-                                ii_appended++;
-
-                                if (ii < addresses_array.length) {
-                                    setTimeout(append, 10);
-                                }
-                            } catch (e) {
-                                MyWallet.makeNotice('error', 'error-paper', e);
-                            }
-                        };
-
-                        append();
-
-                    } catch (e) {
-                        MyWallet.makeNotice('error', 'error-paper', e);
-                    }
-                });
+        $('.paper-wallet-btn').unbind().click(function() {
+            loadScript('wallet/paper-wallet', function() {
+                PaperWallet.showModal();
             });
         });
     }
@@ -649,8 +567,8 @@ function _ImportExport() {
                 MyWallet.makeNotice('error', 'misc-error', e);
             }
         }, function(data) {
-                MyWallet.makeNotice('error', 'misc-error', data.responseText);
-            });
+            MyWallet.makeNotice('error', 'misc-error', data.responseText);
+        });
     }
 
     function importPrivateKeyUI(value, label, success) {
