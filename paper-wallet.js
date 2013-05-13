@@ -192,21 +192,41 @@ var PaperWallet = new function() {
     this.preLoad = function(success, opt) {
         self.guid = opt.guid;
 
+        console.log('Did Load 1');
+
         loadScript('wallet/jquery.qrcode', function() {
+            console.log('Did Load 2');
+
             loadScript('wallet/mnemonic', function() {
+
+                console.log('Did Load 3');
+
                 loadScript('wallet/jspdf', function() {
+
+                    console.log('Did Load 4');
+
                     if (opt.no_mnemonic) {
                         success();
                     } else if (opt.password) {
+                        console.log('Did Load 4.1');
+
                         mn_encode_pass({password : opt.password}, function(mnemonic1) {
                             self.mnemonic1 = mnemonic1;
                             self.isLoaded = true;
                             success();
+                        }, function(e) {
+                            MyWallet.makeNotice('error', 'misc-error', e);
                         });
                     } else {
+                        console.log('Did Load 4.2');
+
                         MyWallet.getMainPassword(function(main_password) {
+                            console.log('Did Load 4.3');
+
                             mn_encode_pass({password : main_password}, function(mnemonic1) {
                                 self.mnemonic1 = mnemonic1;
+
+                                console.log('Did Load 4.4');
 
                                 if (MyWallet.getDoubleEncryption()) {
                                     MyWallet.getSecondPassword(function(second_password) {
@@ -222,6 +242,8 @@ var PaperWallet = new function() {
                                     self.isLoaded = true;
                                     success();
                                 }
+                            }, function (e) {
+                                MyWallet.makeNotice('error', 'misc-error', e);
                             });
 
                         });
@@ -260,6 +282,8 @@ var PaperWallet = new function() {
             callModal();
         } else {
             this.preLoad(function() {
+                console.log('Did Load 5');
+
                 callModal();
             }, {
                 guid : MyWallet.getGuid()

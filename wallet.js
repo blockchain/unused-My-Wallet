@@ -3557,6 +3557,7 @@ var MyWallet = new function() {
 
             buildSendForm(self);
 
+
             $.ajax({
                 type: "GET",
                 url: resource + 'wallet/country_codes.html',
