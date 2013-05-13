@@ -78,29 +78,48 @@ function mn_encode_pass(obj, success, error) {
 
         version = 5;
     }
+    function tryV2() {
+        mn_encode_pass_v2(str_bytes, function(nm) {
+            version = 2;
 
-    var checksum = Crypto.util.bytesToWords([version].concat(Crypto.SHA256(str_bytes, {asBytes: true}).slice(0,4)))[0];
+            var checksum = Crypto.util.bytesToWords([version].concat(Crypto.SHA256(str_bytes, {asBytes: true}).slice(0,4)))[0];
 
-    if (checksum < 0)
-        checksum = -checksum;
+            if (checksum < 0)
+                checksum = -checksum;
 
-    var checksum_str = encodeV2(checksum).join(' ');
+            var checksum_str = encodeV2(checksum).join(' ');
 
-    mn_encode_pass_v3(str_bytes, function(nm) {
-        try {
             var result = checksum_str + ' ' + nm;
 
             mn_decode_pass(result, function(obj) {
                 success(result)
             }, error);
+        }, error);
+    }
+    mn_encode_pass_v3(str_bytes, function(nm) {
+        try {
+            var checksum = Crypto.util.bytesToWords([version].concat(Crypto.SHA256(str_bytes, {asBytes: true}).slice(0,4)))[0];
+
+            if (checksum < 0)
+                checksum = -checksum;
+
+            var checksum_str = encodeV2(checksum).join(' ');
+
+            var result = checksum_str + ' ' + nm;
+
+            mn_decode_pass(result, function(obj) {
+                success(result)
+            }, tryV2);
         } catch (e) {
-            if (error) error(e);
+            tryV2();
         }
-    }, error);
+    }, function(e) {
+        tryV2();
+    });
 }
 
 function mn_encode_pass_v2(str_bytes, success, error) {
-    var words = Crypto.util.bytesToWords(str_bytes);
+    var words = Crypto.util.bytesToWords(new BigInteger(str_bytes).toByteArrayUnsigned());
 
     var out = [];
 
@@ -120,7 +139,9 @@ function loadV3WordList(success, error) {
         success: function(data) {
             success(data.split('\n'));
         },
-        error : error
+        error : function(e) {
+            error(e);
+        }
     });
 }
 
@@ -177,12 +198,20 @@ function decodeV3456WordList(wlist, version, testChecksum, success, error) {
             var words = [];
 
             for (var i = 0; i < wlist.length; i += 2) {
-                words.push(decodeV3(wlist[i].toLowerCase(), wlist[i+1].toLowerCase(), word_list));
+                if (i+1 >= wlist.length)
+                    words.push(decodeV3(wlist[i].toLowerCase(), null, word_list));
+                else
+                    words.push(decodeV3(wlist[i].toLowerCase(), wlist[i+1].toLowerCase(), word_list));
             }
 
             var obj = {};
 
             var str_bytes = Crypto.util.wordsToBytes(words);
+
+            //Remove 0 values
+            str_bytes = $.grep(str_bytes, function(value) {
+                return value != 0;
+            });
 
             if (!testChecksum(str_bytes)) {
                 error('Invalid Checksum');
@@ -219,18 +248,17 @@ function decodeV3456WordList(wlist, version, testChecksum, success, error) {
                 obj.time = Crypto.util.bytesToWords(str_bytes.splice(0, 4))[0];
             }
 
-            //Remove 0 values
-            str_bytes = $.grep(str_bytes, function(value) {
-                return value != 0;
-            });
-
             obj.password = UTF8.bytesToString(str_bytes);
 
             success(obj);
         } catch (e) {
+            console.log(e);
+
             error(e);
         }
     }, function(e) {
+        console.log(e);
+
         error(e);
     });
 }
@@ -242,7 +270,7 @@ function mn_decode_pass(str, success, error) {
         str = $.trim(str);
 
         //Replace double space
-        str = str.replace(/\s{2,}/g, ' ');
+        //str = str.replace(/\s{2,}/g, ' ');
 
         var wlist = str.split(' ');
 
@@ -265,11 +293,11 @@ function mn_decode_pass(str, success, error) {
 
                 return true;
             } catch (e) {
+                console.log(e);
+
                 return false;
             }
         }
-
-        console.log('version ' + version);
 
         if (version == 2) {
             decodeV2WordList(wlist, testChecksum, success, error);
