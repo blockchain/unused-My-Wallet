@@ -1,12 +1,12 @@
 function decodeV2(word1, word2, word3) {
-    if (mn_v2_words.indexOf(word1) == -1) throw 'Unknown word ' + word1;
-    if (mn_v2_words.indexOf(word2) == -1) throw 'Unknown word ' + word2;
-    if (mn_v2_words.indexOf(word3) == -1) throw 'Unknown word ' + word3;
+    if (mn_v2_words.indexOf(word1.toLowerCase()) == -1) throw 'Unknown word ' + word1;
+    if (mn_v2_words.indexOf(word2.toLowerCase()) == -1) throw 'Unknown word ' + word2;
+    if (mn_v2_words.indexOf(word3.toLowerCase()) == -1) throw 'Unknown word ' + word3;
 
     var n = mn_v2_words.length;
-    var w1 = mn_v2_words.indexOf(word1);
-    var w2 = (mn_v2_words.indexOf(word2)) % n;
-    var w3 = (mn_v2_words.indexOf(word3)) % n;
+    var w1 = mn_v2_words.indexOf(word1.toLowerCase());
+    var w2 = (mn_v2_words.indexOf(word2.toLowerCase())) % n;
+    var w3 = (mn_v2_words.indexOf(word3.toLowerCase())) % n;
     return w1 + n * mn_mod((w2 - w1), n) + n * n * mn_mod((w3 - w2), n);
 }
 
@@ -19,7 +19,7 @@ function encodeV2(x) {
 }
 
 function decodeV3(word1, word2, word_list) {
-    var val1 = word_list.indexOf(word1);
+    var val1 = word_list.indexOf(word1.toLowerCase());
 
     if (word2 == null) {
         if (val1 == -1)
@@ -29,7 +29,7 @@ function decodeV3(word1, word2, word_list) {
 
         return Crypto.util.bytesToWords([b1[2], b1[3], 0, 0]);
     } else {
-        var val2 = word_list.indexOf(word2);
+        var val2 = word_list.indexOf(word2.toLowerCase());
 
         if (val1 == -1 || val2 == -1)
             throw 'Unknown Word ' + word1 + ' or ' + word2;
@@ -175,7 +175,7 @@ function decodeV2WordList(wlist, testChecksum, success, error) {
     var words = [];
 
     for (var i = 0; i < wlist.length; i += 3) {
-        words.push(decodeV2(wlist[i].toLowerCase(), wlist[i+1].toLowerCase(), wlist[i+2].toLowerCase()));
+        words.push(decodeV2(wlist[i], wlist[i+1], wlist[i+2]));
     }
 
     var str_bytes = Crypto.util.wordsToBytes(words);
@@ -198,10 +198,7 @@ function decodeV3456WordList(wlist, version, testChecksum, success, error) {
             var words = [];
 
             for (var i = 0; i < wlist.length; i += 2) {
-                if (i+1 >= wlist.length)
-                    words.push(decodeV3(wlist[i].toLowerCase(), null, word_list));
-                else
-                    words.push(decodeV3(wlist[i].toLowerCase(), wlist[i+1].toLowerCase(), word_list));
+                    words.push(decodeV3(wlist[i], wlist[i+1], word_list));
             }
 
             var obj = {};
