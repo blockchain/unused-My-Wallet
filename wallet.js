@@ -10,7 +10,7 @@ function precisionToBTC(x) {
     return Bitcoin.Util.formatValue(precisionToSatoshiBN(x));
 }
 
-//BTC decimal to user precision (e.g. BTC or mBTC)
+//BTC decimal to user precision (e.g. BdeleteAddressTC or mBTC)
 function precisionFromBTC(x) {
     return Bitcoin.Util.formatValue(Bitcoin.Util.parseValue(x).multiply(BigInteger.valueOf(Math.pow(10, sShift(symbol_btc)))));
 }

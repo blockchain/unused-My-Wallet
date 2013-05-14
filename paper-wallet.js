@@ -206,15 +206,9 @@ var PaperWallet = new function() {
                             MyWallet.makeNotice('error', 'misc-error', e);
                         });
                     } else {
-                        console.log('Did Load 4.2');
-
                         MyWallet.getMainPassword(function(main_password) {
-                            console.log('Did Load 4.3');
-
                             mn_encode_pass({password : main_password}, function(mnemonic1) {
                                 self.mnemonic1 = mnemonic1;
-
-                                console.log('Did Load 4.4');
 
                                 if (MyWallet.getDoubleEncryption()) {
                                     MyWallet.getSecondPassword(function(second_password) {
@@ -252,12 +246,12 @@ var PaperWallet = new function() {
 
             var b58 = B58.encode(key.priv);
 
-            MyWallet.addWatchOnlyAddress(address);
-
-            MyWallet.setAddressLabel(address, 'Cold Storage');
-
-            if (internalShowModal([{addr : address, priv : b58}])) {
+            if (internalShowModal([{addr : address, priv : b58, label : 'Cold Storage'}])) {
                 showDidPrintModal(function() {
+                    MyWallet.addWatchOnlyAddress(address);
+
+                    MyWallet.setAddressLabel(address, 'Cold Storage');
+
                     MyWallet.backupWallet();
                 }, function() {
                     MyWallet.deleteAddress(address);
@@ -270,8 +264,6 @@ var PaperWallet = new function() {
             callModal();
         } else {
             this.preLoad(function() {
-                console.log('Did Load 5');
-
                 callModal();
             }, {
                 guid : MyWallet.getGuid()
