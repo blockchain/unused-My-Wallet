@@ -848,7 +848,7 @@ var MyWallet = new function() {
     function base58ToBase64(x) { var bytes = MyWallet.decodePK(x); return Crypto.util.bytesToBase64(bytes); }
     function base58ToHex(x) { var bytes = MyWallet.decodePK(x); return Crypto.util.bytesToHex(bytes); }
     this.base58ToSipa = function(x, addr) {
-        return this.pkBytesToSipa(MyWallet.decodePK(x), addr);
+        return MyWallet.pkBytesToSipa(MyWallet.decodePK(x), addr);
     }
 
     this.makeWalletJSON = function(format) {
@@ -3764,10 +3764,6 @@ var MyWallet = new function() {
             key_bytes = Crypto.util.hexToBytes(value);
         } else if (format == 'mini') {
             key_bytes = parseMiniKey(value);
-        } else if (format == 'sipa') {
-            var tbytes = B58.decode(value);
-            tbytes.shift();
-            key_bytes = tbytes.slice(0, tbytes.length - 4);
         } else if (format == 'sipa') {
             var tbytes = B58.decode(value);
             tbytes.shift();
