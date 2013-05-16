@@ -32,7 +32,7 @@ $(document).ready(function() {
                     type: "GET",
                     dataType: 'json',
                     url: root + 'api/receive',
-                    data : {method : 'create', address : encodeURIComponent(receivers_address), shared:shared, callback:callback_url},
+                    data : {method : 'create', cors : true, address : encodeURIComponent(receivers_address), shared:shared, callback:callback_url},
                     success: function(response) {
                         button.find('.qr-code').empty();
 
@@ -46,7 +46,7 @@ $(document).ready(function() {
                         function checkBalance() {
                             $.ajax({
                                 type: "GET",
-                                url: root + 'q/getreceivedbyaddress/'+response.input_address,
+                                url: root + 'q/getreceivedbyaddress/'+response.input_address+'?cors=true',
                                 data : {format : 'plain'},
                                 success: function(response) {
                                     if (!response) return;
@@ -64,7 +64,7 @@ $(document).ready(function() {
                         }
 
                         try {
-                            ws = new WebSocket('ws://api.blockchain.info:8335/inv');
+                            ws = new WebSocket('ws://ws.blockchain.info/inv');
 
                             if (!ws) return;
 
