@@ -1186,7 +1186,7 @@ function initNewTx() {
         generated_addresses : [],
         to_addresses : [],
         fee : BigInteger.ZERO,
-        extra_private_keys : [],
+        extra_private_keys : {},
         listeners : [],
         is_cancelled : false,
         ask_to_send_shared : false,
@@ -1322,7 +1322,7 @@ function initNewTx() {
                         try {
                             var addr_input_obj = parseOut(out);
 
-                            if (!MyWallet.addressExists(addr_input_obj.addr) || (!includeWatchOnly && MyWallet.isWatchOnly(addr_input_obj.addr))) {
+                            if (!includeWatchOnly && MyWallet.isWatchOnly(addr_input_obj.addr)) {
                                 continue;
                             }
 
@@ -1815,6 +1815,8 @@ function initNewTx() {
 
     var base_listener = {
         on_error : function(e) {
+            console.log(e);
+
             if(e) {
                 MyWallet.makeNotice('error', 'tx-error', e);
             }

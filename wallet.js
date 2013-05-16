@@ -193,7 +193,7 @@ var MyWallet = new function() {
     }
 
     this.isWatchOnly = function(address) {
-        return addresses[address].priv == null;
+        return !addresses[address] || addresses[address].priv == null;
     }
 
     this.getAddressBalance = function(address) {
