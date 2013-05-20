@@ -14,15 +14,7 @@ $(document).ready(function() {
             var button = _button;
 
             button.click(function() {
-                var receivers_address = $(this).data('address');
-                var shared = $(this).data('shared');
-                var test = $(this).data('test');
-
-                if (!shared) shared = false;
-
-                var callback_url = $(this).data('callback');
-
-                if (!callback_url) callback_url = '';
+                var create_url = $(this).data('create-url');
 
                 button.find('.blockchain').hide();
 
@@ -31,8 +23,7 @@ $(document).ready(function() {
                 $.ajax({
                     type: "GET",
                     dataType: 'json',
-                    url: root + './receive',
-                    data : {method : 'create', address : encodeURIComponent(receivers_address), shared:shared, callback:callback_url},
+                    url: create_url,
                     success: function(response) {
                         button.find('.qr-code').empty();
 
@@ -53,7 +44,7 @@ $(document).ready(function() {
 
                                     var value = parseInt(response);
 
-                                    if (value > 0 || test) {
+                                    if (value > 0) {
                                         button.find('.blockchain').hide();
                                         button.find('.stage-paid').trigger('show').show().html(button.find('.stage-paid').html().replace('[[value]]', value / 100000000));
                                     } else {
