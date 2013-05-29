@@ -1265,7 +1265,6 @@ function initNewTx() {
                 self.selected_outputs = [];
 
                 var txValue = BigInteger.ZERO;
-
                 for (var i = 0; i < self.to_addresses.length; ++i) {
                     txValue = txValue.add(self.to_addresses[i].value);
                 }
@@ -1388,8 +1387,9 @@ function initNewTx() {
                         self.insufficient_funds(txValue, availableValue, function() {
 
                             //Subtract the difference from the to address
-                            if (self.to_addresses[0].value.add(difference).compareTo(BigInteger.ZERO) > 0) {
-                                self.to_addresses[0].value = self.to_addresses[0].value.add(difference);
+                            var adjusted = self.to_addresses[0].value.add(difference);
+                            if (adjusted.compareTo(BigInteger.ZERO) > 0 && adjusted.compareTo(txValue) <= 0) {
+                                self.to_addresses[0].value = adjusted;
 
                                 self.makeTransaction();
 
