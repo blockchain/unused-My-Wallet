@@ -25,7 +25,6 @@ function insertParam(key, value) {
 }
 
 $(document).ready(function() {
-
     $('#deposit').click(function() {
         loadScript('wallet/frame-modal', function() {
             showFrameModal({
