@@ -2547,6 +2547,8 @@ var MyWallet = new function() {
     }
 
     this.decodePK = function(priv) {
+        if (!priv) throw 'null PK passed to decodePK';
+
         var decrypted = MyWallet.decryptPK(priv);
         if (decrypted != null) {
             return B58.decode(decrypted);
@@ -2557,11 +2559,14 @@ var MyWallet = new function() {
     this.signmessage = function(address, message) {
         var addr = addresses[address];
 
+        if (!addr.priv)
+            throw 'Cannot sign a watch only address';
+
         var decryptedpk = MyWallet.decodePK(addr.priv);
 
         var key = new Bitcoin.ECKey(decryptedpk);
 
-        return  Bitcoin.Message.signMessage(key, message, addr.addr);
+        return Bitcoin.Message.signMessage(key, message, addr.addr);
     }
 
     function vaidateDPassword(input) {

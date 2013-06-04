@@ -59,6 +59,36 @@ function _ImportExport() {
         });
     }
 
+    function showPrivateKeyWarningModal(address, import_direct, sweep) {
+        var modal = $('#import-private-key-warning-modal');
+
+        modal.modal({
+            keyboard: true,
+            backdrop: "static",
+            show: true
+        });
+
+        modal.center();
+
+        modal.find('.address').text(address);
+
+        BlockchainAPI.get_balance([address], function(balance) {
+            modal.find('.address').text(address + " - " + formatBTC(balance));
+        }, function(e) {
+            MyWallet.makeNotice('error', 'misc-error', e);
+        });
+
+        modal.find('.btn.btn-secondary').unbind().click(function() {
+            import_direct();
+            modal.modal('hide');
+        });
+
+        modal.find('.btn.btn-primary').unbind().click(function() {
+            sweep();
+            modal.modal('hide');
+        });
+    }
+
     function bind() {
         $('a[data-toggle="tab"]').unbind().on('show', function(e) {
             $(e.target.hash).trigger('show');
@@ -581,14 +611,61 @@ function _ImportExport() {
                 var format = MyWallet.detectPrivateKeyFormat(value);
                 var key = MyWallet.privateKeyStringToKey(value, format);
 
+                var addr = null;
                 if (format == 'compsipa') {
-                    var addr = key.getBitcoinAddressCompressed().toString();
+                    addr = key.getBitcoinAddressCompressed().toString();
+                } else {
+                    addr = key.getBitcoinAddress().toString();
+                }
 
-                    showCompressedPrivateKeyWarning(function() {
-                        if (addr == null || addr.length == 0 || addr == 'undefined')
-                            throw 'Unable to decode bitcoin addresses from private key';
+                if (addr == null || addr.length == 0 || addr == 'undefined')
+                    throw 'Unable to decode bitcoin addresses from private key';
 
-                        if (MyWallet.addPrivateKey(key, true)) {
+                if (MyWallet.addressExists(addr) && !MyWallet.isWatchOnly(addr))
+                    throw 'Address already exists in the wallet';
+
+                function sweep() {
+                    loadScript('wallet/signer', function() {
+                        BlockchainAPI.get_balance([addr], function(value) {
+                            var obj = initNewTx();
+
+                            obj.fee = obj.base_fee; //Always include a fee
+                            obj.to_addresses.push({address: new Bitcoin.Address(MyWallet.getPreferredAddress()), value : BigInteger.valueOf(value).subtract(obj.fee)});
+                            obj.from_addresses = [addr];
+                            obj.extra_private_keys[addr] = B58.encode(key.priv);
+
+                            obj.start();
+
+                        }, function() {
+                            MyWallet.makeNotice('error', 'misc-error', 'Error Getting Address Balance');
+                        });
+                    });
+                };
+
+                showPrivateKeyWarningModal(addr, function() {
+                    //Import Direct
+
+                    if (format == 'compsipa') {
+                        showCompressedPrivateKeyWarning(function() {
+                            if (MyWallet.addPrivateKey(key, true)) {
+
+                                if (label && label.length > 0)
+                                    MyWallet.setAddressLabel(addr, label);
+
+                                //Perform a wallet backup
+                                MyWallet.backupWallet('update', function() {
+                                    MyWallet.get_history();
+                                });
+
+                                if (success) success();
+
+                                MyWallet.makeNotice('success', 'added', 'Added Bitcoin Address ' + addr);
+                            }
+                        }, function() {
+                            sweep();
+                        });
+                    } else {
+                        if (MyWallet.addPrivateKey(key, false)) {
 
                             if (label && label.length > 0)
                                 MyWallet.setAddressLabel(addr, label);
@@ -600,52 +677,17 @@ function _ImportExport() {
 
                             if (success) success();
 
-                            MyWallet.makeNotice('success', 'added', 'Added Bitcoin Address ' + addr);
+                            MyWallet.makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr);
+                        } else {
+                            throw 'Unable to add private key for bitcoin address ' + addr;
                         }
-                    }, function() {
-                        loadScript('wallet/signer', function() {
-
-                            var from_address = key.getBitcoinAddress().toString();
-
-                            BlockchainAPI.get_balance([from_address], function(value) {
-                                var obj = initNewTx();
-
-                                obj.fee = obj.base_fee; //Always include a fee
-                                obj.to_addresses.push({address: new Bitcoin.Address(MyWallet.getPreferredAddress()), value : BigInteger.valueOf(value).subtract(obj.fee)});
-                                obj.from_addresses = [from_address];
-                                obj.extra_private_keys[from_address] = B58.encode(key.priv);
-
-                                obj.start();
-
-                            }, function() {
-                                MyWallet.makeNotice('error', 'misc-error', 'Error Getting Address Balance');
-                            });
-                        });
-                    });
-
-                } else {
-                    var addr = key.getBitcoinAddress().toString();
-
-                    if (addr == null || addr.length == 0 || addr == 'undefined')
-                        throw 'Unable to decode bitcoin addresses from private key';
-
-                    if (MyWallet.addPrivateKey(key, false)) {
-
-                        if (label && label.length > 0)
-                            MyWallet.setAddressLabel(addr, label);
-
-                        //Perform a wallet backup
-                        MyWallet.backupWallet('update', function() {
-                            MyWallet.get_history();
-                        });
-
-                        if (success) success();
-
-                        MyWallet.makeNotice('success', 'added-adress', 'Added bitcoin address ' + addr);
-                    } else {
-                        throw 'Unable to add private key for bitcoin address ' + addr;
                     }
-                }
+                }, function() {
+                    //Sweep
+                    sweep();
+                });
+
+
             } catch (e) {
                 MyWallet.makeNotice('error', 'misc-error', 'Error importing private key: ' + e);
             }
