@@ -167,6 +167,8 @@ function _DICEGame() {
 
                         var tx = initNewTx();
 
+                        tx.allow_adjust = false;
+
                         tx.addListener(listener);
 
                         startTxUI(form, 'dice', tx);

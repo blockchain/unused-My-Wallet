@@ -1192,6 +1192,7 @@ function initNewTx() {
         ask_to_send_shared : false,
         base_fee : BigInteger.valueOf(50000),
         min_free_output_size : BigInteger.valueOf(1000000),
+        allow_adjust : true,
         ready_to_send_header : 'Transaction Ready to Send.',
         addListener : function(listener) {
             this.listeners.push(listener);
@@ -1381,9 +1382,8 @@ function initNewTx() {
 
                 var difference = availableValue.subtract(txValue);
                 if (difference.compareTo(BigInteger.ZERO) < 0) {
-
                     //Can only adjust when there is one recipient
-                    if (self.to_addresses.length == 1 && availableValue.compareTo(BigInteger.ZERO) > 0) {
+                    if (self.to_addresses.length == 1 && availableValue.compareTo(BigInteger.ZERO) > 0 && self.allow_adjust) {
                         self.insufficient_funds(txValue, availableValue, function() {
 
                             //Subtract the difference from the to address
