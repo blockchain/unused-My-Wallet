@@ -1491,19 +1491,19 @@ function initNewTx() {
 
                 priority /= estimatedSize;
 
-                var kilobytes = Math.ceil(parseFloat(estimatedSize / 1024));
+                var kilobytes = Math.max(1, Math.ceil(parseFloat(estimatedSize / 1024)));
 
                 var fee_is_zero = (!self.fee || self.fee.compareTo(self.base_fee) < 0);
 
                 //Priority under 57 million requires a 0.0005 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
                 if (fee_is_zero && (forceFee || kilobytes > 1)) {
                     //Forced Fee
-                    self.fee = self.base_fee.multiply(BigInteger.valueOf(kilobytes+1)); //0.0005 BTC * kilobytes + 1
+                    self.fee = self.base_fee.multiply(BigInteger.valueOf(kilobytes)); //0.0005 BTC * kilobytes + 1
 
                     self.makeTransaction();
                 } else if (fee_is_zero && (priority < 77600000 || isEscrow || askforfee)) { //Bit extra added to priority
                     self.ask_for_fee(function() {
-                        self.fee = self.base_fee.multiply(BigInteger.valueOf(kilobytes+1)); //0.0005 BTC * kilobytes + 1
+                        self.fee = self.base_fee.multiply(BigInteger.valueOf(kilobytes)); //0.0005 BTC * kilobytes + 1
 
                         self.makeTransaction();
                     }, function() {

@@ -173,16 +173,12 @@ var BlockchainAPI = new function() {
                     });
                 }
 
-                if (!window.WebSocket || ws == null || ws.readyState != WebSocket.OPEN) {
-                    call_history(); //If the websocket isn't defined or open call history immediately
-                } else {
-                    //Otherwise we set an interval to set for a transaction
-                    setTimeout(function() {
-                        if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
-                            call_history();
-                        }
-                    }, 2000);
-                }
+                //Otherwise we set an interval to set for a transaction
+                setTimeout(function() {
+                    if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
+                        call_history();
+                    }
+                }, 3000);
             };
 
             function push_normal() {
