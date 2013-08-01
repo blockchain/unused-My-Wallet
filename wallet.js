@@ -1300,7 +1300,7 @@ var MyWallet = new function() {
 
             tip.find('button').click(function() {
                 //Strip HTML and replace quotes
-                var note = $.trim($('<div>'+tip.find('textarea').val()+'</div>').text().replace(/'/g, '').replace(/"/g, ''));
+                var note = stripHTML(tip.find('textarea').val()).replace(/'/g, '').replace(/"/g, '');
 
                 if (note.length > 0) {
                     tx_notes[tx_hash] = note;
@@ -2728,27 +2728,15 @@ var MyWallet = new function() {
 
             modal.modal('hide');
 
-            var label = $.trim($('<div>' + labelField.val() + '</div>').text());
+            var label = stripHTML(labelField.val());
+            var bitcoinAddress = stripHTML(addrField.val());
 
-            var bitcoinAddress = $.trim(addrField.val());
-
-            if (label.length == 0) {
-                MyWallet.makeNotice('error', 'misc-error', 'You must enter a label for the address book entry');
-                return false;
-            }
-
-            if (label.indexOf("\"") != -1) {
-                MyWallet.makeNotice('error', 'misc-error', 'Label cannot contain double quotes');
-                return false;
-            }
-
-            if (bitcoinAddress.length == 0) {
-                MyWallet.makeNotice('error', 'misc-error', 'You must enter a bitcoin address for the address book entry');
+            if (label.length == 0 || bitcoinAddress.length == 0) {
+                MyWallet.makeNotice('error', 'misc-error', 'You must enter an address and label for the address book entry');
                 return false;
             }
 
             var addr;
-
             try {
                 addr = new Bitcoin.Address(bitcoinAddress);
 
@@ -3313,6 +3301,11 @@ var MyWallet = new function() {
         $('#shared-never-ask').click(function() {
             SetCookie('shared-never-ask', $(this).is(':checked'));
         });
+
+        $('.bitstamp-btn').click(function() {
+            window.open(root + 'r?url=https://bitstamp.net', null, "scroll=1,status=1,location=1,toolbar=1,width=1000,height=700");
+        });
+
 
         $('.deposit-btn').click(function() {
             var self = $(this);

@@ -119,7 +119,7 @@ var BlockchainAPI = new function() {
         });
     }
 
-    this.get_rejection_reason = function(hexhash, success, error) {
+    this.get_rejection_reason = function(hexhash, got_reason, not_rejected, error) {
         MyWallet.setLoadingText('Querying Rejection Reason');
 
         $.ajax({
@@ -130,10 +130,13 @@ var BlockchainAPI = new function() {
                 if (data == null || data.length == 0)
                     error();
                 else
-                    success(data);
+                    got_reason(data);
             },
             error : function(e) {
-                error(e.responseText);
+                if (e.status == 404)
+                    not_rejected();
+                else
+                    error(e.responseText);
             }
         });
     }
@@ -160,6 +163,10 @@ var BlockchainAPI = new function() {
                         if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
                             BlockchainAPI.get_rejection_reason(tx_hash, function(reason) {
                                 MyWallet.makeNotice('error', 'tx-error', reason);
+                            }, function() {
+                                if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
+                                    MyWallet.get_history();
+                                }
                             }, function() {
                                 if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
                                     MyWallet.makeNotice('error', 'tx-error', 'Unknown Error Pushing Transaction');

@@ -145,7 +145,7 @@ function showLabelAddressModal(addr) {
 
         modal.modal('hide');
 
-        var label = $.trim($('<div>' + label_input.val() + '</div>').text());
+        var label = stripHTML(label_input.val());
 
         if (label.length == 0) {
             MyWallet.makeNotice('error', 'misc-error', 'You must enter a label for the address');

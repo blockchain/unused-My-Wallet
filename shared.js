@@ -10,6 +10,10 @@ var war_checksum;
 var min = true; //whether to load minified scripts
 var isExtension = false;
 
+function stripHTML(input) {
+    return $.trim($('<div>' + input.replace(/(<([^>]+)>)/ig, "") + '</div>').text());
+}
+
 function setLocalSymbol(new_symbol) {
     if (!new_symbol) return;
 
