@@ -60,6 +60,7 @@ var MyWallet = new function() {
     var isInitialized = false;
     var extra_seed; //Help for browsers that don't support window.crypto
     var show_unsynced = false;
+    var language = 'en';
 
     var wallet_options = {
         pbkdf2_iterations : 10, //Number of pbkdf2 iterations to default to for second password and dpasswordhash
@@ -92,7 +93,11 @@ var MyWallet = new function() {
     }
 
     this.setRealAuthType = function(val) {
-        this.real_auth_type = val;
+        real_auth_type = val;
+    }
+
+    this.getLanguage = function() {
+       return language;
     }
 
     this.addEventListener = function(func) {
@@ -102,7 +107,6 @@ var MyWallet = new function() {
     this.getLogoutTime = function() {
         return wallet_options.logout_time;
     }
-
 
     this.getDefaultPbkdf2Iterations = function() {
         return default_pbkdf2_iterations;
@@ -456,15 +460,21 @@ var MyWallet = new function() {
         return internalAddKey(address);
     }
 
-    this.addPrivateKey = function(key, compressed) {
+
+    //opts = {compressed, app_name, app_version, created_time}
+    this.addPrivateKey = function(key, opts) {
         if (walletIsFull())
             return false;
+
 
         if (key == null) {
             throw 'Cannot add null key.';
         }
 
-        var addr = compressed ? key.getBitcoinAddressCompressed().toString() : key.getBitcoinAddress().toString();
+        if (opts == null)
+            opts = {};
+
+        var addr = opts.compressed ? key.getBitcoinAddressCompressed().toString() : key.getBitcoinAddress().toString();
 
         var encoded = encodePK(key.priv);
 
@@ -479,6 +489,9 @@ var MyWallet = new function() {
 
         if (internalAddKey(addr, encoded)) {
             addresses[addr].tag = 1; //Mark as unsynced
+            addresses[addr].created_time = opts.created_time ? opts.created_time : 0; //Stamp With Creation time
+            addresses[addr].created_device_name = opts.app_name ? opts.app_name : APP_NAME; //Created Device
+            addresses[addr].created_device_version = opts.app_version ? opts.app_version : APP_VERSION; //Created App Version
 
             if (addresses[addr].priv != encoded)
                 throw 'Address priv does not match encoded';
@@ -625,7 +638,7 @@ var MyWallet = new function() {
 
                     if (old_checksum != new_checksum) {
                         //Fetch the updated wallet from the server
-                        setTimeout(getWallet, 250);
+                        setTimeout(getWallet, 150);
                     }
 
                 } else if (obj.op == 'utx') {
@@ -881,23 +894,23 @@ var MyWallet = new function() {
         out += '	"keys" : [\n';
 
         for (var key in addresses) {
-            var addr = addresses[key];
-
-            out += '	{"addr" : "'+ addr.addr +'"';
+            var addr = $.extend({}, addresses[key]);
 
             if (addr.priv != null) {
-                out += ',\n	 "priv" : "'+ encode_func(addr.priv, addr.addr) + '"';
+                addr.priv = encode_func(addr.priv, addr.addr);
             }
 
-            if (addr.tag == 2) {
-                out += ',\n	 "tag" : '+ addr.tag;
+            //Delete null values
+            for (var i in addr) {
+                if (addr[i] === null || addr[i] === undefined) {
+                    delete addr[i];
+                }
             }
 
-            if (addr.label != null) {
-                out += ',\n	 "label" : "'+ addr.label + '"';
-            }
+            //balance property should not be saved
+            delete addr.balance;
 
-            out += '},\n';
+            out += JSON.stringify(addr) + ',\n';
 
             atLeastOne = true;
         }
@@ -1738,7 +1751,7 @@ var MyWallet = new function() {
     }
 
     //Fetch a new wallet from the server
-    function getWallet() {
+    function getWallet(success, error) {
         for (var key in addresses) {
             var addr = addresses[key];
             if (addr.tag == 1) { //Don't fetch a new wallet if we have any keys which are marked un-synced
@@ -1759,22 +1772,30 @@ var MyWallet = new function() {
             url: root + 'wallet/wallet.aes.json',
             data : obj,
             success: function(data) {
-                if (data == null || data.length == 0 || data == 'Not modified')
+                if (data == null || data.length == 0 || data == 'Not modified') {
+                    if (success) success();
                     return;
+                }
 
                 console.log('Wallet data modified');
 
                 MyWallet.setEncryptedWalletData(data);
 
                 if (internalRestoreWallet()) {
-
                     MyWallet.get_history();
 
                     buildVisibleView();
+
+                    if (success) success();
                 } else {
                     //If we failed to decrypt the new data panic and logout
                     window.location.reload();
+
+                    if (error) error();
                 }
+            },
+            error : function() {
+                if (error) error();
             }
         });
     }
@@ -2455,6 +2476,9 @@ var MyWallet = new function() {
                 guid = obj.guid;
                 auth_type = obj.auth_type;
                 real_auth_type = obj.real_auth_type;
+
+                if (obj.language)
+                    language = obj.language;
 
                 MyWallet.setEncryptedWalletData(obj.payload);
 
@@ -3360,18 +3384,20 @@ var MyWallet = new function() {
 
         $("#new-addr").click(function() {
             try {
-                MyWallet.getSecondPassword(function() {
-                    var key = MyWallet.generateNewKey();
+                getWallet(function() {
+                    MyWallet.getSecondPassword(function() {
+                        var key = MyWallet.generateNewKey();
 
-                    if (!key) return;
+                        if (!key) return;
 
-                    var address = key.getBitcoinAddress().toString();
+                        var address = key.getBitcoinAddress().toString();
 
-                    MyWallet.backupWallet('update', function() {
-                        MyWallet.makeNotice('info', 'new-address', 'Generated new Bitcoin Address ' + address);
+                        MyWallet.backupWallet('update', function() {
+                            MyWallet.makeNotice('info', 'new-address', 'Generated new Bitcoin Address ' + address);
 
-                        loadScript('wallet/address_modal', function() {
-                            showLabelAddressModal(address);
+                            loadScript('wallet/address_modal', function() {
+                                showLabelAddressModal(address);
+                            });
                         });
                     });
                 });

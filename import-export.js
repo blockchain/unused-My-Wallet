@@ -12,7 +12,7 @@ function _ImportExport() {
         $.ajax({
             type: "GET",
             url: root + 'wallet/import-export-template',
-            data : {format : 'plain'},
+            data : {format : 'plain', language : MyWallet.getLanguage()},
             success: function(html) {
                 try {
                     container.html(html);
@@ -150,7 +150,7 @@ function _ImportExport() {
             MyWallet.getSecondPassword(function() {
                 loadScript('wallet/signer', function() {
                     showPrivateKeyModal(function (key) {
-                        if (MyWallet.addPrivateKey(key)) {
+                        if (MyWallet.addPrivateKey(key, {compressed : false, app_name : IMPORTED_APP_NAME, app_version : IMPORTED_APP_VERSION})) {
 
                             //Perform a wallet backup
                             MyWallet.backupWallet('update', function() {
@@ -195,7 +195,7 @@ function _ImportExport() {
             var bytes = Crypto.SHA256(phrase, { asBytes: true });
 
             try {
-                importPrivateKeyUI(Bitcoin.Base58.encode(bytes), 'Brain Wallet');
+                importPrivateKeyUI(Bitcoin.Base58.encode(bytes), 'Brain Wallet', 'brain_wallet');
             } catch(e) {
                 MyWallet.makeNotice('error', 'misc-error', 'Error importing private key: ' + e);
             }
@@ -306,13 +306,17 @@ function _ImportExport() {
                                 }
 
                                 var format = MyWallet.detectPrivateKeyFormat(priv);
-
                                 var key = MyWallet.privateKeyStringToKey(priv, format);
 
                                 if (key.getBitcoinAddress().toString() == addr || key.getBitcoinAddressCompressed().toString() == addr) {
 
                                     try {
-                                        MyWallet.addPrivateKey(key, format == 'compsipa')
+                                        MyWallet.addPrivateKey(key,{
+                                                compressed : format == 'compsipa',
+                                                app_name : obj.created_device_name ? obj.created_device_name : IMPORTED_APP_NAME,
+                                                app_version : obj.created_device_version ? obj.created_device_version : IMPORTED_APP_VERSION,
+                                                created_time : obj.created_time ? obj.created_time : 0
+                                            });
                                     } catch (e) {}
 
                                     ++nKeysFound;
@@ -482,7 +486,7 @@ function _ImportExport() {
                     var compressed = format == 'compsipa';
 
                     try {
-                        MyWallet.addPrivateKey(key, compressed);
+                        MyWallet.addPrivateKey(key, {compressed : compressed, app_name : IMPORTED_APP_NAME, app_version : IMPORTED_APP_VERSION});
                     } catch (e) {}
 
                     ++nKeysFound;
@@ -601,7 +605,7 @@ function _ImportExport() {
         });
     }
 
-    function importPrivateKeyUI(value, label, success) {
+    function importPrivateKeyUI(value, label, success, app_name) {
         MyWallet.getSecondPassword(function() {
             try {
                 if (!value || value.length == 0) {
@@ -647,7 +651,7 @@ function _ImportExport() {
 
                     if (format == 'compsipa') {
                         showCompressedPrivateKeyWarning(function() {
-                            if (MyWallet.addPrivateKey(key, true)) {
+                            if (MyWallet.addPrivateKey(key, {compressed : true, app_name : app_name ? app_name : IMPORTED_APP_NAME, app_version : IMPORTED_APP_VERSION})) {
 
                                 if (label && label.length > 0)
                                     MyWallet.setAddressLabel(addr, label);
@@ -665,7 +669,7 @@ function _ImportExport() {
                             sweep();
                         });
                     } else {
-                        if (MyWallet.addPrivateKey(key, false)) {
+                        if (MyWallet.addPrivateKey(key, {compressed : false, app_name : app_name ? app_name : IMPORTED_APP_NAME, app_version : IMPORTED_APP_VERSION})) {
 
                             if (label && label.length > 0)
                                 MyWallet.setAddressLabel(addr, label);

@@ -146,7 +146,7 @@ var AccountSettings = new function() {
         $.ajax({
             type: "GET",
             url: root + 'wallet/account-settings-template',
-            data : {format : 'plain'},
+            data : {format : 'plain', language : MyWallet.getLanguage()},
             success: function(html) {
                 try {
                     container.html(html);
