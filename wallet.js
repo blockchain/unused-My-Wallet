@@ -3303,7 +3303,7 @@ var MyWallet = new function() {
         });
 
         $('.bitstamp-btn').click(function() {
-            window.open(root + 'r?url=https://bitstamp.net', null, "scroll=1,status=1,location=1,toolbar=1,width=1000,height=700");
+            window.open(root + 'r?url=https://www.bitstamp.net/?blockchaininfo=1', null, "scroll=1,status=1,location=1,toolbar=1,width=1000,height=700");
         });
 
 
