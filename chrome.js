@@ -1,4 +1,5 @@
 isExtension = true;
+APP_NAME = 'javascript_chrome';
 
 $(document).ready(function() {
     var body = $(document.body);

@@ -1,5 +1,6 @@
 min = false;
 isExtension = true;
+APP_NAME = 'javascript_firefox';
 
 $(document).ready(function() {
     $.ajax = function(obj) {
