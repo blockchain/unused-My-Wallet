@@ -97,7 +97,7 @@ var MyWallet = new function() {
     }
 
     this.getLanguage = function() {
-       return language;
+        return language;
     }
 
     this.addEventListener = function(func) {
@@ -2633,7 +2633,52 @@ var MyWallet = new function() {
         return false;
     }
 
-//Check the integreity of all keys in the wallet
+    this.runCompressedCheck = function() {
+        var to_check = [];
+        var key_map = {};
+
+        for (var key in addresses) {
+            var addr = addresses[key];
+
+            if (addr.priv != null) {
+                var decryptedpk = MyWallet.decodePK(addr.priv);
+
+                var privatekey = new Bitcoin.ECKey(decryptedpk);
+
+                var uncompressed_address = privatekey.getBitcoinAddress().toString();
+                var compressed_address = privatekey.getBitcoinAddressCompressed().toString();
+
+                if (addr.addr != uncompressed_address) {
+                    key_map[uncompressed_address] = addr.priv;
+                    to_check.push(uncompressed_address);
+                }
+
+                if (addr.addr != compressed_address) {
+                    key_map[compressed_address] = addr.priv;
+                    to_check.push(compressed_address);
+                }
+            }
+        }
+
+        if (to_check.length == 0) {
+          alert('to_check length == 0');
+        }
+
+        BlockchainAPI.get_balances(to_check, function(results) {
+            var total_balance = 0;
+            for (var key in results) {
+                var balance = results[key].final_balance;
+                if (balance > 0) {
+                    alert(formatBTC(balance) + ' claimable in address ' + key + ' (Import PK : ' + MyWallet.base58ToSipa(key_map[key], key) + ')');
+                }
+                total_balance += balance;
+            }
+
+            alert(formatBTC(balance) + ' found in compressed addresses');
+        });
+    }
+
+    //Check the integreity of all keys in the wallet
     this.checkAllKeys = function(reencrypt) {
         for (var key in addresses) {
             var addr = addresses[key];
@@ -3876,7 +3921,7 @@ var MyWallet = new function() {
         //Show a warning when the Users copies a watch only address to the clipboard
         var ctrlDown = false;
         var ctrlKey = 17, vKey = 86, cKey = 67, appleKey = 67;
-       $(document).keydown(function(e) {
+        $(document).keydown(function(e) {
             try {
                 if (e.keyCode == ctrlKey || e.keyCode == appleKey)
                     ctrlDown = true;

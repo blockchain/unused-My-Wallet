@@ -746,6 +746,16 @@ var AccountSettings = new function() {
             });
         });
 
+        $('#run-compressed-check').unbind().click(function() {
+            MyWallet.getSecondPassword(function() {
+                try {
+                    MyWallet.runCompressedCheck(true);
+                } catch (e) {
+                    MyWallet.makeNotice('error', 'misc-error', e);
+                }
+            });
+        });
+
         $('#local_currency').unbind().change(function() {
             if (symbol != symbol_local)
                 toggleSymbol();
