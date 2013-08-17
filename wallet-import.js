@@ -190,9 +190,7 @@
                 reallyInsertWallet(guid, sharedKey, password, '?kaptcha='+ $.trim($('#captcha-value').val()), function(){
                     SetCookie('cguid', guid);
 
-                    try {
-                        localStorage.setItem('guid', guid);
-                    } catch (e) {}
+                    MyStore.put('guid', guid);
 
                     window.location = root + 'wallet/' + guid;
                 }, function() {

@@ -15,14 +15,12 @@ var BlockchainAPI = new function() {
                 }
 
                 try {
-                    try {
-                        //Cache results to show next login
-                        if (tx_page == 0 && tx_filter == 0)
-                            localStorage.setItem('multiaddr', JSON.stringify(data));
-                    } catch (e) {}
+                    //Cache results to show next login
+                    if (tx_page == 0 && tx_filter == 0) {
+                        MyStore.put('multiaddr', JSON.stringify(data));
+                    }
 
                     success(data);
-
                 } catch (e) {
                     MyWallet.makeNotice('error', 'misc-error', e);
 
@@ -287,9 +285,7 @@ var BlockchainAPI = new function() {
                     }
 
                     //Save the unspent cache
-                    try {
-                        localStorage.setItem('unspent', data);
-                    } catch (e) { }
+                    MyStore.put('unspent', JSON.stringify(obj));
 
                     success(obj);
                 } catch (e) {
@@ -297,29 +293,23 @@ var BlockchainAPI = new function() {
                 }
             },
             error: function (data) {
-                try {
+                //Try and look for unspent outputs in the cache
+                MyStore.get('unspent', function(cache) {
                     try {
-                        var cache = localStorage.getItem('unspent');
-
                         if (cache != null) {
                             var obj = $.parseJSON(cache);
 
                             success(obj);
-
-                            return;
+                        } else {
+                            if (data.responseText)
+                                throw data.responseText;
+                            else
+                                throw 'Error Contacting Server. No unspent outputs available in cache.';
                         }
                     } catch (e) {
-                        console.log(e);
+                        error(e);
                     }
-
-                    if (data.responseText)
-                        throw data.responseText;
-                    else
-                        throw 'Error Contacting Server. No unspent outputs available in cache.';
-
-                } catch (e) {
-                    error(e);
-                }
+                });
             }
         });
     }

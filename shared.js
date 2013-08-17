@@ -596,3 +596,39 @@ function getCookie(c_name) {
     }
     return "";
 }
+
+var MyStore = new function() {
+    this.put = function(key, value) {
+        try {
+            localStorage.setItem(key, value);
+        } catch(e) {
+            console.log(e);
+        }
+    }
+
+    this.get = function(key, callback) {
+        try {
+            callback(localStorage.getItem(key));
+        } catch(e) {
+            console.log(e);
+
+            callback();
+        }
+    }
+
+    this.remove = function(key) {
+        try {
+            localStorage.removeItem(key);
+        } catch(e) {
+            console.log(e);
+        }
+    }
+
+    this.clear = function() {
+        try {
+            localStorage.clear();
+        } catch(e) {
+            console.log(e);
+        }
+    }
+}

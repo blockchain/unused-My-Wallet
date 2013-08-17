@@ -500,9 +500,8 @@ var AccountSettings = new function() {
         $('input[name="always-keep-local-backup"]').unbind().change(function() {
             MyWallet.setAlwaysKeepLocalBackup($(this).is(':checked'));
 
-            try {
-                localStorage.removeItem('payload');
-            } catch (e) {};
+            //Remove cached payload
+            MyStore.remove('payload');
 
             //Fee Policy is stored in wallet so must save it
             MyWallet.backupWallet();
@@ -583,9 +582,7 @@ var AccountSettings = new function() {
         $('#two-factor-select').unbind().change(function() {
             var val = parseInt($(this).val());
 
-            try {
-                localStorage.removeItem('payload');
-            } catch (e) {}
+            MyStore.remove('payload');
 
             var el = $('.two-factor.t'+val);
 
@@ -778,11 +775,10 @@ var AccountSettings = new function() {
             var language = $(this).val();
 
             updateKV('Updating Language', 'update-language', language, function() {
+
                 //Chrome extension reads language from localStorage
                 if (isExtension) {
-                    try {
-                        localStorage.setItem('language', language);
-                    } catch (e) {};
+                    MyStore.put('language', language);
 
                     window.location.href =  '/index.html';
                 } else {

@@ -86,7 +86,8 @@ var MyWallet = new function() {
         try {
             //Save Payload when two factor authentication is disabled
             if (real_auth_type == 0 || wallet_options.always_keep_local_backup)
-                localStorage.setItem('payload', encrypted_wallet_data);
+                MyStore.put('payload', encrypted_wallet_data);
+
         } catch (e) {
             console.log(e);
         }
@@ -656,29 +657,11 @@ var MyWallet = new function() {
 
                     if (MyWallet.getHTML5Notifications()) {
                         //Send HTML 5 Notification
-                        var send_notification = function(options) {
-                            try {
-                                if (window.webkitNotifications && navigator.userAgent.indexOf("Chrome") > -1) {
-                                    if (webkitNotifications.checkPermission() == 0) {
-                                        webkitNotifications.createNotification(options.iconUrl, options.title, options.body).show();
-                                    }
-                                } else if (window.Notification) {
-                                    if (Notification.permissionLevel() == 'granted') {
-                                        new Notification(options.title, options).show();
-                                    }
-                                }
-                            } catch (e) {}
-                        };
-
-                        try {
-                            send_notification({
-                                title : result > 0 ? 'Payment Received' : 'Payment Sent',
-                                body : 'Transaction Value ' + formatBTC(result),
-                                iconUrl : resource + 'cube48.png'
-                            });
-                        } catch (e) {
-                            console.log(e);
-                        }
+                        MyWallet.showNotification({
+                            title : result > 0 ? 'Payment Received' : 'Payment Sent',
+                            body : 'Transaction Value ' + formatBTC(result),
+                            iconUrl : resource + 'cube48.png'
+                        });
                     }
 
                     tx.result = result;
@@ -798,6 +781,20 @@ var MyWallet = new function() {
         else if (logout_status == 'error')
             logout_btn.attr('src', resource + 'logout-red.png');
     }
+
+    this.showNotification = function(options) {
+        try {
+            if (window.webkitNotifications && navigator.userAgent.indexOf("Chrome") > -1) {
+                if (webkitNotifications.checkPermission() == 0) {
+                    webkitNotifications.createNotification(options.iconUrl, options.title, options.body).show();
+                }
+            } else if (window.Notification) {
+                if (Notification.permissionLevel() == 'granted') {
+                    new Notification(options.title, options).show();
+                }
+            }
+        } catch (e) {}
+    };
 
     this.makeNotice = function(type, id, msg, timeout) {
 
@@ -1435,9 +1432,9 @@ var MyWallet = new function() {
         }
 
         if (tx.confirmations == 0) {
-            html += ' <span class="label label-important pull-right hidden-phone">Unconfirmed Transaction!</span> ';
+            html += ' <span class="label label-important hidden-phone">Unconfirmed Transaction!</span> ';
         } else if (tx.confirmations > 0) {
-            html += ' <span class="label label-info pull-right hidden-phone">' + tx.confirmations + ' Confirmations</span> ';
+            html += ' <span class="label label-info hidden-phone">' + tx.confirmations + ' Confirmations</span> ';
         }
 
         html += '</div></td>';
@@ -1730,17 +1727,13 @@ var MyWallet = new function() {
         //We have dealt the the hash values, don't need them anymore
         window.location.hash = '';
 
-        try {
-            //Restore the balance cache
-            var multiaddrjson = localStorage.getItem('multiaddr');
-
+        MyStore.get('multiaddr', function(multiaddrjson) {
             if (multiaddrjson != null) {
                 parseMultiAddressJSON($.parseJSON(multiaddrjson), true);
 
                 buildVisibleView();
             }
-
-        } catch (e) { } //Don't care - cache is optional
+        });
 
         ///Get the list of transactions from the http API
         MyWallet.get_history();
@@ -2454,10 +2447,6 @@ var MyWallet = new function() {
 
         $('#initial_error,#initial_success').remove();
 
-        try {
-            var local_guid = localStorage.getItem('guid');
-        } catch(e) {}
-
         var open_wallet_btn = $('#restore-wallet-continue');
 
         open_wallet_btn.prop('disabled', true);
@@ -2504,49 +2493,52 @@ var MyWallet = new function() {
                 if (obj.initial_success)
                     MyWallet.makeNotice('success', 'misc-success', obj.initial_success);
 
-                try {
+                MyStore.get('guid', function(local_guid) {
                     if (local_guid != guid) {
-                        localStorage.clear();
+                        MyStore.clear();
 
                         //Demo Account Guid
                         if (guid != demo_guid) {
-                            localStorage.setItem('guid', guid);
+                            MyStore.put('guid', guid);
                         }
                     }
-                } catch (e) { }
+                });
             },
             error : function(e) {
                 console.log('Set GUID Success');
 
                 open_wallet_btn.prop('disabled', false);
 
-                if (local_guid == guid_or_alias && encrypted_wallet_data) {
-                    MyWallet.makeNotice('error', 'misc-error', 'Error Contacting Server. Using Local Wallet Cache.');
+                MyStore.get('guid', function(local_guid) {
+                    if (local_guid == guid_or_alias && encrypted_wallet_data) {
+                        MyWallet.makeNotice('error', 'misc-error', 'Error Contacting Server. Using Local Wallet Cache.');
 
-                    //Generate a new Checksum
-                    guid = local_guid;
-                    payload_checksum = generatePayloadChecksum();
-                    auth_type = 0;
+                        //Generate a new Checksum
+                        guid = local_guid;
+                        payload_checksum = generatePayloadChecksum();
+                        auth_type = 0;
 
-                    $('#restore-guid').val(guid);
+                        $('#restore-guid').val(guid);
 
-                    $('.auth-'+auth_type).show();
-                    return;
-                }
+                        $('.auth-'+auth_type).show();
 
-                try {
-                    var obj = $.parseJSON(e.responseText);
-
-                    if (obj.initial_error) {
-                        MyWallet.makeNotice('error', 'misc-error', obj.initial_error);
                         return;
                     }
-                } catch (e) {}
 
-                if (e.responseText)
-                    MyWallet.makeNotice('error', 'misc-error', e.responseText);
-                else
-                    MyWallet.makeNotice('error', 'misc-error', 'Error changing wallet identifier');
+                    try {
+                        var obj = $.parseJSON(e.responseText);
+
+                        if (obj.initial_error) {
+                            MyWallet.makeNotice('error', 'misc-error', obj.initial_error);
+                            return;
+                        }
+                    } catch (e) {}
+
+                    if (e.responseText)
+                        MyWallet.makeNotice('error', 'misc-error', e.responseText);
+                    else
+                        MyWallet.makeNotice('error', 'misc-error', 'Error changing wallet identifier');
+                });
             }
         });
     }
@@ -2661,7 +2653,7 @@ var MyWallet = new function() {
         }
 
         if (to_check.length == 0) {
-          alert('to_check length == 0');
+            alert('to_check length == 0');
         }
 
         BlockchainAPI.get_balances(to_check, function(results) {
@@ -3864,6 +3856,14 @@ var MyWallet = new function() {
 
         var body = $(document.body);
 
+        function tSetGUID() {
+            if (guid && guid.length == 36) {
+                setTimeout(function(){
+                    MyWallet.setGUID(guid, false);
+                }, 10);
+            }
+        }
+
         //Load data attributes from html
         guid = body.data('guid');
         sharedKey = body.data('sharedkey');
@@ -3872,17 +3872,21 @@ var MyWallet = new function() {
         if (MyWallet.skip_init)
             return;
 
-        try {
-            encrypted_wallet_data = localStorage.getItem('payload');
+        MyStore.get('payload', function(result) {
+            if (encrypted_wallet_data == null && result != null) {
+                encrypted_wallet_data = result;
+                payload_checksum = generatePayloadChecksum();
+            }
+        });
 
-            if ((!guid || guid.length == 0) && (isExtension || window.location.href.indexOf('/login') > 0))
-                guid = localStorage.getItem('guid');
-        } catch (e) {}
+        if ((!guid || guid.length == 0) && (isExtension || window.location.href.indexOf('/login') > 0)) {
+            MyStore.get('guid', function(result) {
+                guid = result;
 
-        if (guid && guid.length == 36) {
-            setTimeout(function(){
-                MyWallet.setGUID(guid, false);
-            }, 10);
+                tSetGUID();
+            });
+        } else {
+            tSetGUID();
         }
 
         //Frame break

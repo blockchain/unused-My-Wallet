@@ -251,13 +251,9 @@
             generateNewWallet(function(guid, sharedKey, password) {
                 SetCookie('cguid', guid);
 
-                try {
-                    localStorage.clear();
+                MyStore.clear();
 
-                    localStorage.setItem('guid', guid);
-                } catch (e) {
-                    console.log(e);
-                }
+                MyStore.put('guid', guid);
 
                 showMnemonicModal(password, guid, function() {
                     //Redirect to the claim page when we have a private key embedded in the URL
