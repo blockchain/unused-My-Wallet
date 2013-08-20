@@ -753,6 +753,18 @@ var AccountSettings = new function() {
             });
         });
 
+        $('#register-uri-handler').unbind().click(function() {
+            if (navigator && navigator.registerProtocolHandler) {
+                try {
+                    navigator.registerProtocolHandler("bitcoin", window.location.protocol + '//' + window.location.hostname + "/wallet/login#%s", "Blockchain.info");
+                } catch(e) {
+                    MyWallet.makeNotice('error', 'misc-error', e);
+                }
+            } else {
+                MyWallet.makeNotice('error', 'misc-error', 'Your browser does not support bitcoin links. Try google chrome.');
+            }
+        });
+
         $('#local_currency').unbind().change(function() {
             if (symbol != symbol_local)
                 toggleSymbol();

@@ -81,6 +81,13 @@ try {
         self.addEventListener('message', function(e) {
             var data = e.data;
             switch (data.cmd) {
+                case 'seed':
+                    var word_array = Crypto.util.bytesToWords(Crypto.util.hexToBytes(data.seed));
+
+                    for (var i in word_array) {
+                        rng_seed_int(word_array[i]);
+                    }
+                    break;
                 case 'load_resource':
                     importScripts(data.path);
                     break;
@@ -1611,6 +1618,7 @@ function initNewTx() {
                 var self = this;
                 var nSigned = 0;
                 var nWorkers = Math.min(3, self.tx.ins.length);
+                var rng = new SecureRandom();
 
                 self.worker = [];
                 for (var i = 0; i < nWorkers; ++i)  {
@@ -1653,6 +1661,13 @@ function initNewTx() {
                     });
 
                     self.worker[i].postMessage({cmd : 'load_resource' , path : resource + 'wallet/bitcoinjs' + (min ? '.min.js' : '.js')});
+
+                    //Generate and pass seed to the webworker
+                    var seed = new Array(32);
+
+                    rng.nextBytes(seed);
+
+                    self.worker[i].postMessage({cmd : 'seed', seed : Crypto.util.bytesToHex(seed)});
                 }
 
                 for (var outputN in self.selected_outputs) {
@@ -1716,6 +1731,9 @@ function initNewTx() {
                     self.is_ready = true;
                     self.ask_to_send();
                 };
+
+                //Be sure the RNG is fully seeded
+                MyWallet._seed();
 
                 self.signWebWorker(success, function(e) {
                     console.log(e);

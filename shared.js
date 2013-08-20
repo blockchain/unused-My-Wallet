@@ -535,22 +535,6 @@ $(document).ready(function() {
     } catch (e) {}
 });
 
-
-/*
- function registerURIHandler() {
- if (navigator && getCookie('protoreg') == null) {
- try {
- navigator.registerProtocolHandler("bitcoin",
- window.location.protocol + '//' + window.location.hostname + "/uri?uri=%s",
- "Blockchain.info");
-
- SetCookie('protoreg', true);
- } catch(e) {
- console.log(e);
- }
- }
- }*/
-
 function loadScript(src, success, error) {
     src = resource + src + (min ? '.min.js' : '.js') + '?'+war_checksum;
 

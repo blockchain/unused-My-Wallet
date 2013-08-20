@@ -249,8 +249,6 @@
             self.prop("disabled", true);
 
             generateNewWallet(function(guid, sharedKey, password) {
-                SetCookie('cguid', guid);
-
                 MyStore.clear();
 
                 MyStore.put('guid', guid);

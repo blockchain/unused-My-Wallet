@@ -84,6 +84,11 @@ $(document).ready(function() {
     //Check if we have any addresses to add
     var hash = decodeURI(window.location.hash.replace("#", ""));
 
+    if (hash.indexOf('bitcoin:') == 0) {
+        MyWallet.makeNotice('error', 'error-addr', 'Hash appears to be a URI not a private key');
+        return;
+    }
+
     //Hash No Longer Needed
     window.location.hash = '';
 

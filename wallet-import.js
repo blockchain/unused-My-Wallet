@@ -188,7 +188,7 @@
                 }
 
                 reallyInsertWallet(guid, sharedKey, password, '?kaptcha='+ $.trim($('#captcha-value').val()), function(){
-                    SetCookie('cguid', guid);
+                    MyStore.clear();
 
                     MyStore.put('guid', guid);
 

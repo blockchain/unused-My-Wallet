@@ -521,8 +521,9 @@ var MyWallet = new function() {
             }
         }
 
-        if (!extra_seed)
+        if (!extra_seed) {
             extra_seed = $('body').data('extra-seed');
+        }
 
         //Extra entropy from a random number provided by server
         if (extra_seed) {
@@ -535,7 +536,7 @@ var MyWallet = new function() {
     }
 
     this.generateNewKey = function(_password) {
-        this._seed(_password);
+        MyWallet._seed(_password);
 
         var key = new Bitcoin.ECKey(false);
 
@@ -1007,7 +1008,6 @@ var MyWallet = new function() {
     }
 
     function buildSendForm(el, reset) {
-
         buildSelect(el.find('select[name="from"]'), false, reset);
 
         buildSelect(el.find('select[name="change"]'), true, reset);
@@ -1042,7 +1042,7 @@ var MyWallet = new function() {
 
         function bindRecipient(recipient) {
 
-            recipient.find('input[name="send-to-address"]').val('').typeahead({
+            recipient.find('input[name="send-to-address"]').typeahead({
                 source : getActiveLabels()
             }).next().click(function() {
                     var input = $(this).prev();
@@ -1054,27 +1054,16 @@ var MyWallet = new function() {
 
                             input.val(data);
                         } catch (e) {
-                            loadScript('wallet/jsuri-1.1.1', function() {
-                                try {
-                                    var uri = new Uri(data);
 
-                                    input.val(uri.host());
-
-                                    recipient.find('input[name="send-value"]').val(uri.getQueryParamValue('amount'));
-
-                                } catch (e) {
-                                    MyWallet.makeNotice('error', 'error', 'Invalid Bitcoin Address or URI');
-                                }
-                            }, function() {
-                                MyWallet.makeNotice('error', 'error', 'Invalid Bitcoin Address or URI');
-                            });
+                            //If invalid address try and parse URI
+                            handleURI(data, recipient);
                         }
                     }, function(e) {
                         MyWallet.makeNotice('error', 'misc-error', e);
                     });
                 });
 
-            recipient.find('input[name="send-value"]').val('').bind('keyup change', function(e) {
+            recipient.find('input[name="send-value"]').unbind().bind('keyup change', function(e) {
                 if (e.keyCode == '9') {
                     return;
                 }
@@ -1084,7 +1073,7 @@ var MyWallet = new function() {
                 recipient.find('.send-value-usd').val(convert($(this).val() *  symbol_btc.conversion, symbol_local.conversion)).text(formatSymbol($(this).val() *  symbol_btc.conversion, symbol_local));
             });
 
-            recipient.find('.send-value-usd').val('').text(formatSymbol(0, symbol_local)).bind('keyup change', function(e) {
+            recipient.find('.send-value-usd').text(formatSymbol(0, symbol_local)).unbind().bind('keyup change', function(e) {
                 if (e.keyCode == '9') {
                     return;
                 }
@@ -1153,8 +1142,6 @@ var MyWallet = new function() {
 
 
     function backupInstructionsModal() {
-        console.log('backupInstructionsModal');
-
         var modal = $('#restore-backup-modal');
 
         modal.modal({
@@ -1717,15 +1704,31 @@ var MyWallet = new function() {
         }
     }
 
+    function handleURI(hash, recipient) {
+        loadScript('wallet/jsuri-1.1.1', function() {
+            try {
+                var uri = new Uri(hash);
+
+                var address = new Bitcoin.Address(uri.host());
+
+                recipient.find('input[name="send-to-address"]').val(address.toString());
+
+                recipient.find('input[name="send-value"]').val(parseFloat(uri.getQueryParamValue('amount')));
+
+            } catch (e) {
+                MyWallet.makeNotice('error', 'error', 'Invalid Bitcoin Address or URI');
+            }
+        }, function() {
+            MyWallet.makeNotice('error', 'error', 'Invalid Bitcoin Address or URI');
+        });
+    }
+
     function didDecryptWallet() {
         logout_timeout = setTimeout(MyWallet.logout, MyWallet.getLogoutTime());
 
         for (var listener in event_listeners) {
             event_listeners[listener]('did_decrypt')
         }
-
-        //We have dealt the the hash values, don't need them anymore
-        window.location.hash = '';
 
         MyStore.get('multiaddr', function(multiaddrjson) {
             if (multiaddrjson != null) {
@@ -1738,9 +1741,25 @@ var MyWallet = new function() {
         ///Get the list of transactions from the http API
         MyWallet.get_history();
 
-        changeView($("#home-intro"));
-
         $('#initial_error,#initial_success').remove();
+
+        var hash = decodeURI(window.location.hash.replace("#", ""));
+        if (hash.indexOf('bitcoin:') == 0) {
+
+            var send_container = $("#send-coins");
+
+            changeView(send_container);
+
+            //Find the first recipient container
+            var recipient = send_container.find('.tab-pane.active').find('.recipient').first();
+
+            handleURI(hash, recipient);
+        } else {
+            changeView($("#home-intro"));
+        }
+
+        //We have dealt the the hash values, don't need them anymore
+        window.location.hash = '';
     }
 
     //Fetch a new wallet from the server
@@ -3798,6 +3817,9 @@ var MyWallet = new function() {
 
         if (/^[ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789=+\/]{44}$/.test(key))
             return 'base64';
+
+        if (/^6P[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{56}$/.test(key))
+            return 'bip38';
 
         if (/^S[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{21}$/.test(key) ||
             /^S[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{25}$/.test(key) ||
