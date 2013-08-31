@@ -8,9 +8,14 @@ $(document).ready(function() {
         var initd = false;
 
         function sendRequest(obj) {
+
             var customEvent = document.createEvent('Event');
 
             customEvent.initEvent('ajax_request', true, true);
+
+            if (Object.keys(requests).length == 0) {
+                $(document).trigger("ajaxStart");
+            }
 
             var request_id = ''+Math.floor((Math.random()*10000)+1);
 
@@ -25,6 +30,9 @@ $(document).ready(function() {
 
         if (!initd) {
             document.body.addEventListener('ajax_response', function() {
+
+                console.log(document.body.getAttribute('data-ajax-response'));
+
                 var obj = JSON.parse(document.body.getAttribute('data-ajax-response'));
 
                 var request = requests[obj.request_id];
@@ -33,15 +41,24 @@ $(document).ready(function() {
                 }
 
                 if (obj.status == 200)  {
-                    if (obj.dataType == 'json')
-                        request.success(JSON.parse(obj.response));
-                    else
+                    if (obj.dataType == 'json') {
+                        try {
+                            request.success(JSON.parse(obj.response));
+                        } catch (e) {
+                            request.error({responseText : e.toString(), status : obj.status});
+                        }
+                    } else {
                         request.success(obj.response);
+                    }
                 } else {
                     request.error({responseText : obj.response, status : obj.status});
                 }
 
                 delete requests[obj.request_id];
+
+                if (Object.keys(requests).length == 0) {
+                    $(document).trigger("ajaxStop");
+                }
             });
 
             initd = true;

@@ -1713,9 +1713,15 @@ var MyWallet = new function() {
 
                 recipient.find('input[name="send-to-address"]').val(address.toString());
 
-                recipient.find('input[name="send-value"]').val(parseFloat(uri.getQueryParamValue('amount')));
+                var value = parseFloat(uri.getQueryParamValue('amount'));
+
+                if (value > 0 && !isNaN(value)) {
+                    recipient.find('input[name="send-value"]').val(value);
+                }
 
             } catch (e) {
+                console.log(e);
+
                 MyWallet.makeNotice('error', 'error', 'Invalid Bitcoin Address or URI');
             }
         }, function() {
@@ -1743,7 +1749,7 @@ var MyWallet = new function() {
 
         $('#initial_error,#initial_success').remove();
 
-        var hash = decodeURI(window.location.hash.replace("#", ""));
+        var hash = decodeURIComponent(window.location.hash.replace("#", ""));
         if (hash.indexOf('bitcoin:') == 0) {
 
             var send_container = $("#send-coins");
@@ -3979,7 +3985,6 @@ var MyWallet = new function() {
                 setLogoutImageStatus('loading_stop');
 
                 $('.loading-indicator').hide();
-
             });
     });
 
