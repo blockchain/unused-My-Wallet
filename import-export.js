@@ -312,11 +312,11 @@ function _ImportExport() {
 
                                     try {
                                         MyWallet.addPrivateKey(key,{
-                                                compressed : format == 'compsipa',
-                                                app_name : obj.created_device_name ? obj.created_device_name : IMPORTED_APP_NAME,
-                                                app_version : obj.created_device_version ? obj.created_device_version : IMPORTED_APP_VERSION,
-                                                created_time : obj.created_time ? obj.created_time : 0
-                                            });
+                                            compressed : format == 'compsipa',
+                                            app_name : obj.created_device_name ? obj.created_device_name : IMPORTED_APP_NAME,
+                                            app_version : obj.created_device_version ? obj.created_device_version : IMPORTED_APP_VERSION,
+                                            created_time : obj.created_time ? obj.created_time : 0
+                                        });
                                     } catch (e) {}
 
                                     ++nKeysFound;
@@ -613,21 +613,27 @@ function _ImportExport() {
                 }
 
                 function reallyInsertKey(key, compressed) {
-                    if (MyWallet.addPrivateKey(key, {compressed : compressed, app_name : app_name ? app_name : IMPORTED_APP_NAME, app_version : IMPORTED_APP_VERSION})) {
+                    try {
+                        if (MyWallet.addPrivateKey(key, {compressed : compressed, app_name : app_name ? app_name : IMPORTED_APP_NAME, app_version : IMPORTED_APP_VERSION})) {
 
-                        var addr = compressed ? key.getBitcoinAddressCompressed().toString() : key.getBitcoinAddress().toString();
+                            var addr = compressed ? key.getBitcoinAddressCompressed().toString() : key.getBitcoinAddress().toString();
 
-                        if (label && label.length > 0)
-                            MyWallet.setAddressLabel(addr, label);
+                            if (label && label.length > 0)
+                                MyWallet.setAddressLabel(addr, label);
 
-                        //Perform a wallet backup
-                        MyWallet.backupWallet('update', function() {
-                            MyWallet.get_history();
-                        });
+                            //Perform a wallet backup
+                            MyWallet.backupWallet('update', function() {
+                                MyWallet.get_history();
+                            });
 
-                        if (success) success();
+                            if (success) success();
 
-                        MyWallet.makeNotice('success', 'added', 'Added Bitcoin Address ' + addr);
+                            MyWallet.makeNotice('success', 'added', 'Added Bitcoin Address ' + addr);
+                        } else {
+                            throw 'Unable to add private key for bitcoin address ' + addr;
+                        }
+                    } catch (e) {
+                        MyWallet.makeNotice('error', 'misc-error', e);
                     }
                 }
 
@@ -681,8 +687,6 @@ function _ImportExport() {
                 };
 
                 showPrivateKeyWarningModal(addr, function() {
-                    //Import Direct
-
                     if (format == 'compsipa') {
                         showCompressedPrivateKeyWarning(function() {
                             reallyInsertKey(key, true);
@@ -690,11 +694,7 @@ function _ImportExport() {
                             sweep();
                         });
                     } else {
-                        if (MyWallet.addPrivateKey(key, {compressed : false, app_name : app_name ? app_name : IMPORTED_APP_NAME, app_version : IMPORTED_APP_VERSION})) {
-                            reallyInsertKey(key, false);
-                        } else {
-                            throw 'Unable to add private key for bitcoin address ' + addr;
-                        }
+                        reallyInsertKey(key, false);
                     }
                 }, function() {
                     //Sweep

@@ -97,6 +97,7 @@ var QRCodeReader = {
         }
     },
 
+
     //Pass in Jquery Obj
     init: function(el, success, error) {
 

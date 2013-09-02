@@ -1056,7 +1056,7 @@ var MyWallet = new function() {
                         } catch (e) {
 
                             //If invalid address try and parse URI
-                            handleURI(data, recipient);
+                            MyWallet.handleURI(data, recipient);
                         }
                     }, function(e) {
                         MyWallet.makeNotice('error', 'misc-error', e);
@@ -1704,7 +1704,7 @@ var MyWallet = new function() {
         }
     }
 
-    function handleURI(hash, recipient) {
+    this.handleURI = function(hash, recipient) {
         loadScript('wallet/jsuri-1.1.1', function() {
             try {
                 var uri = new Uri(hash);
@@ -1759,7 +1759,7 @@ var MyWallet = new function() {
             //Find the first recipient container
             var recipient = send_container.find('.tab-pane.active').find('.recipient').first();
 
-            handleURI(hash, recipient);
+            MyWallet.handleURI(hash, recipient);
         } else {
             changeView($("#home-intro"));
         }
