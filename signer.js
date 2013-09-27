@@ -75,24 +75,30 @@ function IsCanonicalSignature(vchSig) {
 
 
 try {
-//Init WebWoker
+//Init WebWorker
 //Window is not defined in WebWorker
     if (typeof window == "undefined" || !window) {
         self.addEventListener('message', function(e) {
             var data = e.data;
-            switch (data.cmd) {
-                case 'seed':
-                    var word_array = Crypto.util.bytesToWords(Crypto.util.hexToBytes(data.seed));
+            try {
+                switch (data.cmd) {
+                    case 'seed':
+                        var word_array = Crypto.util.bytesToWords(Crypto.util.hexToBytes(data.seed));
 
-                    for (var i in word_array) {
-                        rng_seed_int(word_array[i]);
-                    }
-                    break;
-                case 'load_resource':
-                    importScripts(data.path);
-                    break;
-                case 'sign_input':
-                    try {
+                        for (var i in word_array) {
+                            rng_seed_int(word_array[i]);
+                        }
+                        break;
+                    case 'decrypt':
+                        var decoded = Crypto.AES.decrypt(data.data, data.password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : data.pbkdf2_iterations});
+
+                        self.postMessage({cmd : 'on_decrypt', data : decoded});
+
+                        break;
+                    case 'load_resource':
+                        importScripts(data.path);
+                        break;
+                    case 'sign_input':
                         var tx = new Bitcoin.Transaction(data.tx);
 
                         var connected_script = new Bitcoin.Script(data.connected_script);
@@ -104,14 +110,13 @@ try {
                         } else {
                             throw 'Unknown Error Signing Script ' + data.outputN;
                         }
-
-                    } catch (e) {
-                        self.postMessage({cmd : 'on_error', e : exceptionToString(e)});
-                    }
-                    break;
-                default:
-                    self.postMessage({cmd : 'on_error', e : 'Unknown Command'});
-            };
+                        break;
+                    default:
+                        throw 'Unknown Command';
+                };
+            } catch (e) {
+                self.postMessage({cmd : 'on_error', e : exceptionToString(e)});
+            }
         }, false);
     }
 } catch (e) { }

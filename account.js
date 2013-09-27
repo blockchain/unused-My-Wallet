@@ -210,7 +210,7 @@ var AccountSettings = new function() {
             $('#logging-level').val(data.logging_level);
             $('#notifications-confirmations').val(data.notifications_confirmations);
             $('#notifications-on').val(data.notifications_on);
-            $('#pbkdf2-iterations').val(MyWallet.getPbkdf2Iterations());
+            $('#pbkdf2-iterations').val(MyWallet.getMainPasswordPbkdf2Iterations());
 
             if (data.alias != null && data.alias.length > 0) {
                 $('#wallet-alias').val(data.alias);
@@ -652,6 +652,14 @@ var AccountSettings = new function() {
 
 
             setDoubleEncryptionOff();
+        });
+
+        $('#pbkdf2-iterations').unbind().change(function(e) {
+            var value = parseInt($(this).val());
+
+            MyWallet.setPbkdf2Iterations(value, function() {
+                MyWallet.makeNotice('success', 'misc-success', 'Successfully Updated Pbkdf2 Iterations');
+            });
         });
 
         $('#wallet-email-code').unbind().change(function(e) {

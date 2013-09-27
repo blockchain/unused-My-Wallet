@@ -249,15 +249,10 @@ function _ImportExport() {
                     throw 'null input_text';
             } catch(e) {
                 //Maybe it's encrypted?
-                MyWallet.decrypt(input_text, opt.main_password, MyWallet.getDefaultPbkdf2Iterations(), function(decrypted) {
-                    try {
-                        obj = $.parseJSON(decrypted);
-
-                        return (obj != null);
-                    } catch (e) {
-                        return false;
-                    }
-                });
+                MyWallet.decryptWallet(input_text, opt.main_password, function(root) {
+                    ImportExport.importJSON(JSON.stringify(root), opt, success, error);
+                }, error);
+                return;
             }
 
             var key_n = 0;

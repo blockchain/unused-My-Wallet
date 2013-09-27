@@ -50,9 +50,10 @@ var MyWallet = new function() {
     var archTimer; //Delayed Backup wallet timer
     var mixer_fee = 0.5; //Default mixer fee 1.5%
     var default_pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
+    var main_pbkdf2_iterations = default_pbkdf2_iterations; //The number of pbkdf2 iterations used for the main password
     var tx_notes = {}; //A map of transaction notes, hash -> note
-    var real_auth_type = 0;
-    var auth_type;
+    var auth_type; //The two factor authentication type used. 0 for none.
+    var real_auth_type = 0; //The real two factor authentication. Even if there is a problem with the current one (for example error 2FA sending email).
     var logout_timeout;
     var event_listeners = []; //Emits Did decrypt wallet event (used on claim page)
     var last_input_main_password;
@@ -60,10 +61,12 @@ var MyWallet = new function() {
     var isInitialized = false;
     var extra_seed; //Help for browsers that don't support window.crypto
     var show_unsynced = false;
-    var language = 'en';
+    var language = 'en'; //Current language
+    var supported_encryption_version = 2.0;  //The maxmimum supported encryption version
+    var encryption_version_used = 0.0; //The encryption version of the current wallet. Set by decryptWallet()
 
     var wallet_options = {
-        pbkdf2_iterations : 10, //Number of pbkdf2 iterations to default to for second password and dpasswordhash
+        pbkdf2_iterations : default_pbkdf2_iterations, //Number of pbkdf2 iterations to default to for second password and dpasswordhash
         fee_policy : 0,  //Default Fee policy (-1 Tight, 0 Normal, 1 High)
         html5_notifications : false, //HTML 5 Desktop notifications
         logout_time : 600000, //Default 10 minutes
@@ -109,12 +112,16 @@ var MyWallet = new function() {
         return wallet_options.logout_time;
     }
 
-    this.getDefaultPbkdf2Iterations = function() {
-        return default_pbkdf2_iterations;
+    this.getSecondPasswordPbkdf2Iterations = function() {
+        return wallet_options.pbkdf2_iterations;
     }
 
-    this.getPbkdf2Iterations = function() {
-        return wallet_options.pbkdf2_iterations;
+    this.getMainPasswordPbkdf2Iterations = function() {
+        return main_pbkdf2_iterations;
+    }
+
+    this.getDefaultPbkdf2Iterations = function() {
+        return default_pbkdf2_iterations;
     }
 
     this.setLogoutTime = function(logout_time) {
@@ -276,49 +283,43 @@ var MyWallet = new function() {
             //If we caught an exception here the wallet could be in a inconsistent state
             //We probably haven't synced it, so no harm done
             //But for now panic!
-            //  window.location.reload();
+            window.location.reload();
         };
 
         MyWallet.getSecondPassword(function() {
             try {
                 //If double encryption is enabled we need to rencrypt all keys
                 if (double_encryption) {
-                    //Ask the use again before we backup
-                    try {
-                        //Rencrypt all keys
-                        for (var key in addresses) {
-                            var addr = addresses[key];
+                    //Rencrypt all keys
+                    for (var key in addresses) {
+                        var addr = addresses[key];
 
-                            if (addr.priv) {
-                                addr.priv = MyWallet.encrypt(MyWallet.decryptPK(addr.priv), sharedKey + dpassword, pbkdf2_iterations);
+                        if (addr.priv) {
+                            addr.priv = MyWallet.encrypt(MyWallet.decryptPK(addr.priv), sharedKey + dpassword, pbkdf2_iterations);
 
-                                if (!addr.priv) throw 'addr.priv is null';
-                            }
+                            if (!addr.priv) throw 'addr.priv is null';
                         }
-
-                        wallet_options.pbkdf2_iterations = pbkdf2_iterations;
-
-                        //Generate a new password hash
-                        dpasswordhash = hashPassword(sharedKey + dpassword, wallet_options.pbkdf2_iterations);
-
-                        //Now backup and save
-                        MyWallet.checkAllKeys();
-
-                        MyWallet.backupWallet('update', function() {
-                            success();
-                        }, function() {
-                            panic(e);
-                        });
-                    } catch(e) {
-                        panic(e);
                     }
-                } else {
-                    MyWallet.backupWallet('update', function() {
-                        success();
-                    }, function() {
-                        panic(e);
-                    });
+
+                    //Set the second password iterations
+                    wallet_options.pbkdf2_iterations = pbkdf2_iterations;
+
+                    //Generate a new password hash
+                    dpasswordhash = hashPassword(sharedKey + dpassword, pbkdf2_iterations);
                 }
+
+                //Must use new encryption format
+                encryption_version_used = 2.0;
+
+                //Set the main password pbkdf2 iterations
+                main_pbkdf2_iterations = pbkdf2_iterations;
+
+                MyWallet.backupWallet('update', function() {
+                    success();
+                }, function() {
+                    panic(e);
+                });
+
             } catch (e) {
                 panic(e);
             }
@@ -627,6 +628,8 @@ var MyWallet = new function() {
     }
 
     function wsSuccess(ws) {
+        var last_on_change = null;
+
         ws.onmessage = function(e) {
 
             try {
@@ -638,9 +641,10 @@ var MyWallet = new function() {
 
                     console.log('On change old ' + old_checksum + ' ==  new '+ new_checksum);
 
-                    if (old_checksum != new_checksum) {
-                        //Fetch the updated wallet from the server
-                        setTimeout(getWallet, 150);
+                    if (last_on_change != new_checksum && old_checksum != new_checksum) {
+                        last_on_change = new_checksum;
+
+                         getWallet();
                     }
 
                 } else if (obj.op == 'utx') {
@@ -1324,7 +1328,7 @@ var MyWallet = new function() {
                 $(el).popover({
                     title : title,
                     trigger : 'manual',
-                    content : content
+                    content : $("<div/>").html(content).text()
                 })
             } else if (el.data('popover').tip().is(':visible'))
                 return;
@@ -1730,6 +1734,10 @@ var MyWallet = new function() {
     }
 
     function didDecryptWallet() {
+
+        //We need to check if the wallet has changed
+        getWallet();
+
         logout_timeout = setTimeout(MyWallet.logout, MyWallet.getLogoutTime());
 
         for (var listener in event_listeners) {
@@ -1799,18 +1807,19 @@ var MyWallet = new function() {
 
                 MyWallet.setEncryptedWalletData(data);
 
-                if (internalRestoreWallet()) {
+
+                internalRestoreWallet(function() {
                     MyWallet.get_history();
 
                     buildVisibleView();
 
                     if (success) success();
-                } else {
+                }, function() {
                     //If we failed to decrypt the new data panic and logout
                     window.location.reload();
 
                     if (error) error();
-                }
+                });
             },
             error : function() {
                 if (error) error();
@@ -1818,80 +1827,67 @@ var MyWallet = new function() {
         });
     }
 
-    function internalRestoreWallet() {
-        try {
-            if (encrypted_wallet_data == null || encrypted_wallet_data.length == 0) {
-                MyWallet.makeNotice('error', 'misc-error', 'No Wallet Data To Decrypt');
-                return false;
-            }
-
-            var obj = null;
-            MyWallet.decrypt(encrypted_wallet_data, password, MyWallet.getDefaultPbkdf2Iterations(), function(decrypted) {
-                try {
-                    obj = $.parseJSON(decrypted);
-
-                    return (obj != null);
-                } catch (e) {
-                    return false;
-                };
-            });
-
-            if (obj == null) {
-                throw 'Error Decrypting Wallet. Please check your password is correct.';
-            }
-
-            if (obj.double_encryption && obj.dpasswordhash) {
-                double_encryption = obj.double_encryption;
-                dpasswordhash = obj.dpasswordhash;
-            }
-
-            if (obj.options) {
-                $.extend(wallet_options, obj.options);
-            }
-
-            addresses = {};
-            for (var i = 0; i < obj.keys.length; ++i) {
-                var key = obj.keys[i];
-                if (key.addr == null || key.addr.length == 0 || key.addr == 'undefined') {
-                    MyWallet.makeNotice('error', 'null-error', 'Your wallet contains an undefined address. This is a sign of possible corruption, please double check all your BTC is accounted for. Backup your wallet to remove this error.', 15000);
-                    continue;
-                }
-
-                if (key.tag == 1)
-                    key.tag = null;
-
-                addresses[key.addr] = key;
-            }
-
-            address_book = {};
-            if (obj.address_book) {
-                for (var i = 0; i < obj.address_book.length; ++i) {
-                    MyWallet.addAddressBookEntry(obj.address_book[i].addr, obj.address_book[i].label);
-                }
-            }
-
-            if (obj.tx_notes) tx_notes = obj.tx_notes;
-
-            sharedKey = obj.sharedKey;
-
-            if (sharedKey == null || sharedKey.length == 0 || sharedKey.length != 36)
-                throw 'Shared Key is invalid';
-
-            //If we don't have a checksum then the wallet is probably brand new - so we can generate our own
-            if (payload_checksum == null || payload_checksum.length == 0)
-                payload_checksum = generatePayloadChecksum();
-
-            //We need to check if the wallet has changed
-            getWallet();
-
-            setIsIntialized();
-
-            return true;
-        } catch (e) {
-            MyWallet.makeNotice('error', 'misc-error', e);
+    function internalRestoreWallet(success, error) {
+        if (encrypted_wallet_data == null || encrypted_wallet_data.length == 0) {
+            error('No Wallet Data To Decrypt');
+            return;
         }
 
-        return false;
+        MyWallet.decryptWallet(encrypted_wallet_data, password, function(obj, rootContainer) {
+            try {
+                sharedKey = obj.sharedKey;
+
+                if (sharedKey == null || sharedKey.length == 0 || sharedKey.length != 36)
+                    throw 'Shared Key is invalid';
+
+                if (rootContainer) {
+                    encryption_version_used = rootContainer.version;
+                    main_pbkdf2_iterations = rootContainer.pbkdf2_iterations;
+                }
+
+                if (obj.double_encryption && obj.dpasswordhash) {
+                    double_encryption = obj.double_encryption;
+                    dpasswordhash = obj.dpasswordhash;
+                }
+
+                if (obj.options) {
+                    $.extend(wallet_options, obj.options);
+                }
+
+                addresses = {};
+                for (var i = 0; i < obj.keys.length; ++i) {
+                    var key = obj.keys[i];
+                    if (key.addr == null || key.addr.length == 0 || key.addr == 'undefined') {
+                        MyWallet.makeNotice('error', 'null-error', 'Your wallet contains an undefined address. This is a sign of possible corruption, please double check all your BTC is accounted for. Backup your wallet to remove this error.', 15000);
+                        continue;
+                    }
+
+                    if (key.tag == 1)
+                        key.tag = null;
+
+                    addresses[key.addr] = key;
+                }
+
+                address_book = {};
+                if (obj.address_book) {
+                    for (var i = 0; i < obj.address_book.length; ++i) {
+                        MyWallet.addAddressBookEntry(obj.address_book[i].addr, obj.address_book[i].label);
+                    }
+                }
+
+                if (obj.tx_notes) tx_notes = obj.tx_notes;
+
+                //If we don't have a checksum then the wallet is probably brand new - so we can generate our own
+                if (payload_checksum == null || payload_checksum.length == 0)
+                    payload_checksum = generatePayloadChecksum();
+
+                setIsIntialized();
+
+                success();
+            } catch (e) {
+                error(e);
+            };
+        }, error);
     }
 
     this.getPassword = function(modal, success, error) {
@@ -2039,7 +2035,7 @@ var MyWallet = new function() {
                 try {
                     if (version == 1) {
                         MyWallet.securePost("wallet", { method : 'pairing-encryption-password' }, function(encryption_phrase) {
-                            success($('<div></div>').qrcode({width: 300, height: 300, text: '1|'+ guid + '|' + MyWallet.encrypt(sharedKey + '|' + Crypto.util.bytesToHex(UTF8.stringToBytes(password)), encryption_phrase, default_pbkdf2_iterations)}));
+                            success($('<div></div>').qrcode({width: 300, height: 300, text: '1|'+ guid + '|' + MyWallet.encrypt(sharedKey + '|' + Crypto.util.bytesToHex(UTF8.stringToBytes(password)), encryption_phrase, MyWallet.getDefaultPbkdf2Iterations())}));
 
                         }, function(e) {
                             MyWallet.makeNotice('error', 'misc-error', e);
@@ -2147,18 +2143,22 @@ var MyWallet = new function() {
                             return;
                         }
 
-                        MyWallet.setEncryptedWalletData(data);
+                        if (data != 'Not modified') {
+                            MyWallet.setEncryptedWalletData(data);
+                        }
 
                         //We can now hide the auth token input
                         $('.auth-'+auth_type).hide();
 
                         $('.auth-0').show();
 
-                        if (internalRestoreWallet()) {
+                        internalRestoreWallet(function() {
                             bindReady();
 
                             didDecryptWallet();
-                        }
+                        }, function(e) {
+                            MyWallet.makeNotice('error', 'misc-error', e);
+                        });
                     } catch (e) {
                         MyWallet.makeNotice('error', 'misc-error', e);
                     }
@@ -2168,16 +2168,14 @@ var MyWallet = new function() {
                 }
             });
         } else {
-
-            if (internalRestoreWallet()) {
+            internalRestoreWallet(function() {
                 bindReady();
 
                 didDecryptWallet();
-            }
+            }, function(e) {
+                MyWallet.makeNotice('error', 'misc-error', e);
+            });
         }
-
-
-        return true;
     }
 
     function showNotSyncedModal() {
@@ -2255,95 +2253,14 @@ var MyWallet = new function() {
         }, 3000);
     }
 
-//Save the javascript walle to the remote server
+    //Save the javascript walle to the remote server
     this.backupWallet = function(method, successcallback, errorcallback) {
         if (archTimer) {
             clearInterval(archTimer);
             archTimer = null;
         }
 
-        try {
-            if (method == null)
-                method = 'update';
-
-            if (nKeys(addresses) == 0)
-                return;
-
-            var data = MyWallet.makeWalletJSON();
-
-            //Everything looks ok, Encrypt the JSON output
-            var crypted = MyWallet.encrypt(data, password, default_pbkdf2_iterations);
-
-            if (crypted.length == 0) {
-                throw 'Error encrypting the JSON output';
-            }
-
-            //Now Decrypt the it again to double check for any possible corruption
-            var obj = null;
-            MyWallet.decrypt(crypted, password, MyWallet.getDefaultPbkdf2Iterations(), function(decrypted) {
-                try {
-                    obj = $.parseJSON(decrypted);
-                    return (obj != null);
-                } catch (e) {
-                    return false;
-                };
-            });
-
-            if (obj == null) {
-                throw 'Error Decrypting Previously encrypted JSON. Not Saving Wallet.';
-            }
-
-            var old_checksum = payload_checksum;
-
-            MyWallet.setLoadingText('Saving wallet');
-
-            MyWallet.setEncryptedWalletData(crypted);
-
-            $.ajax({
-                type: "POST",
-                url: root + 'wallet',
-                data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: payload_checksum, old_checksum : old_checksum,  method : method },
-                converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
-                success: function(data) {
-
-                    var change = false;
-                    for (var key in addresses) {
-                        var addr = addresses[key];
-                        if (addr.tag == 1) {
-                            addr.tag = null; //Make any unsaved addresses as saved
-                            change = true;
-                        }
-                    }
-
-                    MyWallet.makeNotice('success', 'misc-success', data);
-
-                    buildVisibleView();
-
-                    if (successcallback != null)
-                        successcallback();
-                },
-                error : function(data) {
-
-                    for (var key in addresses) {
-                        var addr = addresses[key];
-                        if (addr.tag == 1) {
-                            showNotSyncedModal();
-                            break;
-                        }
-                    }
-
-                    if (data.responseText == null)
-                        MyWallet.makeNotice('error', 'misc-error', 'Error Saving Wallet', 10000);
-                    else
-                        MyWallet.makeNotice('error', 'misc-error', data.responseText, 10000);
-
-                    buildVisibleView();
-
-                    if (errorcallback != null)
-                        errorcallback();
-                }
-            });
-        } catch (e) {
+        var _errorcallback = function(e) {
             MyWallet.makeNotice('error', 'misc-error', 'Error Saving Wallet: ' + e, 10000);
 
             buildVisibleView();
@@ -2351,6 +2268,77 @@ var MyWallet = new function() {
             if (errorcallback != null)
                 errorcallback(e);
             else throw e;
+        };
+
+        try {
+            if (method == null) {
+                method = 'update';
+            }
+
+            if (nKeys(addresses) == 0) {
+                return;
+            }
+
+            var data = MyWallet.makeWalletJSON();
+
+            //Everything looks ok, Encrypt the JSON output
+            var crypted = MyWallet.encryptWallet(data, password);
+
+            if (crypted.length == 0) {
+                throw 'Error encrypting the JSON output';
+            }
+
+            //Now Decrypt the it again to double check for any possible corruption
+            MyWallet.decryptWallet(crypted, password, function(obj) {
+                try {
+                    var old_checksum = payload_checksum;
+
+                    MyWallet.setLoadingText('Saving wallet');
+
+                    MyWallet.setEncryptedWalletData(crypted);
+
+                    $.ajax({
+                        type: "POST",
+                        url: root + 'wallet',
+                        data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: payload_checksum, old_checksum : old_checksum,  method : method },
+                        converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
+                        success: function(data) {
+
+                            var change = false;
+                            for (var key in addresses) {
+                                var addr = addresses[key];
+                                if (addr.tag == 1) {
+                                    addr.tag = null; //Make any unsaved addresses as saved
+                                    change = true;
+                                }
+                            }
+
+                            MyWallet.makeNotice('success', 'misc-success', data);
+
+                            buildVisibleView();
+
+                            if (successcallback != null)
+                                successcallback();
+                        },
+                        error : function(data) {
+
+                            for (var key in addresses) {
+                                var addr = addresses[key];
+                                if (addr.tag == 1) {
+                                    showNotSyncedModal();
+                                    break;
+                                }
+                            }
+
+                            _errorcallback(data.responseText);
+                        }
+                    });
+                } catch (e) {
+                    _errorcallback(e);
+                };
+            });
+        } catch (e) {
+            _errorcallback(e);
         }
     }
 
@@ -2359,7 +2347,7 @@ var MyWallet = new function() {
             if (dpassword == null)
                 throw 'Cannot encrypt private key without a password';
 
-            return MyWallet.encrypt(base58, sharedKey + dpassword, wallet_options.pbkdf2_iterations);
+            return MyWallet.encrypt(base58, sharedKey + dpassword, MyWallet.getSecondPasswordPbkdf2Iterations());
         } else {
             return base58;
         }
@@ -2376,15 +2364,154 @@ var MyWallet = new function() {
         return true;
     }
 
-//Changed padding to CBC iso10126 9th March 2012 & iterations to pbkdf2_iterations
+    //Changed padding to CBC iso10126 9th March 2012 & iterations to pbkdf2_iterations
     this.encrypt = function(data, password, pbkdf2_iterations) {
         return Crypto.AES.encrypt(data, password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : pbkdf2_iterations});
     }
 
-//When the ecryption format changes it can produce data which appears to decrypt fine but actually didn't
-//So we call success(data) and if it returns true the data was formatted correctly
-    this.decrypt = function(data, password, pbkdf2_iterations, success, error) {
+    //Changed padding to CBC iso10126 9th March 2012 & iterations to pbkdf2_iterations
+    this.encryptWallet = function(data, password) {
+        if (encryption_version_used == 2.0) {
+            return JSON.stringify({
+                pbkdf2_iterations : MyWallet.getMainPasswordPbkdf2Iterations(),
+                version : encryption_version_used,
+                payload : MyWallet.encrypt(data, password, MyWallet.getMainPasswordPbkdf2Iterations())
+            });
+        } else if (encryption_version_used == 0.0) {
+            return MyWallet.encrypt(data, password, MyWallet.getDefaultPbkdf2Iterations());
+        } else {
+            throw 'Unknown encryption version ' + encryption_version_used;
+        }
+    }
 
+    this.decryptWallet = function(data, password, success, error) {
+
+        try {
+            //Test if the payload is valid json
+            //If it is json then check the payload and pbkdf2_iterations keys are available
+            var obj = null;
+            try {
+                var obj = $.parseJSON(data);
+            } catch (e) {
+                console.log(e);
+            }
+
+            var decryptNormal = function() {
+                try {
+                    var decrypted = Crypto.AES.decrypt(obj.payload, password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : obj.pbkdf2_iterations});
+
+                    var root = $.parseJSON(decrypted);
+
+                    success(root, obj);
+                } catch (e) {
+                    error('Error Decrypting Wallet. Please check your password is correct.');
+                }
+            };
+
+            if (obj && obj.payload && obj.pbkdf2_iterations) {
+                if (obj.version != supported_encryption_version)
+                    throw 'Wallet version ' + obj.version + ' not supported';
+
+                if (obj.pbkdf2_iterations > 100) {
+                    var modal = $('#decrypting-progress-modal');
+
+                    var timeout = setTimeout(function() {
+                        modal.modal({
+                            keyboard: false,
+                            backdrop: "static",
+                            show: true
+                        });
+                    }, 500);
+
+                    MyWallet.decryptWebWorker(obj.payload, password, obj.pbkdf2_iterations, function(decrypted) {
+                        clearTimeout(timeout);
+
+                        modal.modal('hide');
+
+                        try {
+                            var root = $.parseJSON(decrypted);
+
+                            success(root, obj);
+                        } catch (e) {
+                            decryptNormal();
+                        }
+                    }, function() {
+                        clearTimeout(timeout);
+
+                        modal.modal('hide');
+
+                        decryptNormal();
+                    });
+                } else {
+                    decryptNormal();
+                }
+            } else {
+                MyWallet.decrypt(data, password, MyWallet.getDefaultPbkdf2Iterations(), function(decrypted) {
+                    try {
+                        var root = $.parseJSON(decrypted);
+
+                        try {
+                            success(root);
+                        }  catch (e) {
+                            console.log(e);
+                        }
+
+                        return true;
+                    } catch (e) {
+                        return false;
+                    }
+                }, function() {
+                    error('Error Decrypting Wallet. Please check your password is correct.');
+                });
+            }
+        } catch (e) {
+            if (error) error(e);
+        }
+    }
+
+    this.decryptWebWorker = function(data, password, pbkdf2_iterations, success, _error) {
+        var didError = false;
+        var error = function(e) {
+            if (!didError) { _error(e); didError = true; }
+        }
+
+        try {
+            var worker =  new Worker(resource + 'wallet/signer' + (min ? '.min.js' : '.js'));
+
+            worker.addEventListener('message', function(e) {
+                var data = e.data;
+
+                try {
+                    switch (data.cmd) {
+                        case 'on_decrypt':
+                            success(data.data);
+                            worker.terminate();
+                            break;
+                        case 'on_error': {
+                            throw data.e;
+                        }
+                    };
+                } catch (e) {
+                    worker.terminate();
+                    error(e);
+                }
+            }, false);
+
+            worker.addEventListener('error', function(e) {
+                error(e);
+            });
+
+            worker.postMessage({cmd : 'load_resource' , path : resource + 'wallet/bitcoinjs' + (min ? '.min.js' : '.js')});
+
+            worker.postMessage({cmd : 'decrypt', data : data, password : password, pbkdf2_iterations : pbkdf2_iterations});
+        } catch (e) {
+            error(e);
+        }
+    }
+
+    //When the ecryption format changes it can produce data which appears to decrypt fine but actually didn't
+    //So we call success(data) and if it returns true the data was formatted correctly
+    this.decrypt = function(data, password, pbkdf2_iterations, success, error) {
         //iso10126 with pbkdf2_iterations iterations
         try {
             var decoded = Crypto.AES.decrypt(data, password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : pbkdf2_iterations});
@@ -2452,8 +2579,7 @@ var MyWallet = new function() {
             console.log(e);
         }
 
-        if (error != null)
-            error();
+        if (error) error();
 
         return null;
     }
@@ -2476,11 +2602,18 @@ var MyWallet = new function() {
 
         open_wallet_btn.prop('disabled', true);
 
+        var data = {format : 'json', resend_code : resend_code};
+
+        if (payload_checksum) {
+            data.checksum = payload_checksum;
+        }
+
         $.ajax({
             type: "GET",
             dataType: 'json',
             url: root + 'wallet/'+guid_or_alias,
-            data : {format : 'json', resend_code : resend_code},
+            data : data,
+            timeout: 10000,
             success: function(obj) {
                 open_wallet_btn.prop('disabled', false);
 
@@ -2494,7 +2627,9 @@ var MyWallet = new function() {
                 if (obj.language)
                     language = obj.language;
 
-                MyWallet.setEncryptedWalletData(obj.payload);
+                if (obj.payload && obj.payload.length > 0 && obj.payload != 'Not modified') {
+                    MyWallet.setEncryptedWalletData(obj.payload);
+                }
 
                 war_checksum = obj.war_checksum;
 
@@ -2512,11 +2647,13 @@ var MyWallet = new function() {
                     window.location = root + 'wallet/reset-two-factor?guid='+guid
                 });
 
-                if (obj.initial_error)
+                if (obj.initial_error) {
                     MyWallet.makeNotice('error', 'misc-error', obj.initial_error);
+                }
 
-                if (obj.initial_success)
+                if (obj.initial_success) {
                     MyWallet.makeNotice('success', 'misc-success', obj.initial_success);
+                }
 
                 MyStore.get('guid', function(local_guid) {
                     if (local_guid != guid) {
@@ -2579,7 +2716,7 @@ var MyWallet = new function() {
             if (dpassword == null)
                 throw 'Cannot decrypt private key without a password';
 
-            return MyWallet.decrypt(priv, sharedKey + dpassword, wallet_options.pbkdf2_iterations, MyWallet.isBase58);
+            return MyWallet.decrypt(priv, sharedKey + dpassword, MyWallet.getSecondPasswordPbkdf2Iterations(), MyWallet.isBase58);
         } else {
             return priv;
         }
@@ -2613,7 +2750,7 @@ var MyWallet = new function() {
     function vaidateDPassword(input) {
         var thash = Crypto.SHA256(sharedKey + input, {asBytes: true});
 
-        var password_hash = hashPassword(thash, wallet_options.pbkdf2_iterations-1);  //-1 because we have hashed once in the previous line
+        var password_hash = hashPassword(thash, MyWallet.getSecondPasswordPbkdf2Iterations()-1);  //-1 because we have hashed once in the previous line
 
         if (password_hash == dpasswordhash) {
             dpassword = input;
@@ -2621,7 +2758,7 @@ var MyWallet = new function() {
         }
 
         //Try 10 rounds
-        if (wallet_options.pbkdf2_iterations != 10) {
+        if (MyWallet.getSecondPasswordPbkdf2Iterations() != 10) {
             var iter_10_hash = hashPassword(thash, 10-1);  //-1 because we have hashed once in the previous line
 
             if (iter_10_hash == dpasswordhash) {
