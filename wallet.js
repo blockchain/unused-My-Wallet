@@ -2621,6 +2621,11 @@ var MyWallet = new function() {
             success: function(obj) {
                 open_wallet_btn.prop('disabled', false);
 
+                if (!obj.guid) {
+                    MyWallet.makeNotice('error', 'misc-error', 'Server returned null guid.');
+                    return;
+                }
+
                 $('.auth-'+auth_type).hide();
 
                 extra_seed = obj.extra_seed;
@@ -2643,11 +2648,7 @@ var MyWallet = new function() {
 
                 $('.auth-'+auth_type).show();
 
-                $('.recover-wallet-btn').prop('disabled', false).click(function() {
-                    window.location = root + 'wallet/forgot-password?guid='+guid
-                });
-
-                $('#reset-two-factor-btn').prop('disabled', false).show().click(function() {
+                $('#reset-two-factor-btn').prop('disabled', false).show().unbind().click(function() {
                     window.location = root + 'wallet/reset-two-factor?guid='+guid
                 });
 
@@ -3847,6 +3848,10 @@ var MyWallet = new function() {
     function bindInitial() {
         $('.resend-code').click(function() {
             MyWallet.setGUID(guid, true);
+        });
+
+        $('.recover-wallet-btn').click(function() {
+            window.location = root + 'wallet/forgot-password'+ (guid ? '?guid=' + guid : '');
         });
 
         $('.download-backup-btn').toggle(encrypted_wallet_data != null).click(function() {
