@@ -2423,6 +2423,8 @@ var MyWallet = new function() {
                             backdrop: "static",
                             show: true
                         });
+
+                        modal.center();
                     }, 500);
 
                     MyWallet.decryptWebWorker(obj.payload, password, obj.pbkdf2_iterations, function(decrypted) {
