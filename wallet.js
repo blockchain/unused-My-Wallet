@@ -2648,10 +2648,6 @@ var MyWallet = new function() {
 
                 $('.auth-'+auth_type).show();
 
-                $('#reset-two-factor-btn').prop('disabled', false).show().unbind().click(function() {
-                    window.location = root + 'wallet/reset-two-factor?guid='+guid
-                });
-
                 if (obj.initial_error) {
                     MyWallet.makeNotice('error', 'misc-error', obj.initial_error);
                 }
@@ -2699,7 +2695,7 @@ var MyWallet = new function() {
                             MyWallet.makeNotice('error', 'misc-error', obj.initial_error);
                             return;
                         }
-                    } catch (e) {}
+                    } catch (ex) {}
 
                     if (e.responseText)
                         MyWallet.makeNotice('error', 'misc-error', e.responseText);
@@ -3848,6 +3844,10 @@ var MyWallet = new function() {
     function bindInitial() {
         $('.resend-code').click(function() {
             MyWallet.setGUID(guid, true);
+        });
+
+        $('#reset-two-factor-btn').click(function() {
+            window.location = root + 'wallet/reset-two-factor' + (guid ? '?guid=' + guid : '');
         });
 
         $('.recover-wallet-btn').click(function() {
