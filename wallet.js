@@ -898,6 +898,10 @@ var MyWallet = new function() {
         for (var key in addresses) {
             var addr = $.extend({}, addresses[key]);
 
+            if (addr.tag == 1) {
+                delete addr.tag;
+            }
+
             if (addr.priv != null) {
                 addr.priv = encode_func(addr.priv, addr.addr);
             }
@@ -2304,12 +2308,10 @@ var MyWallet = new function() {
                         converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
                         success: function(data) {
 
-                            var change = false;
                             for (var key in addresses) {
                                 var addr = addresses[key];
                                 if (addr.tag == 1) {
-                                    addr.tag = null; //Make any unsaved addresses as saved
-                                    change = true;
+                                    delete addr.tag; //Make any unsaved addresses as saved
                                 }
                             }
 
