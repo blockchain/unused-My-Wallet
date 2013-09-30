@@ -265,11 +265,6 @@ function _ImportExport() {
 
                     if (addr != null && addr.length > 0 && addr != 'undefined') {
                         try {
-
-                            //Ignore addresses from keypool
-                            if (json_key.reserve)
-                                throw 'Ignoring Reserve Key';
-
                             var priv = json_key.priv;
                             if (!priv)
                                 priv = json_key.sec;
