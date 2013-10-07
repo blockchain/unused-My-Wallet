@@ -1,8 +1,5 @@
 $(document).ready(function() {
     try {
-
-        console.log($("[rel=popover]"));
-
         //Popovers!
         $("[rel=popover]")
             .popover({

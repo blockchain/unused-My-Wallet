@@ -30,22 +30,15 @@
                     if (extra == null)
                         extra = '';
 
-                    $.ajax({
-                        type: "POST",
-                        url: root + 'wallet' + extra,
-                        data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: new_checksum, method : 'insert' },
-                        converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
-                        success: function(data) {
+                    MyWallet.securePost('wallet' + extra, { length: crypted.length, payload: crypted, checksum: new_checksum, method : 'insert', format : 'plain', sharedKey : sharedKey, guid : guid }, function(data) {
+                        MyWallet.makeNotice('success', 'misc-success', data);
 
-                            MyWallet.makeNotice('success', 'misc-success', data);
-
-                            if (successcallback != null)
-                                successcallback();
-                        },
-                        error : function(data) {
-                            _errorcallback(data.responseText);
-                        }
+                        if (successcallback != null)
+                            successcallback();
+                    }, function(e) {
+                        _errorcallback(e.responseText);
                     });
+
                 } catch (e) {
                     _errorcallback(e);
                 };

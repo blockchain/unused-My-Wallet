@@ -238,7 +238,6 @@ function _ImportExport() {
             if (input_text == null || input_text.length == 0) {
                 throw 'No import data provided!';
             }
-
             var obj = null;
 
             try {
@@ -247,10 +246,14 @@ function _ImportExport() {
 
                 if (obj == null)
                     throw 'null input_text';
+
+                if (obj.payload)
+                    throw 'version 2 wallet';
             } catch(e) {
+
                 //Maybe it's encrypted?
-                MyWallet.decryptWallet(input_text, opt.main_password, function(root) {
-                    ImportExport.importJSON(JSON.stringify(root), opt, success, error);
+                MyWallet.decryptWallet(input_text, opt.main_password, function(obj, root) {
+                    ImportExport.importJSON(JSON.stringify(obj), opt, success, error);
                 }, error);
                 return;
             }

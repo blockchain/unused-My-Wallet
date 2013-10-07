@@ -64,6 +64,7 @@ var MyWallet = new function() {
     var language = 'en'; //Current language
     var supported_encryption_version = 2.0;  //The maxmimum supported encryption version
     var encryption_version_used = 0.0; //The encryption version of the current wallet. Set by decryptWallet()
+    var serverTimeOffset = 0; //Difference between server and client time
 
     var wallet_options = {
         pbkdf2_iterations : default_pbkdf2_iterations, //Number of pbkdf2 iterations to default to for second password and dpasswordhash
@@ -230,7 +231,6 @@ var MyWallet = new function() {
     }
 
     this.setLabel = function(address, label) {
-
         addresses[address].label = label;
 
         backupWalletDelayed();
@@ -241,25 +241,38 @@ var MyWallet = new function() {
     this.securePost = function(url, data, success, error) {
         var clone = jQuery.extend({}, data);
 
-        if (sharedKey == null || sharedKey.length == 0 || sharedKey.length != 36) {
-            throw 'Shared key is invalid';
+        if (!data.sharedKey) {
+            if (!sharedKey || sharedKey.length == 0 || sharedKey.length != 36) {
+                throw 'Shared key is invalid';
+            }
+
+            //Rather than sending the shared key plain text
+            //send a hash using a totp scheme
+            var timestamp = parseInt((new Date().getTime() - serverTimeOffset) / 10000);
+            var SKHashHex = Crypto.SHA256(sharedKey.toLowerCase() + timestamp);
+
+            var i = 0;
+            var tSKUID =  SKHashHex.substring(i, i+=8)+'-'+SKHashHex.substring(i, i+=4)+'-'+SKHashHex.substring(i, i+=4)+'-'+SKHashHex.substring(i, i+=4)+'-'+SKHashHex.substring(i, i+=12);
+
+            clone.sharedKey = tSKUID;
         }
 
-        clone.sharedKey = sharedKey;
-        clone.guid = guid;
+        if (!data.guid)
+            clone.guid = guid;
+
         clone.format =  data.format ? data.format : 'plain'
 
+        var dataType = 'text';
+        if (data.format == 'json')
+            dataType = 'json';
+
         $.ajax({
-            dataType: data.format ? data.format : 'text',
+            dataType: dataType,
             type: "POST",
             url: root + url,
             data : clone,
-            success: function(data) {
-                success(data)
-            },
-            error : function(e) {
-                error(e)
-            }
+            success: success,
+            error : error
         });
     }
 
@@ -644,7 +657,7 @@ var MyWallet = new function() {
                     if (last_on_change != new_checksum && old_checksum != new_checksum) {
                         last_on_change = new_checksum;
 
-                         getWallet();
+                        getWallet();
                     }
 
                 } else if (obj.op == 'utx') {
@@ -1792,42 +1805,35 @@ var MyWallet = new function() {
 
         console.log('Get wallet with checksum ' + payload_checksum);
 
-        var obj = {guid : guid, sharedKey : sharedKey, format : 'plain'};
+        var obj = {method : 'wallet.aes.json'};
 
         if (payload_checksum && payload_checksum.length > 0)
             obj.checksum = payload_checksum;
 
-        $.ajax({
-            type: "GET",
-            url: root + 'wallet/wallet.aes.json',
-            data : obj,
-            success: function(data) {
-                if (data == null || data.length == 0 || data == 'Not modified') {
-                    if (success) success();
-                    return;
-                }
-
-                console.log('Wallet data modified');
-
-                MyWallet.setEncryptedWalletData(data);
-
-
-                internalRestoreWallet(function() {
-                    MyWallet.get_history();
-
-                    buildVisibleView();
-
-                    if (success) success();
-                }, function() {
-                    //If we failed to decrypt the new data panic and logout
-                    window.location.reload();
-
-                    if (error) error();
-                });
-            },
-            error : function() {
-                if (error) error();
+        MyWallet.securePost("wallet", obj, function(data) {
+            if (data == null || data.length == 0 || data == 'Not modified') {
+                if (success) success();
+                return;
             }
+
+            console.log('Wallet data modified');
+
+            MyWallet.setEncryptedWalletData(data);
+
+            internalRestoreWallet(function() {
+                MyWallet.get_history();
+
+                buildVisibleView();
+
+                if (success) success();
+            }, function() {
+                //If we failed to decrypt the new data panic and logout
+                window.location.reload();
+
+                if (error) error();
+            });
+        }, function(e) {
+            if (error) error();
         });
     }
 
@@ -1841,7 +1847,7 @@ var MyWallet = new function() {
             try {
                 sharedKey = obj.sharedKey;
 
-                if (sharedKey == null || sharedKey.length == 0 || sharedKey.length != 36)
+                if (!sharedKey || sharedKey.length == 0 || sharedKey.length != 36)
                     throw 'Shared Key is invalid';
 
                 if (rootContainer) {
@@ -2040,7 +2046,6 @@ var MyWallet = new function() {
                     if (version == 1) {
                         MyWallet.securePost("wallet", { method : 'pairing-encryption-password' }, function(encryption_phrase) {
                             success($('<div></div>').qrcode({width: 300, height: 300, text: '1|'+ guid + '|' + MyWallet.encrypt(sharedKey + '|' + Crypto.util.bytesToHex(UTF8.stringToBytes(password)), encryption_phrase, MyWallet.getDefaultPbkdf2Iterations())}));
-
                         }, function(e) {
                             MyWallet.makeNotice('error', 'misc-error', e);
                         });
@@ -2232,20 +2237,14 @@ var MyWallet = new function() {
     function emailBackup() {
         MyWallet.setLoadingText('Sending email backup');
 
-        $.ajax({
-            type: "POST",
-            url: root + 'wallet',
-            data : { guid: guid, sharedKey: sharedKey, method : 'email-backup', format : 'plain' },
-            success: function(data) {
-                MyWallet.makeNotice('success', 'backup-success', data);
-            },
-            error : function(e) {
-                MyWallet.makeNotice('error', 'misc-error', e.responseText);
-            }
+        MyWallet.securePost("wallet", { method : 'email-backup' }, function(data) {
+            MyWallet.makeNotice('success', 'backup-success', data);
+        }, function(e) {
+            MyWallet.makeNotice('error', 'misc-error', e.responseText);
         });
     }
 
-//Can call multiple times in a row and it will backup only once after a certain delay of activity
+    //Can call multiple times in a row and it will backup only once after a certain delay of activity
     function backupWalletDelayed(method, success, error, extra) {
         if (archTimer) {
             clearInterval(archTimer);
@@ -2257,7 +2256,7 @@ var MyWallet = new function() {
         }, 3000);
     }
 
-    //Save the javascript walle to the remote server
+    //Save the javascript wallet to the remote server
     this.backupWallet = function(method, successcallback, errorcallback) {
         if (archTimer) {
             clearInterval(archTimer);
@@ -2301,39 +2300,38 @@ var MyWallet = new function() {
 
                     MyWallet.setEncryptedWalletData(crypted);
 
-                    $.ajax({
-                        type: "POST",
-                        url: root + 'wallet',
-                        data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: payload_checksum, old_checksum : old_checksum,  method : method },
-                        converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
-                        success: function(data) {
-
-                            for (var key in addresses) {
-                                var addr = addresses[key];
-                                if (addr.tag == 1) {
-                                    delete addr.tag; //Make any unsaved addresses as saved
-                                }
+                    MyWallet.securePost("wallet", {
+                        length: crypted.length,
+                        payload: crypted,
+                        checksum: payload_checksum,
+                        old_checksum : old_checksum,
+                        method : method,
+                        format : 'plain'
+                    }, function(data) {
+                        for (var key in addresses) {
+                            var addr = addresses[key];
+                            if (addr.tag == 1) {
+                                delete addr.tag; //Make any unsaved addresses as saved
                             }
-
-                            MyWallet.makeNotice('success', 'misc-success', data);
-
-                            buildVisibleView();
-
-                            if (successcallback != null)
-                                successcallback();
-                        },
-                        error : function(data) {
-
-                            for (var key in addresses) {
-                                var addr = addresses[key];
-                                if (addr.tag == 1) {
-                                    showNotSyncedModal();
-                                    break;
-                                }
-                            }
-
-                            _errorcallback(data.responseText);
                         }
+
+                        MyWallet.makeNotice('success', 'misc-success', data);
+
+                        buildVisibleView();
+
+                        if (successcallback != null)
+                            successcallback();
+
+                    }, function(e) {
+                        for (var key in addresses) {
+                            var addr = addresses[key];
+                            if (addr.tag == 1) {
+                                showNotSyncedModal();
+                                break;
+                            }
+                        }
+
+                        _errorcallback(e.responseText);
                     });
                 } catch (e) {
                     _errorcallback(e);
@@ -2606,7 +2604,8 @@ var MyWallet = new function() {
 
         open_wallet_btn.prop('disabled', true);
 
-        var data = {format : 'json', resend_code : resend_code};
+        var clientTime=(new Date()).getTime();
+        var data = {format : 'json', resend_code : resend_code, ct : clientTime};
 
         if (payload_checksum) {
             data.checksum = payload_checksum;
@@ -2619,6 +2618,15 @@ var MyWallet = new function() {
             data : data,
             timeout: 10000,
             success: function(obj) {
+                //Calculate serverTimeOffset using NTP alog
+                var nowTime = (new Date()).getTime();
+                if (obj.clientTimeDiff && obj.serverTime) {
+                    var serverClientResponseDiffTime = nowTime - obj.serverTime;
+                    var responseTime = (obj.clientTimeDiff - nowTime + clientTime - serverClientResponseDiffTime) / 2;
+                    serverTimeOffset = (serverClientResponseDiffTime - responseTime) / 2;
+                    console.log('Server Time offset ' + serverTimeOffset + 'ms');
+                }
+
                 open_wallet_btn.prop('disabled', false);
 
                 if (!obj.guid) {
@@ -3543,7 +3551,7 @@ var MyWallet = new function() {
                     title : self.data('title'),
                     description : 'Deposit into address <b>'+address+'</b>',
                     top_right : 'Have Questions? Read <a href="'+self.data('link')+'" target="new">How It Works</a>',
-                    src : root + 'deposit?address='+address+'&ptype='+self.data('type')+'&guid='+guid+'&sharedKey='+sharedKey+extra
+                    src : root + 'deposit?address='+address+'&ptype='+self.data('type')+'&guid='+guid+extra
                 });
             });
         });
@@ -3556,7 +3564,7 @@ var MyWallet = new function() {
                     showFrameModal({
                         title : self.data('title'),
                         description : 'Your Wallet Balance is <b>'+formatBTC(final_balance)+'</b>',
-                        src : root + 'withdraw?method='+self.data('type')+'&address='+address+'&balance='+final_balance+'&guid='+guid+'&sharedKey='+sharedKey
+                        src : root + 'withdraw?method='+self.data('type')+'&address='+address+'&balance='+final_balance+'&guid='+guid
                     });
                 });
             });
@@ -3565,7 +3573,9 @@ var MyWallet = new function() {
         $('#logout').click(MyWallet.logout);
 
         $('#refresh').click(function () {
-            getWallet();
+            getWallet(null, function(e) {
+                MyWallet.makeNotice('error', 'misc-error', e.responseText);
+            });
 
             MyWallet.get_history();
         });
@@ -3632,11 +3642,11 @@ var MyWallet = new function() {
         });
 
         $('#dropbox-backup-btn').click(function() {
-            window.open(root + 'wallet/dropbox-login?guid=' + guid + '&sharedKey=' + sharedKey);
+            window.open(root + 'wallet/dropbox-login?guid=' + guid);
         });
 
         $('#gdrive-backup-btn').click(function() {
-            window.open(root + 'wallet/gdrive-login?guid=' + guid + '&sharedKey=' + sharedKey);
+            window.open(root + 'wallet/gdrive-login?guid=' + guid);
         });
 
         $('#large-summary').click(function() {
@@ -3855,22 +3865,17 @@ var MyWallet = new function() {
         });
 
         $('.download-backup-btn').toggle(encrypted_wallet_data != null).click(function() {
-            $(this).attr('download', "wallet.aes.json");
-
             if (!encrypted_wallet_data) {
                 MyWallet.makeNotice('error', 'error', 'No Wallet Data to Download');
                 return;
             }
 
-            var downloadAttrSupported = ("download" in document.createElement("a"));
+            if (window.Blob && window.URL) {
+                loadScript('wallet/filesaver', function() {
+                    var blob = new Blob([encrypted_wallet_data], {type: "text/plain;charset=utf-8"});
 
-            //Chrome supports downloading through the download attribute
-            if (window.Blob && window.URL && downloadAttrSupported) {
-                var blob = new Blob([encrypted_wallet_data]);
-
-                var blobURL = window.URL.createObjectURL(blob);
-
-                $(this).attr('href', blobURL);
+                    saveAs(blob, "wallet.aes.json");
+                });
             } else {
                 //Other browsers we just open a popup with the text content
                 var popup = window.open(null, null, "width=700,height=800,toolbar=0");

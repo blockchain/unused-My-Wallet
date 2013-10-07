@@ -31,7 +31,7 @@ $(document).ready(function() {
                 $.ajax({
                     type: "GET",
                     dataType: 'json',
-                    url: root + './receive',
+                    url: root + 'api/receive',
                     data : {method : 'create', address : encodeURIComponent(receivers_address), shared:shared, callback:callback_url},
                     success: function(response) {
                         button.find('.qr-code').empty();

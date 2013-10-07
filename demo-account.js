@@ -7,6 +7,7 @@ $(document).ready(function() {
     setTimeout(function () {
         $('#restore-password').val('demoaccountpassword');
         $('#restore-wallet-continue').click();
+
         clearInterval(interval);
 
         setTimeout(function() {

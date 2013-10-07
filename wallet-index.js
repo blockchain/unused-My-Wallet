@@ -15,45 +15,43 @@ function numberWithCommas(x) {
         var loops = Math.ceil(options.speed / options.refreshInterval),
             increment = (options.to - options.from) / loops;
 
-        return $(this).each(function() {
-            var self = this,
-                loopCount = 0,
-                value = options.from;
+        var self = this,
+            loopCount = 0,
+            value = options.from;
 
-            if (self.interval) {
+        if (self.interval) {
+            clearInterval(self.interval);
+            self.interval = null;
+        }
+
+        self.interval = setInterval(updateTimer, options.refreshInterval);
+
+        function updateTimer() {
+            value += increment;
+            loopCount++;
+
+            $(self).html(formatMoney(value, true));
+
+            if (typeof(options.onUpdate) == 'function') {
+                options.onUpdate.call(self, value);
+            }
+
+            if (loopCount >= loops) {
                 clearInterval(self.interval);
-                self.interval = null;
-            }
+                value = options.to;
 
-            self.interval = setInterval(updateTimer, options.refreshInterval);
-
-            function updateTimer() {
-                value += increment;
-                loopCount++;
-
-                $(self).html(formatMoney(value, symbol_local));
-
-                if (typeof(options.onUpdate) == 'function') {
-                    options.onUpdate.call(self, value);
-                }
-
-                if (loopCount >= loops) {
-                    clearInterval(self.interval);
-                    value = options.to;
-
-                    if (typeof(options.onComplete) == 'function') {
-                        options.onComplete.call(self, value);
-                    }
+                if (typeof(options.onComplete) == 'function') {
+                    options.onComplete.call(self, value);
                 }
             }
-        });
+        }
     };
 
     $.fn.countTo.defaults = {
         from: 0,  // the number the element should start at
         to: 100,  // the number the element should end at
         speed: 1000,  // how long it should take to count between the target numbers
-        refreshInterval: 100,  // how often the element should be updated
+        refreshInterval: 200,  // how often the element should be updated
         decimals: 0,  // the number of decimal places to show
         onUpdate: null,  // callback method for every time the element is updated,
         onComplete: null  // callback method for when the element finishes updating
@@ -121,8 +119,8 @@ $(document).ready(function() {
                     transacted.countTo({
                         from: original_value,
                         to: new_value,
-                        speed: 5000,
-                        refreshInterval: 50
+                        speed: 10000,
+                        refreshInterval: 100
                     });
                 }
             };

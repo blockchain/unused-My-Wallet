@@ -7,6 +7,7 @@
 
             if (errorcallback != null)
                 errorcallback(e);
+
             else throw e;
         };
 
@@ -21,31 +22,24 @@
             }
 
             //Now Decrypt the it again to double check for any possible corruption
-            MyWallet.decryptWallet(crypted, password, function(obj) {
+            MyWallet.decryptWallet(crypted, password, function() {
                 try {
                     //SHA256 new_checksum verified by server in case of curruption during transit
                     var new_checksum = Crypto.util.bytesToHex(Crypto.SHA256(crypted, {asBytes: true}));
 
                     MyWallet.setLoadingText('Saving wallet');
 
-                    if (extra == null)
+                    if (extra == null) {
                         extra = '';
+                    }
 
-                    $.ajax({
-                        type: "POST",
-                        url: root + 'wallet' + extra,
-                        data: { guid: guid, length: crypted.length, payload: crypted, sharedKey: sharedKey, checksum: new_checksum, method : 'insert' },
-                        converters: {"* text": window.String, "text html": true, "text json": window.String, "text xml": window.String},
-                        success: function(data) {
+                    MyWallet.securePost('wallet' + extra, { length: crypted.length, payload: crypted, checksum: new_checksum, method : 'insert', format : 'plain', sharedKey : sharedKey, guid : guid }, function(data) {
+                        MyWallet.makeNotice('success', 'misc-success', data);
 
-                            MyWallet.makeNotice('success', 'misc-success', data);
-
-                            if (successcallback != null)
-                                successcallback();
-                        },
-                        error : function(data) {
-                            _errorcallback(data.responseText);
-                        }
+                        if (successcallback != null)
+                            successcallback();
+                    }, function(e) {
+                        _errorcallback(e.responseText);
                     });
                 } catch (e) {
                     _errorcallback(e);

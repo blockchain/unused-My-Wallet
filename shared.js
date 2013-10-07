@@ -45,8 +45,8 @@ function setBTCSymbol(new_symbol) {
 //Assumes 10px margin (modals)
 $.fn.center = function () {
     scrollTo(0, 0);
-    this.css("top", Math.max(($(window).height() / 2) - (this.height() / 2), 0) + "px");
-    this.css("left", Math.max(($(window).width() / 2) - (this.width() / 2), 0) + "px");
+    this.css("top", parseInt(Math.max(($(window).height() / 2) - (this.height() / 2), 0)) + "px");
+    this.css("left", parseInt(Math.max(($(window).width() / 2) - (this.width() / 2), 0)) + "px");
     return this;
 };
 
@@ -70,7 +70,7 @@ function webSocketConnect(success) {
                 if (ii % 2 == 0)
                     var url = "wss://ws.blockchain.info/inv";
                 else
-                    var url = "ws://ws.blockchain.info:8335/inv";
+                    var url = "ws://ws.blockchain.info/inv";
 
                 ++ii;
 
