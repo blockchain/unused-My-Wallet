@@ -24,13 +24,17 @@ function numberWithCommas(x) {
             self.interval = null;
         }
 
+        self.target_value = options.to;
+
         self.interval = setInterval(updateTimer, options.refreshInterval);
 
         function updateTimer() {
             value += increment;
             loopCount++;
 
-            $(self).html(formatMoney(value, true));
+            self.original_value = value;
+
+            $(self).html(formatSymbol(value, symbol_local));
 
             if (typeof(options.onUpdate) == 'function') {
                 options.onUpdate.call(self, value);
@@ -38,6 +42,8 @@ function numberWithCommas(x) {
 
             if (loopCount >= loops) {
                 clearInterval(self.interval);
+                self.interval = null;
+
                 value = options.to;
 
                 if (typeof(options.onComplete) == 'function') {
@@ -90,7 +96,7 @@ $(document).ready(function() {
         }
     }, 5000);
 
-    var transacted = $('.transacted');
+    var transacted = $('.transacted:first-child');
     if (transacted.length > 0) {
         webSocketConnect(function(ws) {
             ws.onmessage = function(e) {
@@ -106,21 +112,22 @@ $(document).ready(function() {
                         total_received += parseInt(tx.out[i].value);
                     }
 
-                    var original_value = parseInt(transacted.find('span').data('c'));
+                    var original_value = parseInt(transacted.original_value);
 
-                    var target_val = parseInt(transacted.data('target_val'));
+                    if (!original_value || isNaN(original_value))
+                        original_value = transacted.find('span').data('c');
+
+                    var target_val = parseInt(transacted.target_value);
                     if (!isNaN(target_val) && target_val > original_value)
                         total_received += target_val - original_value;
 
                     var new_value = original_value + total_received;
 
-                    transacted.data('target_val', new_value);
-
                     transacted.countTo({
                         from: original_value,
                         to: new_value,
                         speed: 10000,
-                        refreshInterval: 100
+                        refreshInterval: 50
                     });
                 }
             };

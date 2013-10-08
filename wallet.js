@@ -255,6 +255,8 @@ var MyWallet = new function() {
             var tSKUID =  SKHashHex.substring(i, i+=8)+'-'+SKHashHex.substring(i, i+=4)+'-'+SKHashHex.substring(i, i+=4)+'-'+SKHashHex.substring(i, i+=4)+'-'+SKHashHex.substring(i, i+=12);
 
             clone.sharedKey = tSKUID;
+            clone.sKTimestamp = timestamp;
+            clone.sKDebugHexHash = SKHashHex;
         }
 
         if (!data.guid)
