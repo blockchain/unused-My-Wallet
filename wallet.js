@@ -248,15 +248,19 @@ var MyWallet = new function() {
 
             //Rather than sending the shared key plain text
             //send a hash using a totp scheme
-            var timestamp = parseInt((new Date().getTime() - serverTimeOffset) / 10000);
+            var now = new Date().getTime();
+            var timestamp = parseInt((now - serverTimeOffset) / 10000);
+
             var SKHashHex = Crypto.SHA256(sharedKey.toLowerCase() + timestamp);
 
             var i = 0;
-            var tSKUID =  SKHashHex.substring(i, i+=8)+'-'+SKHashHex.substring(i, i+=4)+'-'+SKHashHex.substring(i, i+=4)+'-'+SKHashHex.substring(i, i+=4)+'-'+SKHashHex.substring(i, i+=12);
+            var tSKUID = SKHashHex.substring(i, i+=8)+'-'+SKHashHex.substring(i, i+=4)+'-'+SKHashHex.substring(i, i+=4)+'-'+SKHashHex.substring(i, i+=4)+'-'+SKHashHex.substring(i, i+=12);
 
             clone.sharedKey = tSKUID;
             clone.sKTimestamp = timestamp;
             clone.sKDebugHexHash = SKHashHex;
+            clone.sKDebugTimeOffset = serverTimeOffset;
+            clone.sKDebugOriginalClientTime = now;
         }
 
         if (!data.guid)
@@ -1507,10 +1511,6 @@ var MyWallet = new function() {
         $('#summary-balance').html(formatMoney(final_balance, symbol));
 
         var preferred = MyWallet.getPreferredAddress();
-
-        $('#tweet-for-btc').unbind().click(function() {
-            window.open('https://twitter.com/share?url=https://blockchain.info/wallet&hashtags=tweet4btc,bitcoin,'+preferred+'&text=Sign Up For a Free Bitcoin Wallet @ Blockchain.info', "", "toolbar=0, status=0, width=650, height=360");
-        });
 
         $('.paper-wallet-btn').unbind().click(function() {
             loadScript('wallet/paper-wallet', function() {
@@ -3261,8 +3261,14 @@ var MyWallet = new function() {
         });
 
         $('#chord-diagram').click(function() {
-            window.open(root + 'taint/' + MyWallet.getActiveAddresses().join('|'), null, "width=850,height=850");
-        });
+            loadScript('wallet/frame-modal', function() {
+                showFrameModal({
+                    title : 'Address Relationships',
+                    description : '',
+                    src : root + 'taint/' + MyWallet.getActiveAddresses().join('|')
+                });
+            });
+         });
 
         $('#verify-message').click(function() {
             loadScript('wallet/address_modal', function() {
@@ -3583,15 +3589,33 @@ var MyWallet = new function() {
         });
 
         $('#summary-n-tx-chart').click(function() {
-            window.open(root + 'charts/n-transactions?show_header=false&address='+MyWallet.getActiveAddresses().join('|'), null, "scroll=0,status=0,location=0,toolbar=0,width=1000,height=700");
+            loadScript('wallet/frame-modal', function() {
+                showFrameModal({
+                    title : 'Number of transactions',
+                    description : '',
+                    src : root + 'charts/n-transactions?show_header=false&address='+MyWallet.getActiveAddresses().join('|')
+                });
+            });
         });
 
         $('#summary-received-chart').click(function() {
-            window.open(root + 'charts/received-per-day?show_header=false&address='+MyWallet.getActiveAddresses().join('|'), null, "scroll=0,status=0,location=0,toolbar=0,width=1000,height=700");
+            loadScript('wallet/frame-modal', function() {
+                showFrameModal({
+                    title : 'BTC Received Per Day',
+                    description : '',
+                    src : root + 'charts/received-per-day?show_header=false&address='+MyWallet.getActiveAddresses().join('|')
+                });
+            });
         });
 
         $('#summary-balance-chart').click(function() {
-            window.open(root + 'charts/balance?show_header=false&address='+MyWallet.getActiveAddresses().join('|'), null, "scroll=0,status=0,location=0,toolbar=0,width=1000,height=700");
+            loadScript('wallet/frame-modal', function() {
+                showFrameModal({
+                    title : 'Wallet Balance',
+                    description : '',
+                    src : root + 'charts/balance?show_header=false&address='+MyWallet.getActiveAddresses().join('|')
+                });
+            });
         });
 
         $("#new-addr").click(function() {
@@ -3872,17 +3896,16 @@ var MyWallet = new function() {
                 return;
             }
 
-            if (window.Blob && window.URL) {
+            try { var isFileSaverSupported = !!new Blob(); } catch(e){}
+
+            if (isFileSaverSupported) {
                 loadScript('wallet/filesaver', function() {
                     var blob = new Blob([encrypted_wallet_data], {type: "text/plain;charset=utf-8"});
 
                     saveAs(blob, "wallet.aes.json");
                 });
             } else {
-                //Other browsers we just open a popup with the text content
-                var popup = window.open(null, null, "width=700,height=800,toolbar=0");
-
-                popup.document.write('<!DOCTYPE html><html><head></head><body><div style="word-wrap:break-word;" >'+encrypted_wallet_data+'</div></body></html>');
+                MyWallet.makeNotice('error', 'error', 'Your browser is not support.');
             }
 
             backupInstructionsModal();
