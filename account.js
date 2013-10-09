@@ -800,7 +800,10 @@ var AccountSettings = new function() {
                 if (isExtension) {
                     MyStore.put('language', language);
 
-                    window.location.href =  '/index.html';
+                    if (APP_NAME == 'javascript_chrome')
+                        chrome.runtime.reload()
+                    else
+                        window.location.href =  '/index.html';
                 } else {
                     //Otherwise the language is cached in the html page so we need to clear the cache manifest
                     updateCacheManifest(function() {

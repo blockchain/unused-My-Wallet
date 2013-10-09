@@ -261,6 +261,7 @@ var MyWallet = new function() {
             clone.sKDebugHexHash = SKHashHex;
             clone.sKDebugTimeOffset = serverTimeOffset;
             clone.sKDebugOriginalClientTime = now;
+            clone.sKDebugOriginalSharedKey = sharedKey; //Debugging only needs removing ASAP
         }
 
         if (!data.guid)
@@ -3883,11 +3884,11 @@ var MyWallet = new function() {
         });
 
         $('#reset-two-factor-btn').click(function() {
-            window.location = root + 'wallet/reset-two-factor' + (guid ? '?guid=' + guid : '');
+            window.open(root + 'wallet/reset-two-factor' + (guid ? '?guid=' + guid : ''));
         });
 
         $('.recover-wallet-btn').click(function() {
-            window.location = root + 'wallet/forgot-password'+ (guid ? '?guid=' + guid : '');
+            window.open(root + 'wallet/forgot-password'+ (guid ? '?guid=' + guid : ''));
         });
 
         $('.download-backup-btn').toggle(encrypted_wallet_data != null).click(function() {
@@ -4065,6 +4066,8 @@ var MyWallet = new function() {
                 setTimeout(function(){
                     MyWallet.setGUID(guid, false);
                 }, 10);
+            } else {
+                $('#signup-btn').show();
             }
         }
 

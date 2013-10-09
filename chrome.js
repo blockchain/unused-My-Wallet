@@ -15,7 +15,7 @@ $(document).ready(function() {
     //Chrome should automatically grant notification permissions
     MyWallet.setHTML5Notifications(true);
 
-    $('body').css('padding-bottom', '0px');
+    $('body').css('padding-bottom', '0px').css('-webkit-user-select', 'text');
 
     $('html').css('overflow-y', 'auto');
 
