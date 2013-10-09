@@ -795,17 +795,9 @@ var AccountSettings = new function() {
             var language = $(this).val();
 
             updateKV('Updating Language', 'update-language', language, function() {
+                MyWallet.setLanguage(language);
 
-                //Chrome extension reads language from localStorage
-                if (isExtension) {
-                    MyStore.put('language', language);
-
-                    if (APP_NAME == 'javascript_chrome')
-                        chrome.runtime.reload()
-                    else
-                        window.location.href =  '/index.html';
-                } else {
-                    //Otherwise the language is cached in the html page so we need to clear the cache manifest
+                if (!isExtension) {
                     updateCacheManifest(function() {
                         window.location.reload();
                     });

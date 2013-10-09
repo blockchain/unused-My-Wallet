@@ -2,6 +2,21 @@ min = false;
 isExtension = true;
 APP_NAME = 'javascript_firefox';
 
+var superSetLanguage = MyWallet.setLanguage;
+MyWallet.setLanguage = function(language) {
+    if (MyWallet.getLanguage()) {
+        superSetLanguage(language);
+
+        MyWallet.makeNotice('success', 'misc-success', 'Changing Language ' + language + '. Please Wait...');
+
+        setTimeout(function() {
+            window.location.href = '/blockchain/data/index.html';
+        }, 1000);
+    } else {
+        superSetLanguage(language);
+    }
+}
+
 $(document).ready(function() {
     $.ajax = function(obj) {
         var requests = {};

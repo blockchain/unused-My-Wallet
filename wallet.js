@@ -65,6 +65,7 @@ var MyWallet = new function() {
     var supported_encryption_version = 2.0;  //The maxmimum supported encryption version
     var encryption_version_used = 0.0; //The encryption version of the current wallet. Set by decryptWallet()
     var serverTimeOffset = 0; //Difference between server and client time
+    var haveSetServerTime = false;
 
     var wallet_options = {
         pbkdf2_iterations : default_pbkdf2_iterations, //Number of pbkdf2 iterations to default to for second password and dpasswordhash
@@ -103,6 +104,14 @@ var MyWallet = new function() {
 
     this.getLanguage = function() {
         return language;
+    }
+
+    this.setLanguage = function(_language) {
+
+        console.log('put ' + _language);
+
+        MyStore.put('language', _language);
+        language = _language;
     }
 
     this.addEventListener = function(func) {
@@ -1808,20 +1817,20 @@ var MyWallet = new function() {
 
         console.log('Get wallet with checksum ' + payload_checksum);
 
-        var obj = {method : 'wallet.aes.json'};
+        var data = {method : 'wallet.aes.json', format : 'json'};
 
         if (payload_checksum && payload_checksum.length > 0)
-            obj.checksum = payload_checksum;
+            data.checksum = payload_checksum;
 
-        MyWallet.securePost("wallet", obj, function(data) {
-            if (data == null || data.length == 0 || data == 'Not modified') {
+        MyWallet.securePost("wallet", data, function(obj) {
+            if (!obj.payload || obj.payload == 'Not modified') {
                 if (success) success();
                 return;
             }
 
             console.log('Wallet data modified');
 
-            MyWallet.setEncryptedWalletData(data);
+            MyWallet.setEncryptedWalletData(obj.payload);
 
             internalRestoreWallet(function() {
                 MyWallet.get_history();
@@ -1830,9 +1839,6 @@ var MyWallet = new function() {
 
                 if (success) success();
             }, function() {
-                //If we failed to decrypt the new data panic and logout
-                window.location.reload();
-
                 if (error) error();
             });
         }, function(e) {
@@ -2590,6 +2596,28 @@ var MyWallet = new function() {
     }
 
 
+    this.handleNTPResponse = function(obj, clientTime) {
+        //Calculate serverTimeOffset using NTP alog
+        var nowTime = (new Date()).getTime();
+        if (obj.clientTimeDiff && obj.serverTime) {
+            var serverClientResponseDiffTime = nowTime - obj.serverTime;
+            var responseTime = (obj.clientTimeDiff - nowTime + clientTime - serverClientResponseDiffTime) / 2;
+
+            var thisOffset = (serverClientResponseDiffTime - responseTime) / 2;
+
+            if (haveSetServerTime) {
+                serverTimeOffset = (serverTimeOffset + thisOffset) / 2;
+            } else {
+                serverTimeOffset = thisOffset;
+                haveSetServerTime = true;
+                MyStore.put('server_time_offset', ''+serverTimeOffset);
+            }
+
+            console.log('Server Time offset ' + serverTimeOffset + 'ms - This offset ' + thisOffset);
+        }
+    }
+
+
     //Fetch information on a new wallet identfier
     this.setGUID = function(guid_or_alias, resend_code) {
 
@@ -2621,14 +2649,7 @@ var MyWallet = new function() {
             data : data,
             timeout: 10000,
             success: function(obj) {
-                //Calculate serverTimeOffset using NTP alog
-                var nowTime = (new Date()).getTime();
-                if (obj.clientTimeDiff && obj.serverTime) {
-                    var serverClientResponseDiffTime = nowTime - obj.serverTime;
-                    var responseTime = (obj.clientTimeDiff - nowTime + clientTime - serverClientResponseDiffTime) / 2;
-                    serverTimeOffset = (serverClientResponseDiffTime - responseTime) / 2;
-                    console.log('Server Time offset ' + serverTimeOffset + 'ms');
-                }
+                MyWallet.handleNTPResponse(obj, clientTime);
 
                 open_wallet_btn.prop('disabled', false);
 
@@ -2643,9 +2664,6 @@ var MyWallet = new function() {
                 guid = obj.guid;
                 auth_type = obj.auth_type;
                 real_auth_type = obj.real_auth_type;
-
-                if (obj.language)
-                    language = obj.language;
 
                 if (obj.payload && obj.payload.length > 0 && obj.payload != 'Not modified') {
                     MyWallet.setEncryptedWalletData(obj.payload);
@@ -2669,7 +2687,9 @@ var MyWallet = new function() {
 
                 MyStore.get('guid', function(local_guid) {
                     if (local_guid != guid) {
-                        MyStore.clear();
+                        MyStore.remove('guid');
+                        MyStore.remove('payload');
+                        MyStore.remove('multiaddr');
 
                         //Demo Account Guid
                         if (guid != demo_guid) {
@@ -2677,6 +2697,10 @@ var MyWallet = new function() {
                         }
                     }
                 });
+
+                if (obj.language && language != obj.language) {
+                    MyWallet.setLanguage(obj.language);
+                }
             },
             error : function(e) {
                 console.log('Set GUID Success');
@@ -3003,8 +3027,9 @@ var MyWallet = new function() {
     }
 
     this.logout = function() {
-        if (logout_timeout)
+        if (logout_timeout) {
             clearTimeout(logout_timeout);
+        }
 
         if (guid == demo_guid) {
             window.location = root + 'wallet/logout';
@@ -3269,7 +3294,7 @@ var MyWallet = new function() {
                     src : root + 'taint/' + MyWallet.getActiveAddresses().join('|')
                 });
             });
-         });
+        });
 
         $('#verify-message').click(function() {
             loadScript('wallet/address_modal', function() {
@@ -4074,6 +4099,7 @@ var MyWallet = new function() {
         //Load data attributes from html
         guid = body.data('guid');
         sharedKey = body.data('sharedkey');
+        language = body.data('language');
 
         //Deposit pages set this flag so it can be loaded in an iframe
         if (MyWallet.skip_init)
@@ -4084,6 +4110,13 @@ var MyWallet = new function() {
                 encrypted_wallet_data = result;
                 payload_checksum = generatePayloadChecksum();
             }
+        });
+
+        MyStore.get('server_time_offset', function (_serverTimeOffset) {
+            serverTimeOffset = parseInt(_serverTimeOffset);
+
+            if (isNaN(serverTimeOffset))
+                serverTimeOffset = 0;
         });
 
         if ((!guid || guid.length == 0) && (isExtension || window.location.href.indexOf('/login') > 0)) {

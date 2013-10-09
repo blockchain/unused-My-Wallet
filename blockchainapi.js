@@ -4,23 +4,29 @@ var BlockchainAPI = new function() {
     this.get_history = function(success, error, tx_filter, tx_page) {
         MyWallet.setLoadingText('Loading transactions');
 
+        var clientTime=(new Date()).getTime();
+
+        var data = {active : MyWallet.getActiveAddresses().join('|'), format : 'json', filter : tx_filter, offset : tx_page*5, ct : clientTime};
+
         $.ajax({
             type: "POST",
             dataType: 'json',
             url: root +'multiaddr',
-            data: {active : MyWallet.getActiveAddresses().join('|'), format : 'json', filter : tx_filter, offset : tx_page*50},
-            success: function(data) {
-                if (data.error != null) {
-                    MyWallet.makeNotice('error', 'misc-error', data.error);
+            data: data,
+            success: function(obj) {
+                if (obj.error != null) {
+                    MyWallet.makeNotice('error', 'misc-error', obj.error);
                 }
+
+                MyWallet.handleNTPResponse(obj, clientTime);
 
                 try {
                     //Cache results to show next login
                     if (tx_page == 0 && tx_filter == 0) {
-                        MyStore.put('multiaddr', JSON.stringify(data));
+                        MyStore.put('multiaddr', JSON.stringify(obj));
                     }
 
-                    success(data);
+                    success(obj);
                 } catch (e) {
                     MyWallet.makeNotice('error', 'misc-error', e);
 

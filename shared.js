@@ -592,12 +592,12 @@ var MyStore = new function() {
 
     this.get = function(key, callback) {
         try {
-            callback(localStorage.getItem(key));
+            var result = localStorage.getItem(key);
         } catch(e) {
             console.log(e);
-
-            callback();
         }
+
+        callback(result);
     }
 
     this.remove = function(key) {

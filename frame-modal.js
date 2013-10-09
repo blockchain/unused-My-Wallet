@@ -28,8 +28,9 @@ function showFrameModal(options) {
     var el_name = 'iframe'
 
     //Special case for chrome extension
-    if (APP_NAME == 'javascript_chrome')
+    if (APP_NAME == 'javascript_chrome') {
        el_name = 'webview';
+    }
 
     $('body').append('<div id="frame-modal" class="modal hide"><div class="modal-header"><button type="button" class="close" data-dismiss="modal">×</button>'+top_right+'<h3>'+options.title+'</h3></div><div class="modal-body" style="overflow-y:hidden;"><'+el_name+' border="0" scrolling="auto" style="overflow-y:hidden;border-style:none;"></'+el_name+'></div><div class="modal-footer btn-group">'+options.description+' <a class="btn btn-secondary">Close</a></div></div>');
 
@@ -42,6 +43,16 @@ function showFrameModal(options) {
     });
 
 
+    var frame = modal.find(el_name);
+
+    //For chrome extension
+    if (el_name == 'webview') {
+        frame.get(0).addEventListener('newwindow', function(e) {
+            e.preventDefault();
+            window.open(e.targetUrl);
+        });
+    }
+
     try { hidePopovers() } catch(e) {};
 
     if (options.width) {
@@ -49,7 +60,7 @@ function showFrameModal(options) {
     }
 
     if (options.height) {
-        modal.find(el_name).css('height', options.height);
+        frame.css('height', options.height);
     }
 
     modal.find('.btn.btn-primary').unbind().click(function() {
@@ -60,7 +71,7 @@ function showFrameModal(options) {
         modal.modal('hide');
     });
 
-    modal.find(el_name).attr('src', options.src);
+    frame.attr('src', options.src);
 
     modal.center();
 }

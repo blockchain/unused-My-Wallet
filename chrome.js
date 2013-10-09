@@ -19,9 +19,24 @@ $(document).ready(function() {
 
     $('html').css('overflow-y', 'auto');
 
-    $('.quickstart').css('background-image', 'linear-gradient(rgb(255, 255, 255), rgb(245, 245, 245))');
+    $('.quickstart').css('background-image', 'linear-gradient(rgb(255, 255, 255), rgb(245, 245, 245))').find('.container:first-child').css('padding-top', '0px');
 
 });
+
+var superSetLanguage = MyWallet.setLanguage;
+MyWallet.setLanguage = function(language) {
+    if (MyWallet.getLanguage()) {
+        superSetLanguage(language);
+
+        MyWallet.makeNotice('success', 'misc-success', 'Changing Language ' + language + '. Please Wait...');
+
+        setTimeout(function() {
+            chrome.runtime.reload();
+        }, 1000);
+    } else {
+        superSetLanguage(language);
+    }
+}
 
 MyStore = new function() {
     this.put = function(key, value) {
