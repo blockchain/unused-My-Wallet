@@ -107,9 +107,6 @@ var MyWallet = new function() {
     }
 
     this.setLanguage = function(_language) {
-
-        console.log('put ' + _language);
-
         MyStore.put('language', _language);
         language = _language;
     }
@@ -1081,7 +1078,7 @@ var MyWallet = new function() {
 
             recipient.find('input[name="send-to-address"]').typeahead({
                 source : getActiveLabels()
-            }).next().click(function() {
+            }).next().unbind().click(function() {
                     var input = $(this).prev();
                     MyWallet.scanQRCode(function(data) {
                         console.log(data);
@@ -3607,9 +3604,7 @@ var MyWallet = new function() {
         $('#logout').click(MyWallet.logout);
 
         $('#refresh').click(function () {
-            getWallet(null, function(e) {
-                MyWallet.makeNotice('error', 'misc-error', e.responseText);
-            });
+            getWallet();
 
             MyWallet.get_history();
         });
