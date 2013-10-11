@@ -669,7 +669,9 @@ var AccountSettings = new function() {
 
             MyWallet.setNTransactionsPerPage(value);
 
-            MyWallet.get_history();
+            MyWallet.backupWallet('update', function() {
+                MyWallet.get_history();
+            });
         });
 
         $('#wallet-email-code').unbind().change(function(e) {

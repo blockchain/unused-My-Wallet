@@ -822,18 +822,23 @@ var MyWallet = new function() {
             logout_btn.attr('src', resource + 'logout-red.png');
     }
 
-    this.showNotification = function(options) {
+    this.showNotification = function(options, timeout) {
+        console.log('Here');
+
         try {
-            if (window.webkitNotifications && navigator.userAgent.indexOf("Chrome") > -1) {
-                if (webkitNotifications.checkPermission() == 0) {
-                    webkitNotifications.createNotification(options.iconUrl, options.title, options.body).show();
-                }
-            } else if (window.Notification) {
-                if (Notification.permissionLevel() == 'granted') {
-                    new Notification(options.title, options).show();
-                }
+            var notification;
+            if (window.webkitNotifications && webkitNotifications.checkPermission() == 0) {
+                notification = webkitNotifications.createNotification(options.iconUrl, options.title, options.body);
+
+                notification.show();
+            } else if (window.Notification && window.Notification.permissionLevel() == 'granted') {
+                notification = new window.Notification(options.title, options).show();
             }
-        } catch (e) {}
+
+            setTimeout(function() {
+                notification.cancel();
+            }, timeout ? timeout : 5000);
+        } catch (e) { }
     };
 
     this.makeNotice = function(type, id, msg, timeout) {
@@ -842,9 +847,6 @@ var MyWallet = new function() {
             return;
 
         console.log(msg);
-
-        if (timeout == null)
-            timeout = 5000;
 
         var el = $('<div class="alert alert-block alert-'+type+'"></div>');
 
@@ -857,17 +859,15 @@ var MyWallet = new function() {
 
         $("#notices").append(el).hide().fadeIn(200);
 
-        if (timeout > 0) {
-            (function() {
-                var tel = el;
+        (function() {
+            var tel = el;
 
-                setTimeout(function() {
-                    tel.fadeOut(250, function() {
-                        $(this).remove();
-                    });
-                }, timeout);
-            })();
-        }
+            setTimeout(function() {
+                tel.fadeOut(250, function() {
+                    $(this).remove();
+                });
+            }, timeout ? timeout : 500);
+        })();
     }
 
     this.pkBytesToSipa = function(bytes, addr) {
@@ -1280,6 +1280,8 @@ var MyWallet = new function() {
             }
         }
     }
+
+
 
     function openTransactionSummaryModal(txIndex, result) {
         loadScript('wallet/frame-modal', function() {
@@ -3281,6 +3283,45 @@ var MyWallet = new function() {
         });
     }
 
+    this.openWindow = function(url) {
+        function _hasPopupBlocker(poppedWindow) {
+            var result = false;
+
+            try {
+                if (typeof poppedWindow == 'undefined' || !poppedWindow) {
+                    // Safari with popup blocker... leaves the popup window handle undefined
+                    result = true;
+                }
+                else if (poppedWindow && poppedWindow.closed) {
+                    // This happens if the user opens and closes the client window...
+                    // Confusing because the handle is still available, but it's in a "closed" state.
+                    // We're not saying that the window is not being blocked, we're just saying
+                    // that the window has been closed before the test could be run.
+                    result = false;
+                }
+                else if (poppedWindow && poppedWindow.test) {
+                    // This is the actual test. The client window should be fine.
+                    result = false;
+                }
+            } catch (err) {
+                //if (console) {
+                //    console.warn("Could not access popup window", err);
+                //}
+            }
+
+            return result;
+        }
+
+        window.open(url, null, "scroll=1,status=1,location=1,toolbar=1");
+
+        if (_hasPopupBlocker(window)) {
+            MyWallet.makeNotice('error', 'misc-error', "Popup Blocked. Try and click again.");
+            return false;
+        } else {
+            return true;
+        }
+    }
+
     function buildPopovers() {
         try {
             $(".pop").popover({
@@ -3597,9 +3638,8 @@ var MyWallet = new function() {
         });
 
         $('.bitstamp-btn').click(function() {
-            window.open(root + 'r?url=https://www.bitstamp.net/?blockchaininfo=1', null, "scroll=1,status=1,location=1,toolbar=1,width=1000,height=700");
+            MyWallet.openWindow(root + 'r?url=https://www.bitstamp.net/?blockchaininfo=1');
         });
-
 
         $('.deposit-btn').click(function() {
             var self = $(this);
@@ -3720,11 +3760,11 @@ var MyWallet = new function() {
         });
 
         $('#dropbox-backup-btn').click(function() {
-            window.open(root + 'wallet/dropbox-login?guid=' + guid);
+            MyWallet.openWindow(root + 'wallet/dropbox-login?guid=' + guid);
         });
 
         $('#gdrive-backup-btn').click(function() {
-            window.open(root + 'wallet/gdrive-login?guid=' + guid);
+            MyWallet.openWindow(root + 'wallet/gdrive-login?guid=' + guid);
         });
 
         $('#large-summary').click(function() {
@@ -3935,11 +3975,11 @@ var MyWallet = new function() {
         });
 
         $('#reset-two-factor-btn').click(function() {
-            window.open(root + 'wallet/reset-two-factor' + (guid ? '?guid=' + guid : ''));
+            MyWallet.openWindow(root + 'wallet/reset-two-factor' + (guid ? '?guid=' + guid : ''));
         });
 
         $('.recover-wallet-btn').click(function() {
-            window.open(root + 'wallet/forgot-password'+ (guid ? '?guid=' + guid : ''));
+            MyWallet.openWindow(root + 'wallet/forgot-password'+ (guid ? '?guid=' + guid : ''));
         });
 
         $('.download-backup-btn').toggle(encrypted_wallet_data != null).click(function() {
@@ -4131,11 +4171,21 @@ var MyWallet = new function() {
         if (MyWallet.skip_init)
             return;
 
+        var pendingGets = 1;
+        function isInitialReady() {
+            --pendingGets;
+
+            if (pendingGets == -1)
+                bindInitial();
+        }
+
         MyStore.get('payload', function(result) {
-            if (encrypted_wallet_data == null && result != null) {
+            if (encrypted_wallet_data == null && result) {
                 encrypted_wallet_data = result;
                 payload_checksum = generatePayloadChecksum();
             }
+
+            isInitialReady();
         });
 
         MyStore.get('server_time_offset', function (_serverTimeOffset) {
@@ -4146,10 +4196,13 @@ var MyWallet = new function() {
         });
 
         if ((!guid || guid.length == 0) && (isExtension || window.location.href.indexOf('/login') > 0)) {
+            ++pendingGets;
             MyStore.get('guid', function(result) {
                 guid = result;
 
                 tSetGUID();
+
+                isInitialReady();
             });
         } else {
             tSetGUID();
@@ -4180,7 +4233,7 @@ var MyWallet = new function() {
                 }
             });
 
-        bindInitial();
+        isInitialReady();
 
         $('.auth-'+auth_type).show();
 

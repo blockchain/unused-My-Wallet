@@ -979,7 +979,7 @@ PubSub implementation
                     return 'data:application/pdf;base64,' + btoa(buildDocument());
                 case 'datauri':
                 case 'dataurl':
-                    document.location.href = 'data:application/pdf;base64,' + btoa(buildDocument());
+                    return 'data:application/pdf;base64,' + btoa(buildDocument());
                     break;
                 case 'dataurlnewwindow':
                     return window.open('data:application/pdf;base64,' + btoa(buildDocument()));
@@ -3951,8 +3951,11 @@ var saveAs = saveAs
 	FS_proto.onerror =
 	FS_proto.onwriteend =
 		null;
-	
-	view.addEventListener("unload", process_deletion_queue, false);
+
+    try {
+	    view.addEventListener("unload", process_deletion_queue, false);
+    } catch (e) {}
+
 	return saveAs;
 }(self));
 /*

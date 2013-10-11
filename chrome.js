@@ -19,9 +19,23 @@ $(document).ready(function() {
 
     $('html').css('overflow-y', 'auto');
 
+    $('head').append('<style type="text/css"> .modal-backdrop { background-color : rgb(245, 245, 245) }</style>');
+
     $('.quickstart').css('background-image', 'linear-gradient(rgb(255, 255, 255), rgb(245, 245, 245))').find('.container:first-child').css('padding-top', '0px');
 
 });
+
+MyWallet.makeNotice = function(type, id, msg, timeout) {
+
+    if (msg == null || msg.length == 0)
+        return;
+
+    MyWallet.showNotification({
+        title : type == 'success' ? 'Success' : 'Error',
+        body : msg,
+        iconUrl : resource + 'cube48.png'
+    });
+}
 
 var superSetLanguage = MyWallet.setLanguage;
 MyWallet.setLanguage = function(language) {
@@ -32,7 +46,7 @@ MyWallet.setLanguage = function(language) {
 
         setTimeout(function() {
             chrome.runtime.reload();
-        }, 1000);
+        });
     } else {
         superSetLanguage(language);
     }
@@ -54,10 +68,15 @@ MyStore = new function() {
     this.get = function(key, callback) {
         try {
             chrome.storage.local.get(key, function(result) {
-                callback(result[key]);
+                try {
+                    callback(result[key]);
+                } catch (e) {
+                    console.log(e);
+                }
             });
         } catch(e) {
             console.log(e);
+            callback();
         }
     }
 

@@ -2,33 +2,7 @@ var PaperWallet = new function() {
     var self = this;
     var isLoaded = false;
 
-    function _hasPopupBlocker(poppedWindow) {
-        var result = false;
 
-        try {
-            if (typeof poppedWindow == 'undefined' || !poppedWindow) {
-                // Safari with popup blocker... leaves the popup window handle undefined
-                result = true;
-            }
-            else if (poppedWindow && poppedWindow.closed) {
-                // This happens if the user opens and closes the client window...
-                // Confusing because the handle is still available, but it's in a "closed" state.
-                // We're not saying that the window is not being blocked, we're just saying
-                // that the window has been closed before the test could be run.
-                result = false;
-            }
-            else if (poppedWindow && poppedWindow.test) {
-                // This is the actual test. The client window should be fine.
-                result = false;
-            }
-        } catch (err) {
-            //if (console) {
-            //    console.warn("Could not access popup window", err);
-            //}
-        }
-
-        return result;
-    }
 
 
     function showDidPrintModal(success, error) {
@@ -178,14 +152,15 @@ var PaperWallet = new function() {
             }
         }
 
-        //Open a new window to print
-        var window = doc.output('dataurlnewwindow');
+        if (APP_NAME == 'javascript_chrome') {
+            MyWallet.makeNotice('success', 'misc-success', 'Paper Wallet Saved to Downloads Folder');
 
-        if (_hasPopupBlocker(window)) {
-            MyWallet.makeNotice('error', 'misc-error', "Popup Blocked. Try and click again.");
-            return false;
+            doc.output('save');
         } else {
-            return true;
+            //Open a new window to print
+            var data = doc.output('datauri');
+
+            return MyWallet.openWindow(data);
         }
     }
 
