@@ -73,7 +73,8 @@ var MyWallet = new function() {
         html5_notifications : false, //HTML 5 Desktop notifications
         logout_time : 600000, //Default 10 minutes
         tx_display : 0, //Compact or detailed transactions
-        always_keep_local_backup : false //Whether to always keep a backup in localStorage regardless of two factor authentication
+        always_keep_local_backup : false, //Whether to always keep a backup in localStorage regardless of two factor authentication
+        transactions_per_page : 30 //Number of transactions per page
     };
 
     this.setEncryptedWalletData = function(data) {
@@ -161,6 +162,14 @@ var MyWallet = new function() {
 
     this.getAlwaysKeepLocalBackup = function() {
         return wallet_options.always_keep_local_backup;
+    }
+
+    this.setNTransactionsPerPage = function(val) {
+        wallet_options.transactions_per_page = val;
+    }
+
+    this.getNTransactionsPerPage = function() {
+        return wallet_options.transactions_per_page;
     }
 
     this.getGuid = function() {
@@ -709,7 +718,7 @@ var MyWallet = new function() {
                         transactions.unshift(tx);
 
                         var did_pop = false;
-                        if (transactions.length > 50) {
+                        if (transactions.length > MyWallet.getNTransactionsPerPage()) {
                             transactions.pop();
                             did_pop = true;
                         }
@@ -983,15 +992,21 @@ var MyWallet = new function() {
 
             parseMultiAddressJSON(data, false);
 
-            //Rebuild the my-addresses list with the new updated balances (Only if visible)
-            buildVisibleView();
+            if (transactions.length == 0 && tx_page > 0) {
+                //We have set a higher page number than transactions we actually have to display
+                //So rewind the page number to 0
+                MyWallet.setPage(0);
+            } else {
+                //Rebuild the my-addresses list with the new updated balances (Only if visible)
+                buildVisibleView();
+            }
 
             if (success) success();
 
         }, function() {
             if (error) error();
 
-        }, tx_filter, tx_page);
+        }, tx_filter, tx_page*MyWallet.getNTransactionsPerPage(), MyWallet.getNTransactionsPerPage());
     }
 
     this.deleteAddressBook = function(addr) {
@@ -1597,7 +1612,7 @@ var MyWallet = new function() {
         }
 
         var buildSome = function() {
-            for (var i = start; i < transactions.length && i < (start+10); ++i) {
+            for (var i = start; i < transactions.length && i < (start+MyWallet.getNTransactionsPerPage()); ++i) {
                 var tx = transactions[i];
 
                 if (wallet_options.tx_display == 0) {
@@ -1607,7 +1622,7 @@ var MyWallet = new function() {
                 }
             }
 
-            start += 10;
+            start += MyWallet.getNTransactionsPerPage();
 
             if (start < transactions.length) {
                 interval = setTimeout(buildSome, 15);
@@ -1618,37 +1633,53 @@ var MyWallet = new function() {
 
                 var pagination = $('.pagination ul').empty();
 
-                if (tx_page == 0 && transactions.length < 50) {
+                if (tx_page == 0 && transactions.length < MyWallet.getNTransactionsPerPage()) {
                     pagination.hide();
                     return;
                 } else {
                     pagination.show();
                 }
 
-                var pages = Math.ceil(n_tx_filtered / 50);
+                var pages = Math.ceil(n_tx_filtered / MyWallet.getNTransactionsPerPage());
 
                 var disabled = ' disabled';
                 if (tx_page > 0)
                     disabled = '';
 
+                var maxPagesToDisplay = 10;
+
+                var start_page = Math.max(0, Math.min(tx_page-(maxPagesToDisplay/2), pages-maxPagesToDisplay));
+
                 pagination.append($('<li class="prev'+disabled+'"><a>&larr; Previous</a></li>').click(function() {
                     MyWallet.setPage(tx_page-1);
                 }));
 
-                for (var i = 0; i < pages && i <= 10; ++i) {
+                if (start_page > 0) {
+                    pagination.append($('<li><a>≤</a></li>').click(function() {
+                        MyWallet.setPage(0);
+                    }));
+                }
+
+                for (var i = start_page; i < pages && i < start_page+maxPagesToDisplay; ++i) {
                     (function(i){
                         var active = '';
                         if (tx_page == i)
                             active = ' class="active"';
 
-                        pagination.append($('<li'+active+'><a class="hidden-phone">'+i+'</a></li>').click(function() {
+                        pagination.append($('<li'+active+'><a class="hidden-phone">'+(i+1)+'</a></li>').click(function() {
                             MyWallet.setPage(i);
                         }));
                     })(i);
                 }
 
+                if (start_page+maxPagesToDisplay < pages) {
+                    pagination.append($('<li><a>≥</a></li>').click(function() {
+                        MyWallet.setPage(pages-1);
+                    }));
+                }
+
                 var disabled = ' disabled';
-                if (tx_page < pages)
+                if (tx_page < pages-1)
                     disabled = '';
 
                 pagination.append($('<li class="next'+disabled+'"><a>Next &rarr;</a></li>').click(function() {

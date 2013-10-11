@@ -211,6 +211,7 @@ var AccountSettings = new function() {
             $('#notifications-confirmations').val(data.notifications_confirmations);
             $('#notifications-on').val(data.notifications_on);
             $('#pbkdf2-iterations').val(MyWallet.getMainPasswordPbkdf2Iterations());
+            $('#transactions_per_page').val(MyWallet.getNTransactionsPerPage());
 
             if (data.alias != null && data.alias.length > 0) {
                 $('#wallet-alias').val(data.alias);
@@ -660,6 +661,15 @@ var AccountSettings = new function() {
             MyWallet.setPbkdf2Iterations(value, function() {
                 MyWallet.makeNotice('success', 'misc-success', 'Successfully Updated Pbkdf2 Iterations');
             });
+        });
+
+
+        $('#transactions_per_page').unbind().change(function(e) {
+            var value = parseInt($(this).val());
+
+            MyWallet.setNTransactionsPerPage(value);
+
+            MyWallet.get_history();
         });
 
         $('#wallet-email-code').unbind().change(function(e) {

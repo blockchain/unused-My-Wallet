@@ -1,12 +1,16 @@
 var BlockchainAPI = new function() {
     var BlockchainAPI = this;
 
-    this.get_history = function(success, error, tx_filter, tx_page) {
+    this.get_history = function(success, error, tx_filter, offset, n) {
         MyWallet.setLoadingText('Loading transactions');
 
         var clientTime=(new Date()).getTime();
 
-        var data = {active : MyWallet.getActiveAddresses().join('|'), format : 'json', filter : tx_filter, offset : tx_page*5, ct : clientTime};
+        if (!tx_filter) tx_filter = 0;
+        if (!offset) offset = 0;
+        if (!n) n = 0;
+
+        var data = {active : MyWallet.getActiveAddresses().join('|'), format : 'json', filter : tx_filter, offset : offset, ct : clientTime, n : n};
 
         $.ajax({
             type: "POST",
@@ -22,7 +26,7 @@ var BlockchainAPI = new function() {
 
                 try {
                     //Cache results to show next login
-                    if (tx_page == 0 && tx_filter == 0) {
+                    if (offset == 0 && tx_filter == 0) {
                         MyStore.put('multiaddr', JSON.stringify(obj));
                     }
 
