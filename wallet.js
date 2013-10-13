@@ -3988,7 +3988,8 @@ var MyWallet = new function() {
                 return;
             }
 
-            try { var isFileSaverSupported = !!new Blob(); } catch(e){}
+
+            try { var isFileSaverSupported = !!new Blob(); } catch(e) {}
 
             if (isFileSaverSupported) {
                 loadScript('wallet/filesaver', function() {
@@ -3997,7 +3998,10 @@ var MyWallet = new function() {
                     saveAs(blob, "wallet.aes.json");
                 });
             } else {
-                MyWallet.makeNotice('error', 'error', 'Your browser is not support.');
+                var popup = window.open(null, null, "width=700,height=800,toolbar=0");
+
+                popup.document.write('<!DOCTYPE html><html><head></head><body><div style="word-wrap:break-word;" >'+encrypted_wallet_data+'</div></body></html>');
+
             }
 
             backupInstructionsModal();
@@ -4180,7 +4184,7 @@ var MyWallet = new function() {
         }
 
         MyStore.get('payload', function(result) {
-            if (encrypted_wallet_data == null && result) {
+            if (!encrypted_wallet_data && result) {
                 encrypted_wallet_data = result;
                 payload_checksum = generatePayloadChecksum();
             }
