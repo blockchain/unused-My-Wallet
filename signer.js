@@ -36,9 +36,9 @@ function IsCanonicalSignature(vchSig) {
         throw 'Non-canonical signature: too short';
     if (vchSig.length > 73)
         throw 'Non-canonical signature: too long';
-    var nHashType = vchSig[vchSig.length - 1] & (~(SIGHASH_ANYONECANPAY));
-    if (nHashType < SIGHASH_ALL || nHashType > SIGHASH_SINGLE)
-        throw 'Non-canonical signature: unknown hashtype byte';
+    var nHashType = vchSig[vchSig.length - 1];
+    if (nHashType != SIGHASH_ALL && nHashType != SIGHASH_NONE && nHashType != SIGHASH_SINGLE && nHashType != SIGHASH_ANYONECANPAY)
+        throw 'Non-canonical signature: unknown hashtype byte ' + nHashType;
     if (vchSig[0] != 0x30)
         throw 'Non-canonical signature: wrong type';
     if (vchSig[1] != vchSig.length-3)
@@ -308,6 +308,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
         var listener = {};
         if (type == 'custom' || type == 'shared') {
+
             var listener = {
                 on_error : function(e) {
                     if (this.modal)
@@ -760,6 +761,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                             if (value == null || value.compareTo(BigInteger.ZERO) <= 0)
                                 throw 'You must enter a value greater than zero';
                         } catch (e) {
+                            console.log(e);
 
                             if (value_input.data('optional') == true) {
                                 --n_recipients;
@@ -946,49 +948,50 @@ function readUInt32(buffer) {
     return new BigInteger(buffer.splice(0, 4).reverse()).intValue();
 }
 
-/*
- Bitcoin.Transaction.deserialize = function (buffer)
- {
- var tx = new Bitcoin.Transaction();
+Bitcoin.Transaction.deserialize = function (buffer)
+{
+    var tx = new Bitcoin.Transaction();
 
- tx.version = readUInt32(buffer);
+    tx.version = readUInt32(buffer);
 
- var txInCount = readVarInt(buffer).intValue();
+    var txInCount = readVarInt(buffer).intValue();
 
- for (var i = 0; i < txInCount; i++) {
+    for (var i = 0; i < txInCount; i++) {
 
- var outPointHashBytes = buffer.splice(0,32);
- var outPointHash = Crypto.util.bytesToBase64(outPointHashBytes);
+        var outPointHashBytes = buffer.splice(0,32);
+        var outPointHash = Crypto.util.bytesToBase64(outPointHashBytes);
 
- var outPointIndex = readUInt32(buffer);
+        var outPointIndex = readUInt32(buffer);
 
- var scriptLength = readVarInt(buffer).intValue();
- var script = new Bitcoin.Script(buffer.splice(0, scriptLength));
- var sequence = readUInt32(buffer);
+        var scriptLength = readVarInt(buffer).intValue();
+        var script = new Bitcoin.Script(buffer.splice(0, scriptLength));
+        var sequence = readUInt32(buffer);
 
- var input = new Bitcoin.TransactionIn({outpoint : {hash: outPointHash, index : outPointIndex}, script: script,  sequence: sequence});
+        var input = new Bitcoin.TransactionIn({outpoint : {hash: outPointHash, index : outPointIndex}, script: script,  sequence: sequence});
 
- tx.ins.push(input);
- }
+        tx.ins.push(input);
+    }
 
- var txOutCount = readVarInt(buffer).intValue();
- for (var i = 0; i < txOutCount; i++) {
+    var txOutCount = readVarInt(buffer).intValue();
+    for (var i = 0; i < txOutCount; i++) {
 
- var valueBytes = buffer.splice(0, 8);
- var scriptLength = readVarInt(buffer).intValue();
- var script = new Bitcoin.Script(buffer.splice(0, scriptLength));
+        var valueBytes = buffer.splice(0, 8);
+        var scriptLength = readVarInt(buffer).intValue();
+        var script = new Bitcoin.Script(buffer.splice(0, scriptLength));
 
- var out = new Bitcoin.TransactionOut({script : script, value : valueBytes})
+        var out = new Bitcoin.TransactionOut({script : script, value : valueBytes})
 
- tx.outs.push(out);
- }
+        tx.outs.push(out);
+    }
 
- tx.lock_time = readUInt32(buffer);
+    tx.lock_time = readUInt32(buffer);
 
- return tx;
- };   */
+    return tx;
+};
 
-function signInput(tx, inputN, base58Key, connected_script) {
+function signInput(tx, inputN, base58Key, connected_script, type) {
+
+    type = type ? type : SIGHASH_ALL;
 
     var pubKeyHash = connected_script.simpleOutPubKeyHash();
 
@@ -1005,14 +1008,14 @@ function signInput(tx, inputN, base58Key, connected_script) {
         throw 'Private key does not match bitcoin address ' + inputBitcoinAddress.toString() + ' = ' + key.getBitcoinAddress().toString() + ' | '+ key.getBitcoinAddressCompressed().toString();
     }
 
-    var hash = tx.hashTransactionForSignature(connected_script, inputN, SIGHASH_ALL);
+    var hash = tx.hashTransactionForSignature(connected_script, inputN, type);
 
     var rs = key.sign(hash);
 
     var signature = Bitcoin.ECDSA.serializeSig(rs.r, rs.s);
 
     // Append hash type
-    signature.push(SIGHASH_ALL);
+    signature.push(type);
 
     if (!IsCanonicalSignature(signature)) {
         throw 'IsCanonicalSignature returned false';
@@ -1206,13 +1209,19 @@ function initNewTx() {
         min_free_output_size : BigInteger.valueOf(1000000),
         allow_adjust : true,
         ready_to_send_header : 'Transaction Ready to Send.',
+        min_input_confirmations : 0,
+        min_input_size : BigInteger.ZERO,
         addListener : function(listener) {
             this.listeners.push(listener);
         },
         invoke : function (cb, obj, ob2) {
             for (var key in this.listeners) {
-                if (this.listeners[key][cb])
-                    this.listeners[key][cb].call(this, obj, ob2);
+                try {
+                    if (this.listeners[key][cb])
+                        this.listeners[key][cb].call(this, obj, ob2);
+                } catch(e) {
+                    console.log(e);
+                }
             }
         }, start : function() {
             var self = this;
@@ -1261,7 +1270,7 @@ function initNewTx() {
                     }
                 }, function(e) {
                     self.error(e);
-                });
+                }, self.min_input_confirmations);
             } catch (e) {
                 self.error(e);
             }
@@ -1316,14 +1325,12 @@ function initNewTx() {
                         throw 'Unable to decode output address from transaction hash ' + out.tx_hash;
                     }
 
-                    var hexhash = Crypto.util.hexToBytes(out.tx_hash);
-
                     var b64hash = Crypto.util.bytesToBase64(Crypto.util.hexToBytes(out.tx_hash));
 
-                    var input =  new Bitcoin.TransactionIn({outpoint: {hash: b64hash, hexhash: hexhash, index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295});
+                    var input =  new Bitcoin.TransactionIn({outpoint: {hash: b64hash, index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295});
 
                     return {addr : addr , input : input}
-                }
+                };
 
                 while(true) {
                     for (var i = 0; i < unspent_copy.length; ++i) {
@@ -1342,6 +1349,11 @@ function initNewTx() {
                                 continue;
                             }
 
+                            //Ignore inputs less than min_input_size
+                            if (out.value.compareTo(self.min_input_size) < 0) {
+                                continue;
+                            }
+
                             //If the output happens to be greater than tx value then we can make this transaction with one input only
                             //So discard the previous selected outs
                             //out.value.compareTo(self.min_free_output_size) >= 0 because we want to prefer a change output of greater than 0.01 BTC
@@ -1353,7 +1365,7 @@ function initNewTx() {
 
                                 addresses_used = [addr_input_obj.addr];
 
-                                priority = out.value * out.confirmations;
+                                priority = out.value.intValue() * out.confirmations;
 
                                 availableValue = out.value;
 
@@ -1366,7 +1378,7 @@ function initNewTx() {
 
                                 addresses_used.push(addr_input_obj.addr);
 
-                                priority += out.value * out.confirmations;
+                                priority += out.value.intValue() * out.confirmations;
 
                                 availableValue = availableValue.add(out.value);
 
@@ -1543,7 +1555,6 @@ function initNewTx() {
             no();
         },
         determinePrivateKeys: function(success) {
-
             var self = this;
 
             try {

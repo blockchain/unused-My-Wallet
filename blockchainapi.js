@@ -275,7 +275,7 @@ var BlockchainAPI = new function() {
         }
     }
 
-    this.get_unspent = function(fromAddresses, success, error) {
+    this.get_unspent = function(fromAddresses, success, error, confirmations) {
         //Get unspent outputs
         MyWallet.setLoadingText('Getting Unspent Outputs');
 
@@ -283,7 +283,7 @@ var BlockchainAPI = new function() {
             type: "POST",
             dataType: 'json',
             url: root +'unspent',
-            data: {active : fromAddresses.join('|'), format : 'json'},
+            data: {active : fromAddresses.join('|'), format : 'json', confirmations : confirmations ? confirmations : 0},
             success: function(obj) {
                 try {
                     if (obj.error != null) {

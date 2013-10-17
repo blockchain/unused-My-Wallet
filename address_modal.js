@@ -148,8 +148,8 @@ function showLabelAddressModal(addr) {
         var label = stripHTML(label_input.val());
 
         if (label.length == 0) {
-            MyWallet.makeNotice('error', 'misc-error', 'You must enter a label for the address');
-            return false;
+            MyWallet.setLabel(addr, null);
+            return true;
         }
 
         if (label.indexOf("\"") != -1) {

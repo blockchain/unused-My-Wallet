@@ -10,9 +10,14 @@ function precisionToBTC(x) {
     return Bitcoin.Util.formatValue(precisionToSatoshiBN(x));
 }
 
+//Satoshi BN to precision decimal
+function precisionFromSatoshi(x) {
+    return Bitcoin.Util.formatValue(x.multiply(BigInteger.valueOf(Math.pow(10, sShift(symbol_btc)))));
+}
+
 //BTC decimal to user precision (e.g. BdeleteAddressTC or mBTC)
 function precisionFromBTC(x) {
-    return Bitcoin.Util.formatValue(Bitcoin.Util.parseValue(x).multiply(BigInteger.valueOf(Math.pow(10, sShift(symbol_btc)))));
+    return precisionFromSatoshi(Bitcoin.Util.parseValue(x));
 }
 
 //user precision to display string
@@ -65,7 +70,8 @@ var MyWallet = new function() {
     var supported_encryption_version = 2.0;  //The maxmimum supported encryption version
     var encryption_version_used = 0.0; //The encryption version of the current wallet. Set by decryptWallet()
     var serverTimeOffset = 0; //Difference between server and client time
-    var haveSetServerTime = false;
+    var haveSetServerTime = false; //Whether or not we have synced with server time
+    var sharedcoin_endpoint; //The URL to the sharedcoin node
 
     var wallet_options = {
         pbkdf2_iterations : default_pbkdf2_iterations, //Number of pbkdf2 iterations to default to for second password and dpasswordhash
@@ -130,6 +136,10 @@ var MyWallet = new function() {
 
     this.getDefaultPbkdf2Iterations = function() {
         return default_pbkdf2_iterations;
+    }
+
+    this.getSharedcoinEndpoint = function() {
+        return sharedcoin_endpoint;
     }
 
     this.setLogoutTime = function(logout_time) {
@@ -866,7 +876,7 @@ var MyWallet = new function() {
                 tel.fadeOut(250, function() {
                     $(this).remove();
                 });
-            }, timeout ? timeout : 500);
+            }, timeout ? timeout : 5000);
         })();
     }
 
@@ -1155,6 +1165,26 @@ var MyWallet = new function() {
 
             el.find('.remove-recipient').show(200);
         });
+
+        el.find('select[name="from"]').unbind().change(function() {
+            var total_selected = 0;
+
+            var values = $(this).val();
+            for (var i in values) {
+                if (values[i] == 'any') {
+                    $(this).val('any');
+
+                    total_selected = final_balance;
+                    break;
+                } else {
+                    var addr = addresses[values[i]];
+                    if (addr && addr.balance)
+                        total_selected += addr.balance;
+                }
+            }
+
+            el.find('.amount-available').text(formatBTC(total_selected));
+        }).trigger('change');
     }
 
     this.getAllAddresses = function() {
@@ -1719,6 +1749,8 @@ var MyWallet = new function() {
         if (obj.disable_mixer) {
             $('#shared-addresses,#send-shared').hide();
         }
+
+        sharedcoin_endpoint = obj.sharedcoin_endpoint;
 
         transactions.length = 0;
 
@@ -3637,10 +3669,6 @@ var MyWallet = new function() {
             SetCookie('shared-never-ask', $(this).is(':checked'));
         });
 
-        $('.bitstamp-btn').click(function() {
-            MyWallet.openWindow(root + 'r?url=https://www.bitstamp.net/?blockchaininfo=1');
-        });
-
         $('.deposit-btn').click(function() {
             var self = $(this);
             var address = MyWallet.getPreferredAddress();
@@ -3860,26 +3888,6 @@ var MyWallet = new function() {
                 });
             });
 
-            self.find('select[name="from"]').unbind().change(function() {
-                var total_selected = 0;
-
-                var values = $(this).val();
-                for (var i in values) {
-                    if (values[i] == 'any') {
-                        $(this).val('any');
-
-                        total_selected = final_balance;
-                        break;
-                    } else {
-                        var addr = addresses[values[i]];
-                        if (addr && addr.balance)
-                            total_selected += addr.balance;
-                    }
-                }
-
-                self.find('.amount-available').text(formatBTC(total_selected));
-            }).trigger('change');
-
             self.find('.reset').unbind().click(function() {
                 buildSendForm(self, true);
 
@@ -3887,7 +3895,7 @@ var MyWallet = new function() {
             });
         });
 
-        $('#send-satoshi-dice,#send-btcdice-dice').on('show', function(e, reset) {
+        $('#send-satoshi-dice').on('show', function(e, reset) {
             var self = this;
 
             loadScript('wallet/dicegames', function() {
@@ -3901,6 +3909,24 @@ var MyWallet = new function() {
             });
         });
 
+        $('#shared-coin').on('show', function(e, reset) {
+            var self = $(this);
+
+            loadScript('wallet/sharedcoin', function() {
+                try {
+                    buildSendForm(self);
+
+                    SharedCoin.init(self);
+                } catch (e) {
+                    console.log(e);
+
+                    MyWallet.makeNotice('error', 'misc-error', e);
+                }
+            }, function (e) {
+                MyWallet.makeNotice('error', 'misc-error', e);
+            });
+        });
+
         $('#send-sms').on('show', function(e, reset) {
             if (reset)
                 return;
@@ -3908,7 +3934,6 @@ var MyWallet = new function() {
             var self = $(this);
 
             buildSendForm(self);
-
 
             $.ajax({
                 type: "GET",
