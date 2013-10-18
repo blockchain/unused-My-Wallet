@@ -14,6 +14,49 @@ var SharedCoin = new function() {
      }
      */
 
+
+    this.newProposal = function() {
+        return {
+            _pollForCompleted : function(success, error) {
+                var self = this;
+
+                console.log('Offer._pollForCompleted()');
+
+                MyWallet.setLoadingText('Waiting For Others Participants To Sign');
+
+                $.ajax({
+                    dataType: 'json',
+                    type: "POST",
+                    url: URL,
+                    data : {method : 'poll_for_proposal_completed', format : 'json', proposal_id : self.proposal_id},
+                    success: function (obj) {
+                        success(obj);
+                    },
+                    error : function(e) {
+                        error(e.responseText);
+                    }
+                });
+            },
+            pollForCompleted : function(success, error) {
+                var self = this;
+
+                var handleObj = function(obj) {
+                    if (obj.status == 'waiting') {
+                        self._pollForCompleted(handleObj, error)
+                    } else if (obj.status == 'not_found') {
+                        error('Proposal ID Not Found');
+                    } else if (obj.status == 'complete'){
+                        success(self)
+                    } else {
+                        error('Unknown status ' + obj.status)
+                    }
+                }
+
+                self._pollForCompleted(handleObj, error)
+            }
+        }
+    };
+
     this.newOffer = function() {
         return {
             offered_outpoints : [], //The outpoints we want to offer
@@ -73,6 +116,8 @@ var SharedCoin = new function() {
                         error('Offer ID Not Found');
                     } else if (obj.status == 'active_proposal'){
                         success(obj.proposal_id)
+                    }  else {
+                        error('Unknown status ' + obj.status)
                     }
                 }
 
@@ -91,10 +136,15 @@ var SharedCoin = new function() {
                     url: URL,
                     data : {method : 'get_proposal_id', format : 'json', offer_id : self.offer_id, proposal_id : proposal_id},
                     success: function (obj) {
-                        if (obj.status == 'not_found') {
+
+                        var proposal = SharedCoin.newProposal();
+
+                        var clone = jQuery.extend(proposal, obj);
+
+                        if (clone.status == 'not_found') {
                             error('Proposal or Offer ID Not Found');
                         } else {
-                            success(obj);
+                            success(clone);
                         }
                     },
                     error : function(e) {
@@ -361,6 +411,8 @@ var SharedCoin = new function() {
                             offer.getProposal(proposal_id, function(proposal) {
                                 console.log('Got Proposal');
 
+                                console.log(proposal);
+
                                 offer.checkProposal(proposal, function(tx) {
                                     console.log('Proposal Looks Good');
 
@@ -370,6 +422,13 @@ var SharedCoin = new function() {
                                         offer.submitInputScripts(proposal, signatures, function (obj) {
                                             console.log('Submitted Input Scripts');
 
+                                            proposal.pollForCompleted(function() {
+                                                console.log('Poll For Completed Success');
+
+                                                success();
+                                            }, function(e) {
+                                                error(e);
+                                            });
                                         }, function(e) {
                                             error(e);
                                         });
@@ -465,7 +524,6 @@ var SharedCoin = new function() {
             }
 
             var recipients = el.find(".recipient");
-            //Constuct the recepient address array
             recipients.each(function() {
                 try {
                     var child = $(this);
