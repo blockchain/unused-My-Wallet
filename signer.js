@@ -237,7 +237,19 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
     }
 
     try {
-        $('.send-value,.send-value-usd,.send').prop('disabled', true);
+        el.find('input,select,button').prop('disabled', true);
+
+        pending_transaction.addListener({
+            on_success : function(e) {
+                el.find('input,select,button').prop('disabled', false);
+            },
+            on_start : function(e) {
+                el.find('input,select,button').prop('disabled', true);
+            },
+            on_error : function(e) {
+                el.find('input,select,button').prop('disabled', false);
+            }
+        });
 
         var total_value = 0;
         el.find('input[name="send-value"]').each(function() {
@@ -306,7 +318,6 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
             }
         }
 
-        var listener = {};
         if (type == 'custom' || type == 'shared') {
 
             var listener = {
@@ -1806,21 +1817,13 @@ function initNewTx() {
         }
     };
 
-    var base_listener = {
+    pending_transaction.addListener({
         on_error : function(e) {
             console.log(e);
 
             if(e) {
                 MyWallet.makeNotice('error', 'tx-error', e);
             }
-
-            $('.send-value,.send-value-usd,.send').removeAttr('disabled');
-        },
-        on_success : function(e) {
-            $('.send-value,.send-value-usd,.send').removeAttr('disabled');
-        },
-        on_start : function(e) {
-            $('.send-value,.send-value-usd,.send').prop('disabled', true);
         },
         on_begin_signing : function() {
             this.start = new Date().getTime();
@@ -1828,9 +1831,7 @@ function initNewTx() {
         on_finish_signing : function() {
             console.log('Took ' + (new Date().getTime() - this.start) + 'ms');
         }
-    };
-
-    pending_transaction.addListener(base_listener);
+    });
 
     return pending_transaction;
 }

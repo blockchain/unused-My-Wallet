@@ -579,13 +579,11 @@ var SharedCoin = new function() {
                     } catch (e) {
                         error(e);
                     }
-
-                    newTx.cancel();
                 };
 
                 newTx.addListener({
                     on_error : function(e) {
-                        error(e);
+                        error();
                     }
                 });
 
@@ -634,16 +632,25 @@ var SharedCoin = new function() {
                     send_button.unbind().click(function() {
                         MyWallet.getSecondPassword(function() {
                             loadScript('wallet/signer', function() {
+                                el.find('input,select,button').prop('disabled', true);
+
                                 SharedCoin.constructPlan(el, function(plan) {
                                     console.log('Created Plan');
 
                                     //TODO display modal here asking to confirm plan
                                     plan.execute(function() {
+                                        el.find('input,select,button').prop('disabled', false);
+
+                                        MyWallet.makeNotice('success', 'misc-success', 'Sharedcoin Transaction Successfully Completed');
 
                                     }, function(e) {
+                                        el.find('input,select,button').prop('disabled', false);
+
                                         MyWallet.makeNotice('error', 'misc-error', e);
                                     })
                                 }, function(e) {
+                                    el.find('input,select,button').prop('disabled', false);
+
                                     MyWallet.makeNotice('error', 'misc-error', e);
                                 });
                             }, function(e) {
