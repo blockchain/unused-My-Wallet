@@ -387,7 +387,6 @@ var SharedCoin = new function() {
         return {
             offers : [], //Array of Offers for each stage
             n_stages : 0, //Total number of stages
-            c_stage : 0,  //Current stage
             executeOffer : function(offer, success, error) {
                 offer.submit(function() {
                     console.log('Successfully Submitted Offer');
@@ -400,8 +399,6 @@ var SharedCoin = new function() {
 
                             offer.getProposal(proposal_id, function(proposal) {
                                 console.log('Got Proposal');
-
-                                console.log(proposal);
 
                                 offer.checkProposal(proposal, function(tx) {
                                     console.log('Proposal Looks Good');
@@ -444,15 +441,23 @@ var SharedCoin = new function() {
             execute : function(success, error) {
                 var self = this;
 
-                var offerForThisStage = self.offers[self.c_stage];
+                var execStage = function(ii) {
+                    var offerForThisStage = self.offers[ii];
+                    console.log('Executing Stage ' + ii);
 
-                if (offerForThisStage.offer_id == 0) {
                     self.executeOffer(offerForThisStage, function() {
-                        success();
+                        ii++;
+                        if (ii < self.n_stages) {
+                            execStage(ii);
+                        } else if (ii == self.n_stages) {
+                            success();
+                        }
                     }, function(e) {
                         error(e);
                     });
-                }
+                };
+
+                execStage(0);
             }
         };
     };
@@ -473,6 +478,10 @@ var SharedCoin = new function() {
 
     this.getMinimumOutputValue = function() {
         return options.minimum_output_value;
+    }
+
+    this.getMinimumInputValue = function() {
+        return options.minimum_input_value;
     }
 
     this.getMinimumSupportedVersion = function() {
@@ -580,7 +589,8 @@ var SharedCoin = new function() {
                 newTx.allow_adjust = false;
                 newTx.change_address = change_address;
                 newTx.base_fee = BigInteger.ZERO;
-                newTx.min_free_output_size = SharedCoin.getMinimumOutputValue();
+                newTx.min_input_size = BigInteger.valueOf(SharedCoin.getMinimumInputValue());
+                newTx.min_free_output_size = BigInteger.valueOf(SharedCoin.getMinimumOutputValue());
                 newTx.fee = BigInteger.ZERO
                 newTx.ask_for_fee = function(yes, no) {
                     no();
@@ -672,13 +682,27 @@ var SharedCoin = new function() {
 
     this.init = function(el) {
         var send_button = el.find('.send');
+        var send_options = el.find('.send-options');
         var repetitionsSelect = el.find('select[name="repetitions"]');
 
         send_button.unbind().prop('disabled', true);
 
-        el.find('input[name="send-value"]').unbind().bind('keyup change', function() {
+        el.find('input[name="send-value"]').bind('keyup change', function() {
             enableSendButton();
         });
+
+        send_options.hide();
+
+        function setSendOptions() {
+            var spans = send_options.find('span');
+
+            spans.eq(0).text(formatBTC(SharedCoin.getMaximumOutputValue()));
+            spans.eq(1).text(formatBTC(SharedCoin.getMinimumOutputValue()));
+            spans.eq(2).text(SharedCoin.getFee());
+            spans.eq(3).text(formatBTC(SharedCoin.getMinimumFee()));
+
+            send_options.show();
+        }
 
         function enableSendButton() {
             var repetitions = parseInt(repetitionsSelect.val());
@@ -749,10 +773,12 @@ var SharedCoin = new function() {
                         throw 'Version out of date. Please update your client or reload the page.';
                     }
 
+                    setSendOptions();
+
                     repetitionsSelect.empty();
 
                     for (var ii = obj.recommended_min_iterations; ii <= obj.recommended_max_iterations; ii+=1) {
-                        repetitionsSelect.append('<option value="'+(ii)+'">'+(ii)+' Repetitions (Fee: '+((ii)*SharedCoin.getFee()).toFixed(2)+'%)</option>');
+                        repetitionsSelect.append('<option value="'+(ii)+'">'+(ii)+' Repetitions (Fee: '+((ii)*SharedCoin.getFee()).toFixed(3)+'%)</option>');
                     }
 
                     repetitionsSelect.val(obj.recommended_iterations);

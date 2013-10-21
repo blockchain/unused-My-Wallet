@@ -1287,7 +1287,6 @@ function initNewTx() {
                 //If we don't have enough funds ask for the watch only private key
                 var includeWatchOnly = false;
                 var unspent_copy = self.unspent.slice(0);
-
                 function parseOut(out) {
                     var addr = new Bitcoin.Address(out.script.simpleOutPubKeyHash()).toString();
 
