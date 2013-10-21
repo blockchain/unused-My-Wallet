@@ -1093,7 +1093,7 @@ var MyWallet = new function() {
 
         function totalValueBN() {
             var total_value = BigInteger.ZERO;
-            el.find('input[name="send-value"]').each(function(){
+            el.find('.send-value').each(function(){
                 total_value = total_value.add(precisionToSatoshiBN($(this).val()));
             });
             return total_value;
@@ -1122,7 +1122,7 @@ var MyWallet = new function() {
                     });
                 });
 
-            recipient.find('input[name="send-value"],input[name="fees"]').unbind().bind('keyup change', function(e) {
+            recipient.find('.send-value').unbind().bind('keyup change', function(e) {
                 if (e.keyCode == '9') {
                     return;
                 }
@@ -1137,7 +1137,7 @@ var MyWallet = new function() {
                     return;
                 }
 
-                recipient.find('input[name="send-value"]').val(formatSatoshi(parseFloat($(this).val()) * symbol_local.conversion, sShift(symbol_btc), true));
+                recipient.find('.send-value').val(formatSatoshi(parseFloat($(this).val()) * symbol_local.conversion, sShift(symbol_btc), true));
             });
         }
 
@@ -1811,7 +1811,7 @@ var MyWallet = new function() {
                 var value = parseFloat(uri.getQueryParamValue('amount'));
 
                 if (value > 0 && !isNaN(value)) {
-                    recipient.find('input[name="send-value"]').val(value);
+                    recipient.find('.send-value').val(value);
                 }
 
             } catch (e) {
@@ -3873,7 +3873,7 @@ var MyWallet = new function() {
                     self.find('.send').prop('disabled', false);
                 }
 
-                self.find('input[name="send-value"]').val(real_tx_value).trigger('keyup');
+                self.find('.send-value').val(real_tx_value).trigger('keyup');
             })
         });
 
@@ -3886,6 +3886,14 @@ var MyWallet = new function() {
                 loadScript('wallet/signer', function() {
                     startTxUI(self, 'custom', initNewTx());
                 });
+            });
+
+            self.find('input[name="fees"]').unbind().bind('keyup change', function(e) {
+                if (e.keyCode == '9') {
+                    return;
+                }
+
+                $(this).parent().find('.send-value-usd').val(convert($(this).val() *  symbol_btc.conversion, symbol_local.conversion)).text(formatSymbol($(this).val() *  symbol_btc.conversion, symbol_local));
             });
 
             self.find('.reset').unbind().click(function() {
