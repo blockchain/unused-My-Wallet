@@ -241,13 +241,13 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
         pending_transaction.addListener({
             on_success : function(e) {
-                el.find('input,select,button').prop('disabled', false);
+                el.find('input,select,button').removeProp('disabled');
             },
             on_start : function(e) {
                 el.find('input,select,button').prop('disabled', true);
             },
             on_error : function(e) {
-                el.find('input,select,button').prop('disabled', false);
+                el.find('input,select,button').removeProp('disabled');
             }
         });
 
@@ -1412,7 +1412,6 @@ function initNewTx() {
                     sendTx.addInput(self.selected_outputs[i]);
                 }
 
-                var askforfee = false;
                 for (var i =0; i < self.to_addresses.length; ++i) {
                     var addrObj = self.to_addresses[i];
                     if (addrObj.m != null) {
@@ -1495,7 +1494,7 @@ function initNewTx() {
                     self.fee = self.base_fee.multiply(BigInteger.valueOf(kilobytes)); //0.0005 BTC * kilobytes
 
                     self.makeTransaction();
-                } else if (fee_is_zero && (priority < 77600000 || isEscrow || askforfee)) { //Bit extra added to priority
+                } else if (fee_is_zero && (priority < 77600000 || isEscrow)) { //Bit extra added to priority
                     self.ask_for_fee(function() {
                         self.fee = self.base_fee.multiply(BigInteger.valueOf(kilobytes)); //0.0005 BTC * kilobytes
 

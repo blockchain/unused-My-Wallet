@@ -2,18 +2,8 @@ var SharedCoin = new function() {
     var SharedCoin = this;
 
     var options = {};
-    var version = 1;
-    var URL = MyWallet.getSharedcoinEndpoint();
-
-    /* POST method = submit_offer
-     {
-     "offer" : {
-     "inputs" : {hash, index}
-     "outputs" : {address, value}
-     }
-     }
-     */
-
+    var version = 2;
+    var URL = MyWallet.getSharedcoinEndpoint() + '?version=' + version;
 
     this.newProposal = function() {
         return {
@@ -501,6 +491,10 @@ var SharedCoin = new function() {
         return options.fee_percent;
     }
 
+    this.getMinimumFee = function() {
+        return options.minimum_fee ? options.minimum_fee : 0;
+    }
+
     this.constructPlan = function(el, success, error) {
         try {
             var repetitionsSelect = el.find('select[name="repetitions"]');
@@ -510,6 +504,7 @@ var SharedCoin = new function() {
             if (repetitions <= 0) {
                 throw 'invalid number of repetitions';
             }
+
             var newTx = initNewTx();
 
             //Get the from address, if any
@@ -585,8 +580,11 @@ var SharedCoin = new function() {
                 newTx.allow_adjust = false;
                 newTx.change_address = change_address;
                 newTx.base_fee = BigInteger.ZERO;
-                newTx.min_free_output_size = BigInteger.ZERO;
-                newTx.fee = BigInteger.ZERO;
+                newTx.min_free_output_size = SharedCoin.getMinimumOutputValue();
+                newTx.fee = BigInteger.ZERO
+                newTx.ask_for_fee = function(yes, no) {
+                    no();
+                };
 
                 var offer = SharedCoin.newOffer();
 
@@ -658,7 +656,15 @@ var SharedCoin = new function() {
         if (input_value.compareTo(BigInteger.ZERO) > 0) {
             var mod = Math.ceil(100 / SharedCoin.getFee());
 
-            return input_value.divide(BigInteger.valueOf(mod));
+            var fee = input_value.divide(BigInteger.valueOf(mod));
+
+            var minFee = BigInteger.valueOf(SharedCoin.getMinimumFee());
+
+            if (minFee.compareTo(fee) > 0) {
+                return minFee;
+            } else {
+                return fee;
+            }
         } else {
             return BigInteger.ZERO;
         }

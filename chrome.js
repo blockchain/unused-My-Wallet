@@ -52,6 +52,21 @@ MyWallet.setLanguage = function(language) {
     }
 }
 
+MyWallet.logout = function() {
+    $.ajax({
+        type: "GET",
+        url: root + 'wallet/logout',
+        data : {format : 'plain'},
+        success: function(data) {
+            chrome.app.window.current().close();
+        },
+        error : function() {
+            chrome.app.window.current().close();
+        }
+    });
+}
+
+
 MyStore = new function() {
     this.put = function(key, value) {
         var obj = {};

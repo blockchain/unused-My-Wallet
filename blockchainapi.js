@@ -10,7 +10,7 @@ var BlockchainAPI = new function() {
         if (!offset) offset = 0;
         if (!n) n = 0;
 
-        var data = {active : MyWallet.getActiveAddresses().join('|'), format : 'json', filter : tx_filter, offset : offset, ct : clientTime, n : n};
+        var data = {active : MyWallet.getActiveAddresses().join('|'), format : 'json', filter : tx_filter, offset : offset, no_compact : true, ct : clientTime, n : n};
 
         $.ajax({
             type: "POST",

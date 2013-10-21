@@ -1122,7 +1122,7 @@ var MyWallet = new function() {
                     });
                 });
 
-            recipient.find('input[name="send-value"]').unbind().bind('keyup change', function(e) {
+            recipient.find('input[name="send-value"],input[name="fees"]').unbind().bind('keyup change', function(e) {
                 if (e.keyCode == '9') {
                     return;
                 }
