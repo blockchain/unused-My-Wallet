@@ -72,6 +72,7 @@ var MyWallet = new function() {
     var serverTimeOffset = 0; //Difference between server and client time
     var haveSetServerTime = false; //Whether or not we have synced with server time
     var sharedcoin_endpoint; //The URL to the sharedcoin node
+    var disable_logout = false;
 
     var wallet_options = {
         pbkdf2_iterations : default_pbkdf2_iterations, //Number of pbkdf2 iterations to default to for second password and dpasswordhash
@@ -140,6 +141,10 @@ var MyWallet = new function() {
 
     this.getSharedcoinEndpoint = function() {
         return sharedcoin_endpoint;
+    }
+
+    this.disableLogout = function(value) {
+        disable_logout = value;
     }
 
     this.setLogoutTime = function(logout_time) {
@@ -3089,9 +3094,8 @@ var MyWallet = new function() {
     }
 
     this.logout = function() {
-        if (logout_timeout) {
-            clearTimeout(logout_timeout);
-        }
+        if (disable_logout)
+            return;
 
         if (guid == demo_guid) {
             window.location = root + 'wallet/logout';
