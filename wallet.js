@@ -518,7 +518,6 @@ var MyWallet = new function() {
         if (walletIsFull())
             return false;
 
-
         if (key == null) {
             throw 'Cannot add null key.';
         }
@@ -2931,7 +2930,7 @@ var MyWallet = new function() {
                 total_balance += balance;
             }
 
-            alert(formatBTC(balance) + ' found in compressed addresses');
+            alert(formatBTC(total_balance) + ' found in compressed addresses');
         });
     }
 
