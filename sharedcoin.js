@@ -631,10 +631,11 @@ var SharedCoin = new function() {
                             var rand = Math.random();
 
                             var minSplits = 1;
-                            if (rand >= 0.75)
+                            if (rand >= 0.75) {
                                 minSplits = 3;
-                            else if (rand >= 0.25)
+                            } else if (rand >= 0.25) {
                                 minSplits = 2;
+                            }
 
                             for (var sK in splitValues) {
                                 var variance = (splitValues[sK] / 100) * ((Math.random()*30)-15);
