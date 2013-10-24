@@ -667,7 +667,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
         pending_transaction.type = type;
 
-        //Default is 0.0005 Base Fee, No fee
+        //Default is 0.0001 Base Fee, No fee
         if (MyWallet.getFeePolicy() == 1) {
             pending_transaction.base_fee = BigInteger.valueOf(100000); //0.001 BTC
             pending_transaction.fee = BigInteger.valueOf(100000); //0.001 BTC
@@ -1175,7 +1175,7 @@ function initNewTx() {
         listeners : [],
         is_cancelled : false,
         ask_to_send_shared : false,
-        base_fee : BigInteger.valueOf(50000),
+        base_fee : BigInteger.valueOf(10000),
         min_free_output_size : BigInteger.valueOf(1000000),
         allow_adjust : true,
         ready_to_send_header : 'Transaction Ready to Send.',

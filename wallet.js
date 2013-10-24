@@ -81,7 +81,8 @@ var MyWallet = new function() {
         logout_time : 600000, //Default 10 minutes
         tx_display : 0, //Compact or detailed transactions
         always_keep_local_backup : false, //Whether to always keep a backup in localStorage regardless of two factor authentication
-        transactions_per_page : 30 //Number of transactions per page
+        transactions_per_page : 30, //Number of transactions per page
+        additional_seeds : []
     };
 
     this.setEncryptedWalletData = function(data) {
@@ -108,6 +109,14 @@ var MyWallet = new function() {
 
     this.setRealAuthType = function(val) {
         real_auth_type = val;
+    }
+
+    this.addAdditionalSeeds = function(val) {
+        wallet_options.additional_seeds.push(val);
+    }
+
+    this.getAdditionalSeeds = function(val) {
+        return wallet_options.additional_seeds;
     }
 
     this.getLanguage = function() {
@@ -837,8 +846,6 @@ var MyWallet = new function() {
     }
 
     this.showNotification = function(options, timeout) {
-        console.log('Here');
-
         try {
             var notification;
             if (window.webkitNotifications && webkitNotifications.checkPermission() == 0) {
@@ -1222,7 +1229,6 @@ var MyWallet = new function() {
 
         return preferred.addr;
     }
-
 
     function backupInstructionsModal() {
         var modal = $('#restore-backup-modal');
@@ -2925,12 +2931,24 @@ var MyWallet = new function() {
             for (var key in results) {
                 var balance = results[key].final_balance;
                 if (balance > 0) {
-                    alert(formatBTC(balance) + ' claimable in address ' + key + ' (Import PK : ' + MyWallet.base58ToSipa(key_map[key], key) + ')');
+                    var ecKey = new Bitcoin.ECKey(MyWallet.decodePK(key_map[key]));
+
+                    var address = ecKey.getBitcoinAddress().toString();
+
+                    if (MyWallet.addPrivateKey(ecKey, {compressed : address != key, app_name : IMPORTED_APP_NAME, app_version : IMPORTED_APP_VERSION})) {
+                        alert(formatBTC(balance) + ' claimable in address ' + key);
+                    }
                 }
                 total_balance += balance;
             }
 
             alert(formatBTC(total_balance) + ' found in compressed addresses');
+
+            if (total_balance > 0) {
+                MyWallet.backupWallet('update', function() {
+                    MyWallet.get_history();
+                });
+            }
         });
     }
 
@@ -3276,12 +3294,11 @@ var MyWallet = new function() {
         return labels;
     }
 
-    function sweepAddresses(addresses) {
+    this.sweepAddressesModal = function(addresses, extra_private_keys) {
         MyWallet.getSecondPassword(function() {
             var modal = $('#sweep-address-modal');
 
             modal.modal('show');
-
 
             BlockchainAPI.get_balance(addresses, function(data) {
                 modal.find('.balance').text('Amount: ' + formatBTC(data));
@@ -3298,9 +3315,15 @@ var MyWallet = new function() {
                     BlockchainAPI.get_balance(addresses, function(value) {
                         var obj = initNewTx();
 
+                        var changeVal = sweepSelect.val();
+                        if (changeVal == 'any') {
+                            changeVal = MyWallet.getPreferredAddress();
+                        }
+
                         obj.fee = obj.base_fee; //Always include a fee
-                        obj.to_addresses.push({address: new Bitcoin.Address($.trim(sweepSelect.val())), value : BigInteger.valueOf(value).subtract(obj.fee)});
+                        obj.to_addresses.push({address: new Bitcoin.Address(changeVal), value : BigInteger.valueOf(value).subtract(obj.fee)});
                         obj.from_addresses = addresses;
+                        obj.extra_private_keys = extra_private_keys;
 
                         obj.start();
 
@@ -3651,7 +3674,7 @@ var MyWallet = new function() {
             if (toSweep.length == 0)
                 return;
 
-            sweepAddresses(toSweep);
+            MyWallet.sweepAddressesModal(toSweep);
         });
 
         $('#archived-delete').click(function() {
@@ -4070,11 +4093,28 @@ var MyWallet = new function() {
             hidePopovers();
 
             $(this).center();
-        }).on('shown', function() {
+        }).on('hidden', function () {
+                var visible = $('.modal:visible');
+
+                var notices = $('#notices').remove();
+
+                if (visible.length > 0)
+                    visible.find('.modal-body').prepend(notices);
+                else
+                    $('#main-notices-container').append(notices);
+
+            }).on('shown', function() {
                 hidePopovers();
 
-                $(this).center();
-            })
+                var self = $(this);
+                setTimeout(function() {
+                    if (self.is(':visible')) {
+                        self.find('.modal-body').prepend($('#notices').remove());
+                    }
+                }, 100);
+
+                self.center();
+            });
     }
 
     function parseMiniKey(miniKey) {

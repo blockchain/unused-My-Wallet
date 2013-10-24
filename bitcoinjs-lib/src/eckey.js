@@ -72,8 +72,7 @@ Bitcoin.ECKey = (function () {
 
     ECKey.prototype.getBitcoinAddress = function () {
         var hash = this.getPubKeyHash();
-        var addr = new Bitcoin.Address(hash);
-        return addr;
+        return new Bitcoin.Address(hash);
     };
 
 
@@ -89,8 +88,7 @@ Bitcoin.ECKey = (function () {
 
     ECKey.prototype.getBitcoinAddressCompressed = function () {
         var hash = this.getPubKeyHashCompressed();
-        var addr = new Bitcoin.Address(hash);
-        return addr.toString();
+        return new Bitcoin.Address(hash);
     }
 
     ECKey.prototype.setPub = function (pub) {
