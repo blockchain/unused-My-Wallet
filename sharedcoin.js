@@ -7,6 +7,30 @@ var SharedCoin = new function() {
     var extra_private_keys = {};
     var seed_prefix = 'sharedcoin-seed:';
 
+    function divideUniformlyRandomly(sum, n)
+    {
+        var nums = [];
+        var upperbound = Math.round(sum * 1.0 / n);
+        var offset = Math.round(0.5 * upperbound);
+
+        var cursum = 0;
+        for (var i = 0; i < n; i++)
+        {
+            var rand = Math.floor((Math.random() * upperbound) + offset);
+            if (cursum + rand > sum || i == n - 1)
+            {
+                rand = sum - cursum;
+            }
+            cursum += rand;
+            nums[i] = rand;
+            if (cursum == sum)
+            {
+                break;
+            }
+        }
+        return nums;
+    }
+
     var progressModal = {
         show : function () {
             var self = this;
@@ -607,8 +631,6 @@ var SharedCoin = new function() {
 
                                     offer.request_outputs.push(changeoutput);
 
-                                    console.log('changeoutput.value ' + changeoutput.value)
-
                                     totalValueLeftToConsume = totalValueLeftToConsume.subtract(BigInteger.valueOf(changeoutput.value));
 
                                     break;
@@ -622,21 +644,19 @@ var SharedCoin = new function() {
 
                         totalValueLeftToConsume = totalValueLeftToConsume.subtract(fee_each_repetition[ii]);
 
-                        var splitValues = [10,5,1,0.5,0.1];
-                        var maxSplits = 15;
+                        var splitValues = [10,5,1,0.5,0.3,0.1];
+                        var maxSplits = 10;
+
+                        var rand = Math.random();
+                        var minSplits = 1;
+                        if (rand >= 0.66) {
+                            minSplits = 3;
+                        } else if (rand >= 0.33) {
+                            minSplits = 2;
+                        }
 
                         var outputsAdded = false;
                         while (true) {
-
-                            var rand = Math.random();
-
-                            var minSplits = 1;
-                            if (rand >= 0.75) {
-                                minSplits = 3;
-                            } else if (rand >= 0.25) {
-                                minSplits = 2;
-                            }
-
                             for (var sK in splitValues) {
                                 var variance = (splitValues[sK] / 100) * ((Math.random()*30)-15);
 
@@ -644,22 +664,33 @@ var SharedCoin = new function() {
 
                                 var valueAndRemainder = totalValueLeftToConsume.divideAndRemainder(splitValue);
 
-                                if (valueAndRemainder[0].intValue() >= minSplits && valueAndRemainder[0].intValue() <= maxSplits) {
+                                var quotient = valueAndRemainder[0].intValue();
+                                if (quotient >= minSplits && quotient <= maxSplits) {
                                     if (valueAndRemainder[1].compareTo(BigInteger.ZERO) == 0 || valueAndRemainder[1].compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) >= 0) {
-                                        for (var iii  = 0; iii < valueAndRemainder[0].intValue(); ++iii) {
-                                            var new_address = self.generateAddressFromSeed();
+                                        var remainderDivides = [];
+                                        if (valueAndRemainder[1].compareTo(BigInteger.ZERO) > 0) {
+                                            if (quotient <= 1) {
+                                                var new_address = self.generateAddressFromSeed();
 
-                                            offer.request_outputs.push({
-                                                value : splitValue.toString(),
-                                                script : Crypto.util.bytesToHex(Script.createOutputScript(new_address).buffer)
-                                            });
+                                                offer.request_outputs.push({
+                                                    value : valueAndRemainder[1].toString(),
+                                                    script : Crypto.util.bytesToHex(Script.createOutputScript(new_address).buffer)
+                                                });
+                                            } else {
+                                                remainderDivides = divideUniformlyRandomly(valueAndRemainder[1].intValue(), quotient);
+                                            }
                                         }
 
-                                        if (valueAndRemainder[1].compareTo(BigInteger.ZERO) > 0) {
+                                        for (var iii  = 0; iii < quotient; ++iii) {
                                             var new_address = self.generateAddressFromSeed();
 
+                                            var value = splitValue;
+                                            if (remainderDivides[iii] && remainderDivides[iii] > 0) {
+                                                value = value.add(BigInteger.valueOf(remainderDivides[iii]));
+                                            }
+
                                             offer.request_outputs.push({
-                                                value : valueAndRemainder[1].toString(),
+                                                value : value.toString(),
                                                 script : Crypto.util.bytesToHex(Script.createOutputScript(new_address).buffer)
                                             });
                                         }
