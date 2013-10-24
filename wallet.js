@@ -3909,9 +3909,25 @@ var MyWallet = new function() {
             buildSendForm(self, reset);
 
             self.find('.send').unbind().click(function() {
-                loadScript('wallet/signer', function() {
-                    startTxUI(self, 'custom', initNewTx());
-                });
+
+                var didError = false;
+                if (self.find('textarea[name="public-note"]').val()) {
+                    self.find('.send-value').each(function() {
+                        if ($(this).val() < 0.0001) {
+                            MyWallet.makeNotice('error', 'misc-error', 'You cannot attach a note to a transaction with an output size less than 0.0001 BTC');
+
+                            didError = true;
+
+                            return false;
+                        }
+                    });
+                }
+
+                if (!didError) {
+                    loadScript('wallet/signer', function() {
+                        startTxUI(self, 'custom', initNewTx());
+                    });
+                }
             });
 
             self.find('input[name="fees"]').unbind().bind('keyup change', function(e) {

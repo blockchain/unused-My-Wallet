@@ -607,6 +607,8 @@ var SharedCoin = new function() {
 
                                     offer.request_outputs.push(changeoutput);
 
+                                    console.log('changeoutput.value ' + changeoutput.value)
+
                                     totalValueLeftToConsume = totalValueLeftToConsume.subtract(BigInteger.valueOf(changeoutput.value));
 
                                     break;
@@ -620,9 +622,20 @@ var SharedCoin = new function() {
 
                         totalValueLeftToConsume = totalValueLeftToConsume.subtract(fee_each_repetition[ii]);
 
-                        var splitValues = [10,5,2,1,0.5,0.1];
+                        var splitValues = [10,5,1,0.5,0.1];
+                        var maxSplits = 15;
+
                         var outputsAdded = false;
                         while (true) {
+
+                            var rand = Math.random();
+
+                            var minSplits = 1;
+                            if (rand >= 0.75)
+                                minSplits = 3;
+                            else if (rand >= 0.25)
+                                minSplits = 2;
+
                             for (var sK in splitValues) {
                                 var variance = (splitValues[sK] / 100) * ((Math.random()*30)-15);
 
@@ -630,7 +643,7 @@ var SharedCoin = new function() {
 
                                 var valueAndRemainder = totalValueLeftToConsume.divideAndRemainder(splitValue);
 
-                                if (valueAndRemainder[0].intValue() >= 1) {
+                                if (valueAndRemainder[0].intValue() >= minSplits && valueAndRemainder[0].intValue() <= maxSplits) {
                                     if (valueAndRemainder[1].compareTo(BigInteger.ZERO) == 0 || valueAndRemainder[1].compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) >= 0) {
                                         for (var iii  = 0; iii < valueAndRemainder[0].intValue(); ++iii) {
                                             var new_address = self.generateAddressFromSeed();
@@ -787,7 +800,7 @@ var SharedCoin = new function() {
 
                 to_values_before_fees.push(to_address.value);
 
-                for (var ii = 0; ii < repetitions; ++ii) {
+                for (var ii = repetitions-1; ii >= 0; --ii) {
                     var feeThisOutput = SharedCoin.calculateFeeForValue(to_address.value);
 
                     to_address.value = to_address.value.add(feeThisOutput);
