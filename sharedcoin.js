@@ -80,7 +80,7 @@ var SharedCoin = new function() {
 
                 console.log('Offer._pollForCompleted()');
 
-                MyWallet.setLoadingText('Waiting For Others Participants To Sign');
+                MyWallet.setLoadingText('Waiting For Other Participants To Sign');
 
                 $.ajax({
                     dataType: 'json',
@@ -648,11 +648,9 @@ var SharedCoin = new function() {
                         var maxSplits = 10;
 
                         var rand = Math.random();
-                        var minSplits = 1;
-                        if (rand >= 0.66) {
+                        var minSplits = 2;
+                        if (rand >= 0.5) {
                             minSplits = 3;
-                        } else if (rand >= 0.33) {
-                            minSplits = 2;
                         }
 
                         var outputsAdded = false;
@@ -1099,7 +1097,7 @@ var SharedCoin = new function() {
                         repetitionsSelect.empty();
 
                         for (var ii = obj.recommended_min_iterations; ii <= obj.recommended_max_iterations; ii+=1) {
-                            repetitionsSelect.append('<option value="'+(ii)+'">'+(ii)+' Repetitions (Fee: '+((ii)*SharedCoin.getFee()).toFixed(3)+'%)</option>');
+                            repetitionsSelect.append('<option value="'+(ii)+'">'+(ii)+' Repetitions (Fee: '+((ii)*SharedCoin.getFee()).toFixed(2)+'%)</option>');
                         }
 
                         repetitionsSelect.val(obj.recommended_iterations);
