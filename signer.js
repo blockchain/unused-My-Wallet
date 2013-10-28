@@ -937,27 +937,6 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
     return pending_transaction;
 };
 
-function readVarInt(buff) {
-    var tbyte, tbytes;
-
-    tbyte = buff.splice(0, 1)[0];
-
-    if (tbyte < 0xfd) {
-        tbytes = [tbyte];
-    } else if (tbyte == 0xfd) {
-        tbytes = buff.splice(0, 2);
-    } else if (tbyte == 0xfe) {
-        tbytes = buff.splice(0, 4);
-    } else {
-        tbytes = buff.splice(0, 8);
-    }
-
-    return new BigInteger(tbytes);
-}
-
-function readUInt32(buffer) {
-    return new BigInteger(buffer.splice(0, 4).reverse()).intValue();
-}
 
 function signInput(tx, inputN, base58Key, connected_script, type) {
 

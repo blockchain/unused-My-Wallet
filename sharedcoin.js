@@ -293,11 +293,31 @@ var SharedCoin = new function() {
                         throw 'Proposal Transaction Is Null';
                     }
 
-                    var hexTx = Crypto.util.hexToBytes(proposal.tx);
-
-
                     Bitcoin.Transaction.deserialize = function (buffer)
                     {
+
+                        function readVarInt(buff) {
+                            var tbyte, tbytes;
+
+                            tbyte = buff.splice(0, 1)[0];
+
+                            if (tbyte < 0xfd) {
+                                tbytes = [tbyte];
+                            } else if (tbyte == 0xfd) {
+                                tbytes = buff.splice(0, 2);
+                            } else if (tbyte == 0xfe) {
+                                tbytes = buff.splice(0, 4);
+                            } else {
+                                tbytes = buff.splice(0, 8);
+                            }
+
+                            return BigInteger.fromByteArrayUnsigned(tbytes);
+                        }
+
+                        function readUInt32(buffer) {
+                            return new BigInteger(buffer.splice(0, 4).reverse()).intValue();
+                        }
+
                         var tx = new Bitcoin.Transaction();
 
                         tx.version = readUInt32(buffer);
@@ -320,6 +340,7 @@ var SharedCoin = new function() {
                             tx.ins.push(input);
                         }
 
+
                         var txOutCount = readVarInt(buffer).intValue();
                         for (var i = 0; i < txOutCount; i++) {
 
@@ -337,7 +358,9 @@ var SharedCoin = new function() {
                         return tx;
                     };
 
-                    var tx = Bitcoin.Transaction.deserialize(hexTx);
+                    var decodedTx = Crypto.util.hexToBytes(proposal.tx);
+
+                    var tx = Bitcoin.Transaction.deserialize(decodedTx);
 
                     if (tx == null) {
                         throw 'Error deserializing transaction';
@@ -347,10 +370,12 @@ var SharedCoin = new function() {
 
                     var output_matches = 0;
                     for (var i = 0; i < tx.outs.length; ++i) {
-                        if (self.isOutputOneWeRequested(tx.outs[i])) {
+                        var output = tx.outs[i];
 
-                            if (!self.isOutputChange(tx.outs[i])) {
-                                var array = tx.outs[i].value.slice(0);
+                        if (self.isOutputOneWeRequested(output)) {
+
+                            if (!self.isOutputChange(output)) {
+                                var array = output.value.slice(0);
 
                                 array.reverse();
 
