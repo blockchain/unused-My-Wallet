@@ -59,9 +59,9 @@ var MyWallet = new function() {
     var tx_notes = {}; //A map of transaction notes, hash -> note
     var auth_type; //The two factor authentication type used. 0 for none.
     var real_auth_type = 0; //The real two factor authentication. Even if there is a problem with the current one (for example error 2FA sending email).
-    var logout_timeout;
+    var logout_timeout; //setTimeout return value for the automatic logout
     var event_listeners = []; //Emits Did decrypt wallet event (used on claim page)
-    var last_input_main_password;
+    var last_input_main_password; //The time the last password was entered
     var main_password_timeout = 60000;
     var isInitialized = false;
     var extra_seed; //Help for browsers that don't support window.crypto

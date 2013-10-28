@@ -2,7 +2,7 @@ var SharedCoin = new function() {
     var SharedCoin = this;
 
     var options = {};
-    var version = 2;
+    var version = 3;
     var URL = MyWallet.getSharedcoinEndpoint() + '?version=' + version;
     var extra_private_keys = {};
     var seed_prefix = 'sharedcoin-seed:';
@@ -129,7 +129,7 @@ var SharedCoin = new function() {
                     dataType: 'json',
                     type: "POST",
                     url: URL,
-                    data : {method : 'submit_offer', format : 'json', offer : JSON.stringify(self)},
+                    data : {method : 'submit_offer', format : 'json', token : SharedCoin.getToken(), offer : JSON.stringify(self)},
                     success: function (obj) {
                         if (!obj.offer_id) {
                             error('Null offer_id returned');
@@ -732,6 +732,10 @@ var SharedCoin = new function() {
 
     this.getMinimumOutputValue = function() {
         return options.minimum_output_value;
+    }
+
+    this.getToken = function() {
+        return options.token;
     }
 
     this.getMinimumInputValue = function() {
