@@ -1390,6 +1390,8 @@ var MyWallet = new function() {
                 //Strip HTML and replace quotes
                 var note = stripHTML(tip.find('textarea').val()).replace(/'/g, '').replace(/"/g, '');
 
+                note = note.replace(/(\r\n|\n|\r)/gm,"");
+
                 if (note.length > 0) {
                     tx_notes[tx_hash] = note;
 
@@ -4033,6 +4035,10 @@ var MyWallet = new function() {
 
         $("#receive-coins-btn").click(function() {
             changeView($("#receive-coins"));
+        });
+
+        $("#cash-into-coins").click(function() {
+            $(this).attr('href', $(this).attr('href')+MyWallet.getPreferredAddress());
         });
 
         $('.show_adv').click(function() {
