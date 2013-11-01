@@ -1458,11 +1458,11 @@ function initNewTx() {
                 //18 bytes standard header
                 //standard scriptPubKey 24 bytes
                 //Stanard scriptSig 64 bytes
-                var estimatedSize = sendTx.serialize(sendTx).length + (114 * sendTx.ins.length);
+                var estimatedSize = sendTx.serialize(sendTx).length + (138 * sendTx.ins.length);
 
                 priority /= estimatedSize;
 
-                var kilobytes = Math.max(1, Math.ceil(parseFloat(estimatedSize / 1024)));
+                var kilobytes = Math.max(1, Math.ceil(parseFloat(estimatedSize / 1000)));
 
                 var fee_is_zero = (!self.fee || self.fee.compareTo(self.base_fee) < 0);
 
