@@ -73,6 +73,8 @@ var MyWallet = new function() {
     var haveSetServerTime = false; //Whether or not we have synced with server time
     var sharedcoin_endpoint; //The URL to the sharedcoin node
     var disable_logout = false;
+    var haveBoundReady = false;
+    var isRestoringWallet = false;
 
     var wallet_options = {
         pbkdf2_iterations : default_pbkdf2_iterations, //Number of pbkdf2 iterations to default to for second password and dpasswordhash
@@ -2199,74 +2201,83 @@ var MyWallet = new function() {
 
     function restoreWallet() {
 
-        if (isInitialized) {
+        if (isInitialized || isRestoringWallet) {
             return;
         }
 
-        var input_field = $("#restore-password");
+        try {
+            isRestoringWallet = true;
 
-        password = input_field.val();
+            var input_field = $("#restore-password");
 
-        //Clear the password field now we are done with it
-        input_field.val('');
+            password = input_field.val();
 
-        //Main Password times out after 10 minutes
-        last_input_main_password = new Date().getTime();
+            //Clear the password field now we are done with it
+            input_field.val('');
 
-        //If we don't have any wallet data then we must have two factor authentication enabled
-        if (encrypted_wallet_data == null || encrypted_wallet_data.length == 0) {
-            MyWallet.setLoadingText('Validating Authentication key');
+            //Main Password times out after 10 minutes
+            last_input_main_password = new Date().getTime();
 
-            var auth_key = $.trim($('.auth-'+auth_type).find('.code').val());
-
-            if (auth_key.length == 0 || auth_key.length > 255) {
-                MyWallet.makeNotice('error', 'misc-error', 'You must enter a Two Factor Authentication code');
-                return false;
+            function error(e) {
+                isRestoringWallet = false;
+                MyWallet.makeNotice('error', 'misc-error', e);
             }
 
-            $.ajax({
-                type: "POST",
-                url: root + "wallet",
-                data :  { guid: guid, payload: auth_key, length : auth_key.length,  method : 'get-wallet', format : 'plain' },
-                success: function(data) {
-                    try {
-                        if (data == null || data.length == 0) {
-                            MyWallet.makeNotice('error', 'misc-error', 'Server Return Empty Wallet Data');
-                            return;
-                        }
+            //If we don't have any wallet data then we must have two factor authentication enabled
+            if (encrypted_wallet_data == null || encrypted_wallet_data.length == 0) {
+                MyWallet.setLoadingText('Validating Authentication key');
 
-                        if (data != 'Not modified') {
-                            MyWallet.setEncryptedWalletData(data);
-                        }
+                var auth_key = $.trim($('.auth-'+auth_type).find('.code').val());
 
-                        //We can now hide the auth token input
-                        $('.auth-'+auth_type).hide();
-
-                        $('.auth-0').show();
-
-                        internalRestoreWallet(function() {
-                            bindReady();
-
-                            didDecryptWallet();
-                        }, function(e) {
-                            MyWallet.makeNotice('error', 'misc-error', e);
-                        });
-                    } catch (e) {
-                        MyWallet.makeNotice('error', 'misc-error', e);
-                    }
-                },
-                error : function(e) {
-                    MyWallet.makeNotice('error', 'misc-error', e.responseText);
+                if (auth_key.length == 0 || auth_key.length > 255) {
+                   throw 'You must enter a Two Factor Authentication code';
                 }
-            });
-        } else {
-            internalRestoreWallet(function() {
-                bindReady();
 
-                didDecryptWallet();
-            }, function(e) {
-                MyWallet.makeNotice('error', 'misc-error', e);
-            });
+                $.ajax({
+                    type: "POST",
+                    url: root + "wallet",
+                    data :  { guid: guid, payload: auth_key, length : auth_key.length,  method : 'get-wallet', format : 'plain' },
+                    success: function(data) {
+                        try {
+                            if (data == null || data.length == 0) {
+                                throw 'Server Return Empty Wallet Data';
+                            }
+
+                            if (data != 'Not modified') {
+                                MyWallet.setEncryptedWalletData(data);
+                            }
+
+                            //We can now hide the auth token input
+                            $('.auth-'+auth_type).hide();
+
+                            $('.auth-0').show();
+
+                            internalRestoreWallet(function() {
+                                isRestoringWallet = false;
+
+                                bindReady();
+
+                                didDecryptWallet();
+                            }, error);
+                        } catch (e) {
+                            error(e);
+                        }
+                    },
+                    error : function (response) {
+                        error(response.responseText);
+                    }
+                });
+            } else {
+                internalRestoreWallet(function() {
+                    isRestoringWallet = false;
+
+                    bindReady();
+
+                    didDecryptWallet();
+                }, error);
+            }
+        } catch (e) {
+            error(e);
         }
     }
 
@@ -3392,6 +3403,11 @@ var MyWallet = new function() {
     }
 
     function bindReady() {
+        if (haveBoundReady) {
+            return;
+        }
+
+        haveBoundReady = true;
 
         $('#add-address-book-entry-btn').click(function() {
             addAddressBookModal();
@@ -4277,8 +4293,9 @@ var MyWallet = new function() {
         function isInitialReady() {
             --pendingGets;
 
-            if (pendingGets == -1)
+            if (pendingGets == -1) {
                 bindInitial();
+            }
         }
 
         MyStore.get('payload', function(result) {

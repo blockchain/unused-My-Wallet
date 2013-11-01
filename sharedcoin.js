@@ -673,13 +673,18 @@ var SharedCoin = new function() {
                         var maxSplits = 10;
 
                         var rand = Math.random();
-                        var minSplits = 2;
-                        if (rand >= 0.5) {
-                            minSplits = 3;
+
+                        if (totalValueLeftToConsume.intValue() >= 0.2*satoshi) {
+                            var minSplits = 2;
+                            if (rand >= 0.5) {
+                                minSplits = 3;
+                            }
+                        } else {
+                            var minSplits = 1;
                         }
 
                         var outputsAdded = false;
-                        while (true) {
+                        for (var _i = 0; _i < 1000; ++_i) {
                             for (var sK in splitValues) {
                                 var variance = (splitValues[sK] / 100) * ((Math.random()*30)-15);
 
@@ -725,7 +730,19 @@ var SharedCoin = new function() {
                                 }
                             }
 
-                            if (outputsAdded) break;
+                            if (outputsAdded)
+                                break;
+                        }
+
+                        if (!outputsAdded) {
+                            console.log('Could not successfully split output');
+
+                            var new_address = self.generateAddressFromSeed();
+
+                            offer.request_outputs.push({
+                                value : totalValueLeftToConsume.toString(),
+                                script : Crypto.util.bytesToHex(Script.createOutputScript(new_address).buffer)
+                            });
                         }
 
                         self.offers.push(offer);

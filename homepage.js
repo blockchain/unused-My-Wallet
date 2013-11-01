@@ -33,7 +33,7 @@ webSocketConnect(function(ws) {
                 label = '<a href="'+root+'tx/'+tx.hash+'" class="tag-address" style="width:85px">'+tx.hash+'</a> <span class="tag">('+tx.tag;
 
                 if (tx.tag_link) {
-                    label += ' <a class="external" rel="nofollow" href="'+tx.tag_link+'" target="new"></a>';
+                    label += ' <a class="external" rel="nofollow" href="'+root+'r?url='+encodeURI(tx.tag_link)+'" target="new"></a>';
                 }
 
                 label +=')</span>';
