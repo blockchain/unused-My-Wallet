@@ -274,7 +274,7 @@ var MyWallet = new function() {
     this.setLabel = function(address, label) {
         addresses[address].label = label;
 
-        backupWalletDelayed();
+        MyWallet.backupWalletDelayed();
 
         buildVisibleView();
     }
@@ -491,7 +491,7 @@ var MyWallet = new function() {
 
             buildVisibleView();
 
-            backupWalletDelayed('update', function() {
+            MyWallet.backupWalletDelayed('update', function() {
                 MyWallet.get_history();
             });
         } else {
@@ -511,7 +511,7 @@ var MyWallet = new function() {
 
             buildVisibleView();
 
-            backupWalletDelayed('update', function() {
+            MyWallet.backupWalletDelayed('update', function() {
                 MyWallet.get_history();
             });
 
@@ -1035,7 +1035,7 @@ var MyWallet = new function() {
     this.deleteAddressBook = function(addr) {
         delete address_book[addr];
 
-        backupWalletDelayed();
+        MyWallet.backupWalletDelayed();
 
         $('#send-coins').find('.tab-pane').trigger('show', true);
     }
@@ -1340,7 +1340,7 @@ var MyWallet = new function() {
 
         buildVisibleView();
 
-        backupWalletDelayed();
+        MyWallet.backupWalletDelayed();
     }
 
     function addNotePopover(el, tx_hash) {
@@ -1397,7 +1397,7 @@ var MyWallet = new function() {
                 if (note.length > 0) {
                     tx_notes[tx_hash] = note;
 
-                    backupWalletDelayed();
+                    MyWallet.backupWalletDelayed();
                 }
 
                 buildVisibleView();
@@ -2339,7 +2339,7 @@ var MyWallet = new function() {
     }
 
     //Can call multiple times in a row and it will backup only once after a certain delay of activity
-    function backupWalletDelayed(method, success, error, extra) {
+    this.backupWalletDelayed = function(method, success, error, extra) {
         if (archTimer) {
             clearInterval(archTimer);
             archTimer = null;
@@ -3113,7 +3113,7 @@ var MyWallet = new function() {
 
             MyWallet.addAddressBookEntry(bitcoinAddress, label);
 
-            backupWalletDelayed();
+            MyWallet.backupWalletDelayed();
 
             $('#send-coins').find('.tab-pane').trigger('show', true);
         });
@@ -3824,7 +3824,7 @@ var MyWallet = new function() {
 
             buildVisibleView();
 
-            backupWalletDelayed();
+            MyWallet.backupWalletDelayed();
         });
 
         $('#email-backup-btn').click(function() {

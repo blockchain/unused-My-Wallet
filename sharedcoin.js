@@ -970,12 +970,12 @@ var SharedCoin = new function() {
     }
 
     this.calculateFeeForValue = function(input_value) {
-        if (input_value.compareTo(BigInteger.ZERO) > 0) {
+        var minFee = BigInteger.valueOf(SharedCoin.getMinimumFee());
+
+        if (input_value.compareTo(BigInteger.ZERO) > 0 && SharedCoin.getFee() > 0) {
             var mod = Math.ceil(100 / SharedCoin.getFee());
 
             var fee = input_value.divide(BigInteger.valueOf(mod));
-
-            var minFee = BigInteger.valueOf(SharedCoin.getMinimumFee());
 
             if (minFee.compareTo(fee) > 0) {
                 return minFee;
@@ -983,46 +983,91 @@ var SharedCoin = new function() {
                 return fee;
             }
         } else {
-            return BigInteger.ZERO;
+            return minFee;
         }
     }
 
     this.init = function(el) {
-        $('#additional_seeds').remove();
+        $('#sharedcoin-recover').unbind().click(function() {
+            var self = $(this);
 
-        var additional_seeds = MyWallet.getAdditionalSeeds();
+            MyWallet.getSecondPassword(function() {
+                self.prop('disabled', true);
 
-        var seeds_to_show = [];
-        for (var key in additional_seeds) {
-            var seed = additional_seeds[key];
+                var original_text = self.text();
 
-            if (seed.indexOf(seed_prefix) == 0) {
-                seeds_to_show.push(seed);
-            }
-        }
+                self.text('Working. Please Wait...');
 
-        if (seeds_to_show.length > 0){
-            var div = $('<div class="well" id="additional_seeds"></div>');
+                var additional_seeds = MyWallet.getAdditionalSeeds();
 
-            for (var key in seeds_to_show) {
-                (function(seed) {
-                    var p = $('<p>'+ seed +' - (<a href="#">Recover</a>)</p>');
+                var shared_coin_seeds = [];
+                for (var key in additional_seeds) {
+                    var seed = additional_seeds[key];
 
-                    div.append(p);
+                    if (seed.indexOf(seed_prefix) == 0) {
+                        shared_coin_seeds.push(seed);
+                    }
+                }
 
-                    p.find('a').click(function() {
-                        var addresses = []
-                        for (var i = 0; i < 100; ++i) {
-                            addresses.push(SharedCoin.generateAddressFromCustomSeed(seed, i).toString());
+                var key = 0;
+                var addresses = [];
+                function doNext() {
+                    var seed = shared_coin_seeds[key];
+
+                    ++key;
+
+                    for (var i = 0; i < 50; ++i) {
+                        addresses.push(SharedCoin.generateAddressFromCustomSeed(seed, i).toString());
+                    }
+
+                    if (key == shared_coin_seeds.length) {
+                        while(addresses.length > 0) {
+                            (function(addresses) {
+                                BlockchainAPI.get_balances(addresses, function(results) {
+                                    self.prop('disabled', false);
+                                    self.text(original_text);
+
+                                    var total_balance = 0;
+                                    for (var key in results) {
+                                        var address = key;
+                                        var balance = results[address].final_balance;
+                                        if (balance > 0) {
+                                            var ecKey = new Bitcoin.ECKey(Bitcoin.Base58.decode(extra_private_keys[address]));
+
+                                            var address = ecKey.getBitcoinAddress().toString();
+
+                                            if (MyWallet.addPrivateKey(ecKey, {
+                                                compressed : address != key,
+                                                app_name : IMPORTED_APP_NAME,
+                                                app_version : IMPORTED_APP_VERSION
+                                            })) {
+                                                console.log('Imported ' + address);
+                                            }
+                                        }
+                                        total_balance += balance;
+                                    }
+
+                                    MyWallet.makeNotice('success', 'misc-success', formatBTC(total_balance) + ' recovered from intermediate addresses');
+
+                                    if (total_balance > 0) {
+                                        MyWallet.backupWalletDelayed('update', function() {
+                                            MyWallet.get_history();
+                                        });
+                                    }
+                                }, function(e) {
+                                    self.prop('disabled', false);
+                                    self.text(original_text);
+                                    MyWallet.makeNotice('error', 'misc-error', e);
+                                });
+                            })(addresses.splice(0, 1000));
                         }
-
-                        MyWallet.sweepAddressesModal(addresses, extra_private_keys);
-                    });
-                })(seeds_to_show[key]);
-            }
-
-            el.append(div);
-        }
+                    } else {
+                        setTimeout(doNext, 100);
+                    }
+                }
+                setTimeout(doNext, 100);
+            });
+        });
 
         var send_button = el.find('.send');
         var send_options = el.find('.send-options');
