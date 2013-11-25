@@ -17,41 +17,47 @@ MyWallet.setLanguage = function(language) {
     }
 }
 
-$(document).ready(function() {
-    $.ajax = function(obj) {
-        var requests = {};
-        var initd = false;
+var initd = false;
+var requests = {};
 
-        function sendRequest(obj) {
+$.ajax = function(obj) {
+    function sendRequest(obj) {
 
-            var customEvent = document.createEvent('Event');
+        var customEvent = document.createEvent('Event');
 
-            customEvent.initEvent('ajax_request', true, true);
+        customEvent.initEvent('ajax_request', true, true);
 
-            if (Object.keys(requests).length == 0) {
-                $(document).trigger("ajaxStart");
-            }
-
-            var request_id = ''+Math.floor((Math.random()*10000)+1);
-
-            requests[request_id] = obj;
-
-            obj.request_id = request_id;
-
-            document.body.setAttribute('data-ajax-request', JSON.stringify(obj));
-
-            document.body.dispatchEvent(customEvent);
+        if (Object.keys(requests).length == 0) {
+            $(document).trigger("ajaxStart");
         }
 
-        if (!initd) {
-            document.body.addEventListener('ajax_response', function() {
+        var request_id = ''+Math.floor((Math.random()*10000)+1);
 
-                console.log(document.body.getAttribute('data-ajax-response'));
+        requests[request_id] = obj;
 
-                var obj = JSON.parse(document.body.getAttribute('data-ajax-response'));
+        obj.request_id = request_id;
 
+        console.log('Send Request ID : ' + obj.request_id);
+
+        document.body.setAttribute('data-ajax-request', JSON.stringify(obj));
+
+        document.body.dispatchEvent(customEvent);
+    }
+
+    if (!initd) {
+        initd = true;
+
+        $(document.body).on('ajax_response', function() {
+
+            console.log(document.body.getAttribute('data-ajax-response'));
+
+            var obj = JSON.parse(document.body.getAttribute('data-ajax-response'));
+
+            console.log('Got Request ID : ' + obj.request_id);
+
+            try {
                 var request = requests[obj.request_id];
-                if (!request)  {
+                if (request == null)  {
                     throw 'Unknown Request ID ' + obj.request_id;
                 }
 
@@ -70,17 +76,21 @@ $(document).ready(function() {
                 }
 
                 delete requests[obj.request_id];
+            } catch (e) {
+                console.log(e);
+            }
 
-                if (Object.keys(requests).length == 0) {
-                    $(document).trigger("ajaxStop");
-                }
-            });
+            if (Object.keys(requests).length == 0) {
+                $(document).trigger("ajaxStop");
+            }
+        });
+    }
 
-            initd = true;
-        }
+    sendRequest(obj);
+};
 
-        sendRequest(obj);
-    };
+
+$(document).ready(function() {
 
     var body = $(document.body);
 

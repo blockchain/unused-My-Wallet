@@ -6,6 +6,7 @@ $(document).ready(function() {
 
     setTimeout(function () {
         $('#restore-password').val('demoaccountpassword');
+
         $('#restore-wallet-continue').click();
 
         clearInterval(interval);
@@ -22,6 +23,6 @@ $(document).ready(function() {
             } catch (e) {}
         }, 7500);
 
-    }, 1200);
+    }, 2000);
 
 });

@@ -1,5 +1,112 @@
 var SharedCoin = new function() {
     var SharedCoin = this;
+    var AjaxTimeout = 60000;
+    var AjaxRetry = 2;
+
+    /*globals jQuery, window */
+    (function($) {
+        $.retryAjax = function (ajaxParams) {
+            var errorCallback;
+            ajaxParams.tryCount = (!ajaxParams.tryCount) ? 0 : ajaxParams.tryCount;
+            ajaxParams.retryLimit = (!ajaxParams.retryLimit) ? 2 : ajaxParams.retryLimit;
+            ajaxParams.suppressErrors = true;
+
+            if (ajaxParams.error) {
+                errorCallback = ajaxParams.error;
+                delete ajaxParams.error;
+            } else {
+                errorCallback = function () {
+
+                };
+            }
+
+            ajaxParams.complete = function (jqXHR, textStatus) {
+                if ($.inArray(textStatus, ['timeout', 'abort', 'error']) > -1) {
+                    this.tryCount++;
+                    if (this.tryCount <= this.retryLimit) {
+
+                        // fire error handling on the last try
+                        if (this.tryCount === this.retryLimit) {
+                            this.error = errorCallback;
+                            delete this.suppressErrors;
+                        }
+
+                        //try again
+                        $.ajax(this);
+                        return true;
+                    }
+                    return true;
+                }
+            };
+
+            $.ajax(ajaxParams);
+        };
+    }(jQuery));
+
+    Bitcoin.Transaction.deserialize = function (buffer)
+    {
+
+        function readVarInt(buff) {
+            var tbyte, tbytes;
+
+            tbyte = buff.splice(0, 1)[0];
+
+            if (tbyte < 0xfd) {
+                tbytes = [tbyte];
+            } else if (tbyte == 0xfd) {
+                tbytes = buff.splice(0, 2);
+            } else if (tbyte == 0xfe) {
+                tbytes = buff.splice(0, 4);
+            } else {
+                tbytes = buff.splice(0, 8);
+            }
+
+            return BigInteger.fromByteArrayUnsigned(tbytes);
+        }
+
+        function readUInt32(buffer) {
+            return new BigInteger(buffer.splice(0, 4).reverse()).intValue();
+        }
+
+        var tx = new Bitcoin.Transaction();
+
+        tx.version = readUInt32(buffer);
+
+        var txInCount = readVarInt(buffer).intValue();
+
+        for (var i = 0; i < txInCount; i++) {
+
+            var outPointHashBytes = buffer.splice(0,32);
+            var outPointHash = Crypto.util.bytesToBase64(outPointHashBytes);
+
+            var outPointIndex = readUInt32(buffer);
+
+            var scriptLength = readVarInt(buffer).intValue();
+            var script = new Bitcoin.Script(buffer.splice(0, scriptLength));
+            var sequence = readUInt32(buffer);
+
+            var input = new Bitcoin.TransactionIn({outpoint : {hash: outPointHash, index : outPointIndex}, script: script,  sequence: sequence});
+
+            tx.ins.push(input);
+        }
+
+
+        var txOutCount = readVarInt(buffer).intValue();
+        for (var i = 0; i < txOutCount; i++) {
+
+            var valueBytes = buffer.splice(0, 8);
+            var scriptLength = readVarInt(buffer).intValue();
+            var script = new Bitcoin.Script(buffer.splice(0, scriptLength));
+
+            var out = new Bitcoin.TransactionOut({script : script, value : valueBytes})
+
+            tx.outs.push(out);
+        }
+
+        tx.lock_time = readUInt32(buffer);
+
+        return tx;
+    };
 
     var options = {};
     var version = 3;
@@ -82,10 +189,12 @@ var SharedCoin = new function() {
 
                 MyWallet.setLoadingText('Waiting For Other Participants To Sign');
 
-                $.ajax({
+                $.retryAjax({
                     dataType: 'json',
                     type: "POST",
                     url: URL,
+                    timeout: AjaxTimeout,
+                    retryLimit: AjaxRetry,
                     data : {method : 'poll_for_proposal_completed', format : 'json', proposal_id : self.proposal_id},
                     success: function (obj) {
                         success(obj);
@@ -104,7 +213,7 @@ var SharedCoin = new function() {
                     } else if (obj.status == 'not_found') {
                         error('Proposal ID Not Found');
                     } else if (obj.status == 'complete'){
-                        success(obj.tx_hash)
+                        success(obj.tx_hash, obj.tx)
                     } else {
                         error('Unknown status ' + obj.status)
                     }
@@ -125,10 +234,12 @@ var SharedCoin = new function() {
 
                 MyWallet.setLoadingText('Submitting Offer');
 
-                $.ajax({
+                $.retryAjax({
                     dataType: 'json',
                     type: "POST",
                     url: URL,
+                    timeout: AjaxTimeout,
+                    retryLimit: AjaxRetry,
                     data : {method : 'submit_offer', format : 'json', token : SharedCoin.getToken(), offer : JSON.stringify(self)},
                     success: function (obj) {
                         if (!obj.offer_id) {
@@ -151,10 +262,12 @@ var SharedCoin = new function() {
 
                 MyWallet.setLoadingText('Waiting For Other Participants');
 
-                $.ajax({
+                $.retryAjax({
                     dataType: 'json',
                     type: "POST",
                     url: URL,
+                    timeout: AjaxTimeout,
+                    retryLimit: AjaxRetry,
                     data : {method : 'get_offer_id', format : 'json', offer_id : self.offer_id},
                     success: function (obj) {
                         success(obj);
@@ -196,17 +309,19 @@ var SharedCoin = new function() {
 
                 self._pollForProposalID(handleObj, error)
             },
-            getProposal : function(proposal_id, success, error) {
+            getProposal : function(proposal_id, success, error, complete) {
                 var self = this;
 
                 console.log('SharedCoin.getProposal()');
 
                 MyWallet.setLoadingText('Fetching Proposal');
 
-                $.ajax({
+                $.retryAjax({
                     dataType: 'json',
                     type: "POST",
                     url: URL,
+                    timeout: AjaxTimeout,
+                    retryLimit: AjaxRetry,
                     data : {method : 'get_proposal_id', format : 'json', offer_id : self.offer_id, proposal_id : proposal_id},
                     success: function (obj) {
 
@@ -216,7 +331,9 @@ var SharedCoin = new function() {
 
                         if (clone.status == 'not_found') {
                             error('Proposal or Offer ID Not Found');
-                        } else {
+                        } else if (clone.status == 'complete') {
+                            complete(clone.tx_hash, clone.tx);
+                        } else if (clone.status == 'signatures_needed') {
                             success(clone);
                         }
                     },
@@ -283,6 +400,38 @@ var SharedCoin = new function() {
 
                 return false;
             },
+            determineOutputsToOfferNextStage : function(tx_hex, success, error) {
+                var self = this;
+
+                try {
+                    var decodedTx = Crypto.util.hexToBytes(tx_hex);
+
+                    var tx = Bitcoin.Transaction.deserialize(decodedTx);
+
+                    var outpoints_to_offer_next_stage = [];
+
+                    for (var i = 0; i < tx.outs.length; ++i) {
+                        var output = tx.outs[i];
+
+                        if (self.isOutputOneWeRequested(output)) {
+                            if (!self.isOutputChange(output)) {
+                                var array = output.value.slice(0);
+
+                                array.reverse();
+
+                                var value = new BigInteger(array);
+
+                                outpoints_to_offer_next_stage.push({hash : null, index : parseInt(i), value : value.toString()});
+                            }
+                        }
+                    }
+
+                    success(outpoints_to_offer_next_stage);
+
+                } catch (e) {
+                    error(e);
+                }
+            },
             checkProposal : function(proposal, success, error) {
                 console.log('Offer.checkProposal()');
 
@@ -293,71 +442,6 @@ var SharedCoin = new function() {
                         throw 'Proposal Transaction Is Null';
                     }
 
-                    Bitcoin.Transaction.deserialize = function (buffer)
-                    {
-
-                        function readVarInt(buff) {
-                            var tbyte, tbytes;
-
-                            tbyte = buff.splice(0, 1)[0];
-
-                            if (tbyte < 0xfd) {
-                                tbytes = [tbyte];
-                            } else if (tbyte == 0xfd) {
-                                tbytes = buff.splice(0, 2);
-                            } else if (tbyte == 0xfe) {
-                                tbytes = buff.splice(0, 4);
-                            } else {
-                                tbytes = buff.splice(0, 8);
-                            }
-
-                            return BigInteger.fromByteArrayUnsigned(tbytes);
-                        }
-
-                        function readUInt32(buffer) {
-                            return new BigInteger(buffer.splice(0, 4).reverse()).intValue();
-                        }
-
-                        var tx = new Bitcoin.Transaction();
-
-                        tx.version = readUInt32(buffer);
-
-                        var txInCount = readVarInt(buffer).intValue();
-
-                        for (var i = 0; i < txInCount; i++) {
-
-                            var outPointHashBytes = buffer.splice(0,32);
-                            var outPointHash = Crypto.util.bytesToBase64(outPointHashBytes);
-
-                            var outPointIndex = readUInt32(buffer);
-
-                            var scriptLength = readVarInt(buffer).intValue();
-                            var script = new Bitcoin.Script(buffer.splice(0, scriptLength));
-                            var sequence = readUInt32(buffer);
-
-                            var input = new Bitcoin.TransactionIn({outpoint : {hash: outPointHash, index : outPointIndex}, script: script,  sequence: sequence});
-
-                            tx.ins.push(input);
-                        }
-
-
-                        var txOutCount = readVarInt(buffer).intValue();
-                        for (var i = 0; i < txOutCount; i++) {
-
-                            var valueBytes = buffer.splice(0, 8);
-                            var scriptLength = readVarInt(buffer).intValue();
-                            var script = new Bitcoin.Script(buffer.splice(0, scriptLength));
-
-                            var out = new Bitcoin.TransactionOut({script : script, value : valueBytes})
-
-                            tx.outs.push(out);
-                        }
-
-                        tx.lock_time = readUInt32(buffer);
-
-                        return tx;
-                    };
-
                     var decodedTx = Crypto.util.hexToBytes(proposal.tx);
 
                     var tx = Bitcoin.Transaction.deserialize(decodedTx);
@@ -366,24 +450,11 @@ var SharedCoin = new function() {
                         throw 'Error deserializing transaction';
                     }
 
-                    var outpoints_to_offer_next_stage = [];
-
                     var output_matches = 0;
                     for (var i = 0; i < tx.outs.length; ++i) {
                         var output = tx.outs[i];
 
                         if (self.isOutputOneWeRequested(output)) {
-
-                            if (!self.isOutputChange(output)) {
-                                var array = output.value.slice(0);
-
-                                array.reverse();
-
-                                var value = new BigInteger(array);
-
-                                outpoints_to_offer_next_stage.push({hash : null, index : parseInt(i), value : value.toString()});
-                            }
-
                             ++output_matches;
                         }
                     }
@@ -405,7 +476,7 @@ var SharedCoin = new function() {
                         throw 'Could not find all our offered outpoints ('+self.offered_outpoints.length + ' != ' + input_matches + ')';
                     }
 
-                    success(tx, outpoints_to_offer_next_stage);
+                    success(tx);
                 } catch (e) {
                     error(e);
                 }
@@ -446,17 +517,19 @@ var SharedCoin = new function() {
 
                 signOne();
             },
-            submitInputScripts : function(proposal, input_scripts, success, error) {
+            submitInputScripts : function(proposal, input_scripts, success, error, complete) {
                 console.log('Offer.submitInputScripts()');
 
                 var self = this;
 
                 MyWallet.setLoadingText('Submitting Signatures');
 
-                $.ajax({
+                $.retryAjax({
                     dataType: 'json',
                     type: "POST",
                     url: URL,
+                    timeout: AjaxTimeout,
+                    retryLimit: AjaxRetry,
                     data : {method : 'submit_signatures', format : 'json', input_scripts : JSON.stringify(input_scripts), offer_id : self.offer_id, proposal_id : proposal.proposal_id},
                     success: function (obj) {
                         if (obj.status == 'not_found')
@@ -464,7 +537,7 @@ var SharedCoin = new function() {
                         else if (obj.status == 'verification_failed')
                             error('Signature Verification Failed');
                         else if (obj.status == 'complete')
-                            error('Transaction Already Completed');
+                            complete(obj.tx_hash, obj.tx);
                         else if (obj.status == 'signatures_accepted')
                             success('Signatures Accepted');
                         else
@@ -548,6 +621,7 @@ var SharedCoin = new function() {
         return {
             offers : [], //Array of Offers for each stage
             n_stages : 0, //Total number of stages
+            c_stage : 0, //The current stage
             address_seed  : new SecureRandom().nextBytes(16),
             address_seen_n : 0,
             generateAddressFromSeed : function() {
@@ -571,6 +645,20 @@ var SharedCoin = new function() {
                 return address;
             },
             executeOffer : function(offer, success, error) {
+
+                function complete(tx_hash, tx) {
+                    console.log('executeOffer.complete');
+
+                    offer.determineOutputsToOfferNextStage(tx, function(outpoints_to_offer_next_stage) {
+                        //Connect the newly discovered transaction hash
+                        for (var i in outpoints_to_offer_next_stage) {
+                            outpoints_to_offer_next_stage[i].hash = tx_hash;
+                        }
+
+                        success(outpoints_to_offer_next_stage);
+                    }, error);
+                }
+
                 offer.submit(function() {
                     console.log('Successfully Submitted Offer');
 
@@ -580,7 +668,7 @@ var SharedCoin = new function() {
                         offer.getProposal(proposal_id, function(proposal) {
                             console.log('Got Proposal');
 
-                            offer.checkProposal(proposal, function(tx, outpoints_to_offer_next_stage) {
+                            offer.checkProposal(proposal, function(tx) {
                                 console.log('Proposal Looks Good');
 
                                 offer.signInputs(proposal, tx, function(signatures) {
@@ -589,20 +677,11 @@ var SharedCoin = new function() {
                                     offer.submitInputScripts(proposal, signatures, function (obj) {
                                         console.log('Submitted Input Scripts');
 
-                                        proposal.pollForCompleted(function(tx_hash) {
-                                            console.log('Poll For Completed Success');
-
-                                            //Connect the newly discovered transaction hash
-                                            for (var i in outpoints_to_offer_next_stage) {
-                                                outpoints_to_offer_next_stage[i].hash = tx_hash;
-                                            }
-
-                                            success(outpoints_to_offer_next_stage);
-                                        }, error);
-                                    }, error);
+                                        proposal.pollForCompleted(complete, error);
+                                    }, error, complete);
                                 }, error);
                             }, error)
-                        }, error);
+                        }, error, complete);
                     }, error);
                 }, error);
             },
@@ -610,11 +689,13 @@ var SharedCoin = new function() {
                 var self = this;
 
                 var execStage = function(ii) {
+                    self.c_stage = ii;
+
                     var offerForThisStage = self.offers[ii];
 
                     console.log('Executing Stage ' + ii);
 
-                    self.executeOffer(offerForThisStage, function(outpoints_to_offer_next_stage) {
+                    var _success = function(outpoints_to_offer_next_stage) {
                         ii++;
 
                         if (ii < self.n_stages) {
@@ -625,7 +706,15 @@ var SharedCoin = new function() {
                         } else if (ii == self.n_stages) {
                             success();
                         }
-                    }, error);
+                    };
+
+                    self.executeOffer(offerForThisStage, _success, function(e) {
+                        console.log('executeOffer failed ' + e);
+
+                        setTimeout(function() {
+                            self.executeOffer(offerForThisStage, _success, error);
+                        }, 5000);
+                    });
                 };
 
                 MyWallet.backupWallet('update', function() {
@@ -670,7 +759,7 @@ var SharedCoin = new function() {
                         totalValueLeftToConsume = totalValueLeftToConsume.subtract(fee_each_repetition[ii]);
 
                         var splitValues = [10,5,1,0.5,0.3,0.1];
-                        var maxSplits = 10;
+                        var maxSplits = 8;
 
                         var rand = Math.random();
 
@@ -693,12 +782,22 @@ var SharedCoin = new function() {
                                 var valueAndRemainder = totalValueLeftToConsume.divideAndRemainder(splitValue);
 
                                 var quotient = valueAndRemainder[0].intValue();
+
+                                if (quotient > SharedCoin.getMaximumOfferNumberOfOutputs()) {
+                                    continue;
+                                }
+
                                 if (quotient >= minSplits && quotient <= maxSplits) {
                                     if (valueAndRemainder[1].compareTo(BigInteger.ZERO) == 0 || valueAndRemainder[1].compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) >= 0) {
                                         var remainderDivides = [];
                                         if (valueAndRemainder[1].compareTo(BigInteger.ZERO) > 0) {
                                             if (quotient <= 1) {
                                                 var new_address = self.generateAddressFromSeed();
+
+                                                if (valueAndRemainder[1].compareTo(SharedCoin.getMinimumInputValue()) < 0 ||
+                                                    valueAndRemainder[1].compareTo(SharedCoin.getMaximumOutputValue()) > 0) {
+                                                    continue;
+                                                }
 
                                                 offer.request_outputs.push({
                                                     value : valueAndRemainder[1].toString(),
@@ -707,6 +806,25 @@ var SharedCoin = new function() {
                                             } else {
                                                 remainderDivides = divideUniformlyRandomly(valueAndRemainder[1].intValue(), quotient);
                                             }
+                                        }
+
+                                        var withinRange = true;
+                                        for (var iii  = 0; iii < quotient; ++iii) {
+
+                                            var value = splitValue;
+                                            if (remainderDivides[iii] && remainderDivides[iii] > 0) {
+                                                value = value.add(BigInteger.valueOf(remainderDivides[iii]));
+                                            }
+
+                                            if (value.compareTo(SharedCoin.getMinimumInputValue()) < 0 ||
+                                                value.compareTo(SharedCoin.getMaximumOutputValue()) > 0) {
+                                                withinRange = false;
+                                                break;
+                                            }
+                                        }
+
+                                        if (!withinRange) {
+                                            continue;
                                         }
 
                                         for (var iii  = 0; iii < quotient; ++iii) {
@@ -764,12 +882,20 @@ var SharedCoin = new function() {
 
             var bitcoin_address = key.getBitcoinAddress();
 
-            MyWallet.setAddressLabel(bitcoin_address.toString(), 'SharedCoin Change');
+            //MyWallet.setAddressLabel(bitcoin_address.toString(), 'SharedCoin Change');
 
             success(bitcoin_address);
         } catch (e) {
             error(e);
         }
+    }
+
+    this.getMaximumOfferNumberOfInputs = function() {
+        return options.maximum_offer_number_of_inputs;
+    }
+
+    this.getMaximumOfferNumberOfOutputs = function() {
+        return options.maximum_offer_number_of_outputs;
     }
 
     this.getMinimumOutputValue = function() {
@@ -910,6 +1036,11 @@ var SharedCoin = new function() {
                     try {
                         var self = this;
 
+                        if (self.tx.ins.length > SharedCoin.getMaximumOfferNumberOfInputs()) {
+                            error('Maximum number of inputs exceeded. Please consolidate some or lower the send amount');
+                            return;
+                        }
+
                         for (var i = 0; i < self.tx.ins.length; ++i) {
                             var input = self.tx.ins[i];
 
@@ -987,6 +1118,71 @@ var SharedCoin = new function() {
         }
     }
 
+    this.recoverSeeds = function(shared_coin_seeds, success, error) {
+        var key = 0;
+        var addresses = [];
+        function doNext() {
+            var seed = shared_coin_seeds[key];
+
+            ++key;
+
+            for (var i = 0; i < 50; ++i) {
+                addresses.push(SharedCoin.generateAddressFromCustomSeed(seed, i).toString());
+            }
+
+            if (key == shared_coin_seeds.length) {
+                while(addresses.length > 0) {
+                    (function(addresses) {
+                        BlockchainAPI.get_balances(addresses, function(results) {
+                            try {
+                                var total_balance = 0;
+                                for (var key in results) {
+                                    var address = key;
+                                    var balance = results[address].final_balance;
+                                    if (balance > 0) {
+                                        console.log('Balance ' + address + ' = ' + balance);
+
+                                        var ecKey = new Bitcoin.ECKey(Bitcoin.Base58.decode(extra_private_keys[address]));
+
+                                        var uncompressed_address = ecKey.getBitcoinAddress().toString();
+
+                                        try {
+                                            if (MyWallet.addPrivateKey(ecKey, {
+                                                compressed : address != uncompressed_address,
+                                                app_name : IMPORTED_APP_NAME,
+                                                app_version : IMPORTED_APP_VERSION
+                                            })) {
+                                                console.log('Imported ' + address);
+                                            }
+                                        } catch (e) {
+                                            console.log('Error importing ' + address);
+                                        }
+                                    }
+                                    total_balance += balance;
+                                }
+
+                                MyWallet.makeNotice('success', 'misc-success', formatBTC(total_balance) + ' recovered from intermediate addresses');
+
+                                if (total_balance > 0) {
+                                    MyWallet.backupWalletDelayed('update', function() {
+                                        MyWallet.get_history();
+                                    });
+                                }
+
+                                success();
+                            } catch (e) {
+                                error(e);
+                            }
+                        }, error);
+                    })(addresses.splice(0, 1000));
+                }
+            } else {
+                setTimeout(doNext, 100);
+            }
+        }
+        setTimeout(doNext, 100);
+    }
+
     this.init = function(el) {
         $('#sharedcoin-recover').unbind().click(function() {
             var self = $(this);
@@ -1009,63 +1205,14 @@ var SharedCoin = new function() {
                     }
                 }
 
-                var key = 0;
-                var addresses = [];
-                function doNext() {
-                    var seed = shared_coin_seeds[key];
-
-                    ++key;
-
-                    for (var i = 0; i < 50; ++i) {
-                        addresses.push(SharedCoin.generateAddressFromCustomSeed(seed, i).toString());
-                    }
-
-                    if (key == shared_coin_seeds.length) {
-                        while(addresses.length > 0) {
-                            (function(addresses) {
-                                BlockchainAPI.get_balances(addresses, function(results) {
-                                    self.prop('disabled', false);
-                                    self.text(original_text);
-
-                                    var total_balance = 0;
-                                    for (var key in results) {
-                                        var address = key;
-                                        var balance = results[address].final_balance;
-                                        if (balance > 0) {
-                                            var ecKey = new Bitcoin.ECKey(Bitcoin.Base58.decode(extra_private_keys[address]));
-
-                                            var address = ecKey.getBitcoinAddress().toString();
-
-                                            if (MyWallet.addPrivateKey(ecKey, {
-                                                compressed : address != key,
-                                                app_name : IMPORTED_APP_NAME,
-                                                app_version : IMPORTED_APP_VERSION
-                                            })) {
-                                                console.log('Imported ' + address);
-                                            }
-                                        }
-                                        total_balance += balance;
-                                    }
-
-                                    MyWallet.makeNotice('success', 'misc-success', formatBTC(total_balance) + ' recovered from intermediate addresses');
-
-                                    if (total_balance > 0) {
-                                        MyWallet.backupWalletDelayed('update', function() {
-                                            MyWallet.get_history();
-                                        });
-                                    }
-                                }, function(e) {
-                                    self.prop('disabled', false);
-                                    self.text(original_text);
-                                    MyWallet.makeNotice('error', 'misc-error', e);
-                                });
-                            })(addresses.splice(0, 1000));
-                        }
-                    } else {
-                        setTimeout(doNext, 100);
-                    }
-                }
-                setTimeout(doNext, 100);
+                SharedCoin.recoverSeeds(shared_coin_seeds, function() {
+                    self.prop('disabled', false);
+                    self.text(original_text);
+                }, function(e) {
+                    self.prop('disabled', false);
+                    self.text(original_text);
+                    MyWallet.makeNotice('error', 'misc-error', e);
+                });
             });
         });
 
@@ -1093,6 +1240,7 @@ var SharedCoin = new function() {
         }
 
         function enableSendButton() {
+            send_button.unbind();
             var repetitions = parseInt(repetitionsSelect.val());
 
             if (repetitions > 0 && SharedCoin.getIsEnabled() && version >= SharedCoin.getMinimumSupportedVersion()) {
@@ -1108,7 +1256,7 @@ var SharedCoin = new function() {
                     send_button.unbind().click(function() {
                         MyWallet.disableLogout(true);
 
-                        var error = function(e) {
+                        var error = function(e, plan) {
                             el.find('input,select,button').prop('disabled', false);
 
                             enableSendButton();
@@ -1116,6 +1264,17 @@ var SharedCoin = new function() {
                             MyWallet.disableLogout(false);
 
                             MyWallet.makeNotice('error', 'misc-error', e);
+
+                            setTimeout(function() {
+                                if (plan.c_stage > 0) {
+                                    console.log('Recover Seed');
+                                    SharedCoin.recoverSeeds([seed_prefix + plan.address_seed], function() {
+                                        console.log('Recover Success');
+                                    }, function() {
+                                        console.log('Recover Error');
+                                    });
+                                }
+                            }, 2000)
 
                             progressModal.enableCancel();
                         };
@@ -1130,6 +1289,14 @@ var SharedCoin = new function() {
                             progressModal.hide();
 
                             enableSendButton();
+                        }
+
+                        if (input_value.compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) < 0) {
+                            MyWallet.makeNotice('error', 'misc-error', 'The Minimum Send Value is ' +  formatPrecision(SharedCoin.getMinimumOutputValue()));
+                            return;
+                        } else if (input_value.compareTo(BigInteger.valueOf(SharedCoin.getMaximumOutputValue())) > 0) {
+                            MyWallet.makeNotice('error', 'misc-error', 'The Maximum Send Value is ' +  formatPrecision(SharedCoin.getMaximumOutputValue()));
+                            return;
                         }
 
                         MyWallet.getSecondPassword(function() {
@@ -1152,7 +1319,9 @@ var SharedCoin = new function() {
 
                                     console.log(plan);
 
-                                    plan.execute(success, error);
+                                    plan.execute(success, function(e) {
+                                        error(e, plan);
+                                    });
                                 }, error);
                             }, error);
                         }, error);
@@ -1166,10 +1335,12 @@ var SharedCoin = new function() {
         if ($.isEmptyObject(options)) {
             MyWallet.setLoadingText('Fetching SharedCoin Info');
 
-            $.ajax({
+            $.retryAjax({
                 dataType: 'json',
                 type: "POST",
                 url: URL,
+                timeout: AjaxTimeout,
+                retryLimit: AjaxRetry,
                 data : {method : 'get_info', format : 'json'},
                 success: function (obj) {
                     try {
@@ -1188,7 +1359,7 @@ var SharedCoin = new function() {
                         repetitionsSelect.empty();
 
                         for (var ii = obj.recommended_min_iterations; ii <= obj.recommended_max_iterations; ii+=1) {
-                            repetitionsSelect.append('<option value="'+(ii)+'">'+(ii)+' Repetitions (Fee: '+((ii)*SharedCoin.getFee()).toFixed(2)+'%)</option>');
+                            repetitionsSelect.append('<option value="'+(ii)+'">'+(ii)+' Repetitions</option>');
                         }
 
                         repetitionsSelect.val(obj.recommended_iterations);
@@ -1206,5 +1377,7 @@ var SharedCoin = new function() {
         } else {
             setSendOptions();
         }
+
+        enableSendButton();
     }
 }

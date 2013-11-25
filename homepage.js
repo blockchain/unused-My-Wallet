@@ -41,7 +41,13 @@ webSocketConnect(function(ws) {
                 label = '<a href="'+root+'tx/'+tx.hash+'">'+tx.hash.substring(0, 25)+'...</a>';
             }
 
-            $('<tr><td><div>'+label+'</div></td><td class="hidden-phone" data-time="'+tx.time+'"><div>< 1 minute</div></td><td><div><button class="btn btn-success" onclick="toggleSymbol()">'+ formatMoney(tx.value, true) +'</button></div></td></tr>').insertAfter($('#txs tr:first')).find('div').hide().slideDown('slow');
+            var tr = $('<tr><td><div>'+label+'</div></td><td class="hidden-phone" data-time="'+tx.time+'"><div>< 1 minute</div></td><td><div><button class="btn btn-success">'+ formatMoney(tx.value, true) +'</button></div></td></tr>');
+
+            tr.insertAfter($('#txs tr:first')).find('div').hide().slideDown('slow');
+
+            tr.find('button').click(function() {
+                toggleSymbol();
+            });
 
             $('#txs tr:last-child').remove();
         } else if (obj.op == 'block') {
@@ -77,6 +83,11 @@ $(document).ready(function() {
     if (top.location!= self.location) {
         top.location = self.location.href
     }
+
+    $('#search_button').click(function() {
+        document.location = root + 'search/' + document.getElementById('search_input2').value;
+        return false;
+    });
 
     setInterval(updateTimes, 1000);
 });

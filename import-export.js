@@ -149,8 +149,8 @@ function _ImportExport() {
         $('#import-private-scan').unbind().click(function() {
             MyWallet.getSecondPassword(function() {
                 loadScript('wallet/signer', function() {
-                    showPrivateKeyModal(function (key) {
-                        if (MyWallet.addPrivateKey(key, {compressed : false, app_name : IMPORTED_APP_NAME, app_version : IMPORTED_APP_VERSION})) {
+                    showPrivateKeyModal(function (key, compressed) {
+                        if (MyWallet.addPrivateKey(key, {compressed : compressed, app_name : IMPORTED_APP_NAME, app_version : IMPORTED_APP_VERSION})) {
 
                             //Perform a wallet backup
                             MyWallet.backupWallet('update', function() {
@@ -174,28 +174,6 @@ function _ImportExport() {
 
             try {
                 importPrivateKeyUI($.trim(input.val()));
-            } catch(e) {
-                MyWallet.makeNotice('error', 'misc-error', 'Error importing private key: ' + e);
-            }
-
-            input.val('');
-        });
-
-        $('#import-brain-wallet-btn').unbind().click(function() {
-
-            var input = $('#import-brain-wallet');
-
-            var phrase = $.trim(input.val());
-
-            // enforce a minimum passphrase length
-            if (phrase.length < 15) {
-                MyWallet.makeNotice('error', 'misc-error', 'The passphrase must be at least 15 characters long');
-                return;
-            }
-            var bytes = Crypto.SHA256(phrase, { asBytes: true });
-
-            try {
-                importPrivateKeyUI(Bitcoin.Base58.encode(bytes), 'Brain Wallet', 'brain_wallet');
             } catch(e) {
                 MyWallet.makeNotice('error', 'misc-error', 'Error importing private key: ' + e);
             }
@@ -325,8 +303,6 @@ function _ImportExport() {
 
                                 if (json_key.tag)
                                     MyWallet.setAddressTag(addr, json_key.tag);
-                                else if (json_key.reserve)
-                                    MyWallet.setAddressTag(addr, 2); //Mark as archived
                                 else
                                     MyWallet.setAddressTag(addr, 1); //Mark as unsynced
                             }
@@ -377,26 +353,25 @@ function _ImportExport() {
                     throw 'No Private Keys Imported. Unknown Format or Incorrect Password';
             } else if (obj != null && obj.keys != null && obj.keys.length > 0) {
 
-                if (obj.keys.length > 1000) {
+                if (obj.keys.length > 500) {
                     MyWallet.makeNotice('info', 'keys-skipped', 'Some keys may have been skipped');
 
                     var ii = 0;
                     var test_balances=[];
+                    var keys_copy = obj.keys.slice(0);
 
                     var do_part = function() {
                         try {
-                            for (; ii < obj.keys.length; ++ii) {
-                                var json_key = obj.keys[ii];
-
+                            for (; ii < keys_copy.length; ++ii) {
+                                var json_key = keys_copy[ii];
                                 var addr = json_key.addr;
 
                                 if (addr == null || addr.length == 0 || addr == 'undefined')
                                     continue;
 
-                                if (json_key.reserve || json_key.tag == 2)
-                                    test_balances.push(json_key.addr);
+                                test_balances.push(json_key.addr);
 
-                                if (test_balances.length == 1000 || (ii == obj.keys.length-1 &&  test_balances.length > 0)) {
+                                if (test_balances.length == 500 || (ii == obj.keys.length-1 && test_balances.length > 0)) {
                                     BlockchainAPI.get_balances(test_balances, function(response) {
                                         try {
                                             for (var key in response) {
@@ -405,16 +380,13 @@ function _ImportExport() {
                                                         var _addr = obj.keys[iii].addr;
 
                                                         if (_addr == key) {
-                                                            if (obj.keys.length > 1)
+                                                            if (obj.keys.length > 1) {
                                                                 obj.keys.splice(iii, 1);
-
-                                                            --ii;
+                                                            }
                                                         }
                                                     }
                                                 }
                                             }
-
-                                            setTimeout(do_part, 10);
                                         } catch (e) {
                                             console.log(e);
 
@@ -432,6 +404,12 @@ function _ImportExport() {
 
                                     test_balances = [];
 
+                                    if (ii == obj.keys.length-1) {
+                                        really_import();
+                                    } else {
+                                        setTimeout(do_part, 100);
+                                    }
+
                                     return;
                                 }
                             }
@@ -442,8 +420,6 @@ function _ImportExport() {
                                 error(e);
                             } catch (e) {}
                         }
-
-                        really_import();
                     };
 
                     do_part();

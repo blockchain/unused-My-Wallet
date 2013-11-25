@@ -1,4 +1,7 @@
+
 $(document).ready(function() {
+    var ip = $(document.body).data('ip');
+
     webSocketConnect(function(ws) {
         ws.onmessage = function(e) {
             var obj = $.parseJSON(e.data);

@@ -136,6 +136,7 @@ function showPrivateKeyModal(success, error, addr) {
     modal.find('.address').text(addr);
 
     var scanned_key = null;
+    var compressed = false;
     var error_msg = null;
     var key_input = modal.find('input[name="key"]');
 
@@ -147,19 +148,11 @@ function showPrivateKeyModal(success, error, addr) {
         MyWallet.scanQRCode(function(code) {
             console.log('Scanned ' + code);
 
-            try {
-                scanned_key = MyWallet.privateKeyStringToKey(code, MyWallet.detectPrivateKeyFormat(code));
-
-                if (scanned_key == null) {
-                    error_msg = 'Error decoding private key';
-                }
-            } catch(e) {
-                error_msg = 'Error decoding private key ' + e;
-            }
-
             modal.modal('show');
 
             key_input.val(code);
+
+            modal.find('.btn.btn-primary').trigger('click');
         }, function(e) {
             modal.modal('show');
 
@@ -175,7 +168,35 @@ function showPrivateKeyModal(success, error, addr) {
                 throw  'You must enter a private key to import';
             }
 
-            scanned_key = MyWallet.privateKeyStringToKey(value, MyWallet.detectPrivateKeyFormat(value));
+            var format = MyWallet.detectPrivateKeyFormat(value);
+
+            console.log('PK Format ' + format);
+
+            if (format == 'bip38') {
+                modal.modal('hide');
+
+                loadScript('wallet/import-export', function() {
+                    MyWallet.getPassword($('#import-private-key-password'), function(_password) {
+                        ImportExport.parseBIP38toECKey(value, _password, function(key, isCompPoint) {
+                            scanned_key = key;
+                            compressed = isCompPoint;
+
+                            modal.modal('hide');
+
+                            if (scanned_key)
+                                success(scanned_key);
+                            else
+                                error(error_msg);
+
+                        }, error);
+                    }, error);
+                }, error);
+
+                return;
+            }
+
+            scanned_key = MyWallet.privateKeyStringToKey(value, format);
+            compressed = (format == 'compsipa');
 
             if (scanned_key == null) {
                 throw 'Could not decode private key';
@@ -241,13 +262,13 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
         pending_transaction.addListener({
             on_success : function(e) {
-                el.find('input,select,button').removeProp('disabled');
+                el.find('input,select,button').prop('disabled', false);
             },
             on_start : function(e) {
                 el.find('input,select,button').prop('disabled', true);
             },
             on_error : function(e) {
-                el.find('input,select,button').removeProp('disabled');
+                el.find('input,select,button').prop('disabled', false);
             }
         });
 
@@ -264,8 +285,8 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                 type = 'custom';
                 custom_ask_for_fee = false;
             }
-        } else if (type == 'shared' && total_value < precisionFromBTC(0.2)) {
-            throw 'The Minimum Amount You Can Send Shared is ' + formatPrecision(precisionFromBTC(0.2));
+        } else if (type == 'shared' && total_value < precisionFromBTC(0.1)) {
+            throw 'The Minimum Amount You Can Send Shared is ' + formatPrecision(precisionFromBTC(0.1));
         } else if (type == 'shared' && total_value > precisionFromBTC(250)) {
             throw 'The Maximum Amount You Can Send Shared is ' +  formatPrecision(precisionFromBTC(250));
         }
@@ -652,11 +673,11 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
             if (self.modal)
                 self.modal.modal('hide'); //Hide the transaction progress modal
 
-            showPrivateKeyModal(function(key) {
+            showPrivateKeyModal(function(key, compressed) {
                 if (self.modal)
                     self.modal.modal('show'); //Show the progress modal again
 
-                success(key);
+                success(key, compressed);
             }, function (e) {
                 if (self.modal)
                     self.modal.modal('show'); //Show the progress modal again
@@ -1469,12 +1490,12 @@ function initNewTx() {
                 //Priority under 57 million requires a 0.0005 BTC transaction fee (see https://en.bitcoin.it/wiki/Transaction_fees)
                 if (fee_is_zero && (forceFee || kilobytes > 1)) {
                     //Forced Fee
-                    self.fee = self.base_fee.multiply(BigInteger.valueOf(kilobytes)); //0.0005 BTC * kilobytes
+                    self.fee = self.base_fee.multiply(BigInteger.valueOf(kilobytes));
 
                     self.makeTransaction();
-                } else if (fee_is_zero && (priority < 77600000 || isEscrow)) { //Bit extra added to priority
+                } else if (fee_is_zero && (MyWallet.getRecommendIncludeFee() || (priority < 77600000 || isEscrow))) {
                     self.ask_for_fee(function() {
-                        self.fee = self.base_fee.multiply(BigInteger.valueOf(kilobytes)); //0.0005 BTC * kilobytes
+                        self.fee = self.base_fee.multiply(BigInteger.valueOf(kilobytes));
 
                         self.makeTransaction();
                     }, function() {
@@ -1534,6 +1555,7 @@ function initNewTx() {
                         if (connected_script.priv_to_use == null) {
                             //No private key found, ask the user to provide it
                             self.ask_for_private_key(function (key) {
+
                                 try {
                                     if (inputAddress == key.getBitcoinAddress().toString() || inputAddress == key.getBitcoinAddressCompressed().toString()) {
                                         self.extra_private_keys[inputAddress] = Bitcoin.Base58.encode(key.priv);

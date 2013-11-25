@@ -59,7 +59,9 @@ function showFrameModal(options) {
         });
     }
 
-    try { hidePopovers() } catch(e) {};
+    try {
+        hidePopovers()
+    } catch(e) {};
 
     if (options.width) {
         modal.find('.modal-body').css('width', options.width);

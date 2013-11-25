@@ -54,6 +54,7 @@ var MyWallet = new function() {
     var payload_checksum; //SHA256 hash of the current wallet.aes.json
     var archTimer; //Delayed Backup wallet timer
     var mixer_fee = 0.5; //Default mixer fee 1.5%
+    var recommend_include_fee = true; //Number of unconfirmed transactions in blockchain.info's memory pool
     var default_pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
     var main_pbkdf2_iterations = default_pbkdf2_iterations; //The number of pbkdf2 iterations used for the main password
     var tx_notes = {}; //A map of transaction notes, hash -> note
@@ -75,6 +76,7 @@ var MyWallet = new function() {
     var disable_logout = false;
     var haveBoundReady = false;
     var isRestoringWallet = false;
+    var sync_pubkeys = false;
 
     var wallet_options = {
         pbkdf2_iterations : default_pbkdf2_iterations, //Number of pbkdf2 iterations to default to for second password and dpasswordhash
@@ -256,6 +258,10 @@ var MyWallet = new function() {
 
     this.getMixerFee = function() {
         return mixer_fee;
+    }
+
+    this.getRecommendIncludeFee = function() {
+        return recommend_include_fee;
     }
 
     this.deleteAddress = function(addr) {
@@ -1259,6 +1265,8 @@ var MyWallet = new function() {
         //WebCam
         loadScript('wallet/qr.code.reader', function() {
             QRCodeReader.init(modal, function(data) {
+                QRCodeReader.stop();
+
                 modal.modal('hide');
 
                 success(data);
@@ -1616,9 +1624,8 @@ var MyWallet = new function() {
                     ImportExport.init(content, function() {
                         content.show();
                     }, function() {
-
                         changeView($("#home-intro"));
-                    })
+                    });
                 }, function (e) {
                     MyWallet.makeNotice('error', 'misc-error', e);
 
@@ -1756,8 +1763,21 @@ var MyWallet = new function() {
     }
 
     function parseMultiAddressJSON(obj, cached) {
-        if (!cached && obj.mixer_fee) {
-            mixer_fee = obj.mixer_fee;
+        if (!cached) {
+
+            if (obj.mixer_fee) {
+                mixer_fee = obj.mixer_fee;
+            }
+
+            recommend_include_fee = obj.recommend_include_fee;
+
+            if (obj.info) {
+                if (obj.info.symbol_local)
+                    setLocalSymbol(obj.info.symbol_local);
+
+                if (obj.info.symbol_btc)
+                    setBTCSymbol(obj.info.symbol_btc);
+            }
         }
 
         if (obj.disable_mixer) {
@@ -1798,18 +1818,9 @@ var MyWallet = new function() {
             transactions.push(tx);
         }
 
-        if (obj.info) {
-            $('#nodes-connected').html(obj.info.nconnected);
-
+        if (!cached) {
             if (obj.info.latest_block)
                 setLatestBlock(obj.info.latest_block);
-
-
-            if (obj.info.symbol_local)
-                setLocalSymbol(obj.info.symbol_local);
-
-            if (obj.info.symbol_btc)
-                setBTCSymbol(obj.info.symbol_btc);
         }
     }
 
@@ -1944,6 +1955,7 @@ var MyWallet = new function() {
                     double_encryption = obj.double_encryption;
                     dpasswordhash = obj.dpasswordhash;
                 }
+
 
                 if (obj.options) {
                     $.extend(wallet_options, obj.options);
@@ -2230,7 +2242,7 @@ var MyWallet = new function() {
                 var auth_key = $.trim($('.auth-'+auth_type).find('.code').val());
 
                 if (auth_key.length == 0 || auth_key.length > 255) {
-                   throw 'You must enter a Two Factor Authentication code';
+                    throw 'You must enter a Two Factor Authentication code';
                 }
 
                 $.ajax({
@@ -2394,14 +2406,22 @@ var MyWallet = new function() {
 
                     MyWallet.setEncryptedWalletData(crypted);
 
-                    MyWallet.securePost("wallet", {
+                    var data =  {
                         length: crypted.length,
                         payload: crypted,
                         checksum: payload_checksum,
                         old_checksum : old_checksum,
                         method : method,
-                        format : 'plain'
-                    }, function(data) {
+                        format : 'plain',
+                        language : language
+                    };
+
+
+                    if (sync_pubkeys) {
+                        data.active = MyWallet.getActiveAddresses().join('|');
+                    }
+
+                    MyWallet.securePost("wallet", data, function(data) {
                         for (var key in addresses) {
                             var addr = addresses[key];
                             if (addr.tag == 1) {
@@ -2749,6 +2769,7 @@ var MyWallet = new function() {
                 guid = obj.guid;
                 auth_type = obj.auth_type;
                 real_auth_type = obj.real_auth_type;
+                sync_pubkeys = obj.sync_pubkeys;
 
                 if (obj.payload && obj.payload.length > 0 && obj.payload != 'Not modified') {
                     MyWallet.setEncryptedWalletData(obj.payload);
@@ -2757,6 +2778,8 @@ var MyWallet = new function() {
                 war_checksum = obj.war_checksum;
 
                 setLocalSymbol(obj.symbol_local);
+
+                setBTCSymbol(obj.symbol_btc);
 
                 $('#restore-guid').val(guid);
 
@@ -2788,8 +2811,6 @@ var MyWallet = new function() {
                 }
             },
             error : function(e) {
-                console.log('Set GUID Success');
-
                 open_wallet_btn.prop('disabled', false);
 
                 MyStore.get('guid', function(local_guid) {
@@ -2811,10 +2832,17 @@ var MyWallet = new function() {
                     try {
                         var obj = $.parseJSON(e.responseText);
 
+                        if (obj.authorization_required) {
+                            loadScript('wallet/poll-for-session-guid', function() {
+                                pollForSessionGUID();
+                            });
+                        }
+
                         if (obj.initial_error) {
                             MyWallet.makeNotice('error', 'misc-error', obj.initial_error);
-                            return;
                         }
+
+                        return;
                     } catch (ex) {}
 
                     if (e.responseText)
@@ -3798,6 +3826,8 @@ var MyWallet = new function() {
                             loadScript('wallet/address_modal', function() {
                                 showLabelAddressModal(address);
                             });
+
+                            MyWallet.get_history();
                         });
                     });
                 });
@@ -3839,7 +3869,7 @@ var MyWallet = new function() {
             MyWallet.openWindow(root + 'wallet/gdrive-login?guid=' + guid);
         });
 
-        $('#large-summary').click(function() {
+        $('#balance').click(function() {
             toggleSymbol();
 
             buildVisibleView();

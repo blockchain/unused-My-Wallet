@@ -10,7 +10,18 @@ var BlockchainAPI = new function() {
         if (!offset) offset = 0;
         if (!n) n = 0;
 
-        var data = {active : MyWallet.getActiveAddresses().join('|'), format : 'json', filter : tx_filter, offset : offset, no_compact : true, ct : clientTime, n : n};
+        var data = {
+            active : MyWallet.getActiveAddresses().join('|'),
+            format : 'json',
+            filter : tx_filter,
+            offset : offset,
+            no_compact : true,
+            ct : clientTime,
+            n : n,
+            language : MyWallet.getLanguage(),
+            symbol_btc : symbol_btc.code,
+            symbol_local : symbol_local.code
+        };
 
         $.ajax({
             type: "POST",
@@ -256,7 +267,9 @@ var BlockchainAPI = new function() {
                     },
                     error : function(e) {
                         if (!e.responseText || e.responseText.indexOf('Parse:') == 0) {
-                            push_normal();
+                            setTimeout(function() {
+                                push_normal();
+                            }, 2000);
                         } else {
                             error(e ? e.responseText : null);
                         }

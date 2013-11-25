@@ -1,3 +1,6 @@
+var address;
+var filter;
+
 function insertParam(key, value) {
     key = escape(key); value = escape(value);
 
@@ -25,16 +28,9 @@ function insertParam(key, value) {
 }
 
 $(document).ready(function() {
-    $('#deposit').click(function() {
-        loadScript('wallet/frame-modal', function() {
-            showFrameModal({
-                title : 'Deposit Using Cash',
-                description : 'Deposit into address <b>'+address+'</b>',
-                top_right : 'Have Questions? Read <a href="https://www.bitinstant.com/howitworks/cash" target="new">How It Works</a>',
-                src : root + 'deposit?address='+address+'&ptype=bitinstant'
-            });
-        });
-    });
+
+    filter = parseInt($(document.body).data('filter'));
+    address = $(document.body).data('address');
 
     $('#payment-request').click(function() {
         loadScript('wallet/frame-modal', function() {

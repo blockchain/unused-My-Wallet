@@ -789,8 +789,12 @@ var AccountSettings = new function() {
             if (symbol != symbol_local)
                 toggleSymbol();
 
-            updateKV('Updating Local Currency', 'update-currency', $(this).val(), function() {
+            var code = $(this).val();
+            updateKV('Updating Local Currency', 'update-currency', code, function() {
+                var original_code = symbol_local.code;
+                symbol_local.code = code;
                 MyWallet.get_history();
+                symbol_local.code = original_code;
             });
         });
 
@@ -798,8 +802,12 @@ var AccountSettings = new function() {
             if (symbol != symbol_btc)
                 toggleSymbol();
 
-            updateKV('Updating BTC Currency', 'update-btc-currency', $(this).val(), function() {
+            var code = $(this).val();
+            updateKV('Updating BTC Currency', 'update-btc-currency', code, function() {
+                var original_code = symbol_btc.code;
+                symbol_btc.code = code;
                 MyWallet.get_history();
+                symbol_btc.code = original_code;
             });
         });
 
@@ -820,7 +828,6 @@ var AccountSettings = new function() {
         $('#notifications-confirmations').unbind().change(function(e) {
             updateKV('Updating Notification Confirmations', 'update-notifications-confirmations', $(this).val());
         });
-
 
         $('#account-logging').unbind().on('show', function() {
 

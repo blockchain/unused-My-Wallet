@@ -63,7 +63,9 @@ function loadTaintData() {
         type: "GET",
         dataType: 'json',
         url: root + 'taint/' + all_addresses.join('|'),
-        data : {format : 'json'},
+        data : {
+            format : 'json'
+        },
         success: function(obj) {
             var groups = [];
             var filteredTaints = obj.filteredTaints;
