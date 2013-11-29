@@ -1327,8 +1327,6 @@ var SharedCoin = new function() {
 
                                     console.log(plan);
 
-                                    return;
-
                                     plan.execute(success, function(e) {
                                         error(e, plan);
                                     });
