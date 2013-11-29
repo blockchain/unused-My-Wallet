@@ -882,8 +882,6 @@ var SharedCoin = new function() {
 
             var bitcoin_address = key.getBitcoinAddress();
 
-            //MyWallet.setAddressLabel(bitcoin_address.toString(), 'SharedCoin Change');
-
             success(bitcoin_address);
         } catch (e) {
             error(e);
@@ -940,6 +938,15 @@ var SharedCoin = new function() {
                 throw 'invalid number of repetitions';
             }
 
+            var generated_addresses = [];
+
+            function _error(e) {
+                for (var key in generated_addresses) {
+                    MyWallet.deleteAddress(generated_addresses[key]);
+                }
+
+                error(e);
+            }
             var newTx = initNewTx();
 
             //Get the from address, if any
@@ -986,7 +993,7 @@ var SharedCoin = new function() {
 
                     newTx.to_addresses.push({address: new Bitcoin.Address(address), value : value});
                 } catch (e) {
-                    error(e);
+                    _error(e);
                 }
             });
 
@@ -1018,6 +1025,7 @@ var SharedCoin = new function() {
 
             //Build the last offer
             SharedCoin.generateNewAddress(function(change_address) {
+                generated_addresses.push(change_address.toString());
 
                 newTx.min_input_confirmations = 1;
                 newTx.allow_adjust = false;
@@ -1037,7 +1045,7 @@ var SharedCoin = new function() {
                         var self = this;
 
                         if (self.tx.ins.length > SharedCoin.getMaximumOfferNumberOfInputs()) {
-                            error('Maximum number of inputs exceeded. Please consolidate some or lower the send amount');
+                            _error('Maximum number of inputs exceeded. Please consolidate some or lower the send amount');
                             return;
                         }
 
@@ -1077,26 +1085,26 @@ var SharedCoin = new function() {
                         plan.c_stage = 0;
 
                         plan.constructRepetitions(offer, fee_each_repetition, success, function(e) {
-                            error(e);
+                            _error(e);
                         });
 
                     } catch (e) {
-                        error(e);
+                        _error(e);
                     }
                 };
 
                 newTx.addListener({
                     on_error : function(e) {
-                        error();
+                        _error();
                     }
                 });
 
                 newTx.start();
             }, function(e) {
-                error(e);
+                _error(e);
             });
         } catch (e) {
-            MyWallet.makeNotice('error', 'misc-error', e);
+            _error(e);
         }
     }
 
@@ -1318,6 +1326,8 @@ var SharedCoin = new function() {
                                     console.log('Created Plan');
 
                                     console.log(plan);
+
+                                    return;
 
                                     plan.execute(success, function(e) {
                                         error(e, plan);

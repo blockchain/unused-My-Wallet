@@ -31,82 +31,84 @@ function SetStatus() {
     $('#total_size').html(total_size / 1024 + ' (KB)');
 }
 
-webSocketConnect(function(ws) {
-    ws.onmessage = function(e) {
+function ws_connect() {
+    webSocketConnect(function(ws) {
+        ws.onmessage = function(e) {
 
-        console.log(e);
+            console.log(e);
 
-        var obj = $.parseJSON(e.data);
+            var obj = $.parseJSON(e.data);
 
-        if (obj.op == 'status') {
+            if (obj.op == 'status') {
 
-            $('#status').html(obj.msg);
+                $('#status').html(obj.msg);
 
-        } else if (obj.op == 'utx') {
+            } else if (obj.op == 'utx') {
 
-            op = obj.x;
+                op = obj.x;
 
-            if (sound_on) {
-                playSound('beep');
-            }
+                if (sound_on) {
+                    playSound('beep');
+                }
 
-            count++;
+                count++;
 
-            var tx = TransactionFromJSON(op);
+                var tx = TransactionFromJSON(op);
 
-            var tx_html = $(tx.getHTML());
+                var tx_html = $(tx.getHTML());
 
-            $('#tx_container').prepend(tx_html);
+                $('#tx_container').prepend(tx_html);
 
-            setupSymbolToggle();
+                setupSymbolToggle();
 
-            tx_html.hide().slideDown('slow');
+                tx_html.hide().slideDown('slow');
 
-            SetStatus();
+                SetStatus();
 
-            lasttx = tx;
+                lasttx = tx;
 
-        } else if (obj.op == 'block') {
+            } else if (obj.op == 'block') {
 
-            for (var i = 0; i < obj.x.txIndexes.length; ++i) {
-                if ($('#tx-' + obj.x.txIndexes[i]).length > 0) {
-                    count--;
+                for (var i = 0; i < obj.x.txIndexes.length; ++i) {
+                    if ($('#tx-' + obj.x.txIndexes[i]).length > 0) {
+                        count--;
 
-                    $('#tx-' + obj.x.txIndexes[i]).fadeOut( function() { $(this).remove(); });
+                        $('#tx-' + obj.x.txIndexes[i]).fadeOut( function() { $(this).remove(); });
+                    }
+                }
+
+                SetStatus();
+
+                if (sound_on) {
+                    playSound('ding');
+                }
+
+            } else if (obj.op == 'marker') {
+                marker = new google.maps.Marker({
+                    map:map,
+                    draggable:false,
+                    icon: resource + 'flags/' + obj.x.cc.toLowerCase() + '.png',
+                    animation: google.maps.Animation.DROP,
+                    position: new google.maps.LatLng(obj.x.lat, obj.x.lon)
+                });
+
+                if (lasttx) {
+                    google.maps.event.addListener(marker, 'click', function(){ window.location.href = root + 'tx-index/' + lasttx.txIndex });
                 }
             }
+        };
 
-            SetStatus();
+        ws.onopen = function() {
+            $('#status').html(_connected);
 
-            if (sound_on) {
-                playSound('ding');
-            }
+            ws.send('{"op":"unconfirmed_sub"}{"op":"blocks_sub"}{"op":"marker_sub"}');
+        };
 
-        } else if (obj.op == 'marker') {
-            marker = new google.maps.Marker({
-                map:map,
-                draggable:false,
-                icon: resource + 'flags/' + obj.x.cc.toLowerCase() + '.png',
-                animation: google.maps.Animation.DROP,
-                position: new google.maps.LatLng(obj.x.lat, obj.x.lon)
-            });
-
-            if (lasttx) {
-                google.maps.event.addListener(marker, 'click', function(){ window.location.href = root + 'tx-index/' + lasttx.txIndex });
-            }
-        }
-    };
-
-    ws.onopen = function() {
-        $('#status').html(_connected);
-
-        ws.send('{"op":"unconfirmed_sub"}{"op":"blocks_sub"}{"op":"marker_sub"}');
-    };
-
-    ws.onclose = function() {
-        $('#status').html(_disconnected);
-    };
-});
+        ws.onclose = function() {
+            $('#status').html(_disconnected);
+        };
+    });
+}
 
 var map;
 
@@ -130,6 +132,9 @@ $(document).ready(function() {
     _header = data_obj.header;
     _connected = data_obj.connected;
     _disconnected = data_obj.disconnected;
+
+    if (data_obj.enable_websocket)
+        ws_connect();
 
     map = new google.maps.Map(document.getElementById("map_canvas"), mapOptions);
 

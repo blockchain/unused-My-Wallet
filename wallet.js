@@ -629,16 +629,16 @@ var MyWallet = new function() {
     });
 
     function bindTx(tx_tr, tx) {
-        tx_tr.click(function(){
+        tx_tr.unbind().click(function(){
             openTransactionSummaryModal(tx.txIndex, tx.result);
         });
 
-        tx_tr.find('.show-note').mouseover(function() {
+        tx_tr.unbind().find('.show-note').mouseover(function() {
             var note = tx.note ? tx.note : tx_notes[tx.hash];
             showNotePopover(this, note, tx.hash);
         });
 
-        tx_tr.find('.add-note').mouseover(function() {
+        tx_tr.unbind().find('.add-note').mouseover(function() {
             addNotePopover(this, tx.hash);
         });
 
@@ -1177,6 +1177,8 @@ var MyWallet = new function() {
 
         el.find('.add-recipient').unbind().click(function() {
             var recipient = recipient_container.find(".recipient:first-child").clone();
+
+            recipient.find('input[type="text"]').val('');
 
             recipient.appendTo(recipient_container);
 
@@ -2305,6 +2307,8 @@ var MyWallet = new function() {
     }
 
     function setIsIntialized() {
+        if (isInitialized) return;
+
         setLogoutImageStatus('error');
 
         webSocketConnect(wsSuccess);

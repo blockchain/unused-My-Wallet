@@ -62,10 +62,11 @@ if (!window.console) {
 }
 
 var ws;
+var reconnectInterval;
 function webSocketConnect(success) {
     try {
         var ii = 0;
-        function reallyConnect(url) {
+        function reallyConnect() {
             try {
                 if (ii % 2 == 0)
                     var url = "wss://ws.blockchain.info/inv";
@@ -99,7 +100,8 @@ function webSocketConnect(success) {
         if (window.WebSocket) {
             reallyConnect();
 
-            setInterval(reconnectTimer, 10000);
+            if (!reconnectInterval)
+                reconnectInterval = setInterval(reconnectTimer, 20000);
         }
     } catch (e) {
         console.log(e);
