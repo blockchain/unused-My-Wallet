@@ -629,16 +629,16 @@ var MyWallet = new function() {
     });
 
     function bindTx(tx_tr, tx) {
-        tx_tr.unbind().click(function(){
+        tx_tr.click(function(){
             openTransactionSummaryModal(tx.txIndex, tx.result);
         });
 
-        tx_tr.unbind().find('.show-note').mouseover(function() {
+        tx_tr.find('.show-note').unbind('mouseover').mouseover(function() {
             var note = tx.note ? tx.note : tx_notes[tx.hash];
             showNotePopover(this, note, tx.hash);
         });
 
-        tx_tr.unbind().find('.add-note').mouseover(function() {
+        tx_tr.find('.add-note').unbind('mouseover').mouseover(function() {
             addNotePopover(this, tx.hash);
         });
 
