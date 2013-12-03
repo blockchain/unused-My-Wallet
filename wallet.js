@@ -1340,7 +1340,7 @@ var MyWallet = new function() {
             showFrameModal({
                 title : 'Transaction Summary',
                 description : '',
-                src : root + 'tx-summary/'+txIndex+'?result='+result+'&guid='+guid
+                src : root + 'tx-summary/'+txIndex+'?result='+result+'&symbol_btc='+symbol_btc.code+'&symbol_local='+symbol_local.code
             });
         });
     }
@@ -1353,22 +1353,31 @@ var MyWallet = new function() {
         MyWallet.backupWalletDelayed();
     }
 
+
+    function isAlphaNumericSpace(input) {
+        return /^[\w\-,._  ]+$/.test(input);
+    }
+
     function addNotePopover(el, tx_hash) {
         (function(el, tx_hash) {
             el = $(el);
 
-            if (!el.data('popover')) {
-                el.popover({
-                    title : 'Add Note <span style="float:right"><i class="icon-remove-sign"></i></span>',
-                    trigger : 'manual',
-                    content : '<textarea style="width:97%;height:50px;margin-top:2px" placeholder="Enter the note here..."></textarea><div style="text-align:right"><button class="btn btn-small">Save</button></div>'
-                });
-            } else if (el.data('popover').tip().is(':visible'))
-                return;
+            try {
+                el.data('popover').tip().remove();
+                el.removeData('popover');
+            } catch (e) {}
+
+            console.log('addNotePopover()');
+
+            el.popover({
+                title : 'Add Note <span style="float:right"><i class="icon-remove-sign"></i></span>',
+                trigger : 'manual',
+                content : '<textarea style="width:97%;height:50px;margin-top:2px" placeholder="Enter the note here..."></textarea><div style="text-align:right"><button class="btn btn-small">Save</button></div>'
+            });
 
             el.popover('show');
 
-            el.mouseleave(function() {
+            el.unbind('mouseleave').mouseleave(function() {
                 if (!el.__timeout) {
                     el.__timeout = setTimeout(function() {
                         el.popover('hide');
@@ -1400,9 +1409,13 @@ var MyWallet = new function() {
 
             tip.find('button').click(function() {
                 //Strip HTML and replace quotes
-                var note = stripHTML(tip.find('textarea').val()).replace(/'/g, '').replace(/"/g, '');
 
-                note = note.replace(/(\r\n|\n|\r)/gm,"");
+                var note = $.trim(tip.find('textarea').val());
+
+                if (!isAlphaNumericSpace(note)) {
+                    MyWallet.makeNotice('error', 'misc-error', 'Note must be contain letters and numbers only');
+                    return;
+                }
 
                 if (note.length > 0) {
                     tx_notes[tx_hash] = note;
@@ -1419,24 +1432,27 @@ var MyWallet = new function() {
         (function(el, content, tx_hash) {
             el = $(el);
 
-            if (!el.data('popover')) {
-                var title = 'Note';
+            try {
+                el.data('popover').tip().remove();
+                el.removeData('popover');
+            } catch (e) {}
 
-                //Only if it is a custom (not public note do we show the delete button
-                if (tx_notes[tx_hash])
-                    title += ' <span style="float:right"><img src="'+resource+'delete.png" /></span>';
 
-                $(el).popover({
-                    title : title,
-                    trigger : 'manual',
-                    content : $("<div/>").html(content).text()
-                })
-            } else if (el.data('popover').tip().is(':visible'))
-                return;
+            var title = 'Note';
+
+            //Only if it is a custom (not public note do we show the delete button
+            if (tx_notes[tx_hash])
+                title += ' <span style="float:right"><img src="'+resource+'delete.png" /></span>';
+
+            el.popover({
+                title : title,
+                trigger : 'manual',
+                content : content
+            })
 
             el.popover('show');
 
-            el.mouseleave(function() {
+            el.unbind('mouseleave').mouseleave(function() {
                 if (!el.__timeout) {
                     el.__timeout = setTimeout(function() {
                         el.popover('hide');
@@ -1971,8 +1987,9 @@ var MyWallet = new function() {
                         continue;
                     }
 
-                    if (key.tag == 1)
+                    if (key.tag == 1) {
                         key.tag = null;
+                    }
 
                     addresses[key.addr] = key;
                 }
@@ -1980,15 +1997,28 @@ var MyWallet = new function() {
                 address_book = {};
                 if (obj.address_book) {
                     for (var i = 0; i < obj.address_book.length; ++i) {
-                        MyWallet.addAddressBookEntry(obj.address_book[i].addr, obj.address_book[i].label);
+                        var entry = obj.address_book[i];
+
+                        if (entry.label && isAlphaNumericSpace(entry.label)) {
+                            MyWallet.addAddressBookEntry(entry.addr, entry.label);
+                        }
                     }
                 }
 
-                if (obj.tx_notes) tx_notes = obj.tx_notes;
+                if (obj.tx_notes) {
+                    for (var tx_hash in obj.tx_notes) {
+                        var note = obj.tx_notes[tx_hash];
+
+                        if (note && isAlphaNumericSpace(note)) {
+                            tx_notes[tx_hash] = note;
+                        }
+                    }
+                }
 
                 //If we don't have a checksum then the wallet is probably brand new - so we can generate our own
-                if (payload_checksum == null || payload_checksum.length == 0)
+                if (payload_checksum == null || payload_checksum.length == 0) {
                     payload_checksum = generatePayloadChecksum();
+                }
 
                 setIsIntialized();
 
@@ -3116,11 +3146,16 @@ var MyWallet = new function() {
 
             modal.modal('hide');
 
-            var label = stripHTML(labelField.val());
-            var bitcoinAddress = stripHTML(addrField.val());
+            var label = $.trim(labelField.val());
+            var bitcoinAddress = $.trim(addrField.val());
 
             if (label.length == 0 || bitcoinAddress.length == 0) {
                 MyWallet.makeNotice('error', 'misc-error', 'You must enter an address and label for the address book entry');
+                return false;
+            }
+
+            if (!isAlphaNumericSpace(label) || !isAlphaNumericSpace(bitcoinAddress)) {
+                MyWallet.makeNotice('error', 'misc-error', 'Label and Bitcoin Address must contain letters and numbers only');
                 return false;
             }
 

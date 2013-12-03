@@ -2,7 +2,7 @@ var satoshi = 100000000; //One satoshi
 var show_adv = false;
 var adv_rule;
 var symbol_btc = {code : "BTC", symbol : "BTC", name : "Bitcoin",  conversion : satoshi, symbolAppearsAfter : true, local : false}; //Default BTC Currency Symbol object
-var symbol_local; //Users local currency object
+var symbol_local = {"conversion":0,"symbol":"$","name":"U.S. dollar","symbolAppearsAfter":false,"local":true,"code":"USD"}; //Users local currency object
 var symbol = symbol_btc; //Active currency object
 var root = '/';
 var resource = '/Resources/';
