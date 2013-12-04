@@ -105,7 +105,8 @@ var MyWallet = new function() {
             //Save Payload when two factor authentication is disabled
             if (real_auth_type == 0 || wallet_options.always_keep_local_backup)
                 MyStore.put('payload', encrypted_wallet_data);
-
+            else
+                MyStore.remove('payload');
         } catch (e) {
             console.log(e);
         }

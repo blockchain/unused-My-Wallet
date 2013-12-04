@@ -1542,7 +1542,7 @@ function initNewTx() {
                         //Find the matching private key
                         if (tmp_cache[inputAddress]) {
                             connected_script.priv_to_use = tmp_cache[inputAddress];
-                        } else if (self.extra_private_keys[inputAddress]) {
+                        } else if (self.extra_private_keys && self.extra_private_keys[inputAddress]) {
                             connected_script.priv_to_use = Bitcoin.Base58.decode(self.extra_private_keys[inputAddress]);
                         } else if (MyWallet.addressExists(inputAddress) && !MyWallet.isWatchOnly(inputAddress)) {
                             try {
