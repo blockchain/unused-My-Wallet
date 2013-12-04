@@ -1991,6 +1991,10 @@ var MyWallet = new function() {
                         key.tag = null;
                     }
 
+                    if (key.label && !isAlphaNumericSpace(key.label)) {
+                        key.label = null;
+                    }
+
                     addresses[key.addr] = key;
                 }
 
