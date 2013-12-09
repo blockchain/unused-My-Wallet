@@ -154,33 +154,49 @@
         });
     }
 
-    function guidGenerator() {
-        var S4 = function() {
-            return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
-        };
-        return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
+
+    function generateUUIDs(n, success, error) {
+        $.ajax({
+            type: "GET",
+            url: root + 'uuid-generator',
+            data: { format : 'json', n : n },
+            success: function(data) {
+
+                if (data.uuids && data.uuids.length == n)
+                    success(data.uuids);
+                else
+                    error('Unknown Error');
+            },
+            error : function(data) {
+                error(data.responseText);
+            }
+        });
     }
 
     function insertWallet() {
         getNewPassword(function(password) {
             showKaptchaModal(function(kaptcha) {
+                generateUUIDs(2, function(uuids) {
+                    try {
+                        var guid = uuids[0];
+                        var sharedKey = uuids[1];
 
-                var sharedKey = guidGenerator();
-                var guid = guidGenerator();
+                        if (guid.length != 36) {
+                            throw 'Error generating wallet identifier';
+                        }
 
-                if (guid.length != 36) {
-                    MyWallet.makeNotice('error', 'misc-error', 'Error generating wallet identifier');
-                    return false;
-                }
+                        reallyInsertWallet(guid, sharedKey, password, '?kaptcha='+ $.trim($('#captcha-value').val()), function(){
+                            MyStore.clear();
 
-                reallyInsertWallet(guid, sharedKey, password, '?kaptcha='+ $.trim($('#captcha-value').val()), function(){
-                    MyStore.clear();
+                            MyStore.put('guid', guid);
 
-                    MyStore.put('guid', guid);
-
-                    window.location = root + 'wallet/' + guid;
-                }, function() {
-                    $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
+                            window.location = root + 'wallet/' + guid;
+                        }, function() {
+                            $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
+                        });
+                    } catch (e) {
+                        MyWallet.makeNotice('error', 'misc-error', e);
+                    }
                 });
             });
         });
