@@ -122,17 +122,13 @@ function _DICEGame() {
                     var max_bet = precisionFromBTC($(this).data('maxbet'));
                     var min_bet = precisionFromBTC($(this).data('minbet'));
 
-                    if (input_value > max_bet) {
+                    if (input_value == 0) {
+                        $(this).val('');
+                    } else if (input_value > max_bet) {
                         $(this).val(max_bet);
 
                         MyWallet.makeNotice('error', 'misc-error', 'The Maximum Bet is '+ formatPrecision(max_bet));
-                    }
-
-                    if (input_value == 0) {
-                        $(this).val('');
                     } else if (input_value < min_bet) {
-                        $(this).val(min_bet);
-
                         MyWallet.makeNotice('error', 'misc-error', 'The Minimum Bet is '+ formatPrecision(min_bet));
                     }
 
@@ -144,6 +140,26 @@ function _DICEGame() {
                 });
 
                 form.find('.send').unbind().click(function() {
+
+                    var error = false;
+                    container.find('input[name="send-value"]').each(function() {
+                        var max_bet = precisionFromBTC($(this).data('maxbet'));
+                        var min_bet = precisionFromBTC($(this).data('minbet'));
+                        var input_value = parseFloat($(this).val());
+
+                        if (input_value > max_bet) {
+                            MyWallet.makeNotice('error', 'misc-error', 'The Maximum Bet is '+ formatPrecision(max_bet));
+                            error = true;
+                            return false;
+                        } else if (input_value < min_bet) {
+                            MyWallet.makeNotice('error', 'misc-error', 'The Minimum Bet is '+ formatPrecision(min_bet));
+                            error = true;
+                            return false;
+                        }
+                    });
+
+                    if (error) return;
+
                     var ii = 0;
                     var repeat = $(this).data('repeat');
 

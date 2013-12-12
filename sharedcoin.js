@@ -622,7 +622,7 @@ var SharedCoin = new function() {
             offers : [], //Array of Offers for each stage
             n_stages : 0, //Total number of stages
             c_stage : 0, //The current stage
-            address_seed  : new SecureRandom().nextBytes(16),
+            address_seed  : null,
             address_seen_n : 0,
             generateAddressFromSeed : function() {
 
@@ -720,7 +720,24 @@ var SharedCoin = new function() {
                 MyWallet.backupWallet('update', function() {
                     console.log('Saved Wallet');
 
-                    execStage(0);
+                    var additional_seeds = MyWallet.getAdditionalSeeds();
+
+                    var found = false;
+
+                    for (var key in additional_seeds) {
+                        var seed = additional_seeds[key];
+
+                        if (seed.indexOf(self.address_seed) >= 0) {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found) {
+                        error('Address Seed Not Found');
+                    } else {
+                        execStage(0);
+                    }
                 }, error);
             },
             constructRepetitions : function(initial_offer, fee_each_repetition, success, error) {

@@ -135,8 +135,11 @@ function showLabelAddressModal(addr) {
     });
 
     var label_input = modal.find('input[name="label"]');
+    var make_public_input = modal.find('input[name="make_public"]');
 
     modal.find('.address').text(addr);
+
+    make_public_input.prop('checked', false);
 
     label_input.val('');
 
@@ -152,12 +155,41 @@ function showLabelAddressModal(addr) {
             return true;
         }
 
-        if (label.indexOf("\"") != -1) {
-            MyWallet.makeNotice('error', 'misc-error', 'Label cannot contain double quotes');
+        if (!/^[\w\-,._  ]+$/.test(label)) {
+            MyWallet.makeNotice('error', 'misc-error', 'Label must contain letters and numbers only');
             return false;
         }
 
         MyWallet.setLabel(addr, label);
+
+        if (make_public_input.is(':checked')) {
+            MyWallet.getSecondPassword(function() {
+
+                $.ajax({
+                    dataType: 'text',
+                    type: "POST",
+                    url: root + 'tags',
+                    data : {action : 'get_message', format : 'plain'},
+                    success : function (response) {
+                        var signature = MyWallet.signmessage(addr, response);
+
+                        $.ajax({
+                            dataType: 'text',
+                            type: "POST",
+                            url: root + 'tags',
+                            data : {action : 'insert', form_type : 0, address : addr, tag : label, signature : signature, format : 'plain'},
+                            error : function (e) {
+                                MyWallet.makeNotice('error', 'misc-error', e.responseText);
+                            }
+                        });
+                    },
+                    error : function (e) {
+                        MyWallet.makeNotice('error', 'misc-error', e.responseText);
+                    }
+                });
+            });
+        }
+
     });
 
     modal.find('.btn.btn-secondary').unbind().click(function() {

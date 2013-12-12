@@ -322,7 +322,7 @@ var MyWallet = new function() {
             dataType = 'json';
 
         $.ajax({
-            dataType: dataType,
+            dataType: 'text',
             type: "POST",
             url: root + url,
             data : clone,
@@ -1911,7 +1911,20 @@ var MyWallet = new function() {
         window.location.hash = '';
     }
 
+    function checkWalletChecksum(payload_checksum, success, error) {
+        var data = {method : 'wallet.aes.json', format : 'json', checksum : payload_checksum};
+
+        MyWallet.securePost("wallet", data, function(obj) {
+            if (!obj.payload || obj.payload == 'Not modified') {
+                if (success) success();
+            } else if (error) error();
+        }, function(e) {
+            if (error) error();
+        });
+    }
+
     //Fetch a new wallet from the server
+    //success(modified true/false)
     function getWallet(success, error) {
         for (var key in addresses) {
             var addr = addresses[key];
@@ -2424,7 +2437,7 @@ var MyWallet = new function() {
             }
 
             if (nKeys(addresses) == 0) {
-                return;
+                throw 'Addresses Length 0';
             }
 
             var data = MyWallet.makeWalletJSON();
@@ -2445,36 +2458,40 @@ var MyWallet = new function() {
 
                     MyWallet.setEncryptedWalletData(crypted);
 
+                    var new_checksum = payload_checksum;
+
                     var data =  {
                         length: crypted.length,
                         payload: crypted,
-                        checksum: payload_checksum,
+                        checksum: new_checksum,
                         old_checksum : old_checksum,
                         method : method,
                         format : 'plain',
                         language : language
                     };
 
-
                     if (sync_pubkeys) {
                         data.active = MyWallet.getActiveAddresses().join('|');
                     }
 
                     MyWallet.securePost("wallet", data, function(data) {
-                        for (var key in addresses) {
-                            var addr = addresses[key];
-                            if (addr.tag == 1) {
-                                delete addr.tag; //Make any unsaved addresses as saved
+                        checkWalletChecksum(new_checksum, function() {
+                            for (var key in addresses) {
+                                var addr = addresses[key];
+                                if (addr.tag == 1) {
+                                    delete addr.tag; //Make any unsaved addresses as saved
+                                }
                             }
-                        }
 
-                        MyWallet.makeNotice('success', 'misc-success', data);
+                            MyWallet.makeNotice('success', 'misc-success', data);
 
-                        buildVisibleView();
+                            buildVisibleView();
 
-                        if (successcallback != null)
-                            successcallback();
-
+                            if (successcallback != null)
+                                successcallback();
+                        }, function() {
+                            _errorcallback('Checksum Did Not Match Expected Value')
+                        });
                     }, function(e) {
                         for (var key in addresses) {
                             var addr = addresses[key];
