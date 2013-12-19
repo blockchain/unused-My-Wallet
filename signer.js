@@ -1245,6 +1245,9 @@ function initNewTx() {
                 self.error(e);
             }
         },
+        isSelectedValueSufficient : function(txValue, availableValue) {
+          return availableValue.compareTo(txValue) == 0 || availableValue.compareTo(txValue.add(this.min_free_output_size)) >= 0;
+        },
         //Select Outputs and Construct transaction
         makeTransaction : function() {
             var self = this;
@@ -1285,7 +1288,6 @@ function initNewTx() {
 
                 //First try without including watch only
                 //If we don't have enough funds ask for the watch only private key
-                var includeWatchOnly = false;
                 var unspent_copy = self.unspent.slice(0);
                 function parseOut(out) {
                     var addr = new Bitcoin.Address(out.script.simpleOutPubKeyHash()).toString();
@@ -1301,6 +1303,8 @@ function initNewTx() {
                     return {addr : addr , input : input}
                 };
 
+                //Loop once without watch only, then again with watch only
+                var includeWatchOnly = false;
                 while(true) {
                     for (var i = 0; i < unspent_copy.length; ++i) {
                         var out = unspent_copy[i];
@@ -1327,7 +1331,7 @@ function initNewTx() {
                             //So discard the previous selected outs
                             //out.value.compareTo(self.min_free_output_size) >= 0 because we want to prefer a change output of greater than 0.01 BTC
                             //Unless we have the extact tx value
-                            if (out.value.compareTo(txValue) == 0 || out.value.compareTo(txValue.add(self.min_free_output_size)) >= 0) {
+                            if (out.value.compareTo(txValue) == 0 || self.isSelectedValueSufficient(txValue, out.value)) {
                                 self.selected_outputs = [addr_input_obj.input];
 
                                 unspent_copy[i] = null; //Mark it null so we know it is used
@@ -1351,7 +1355,7 @@ function initNewTx() {
 
                                 availableValue = availableValue.add(out.value);
 
-                                if (availableValue.compareTo(txValue) == 0 || availableValue.compareTo(txValue.add(self.min_free_output_size)) >= 0)
+                                if (self.isSelectedValueSufficient(txValue, availableValue))
                                     break;
                             }
                         } catch (e) {
@@ -1360,7 +1364,7 @@ function initNewTx() {
                         }
                     }
 
-                    if (availableValue.compareTo(txValue) >= 0)
+                    if (self.isSelectedValueSufficient(txValue, availableValue))
                         break;
 
                     if (includeWatchOnly)

@@ -179,8 +179,6 @@ var AccountSettings = new function() {
 
         MyWallet.securePost("wallet", {method : 'get-info', format : 'json'}, function(data) {
 
-            console.log(data);
-
             if (data.email != null) {
                 $('#wallet-email').val(data.email);
                 $('.my-email').text(data.email);

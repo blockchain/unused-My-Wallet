@@ -122,6 +122,7 @@ var QRCodeReader = {
 
             QRCodeReader.reader_container = el.find('.qr-code-reader');
 
+
             if (navigator.getUserMedia) {
                 //Append the video element
                 QRCodeReader.reader_container.html('<video style="width:320px;height:240px" autoplay id="sourcevid"></video>');
@@ -139,8 +140,63 @@ var QRCodeReader = {
                     setTimeout(QRCodeReader.canvasInit,250); // Needed to get videoWidth/videoHeight
                 }, error);
 
-            } else if (hasFlash) {
 
+                qrcode.callback = function(data) {
+                    if (data) {
+                        QRCodeReader.stop();
+                        success(data);
+                    }
+                };
+            } else if (window.File && window.FileReader && window.FileList && window.Blob) {
+                var container = $('<div class="well"><div style="font-weight:bold;margin-top:0px" class="page-header">Please Scan a QR Code:</div><input type="file" align="center" name="image" accept="image/*" capture/></div>');
+
+                QRCodeReader.reader_container.append(container);
+
+                var input = container.find('input');
+
+                function handleFileSelect(evt) {
+
+                    console.log('handleFileSelect');
+
+                    var files = evt.target.files; // FileList object
+
+                    // Loop through the FileList and render image files as thumbnails.
+                    for (var i = 0, f; f = files[i]; i++) {
+
+                        // Only process image files.
+                        if (!f.type.match('image.*')) {
+                            continue;
+                        }
+
+                        var reader = new FileReader();
+
+                        reader.addEventListener("load",function(event){
+                            var picFile = event.target;
+
+                            console.log('dataURL ' + picFile.result);
+
+                            if (picFile.result) {
+                                qrcode.decode(picFile.result);
+                            }
+                        });
+
+                        // Read in the image file as a data URL.
+                        reader.readAsDataURL(f);
+                    }
+                }
+
+                input.get(0).addEventListener('change', handleFileSelect, false);
+
+                qrcode.callback = function(data) {
+                    QRCodeReader.stop();
+
+                    if (data) {
+                        success(data);
+                    } else {
+                        error('Error Reading QR Code');
+                    }
+                };
+            } else if (hasFlash) {
                 function initCanvas(ww,hh) {
                     gCanvas = document.getElementById("qr-canvas");
                     var w = ww;
@@ -169,11 +225,16 @@ var QRCodeReader = {
                 initCanvas(800,600);
 
                 QRCodeReader.interval = setInterval(captureToCanvas, 1000);
+
+                qrcode.callback = function(data) {
+                    if (data) {
+                        QRCodeReader.stop();
+                        success(data);
+                    }
+                };
             } else {
                 error('Sorry your browser is not supported. Please try Firefox, Chrome or safari.');
             }
-
-            qrcode.callback = function(data) { if (data) { QRCodeReader.stop(); success(data); } };
         });
     }
 };

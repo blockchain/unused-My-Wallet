@@ -3580,18 +3580,6 @@ var MyWallet = new function() {
             });
         });
 
-        $('#enable_archived_checkbox').change(function() {
-            var enabled = $(this).is(':checked');
-
-            $('.archived_checkbox').prop('checked', false);
-
-            $('.archived_checkbox').prop('disabled', !enabled);
-
-            $('#archived-sweep').prop('disabled', !enabled);
-
-            $('#archived-delete').prop('disabled', !enabled);
-        });
-
         $('#shared-addresses').on('show', function() {
             var self = $(this);
             loadScript('wallet/shared-addresses', function() {
@@ -3706,9 +3694,6 @@ var MyWallet = new function() {
 
         $('#archived-addresses').on('show', function() {
 
-            $('#enable_archived_checkbox').prop('checked', false);
-            $('#archived-delete').prop('disabled', true);
-            $('#archived-sweep').prop('disabled', true);
             $('#archived-addr tbody').empty();
 
             var table = $(this).find('tbody');
@@ -3737,7 +3722,7 @@ var MyWallet = new function() {
                         extra = '<span class="hidden-phone"> - ' + addr.addr + '</span>';
                     }
 
-                    var tr = $('<tr><td style="width:20px;"><input type="checkbox" class="archived_checkbox" value="'+addr.addr+'" disabled></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatBTC(addr.balance) + '</span></td><td style="width:16px"><img src="'+resource+'unarchive.png" class="act-unarchive" /></td></tr>');
+                    var tr = $('<tr><td style="width:20px;"><input type="checkbox" class="archived_checkbox" value="'+addr.addr+'"></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatBTC(addr.balance) + '</span></td><td style="width:16px"><img src="'+resource+'unarchive.png" class="act-unarchive" /></td></tr>');
 
                     (function(address) {
                         tr.find('.act-unarchive').click(function() {
@@ -3760,6 +3745,14 @@ var MyWallet = new function() {
             }, function(e) {
                 MyWallet.makeNotice('error', 'misc-error', e);
             });
+        });
+
+        $('#archived-select-all').click(function() {
+            $('.archived_checkbox').prop('checked', true);
+        });
+
+        $('#archived-select-none').click(function() {
+            $('.archived_checkbox').prop('checked', false);
         });
 
         $('#archived-sweep').click(function() {
