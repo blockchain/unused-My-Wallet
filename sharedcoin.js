@@ -812,11 +812,14 @@ var SharedCoin = new function() {
                             changeValue = totalChangeValueLeftToConsume.divide(BigInteger.valueOf(100)).multiply(BigInteger.valueOf(changePercent));
                         }
 
-                        if (changeValue.compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) <= 0) {
-                            changeValue = totalChangeValueLeftToConsume;
-                        }
+                        console.log('changeValue ' + changeValue.toString());
 
-                        totalChangeValueLeftToConsume = totalChangeValueLeftToConsume.subtract(changeValue);
+                        if (changeValue.compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) <= 0 || totalChangeValueLeftToConsume.subtract(changeValue).compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) <= 0) {
+                            changeValue = totalChangeValueLeftToConsume;
+                            totalChangeValueLeftToConsume = BigInteger.ZERO;
+                        } else {
+                            totalChangeValueLeftToConsume = totalChangeValueLeftToConsume.subtract(changeValue);
+                        }
 
                         if (totalChangeValueLeftToConsume.compareTo(BigInteger.ZERO) < 0) {
                             throw 'totalChangeValueLeftToConsume < 0';
@@ -917,7 +920,7 @@ var SharedCoin = new function() {
                             var change_address = self.generateChangeAddress();
 
                             if (changeValue.compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValueExcludingFee())) < 0)
-                                throw 'Change Value Too Small';
+                                throw 'Change Value Too Small 0 (' + changeValue.toString() + ' < ' + SharedCoin.getMinimumOutputValueExcludingFee()+ ")";
 
                             offer.request_outputs.push({
                                 value : changeValue.toString(),
@@ -933,7 +936,7 @@ var SharedCoin = new function() {
                         var change_address = self.generateChangeAddress();
 
                         if (totalChangeValueLeftToConsume.compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValueExcludingFee())) < 0)
-                            throw 'Change Value Too Small';
+                            throw 'Change Value Too Small 1 (' + totalChangeValueLeftToConsume.toString() + ' < ' + SharedCoin.getMinimumOutputValueExcludingFee()+ ")";
 
                         initial_offer.request_outputs.push({
                             value : totalChangeValueLeftToConsume.toString(),
@@ -1008,13 +1011,16 @@ var SharedCoin = new function() {
                 throw 'invalid number of repetitions';
             }
 
+            var plan = SharedCoin.newPlan();
+
             function _error(e) {
-                for (var key in self.generated_addresses) {
-                    MyWallet.deleteAddress(self.generated_addresses[key]);
+                for (var key in plan.generated_addresses) {
+                    MyWallet.deleteAddress(plan.generated_addresses[key]);
                 }
 
                 error(e);
             }
+
             var newTx = initNewTx();
 
             //Get the from address, if any
@@ -1090,7 +1096,6 @@ var SharedCoin = new function() {
                     }
                 }
             }
-            var plan = SharedCoin.newPlan();
 
             var change_address = plan.generateAddressFromSeed();
 
@@ -1147,7 +1152,7 @@ var SharedCoin = new function() {
 
                         if (outputAddress.toString() == change_address.toString()) {
                             if (value.compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValueExcludingFee())) < 0)
-                                throw 'Change Value Too Small';
+                                throw 'Change Value Too Small 3 (' + value.toString() + ' < ' + SharedCoin.getMinimumOutputValueExcludingFee()+ ")";
 
                             offer.request_outputs.push({value : value.toString(), script : Crypto.util.bytesToHex(output.script.buffer), exclude_from_fee : true});
                         } else {
