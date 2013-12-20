@@ -70,9 +70,10 @@ var QRCodeReader = {
 
     canvasInit: function() {
         QRCodeReader.canvas = document.createElement('canvas');
-        QRCodeReader.canvas.width = 320;
-        QRCodeReader.canvas.height = 240;
+        QRCodeReader.canvas.width = QRCodeReader.video.videoWidth;
+        QRCodeReader.canvas.height = QRCodeReader.video.videoHeight;
         QRCodeReader.ctx = QRCodeReader.canvas.getContext('2d');
+        QRCodeReader.interval = setInterval(QRCodeReader.loop, 500);
     },
 
     stop : function() {
@@ -116,65 +117,47 @@ var QRCodeReader = {
         loadScript('wallet/llqrcode', function() {
 
             // Standard and prefixed methods for hooking into stream
-            navigator.getUserMedia = navigator.getUserMedia ||
-                navigator.webkitGetUserMedia ||
-                navigator.mozGetUserMedia ||
-                navigator.msGetUserMedia;
-
+            navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.msGetUserMedia;
             window.URL = window.URL || window.webkitURL || window.mozURL || window.msURL;
 
             QRCodeReader.reader_container = el.find('.qr-code-reader');
 
 
-            if (navigator.getUserMedia) {
-                //Append the video element
-                QRCodeReader.reader_container.html('<video style="width:320px;height:240px" autoplay id="sourcevid"></video>');
+            /* if (navigator.getUserMedia) {
+             //Append the video element
+             QRCodeReader.reader_container.html('<video style="width:320px;height:240px" autoplay id="sourcevid"></video>');
 
-                QRCodeReader.video = QRCodeReader.reader_container.find('video').get(0);
+             QRCodeReader.video = QRCodeReader.reader_container.find('video').get(0);
 
-                QRCodeReader.flash = null;
+             QRCodeReader.flash = null;
 
-                navigator.getUserMedia({video: true}, function(stream) {
+             navigator.getUserMedia({video: true}, function(stream) {
 
-                    QRCodeReader._stream = stream;
+             QRCodeReader._stream = stream;
 
-                    QRCodeReader.video.src = window.URL.createObjectURL(stream) || stream;
+             QRCodeReader.video.src = window.URL.createObjectURL(stream) || stream;
 
-                    setTimeout(function() {
-                        QRCodeReader.canvasInit();
-
-                        QRCodeReader.interval = setInterval(QRCodeReader.loop, 500);
-                    }, 250); // Needed to get videoWidth/videoHeight
-                }, error);
+             setTimeout(QRCodeReader.canvasInit,250); // Needed to get videoWidth/videoHeight
+             }, error);
 
 
-                qrcode.callback = function(data) {
-                    if (data) {
-                        QRCodeReader.stop();
-                        success(data);
-                    }
-                };
-            } else if (window.File && window.FileReader && window.FileList && window.Blob) {
-                var container = $('<div class="well"><div style="font-weight:bold;margin-top:0px" class="page-header">Please Scan a QR Code:</div><input type="file" align="center" name="image" accept="image/*" capture/></div>');
+             qrcode.callback = function(data) {
+             if (data) {
+             QRCodeReader.stop();
+             success(data);
+             }
+             };
+
+             } else*/ if (window.File && window.FileReader && window.FileList && window.Blob) {
+                var container = $('<div class="well"><div style="font-weight:bold" class="page-header">Please upload a QR Code Image:</div><input type="file" align="center" name="image" accept="image/*" capture/></div>');
 
                 QRCodeReader.reader_container.append(container);
 
-                QRCodeReader.canvasInit();
-
                 var input = container.find('input');
 
-
-                qrcode.callback = function(data) {
-                    QRCodeReader.stop();
-
-                    if (data) {
-                        success(data);
-                    } else {
-                        error('Error Reading QR Code');
-                    }
-                };
-
                 function handleFileSelect(evt) {
+
+                    console.log('handleFileSelect');
 
                     var files = evt.target.files; // FileList object
 
@@ -191,15 +174,11 @@ var QRCodeReader = {
                         reader.addEventListener("load",function(event){
                             var picFile = event.target;
 
-                            var img = new Image;
+                            console.log('dataURL ' + picFile.result);
 
-                            img.onload = function() {
-                                QRCodeReader.ctx.drawImage(img, 0, 0, QRCodeReader.canvas.width, QRCodeReader.canvas.height);
-
-                                qrcode.decode(QRCodeReader.canvas.toDataURL());
+                            if (picFile.result) {
+                                qrcode.decode(picFile.result);
                             }
-
-                            img.src = picFile.result;
                         });
 
                         // Read in the image file as a data URL.
@@ -208,6 +187,16 @@ var QRCodeReader = {
                 }
 
                 input.get(0).addEventListener('change', handleFileSelect, false);
+
+                qrcode.callback = function(data) {
+                    QRCodeReader.stop();
+
+                    if (data) {
+                        success(data);
+                    } else {
+                        error('Error Reading QR Code');
+                    }
+                };
             } else if (hasFlash) {
                 function initCanvas(ww,hh) {
                     gCanvas = document.getElementById("qr-canvas");
