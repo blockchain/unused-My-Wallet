@@ -116,7 +116,11 @@ var QRCodeReader = {
         loadScript('wallet/llqrcode', function() {
 
             // Standard and prefixed methods for hooking into stream
-            navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.msGetUserMedia;
+            navigator.getUserMedia = navigator.getUserMedia ||
+                navigator.webkitGetUserMedia ||
+                navigator.mozGetUserMedia ||
+                navigator.msGetUserMedia;
+
             window.URL = window.URL || window.webkitURL || window.mozURL || window.msURL;
 
             QRCodeReader.reader_container = el.find('.qr-code-reader');
