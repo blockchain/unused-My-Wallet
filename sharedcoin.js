@@ -819,10 +819,10 @@ var SharedCoin = new function() {
                             totalChangeValueLeftToConsume = BigInteger.ZERO;
                         } else {
                             totalChangeValueLeftToConsume = totalChangeValueLeftToConsume.subtract(changeValue);
+                        }
 
-                            if (totalChangeValueLeftToConsume.compareTo(BigInteger.ZERO) < 0) {
-                                throw 'totalChangeValueLeftToConsume < 0';
-                            }
+                        if (totalChangeValueLeftToConsume.compareTo(BigInteger.ZERO) < 0) {
+                            throw 'totalChangeValueLeftToConsume < 0';
                         }
 
                         var totalValue = totalValueLeftToConsume.add(totalChangeValueLeftToConsume);
