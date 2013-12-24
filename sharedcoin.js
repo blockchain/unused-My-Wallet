@@ -1348,7 +1348,7 @@ var SharedCoin = new function() {
                             MyWallet.makeNotice('error', 'misc-error', e);
 
                             setTimeout(function() {
-                                if (plan && plan.c_stage > 0) {
+                                if (plan && plan.c_stage >= 0) {
                                     console.log('Recover Seed');
                                     SharedCoin.recoverSeeds([seed_prefix + plan.address_seed], function() {
                                         console.log('Recover Success');

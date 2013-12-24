@@ -1605,13 +1605,16 @@ var MyWallet = new function() {
 
         $('#summary-balance').html(formatMoney(final_balance, symbol));
 
-        var preferred = MyWallet.getPreferredAddress();
-
         $('.paper-wallet-btn').unbind().click(function() {
             loadScript('wallet/paper-wallet', function() {
                 PaperWallet.showModal();
             });
         });
+
+        var preferred = MyWallet.getPreferredAddress();
+
+        if (preferred == null)
+            return;
 
         if (MyWallet.isWatchOnly(preferred)) {
             $('.no-watch-only').hide();
@@ -1627,6 +1630,11 @@ var MyWallet = new function() {
                 });
             }
         }
+
+        $('#tweet-for-btc').unbind().click(function() {
+            MyWallet.openWindow('https://twitter.com/share?url=https://blockchain.info/wallet&hashtags=tweet4btc,bitcoin,'+preferred+'&text=Sign Up For a Free Bitcoin Wallet @ Blockchain.info');
+        });
+
     }
 
     //Show a Advanced Warning, The show Import-Export Button After Main Password is Entered
