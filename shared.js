@@ -425,9 +425,53 @@ function setAdv(isOn) {
 }
 
 function calcMoney() {
-    $('span[data-c]').each(function(index) {
+    $('span[data-c]').each(function() {
         $(this).text(formatMoney($(this).data('c')));
+    })
+}
+
+
+function setupSymbolToggle() {
+    $('.cb').unbind('click').click(function() {
+        toggleSymbol();
     });
+
+    $('span[data-c]').unbind('mouseenter mouseleave').mouseenter(function() {
+        (function(self) {
+            if (!self.data('time'))
+                return;
+
+            if (!self.data('tooltip')) {
+                $.ajax({
+                    type: "GET",
+                    dataType: 'text',
+                    url: root + 'frombtc',
+                    data : {value : self.data('c'), currency : symbol_local.code, time : self.data('time'), textual : true},
+                    success: function(response) {
+                        if (!response) return;
+
+                        self.tooltip({
+                            placement : 'bottom',
+                            html : false,
+                            trigger : 'manual',
+                            title : response
+                        });
+
+                        if (self.is(':hover'))
+                            self.tooltip('show');
+                    },
+                    error : function(e) {
+                        console.log(e);
+                    }
+                });
+            } else {
+                self.tooltip('show');
+            }
+        })($(this));
+    }).mouseleave(function() {
+            if ($(this).data('tooltip'))
+                $(this).tooltip('hide');
+        });
 }
 
 function toggleSymbol() {
@@ -454,12 +498,6 @@ function playSound(id) {
         _sounds[id].play();
     } catch (e) { }
 };
-
-function setupSymbolToggle() {
-    $('.cb').unbind().click(function() {
-        toggleSymbol();
-    });
-}
 
 function setupToggle() {
     $('[class=show_adv]').unbind().click(function() {

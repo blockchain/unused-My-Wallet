@@ -1261,17 +1261,6 @@ function initNewTx() {
                     txValue = txValue.add(self.to_addresses[i].value);
                 }
 
-                var isEscrow = false;
-
-                //If we have any escrow outputs we increase the fee to 0.05 BTC
-                for (var i =0; i < self.to_addresses.length; ++i) {
-                    var addrObj = self.to_addresses[i];
-                    if (addrObj.m != null) {
-                        isEscrow = true;
-                        break;
-                    }
-                }
-
                 var availableValue = BigInteger.ZERO;
 
                 //Add the miners fees
@@ -1291,6 +1280,10 @@ function initNewTx() {
 
                     if (addr == null) {
                         throw 'Unable to decode output address from transaction hash ' + out.tx_hash;
+                    }
+
+                    if (out.script == null) {
+                        throw 'Output script is null (' + out.tx_hash + ':' + out.tx_output_n + ')';
                     }
 
                     var b64hash = Crypto.util.bytesToBase64(Crypto.util.hexToBytes(out.tx_hash));
@@ -1511,7 +1504,7 @@ function initNewTx() {
                         //Forced Fee
                         set_fee_auto();
                     }
-                } else if (fee_is_zero && (MyWallet.getRecommendIncludeFee() || (priority < 77600000 || isEscrow))) {
+                } else if (fee_is_zero && (MyWallet.getRecommendIncludeFee() || priority < 77600000)) {
                     self.ask_for_fee(function() {
                         set_fee_auto();
                     }, function() {
@@ -1549,10 +1542,18 @@ function initNewTx() {
                     throw 'Transaction Cancelled';
                 }
 
+                if (self.selected_outputs.length != self.tx.ins.length) {
+                   throw 'Selected Outputs Count != Tx Inputs Length'
+                }
+
                 var tmp_cache = {};
 
                 for (var i in self.selected_outputs) {
                     var connected_script = self.selected_outputs[i].script;
+
+                    if (connected_script == null) {
+                        throw 'determinePrivateKeys() Connected script is null';
+                    }
 
                     if (connected_script.priv_to_use == null) {
                         var pubKeyHash = connected_script.simpleOutPubKeyHash();
@@ -1677,6 +1678,10 @@ function initNewTx() {
                 for (var outputN in self.selected_outputs) {
                     var connected_script = self.selected_outputs[outputN].script;
 
+                    if (connected_script == null) {
+                       throw 'signWebWorker() Connected Script Is Null';
+                    }
+
                     self.worker[outputN % nWorkers].postMessage({cmd : 'sign_input', tx : self.tx, outputN : outputN, priv_to_use : connected_script.priv_to_use, connected_script : connected_script});
                 }
             } catch (e) {
@@ -1698,6 +1703,10 @@ function initNewTx() {
                         self.invoke('on_sign_progress', outputN+1);
 
                         var connected_script = self.selected_outputs[outputN].script;
+
+                        if (connected_script == null) {
+                            throw 'signNormal() Connected Script Is Null';
+                        }
 
                         var signed_script = signInput(self.tx, outputN, connected_script.priv_to_use, connected_script);
 

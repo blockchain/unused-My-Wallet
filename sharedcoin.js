@@ -229,7 +229,7 @@ var SharedCoin = new function() {
             offered_outpoints : [], //The outpoints we want to offer
             request_outputs : [], //The outputs we want in return
             offer_id : 0, //A unique ID for this offer (set by server)
-            submit : function(success, error) {
+            submit : function(success, error, complete) {
                 var self = this;
 
                 MyWallet.setLoadingText('Submitting Offer');
@@ -242,11 +242,12 @@ var SharedCoin = new function() {
                     retryLimit: AjaxRetry,
                     data : {method : 'submit_offer', format : 'json', token : SharedCoin.getToken(), offer : JSON.stringify(self)},
                     success: function (obj) {
-                        if (!obj.offer_id) {
+                        if (obj.status == 'complete') {
+                            complete(obj.tx_hash, obj.tx);
+                        } else if (!obj.offer_id) {
                             error('Null offer_id returned');
                         } else {
                             self.offer_id = obj.offer_id;
-
                             success();
                         }
                     },
@@ -493,6 +494,10 @@ var SharedCoin = new function() {
                         try {
                             var connected_script = connected_scripts[index];
 
+                            if (connected_script == null) {
+                                throw 'Null connected script';
+                            }
+
                             var signed_script = signInput(tx, connected_script.tx_input_index, connected_script.priv_to_use, connected_script, SIGHASH_ALL);
 
                             if (signed_script) {
@@ -562,6 +567,10 @@ var SharedCoin = new function() {
                         var request = proposal.signature_requests[i];
 
                         var connected_script = new Bitcoin.Script(Crypto.util.hexToBytes(request.connected_script));
+
+                        if (connected_script == null) {
+                            throw 'signInputs() Connected script is null';
+                        }
 
                         connected_script.tx_input_index = request.tx_input_index;
                         connected_script.offer_outpoint_index = request.offer_outpoint_index;
@@ -693,7 +702,7 @@ var SharedCoin = new function() {
                             }, error)
                         }, error, complete);
                     }, error);
-                }, error);
+                }, error, complete);
             },
             execute : function(success, error) {
                 var self = this;

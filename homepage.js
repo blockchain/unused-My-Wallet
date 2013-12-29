@@ -41,13 +41,9 @@ webSocketConnect(function(ws) {
                 label = '<a href="'+root+'tx/'+tx.hash+'">'+tx.hash.substring(0, 25)+'...</a>';
             }
 
-            var tr = $('<tr><td><div>'+label+'</div></td><td class="hidden-phone" data-time="'+tx.time+'"><div>< 1 minute</div></td><td><div><button class="btn btn-success">'+ formatMoney(tx.value, true) +'</button></div></td></tr>');
+            var tr = $('<tr><td><div>'+label+'</div></td><td class="hidden-phone" data-time="'+tx.time+'"><div>< 1 minute</div></td><td><div><button class="btn btn-success cb">'+ formatMoney(tx.value, true) +'</button></div></td></tr>');
 
             tr.insertAfter($('#txs tr:first')).find('div').hide().slideDown('slow');
-
-            tr.find('button').click(function() {
-                toggleSymbol();
-            });
 
             $('#txs tr:last-child').remove();
         } else if (obj.op == 'block') {
@@ -70,6 +66,8 @@ webSocketConnect(function(ws) {
 
             $('#blocks tr:last-child').remove();
         }
+
+        setupSymbolToggle();
     };
 
     ws.onopen = function() {
