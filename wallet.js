@@ -4352,7 +4352,7 @@ var MyWallet = new function() {
 
     $(document).ready(function() {
 
-        if (!$.isEmptyObject({})) {
+        if (!$.isEmptyObject({}) || !$.isEmptyObject([])) {
             MyWallet.makeNotice('error', 'error', 'Object.prototype has been extended by a browser extension. Please disable this extensions and reload the page.');
             return;
         }

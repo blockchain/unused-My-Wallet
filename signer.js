@@ -1288,7 +1288,7 @@ function initNewTx() {
 
                     var b64hash = Crypto.util.bytesToBase64(Crypto.util.hexToBytes(out.tx_hash));
 
-                    var input =  new Bitcoin.TransactionIn({outpoint: {hash: b64hash, index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295});
+                    var input = new Bitcoin.TransactionIn({outpoint: {hash: b64hash, index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295});
 
                     return {addr : addr , input : input}
                 };
@@ -1548,10 +1548,12 @@ function initNewTx() {
 
                 var tmp_cache = {};
 
-                for (var i in self.selected_outputs) {
+                for (var i = 0; i < self.selected_outputs.length; ++i) {
                     var connected_script = self.selected_outputs[i].script;
 
                     if (connected_script == null) {
+                        console.log('Output:')
+                        console.log(self.selected_outputs[i]);
                         throw 'determinePrivateKeys() Connected script is null';
                     }
 
@@ -1675,7 +1677,7 @@ function initNewTx() {
                     self.worker[i].postMessage({cmd : 'seed', seed : Crypto.util.bytesToHex(seed)});
                 }
 
-                for (var outputN in self.selected_outputs) {
+                for (var outputN = 0; outputN < self.selected_outputs.length; ++ outputN) {
                     var connected_script = self.selected_outputs[outputN].script;
 
                     if (connected_script == null) {
@@ -1761,7 +1763,7 @@ function initNewTx() {
         },
         terminateWorkers : function() {
             if (this.worker) {
-                for (var i in this.worker)  {
+                for (var i = 0; i < this.worker.length; ++i)  {
                     try {
                         this.worker[i].terminate();
                     } catch (e) { }
@@ -1829,8 +1831,8 @@ function initNewTx() {
 
             if (!this.has_pushed && this.generated_addresses.length > 0) {
                 //When an error occurs during send (or user cancelled) we need to remove the addresses we generated
-                for (var key in this.generated_addresses) {
-                    MyWallet.deleteAddress(this.generated_addresses[key]);
+                for (var i = 0; i < this.generated_addresses.length; ++i) {
+                    MyWallet.deleteAddress(this.generated_addresses[i]);
                 }
 
                 if (this.has_saved_addresses)
