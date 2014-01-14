@@ -1983,8 +1983,9 @@ var MyWallet = new function() {
             try {
                 sharedKey = obj.sharedKey;
 
-                if (!sharedKey || sharedKey.length == 0 || sharedKey.length != 36)
+                if (!sharedKey || sharedKey.length == 0 || sharedKey.length != 36) {
                     throw 'Shared Key is invalid';
+                }
 
                 if (rootContainer) {
                     encryption_version_used = rootContainer.version;
@@ -2004,12 +2005,12 @@ var MyWallet = new function() {
                 addresses = {};
                 for (var i = 0; i < obj.keys.length; ++i) {
                     var key = obj.keys[i];
-                    if (key.addr == null || key.addr.length == 0 || key.addr == 'undefined') {
-                        MyWallet.makeNotice('error', 'null-error', 'Your wallet contains an undefined address. This is a sign of possible corruption, please double check all your BTC is accounted for. Backup your wallet to remove this error.', 15000);
+                    if (!key.addr || !isAlphaNumericSpace(key.addr)) {
+                        MyWallet.makeNotice('error', 'null-error', 'Your wallet contains an invalid address. This is a sign of possible corruption, please double check all your BTC is accounted for. Backup your wallet to remove this error.', 15000);
                         continue;
                     }
 
-                    if (key.tag == 1) {
+                    if (key.tag == 1 || !isAlphaNumericSpace(key.tag)) {
                         key.tag = null;
                     }
 
@@ -2025,7 +2026,7 @@ var MyWallet = new function() {
                     for (var i = 0; i < obj.address_book.length; ++i) {
                         var entry = obj.address_book[i];
 
-                        if (entry.label && isAlphaNumericSpace(entry.label)) {
+                        if (entry.label && isAlphaNumericSpace(entry.label) && isAlphaNumericSpace(entry.addr)) {
                             MyWallet.addAddressBookEntry(entry.addr, entry.label);
                         }
                     }
