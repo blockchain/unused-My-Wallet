@@ -28,19 +28,24 @@ if(rng_pool == null) {
     rng_pptr = 0;
     var t;
 
-    if(_window.crypto && _window.crypto.getRandomValues && typeof Int32Array != 'undefined') {
-        var word_array = new Int32Array(32);
+    if(_window.crypto && _window.crypto.getRandomValues && typeof Int8Array != 'undefined') {
+        var word_array = new Int8Array(rng_psize);
 
-        _window.crypto.getRandomValues(word_array);
+        try {
+            _window.crypto.getRandomValues(word_array);
 
-        for(t = 0; t < word_array.length; ++t)
-            rng_seed_int(word_array[t]);
-    } else {
-        while(rng_pptr < rng_psize) {  // extract some randomness from Math.random()
-            t = Math.floor(65536 * Math.random());
-            rng_pool[rng_pptr++] = t >>> 8;
-            rng_pool[rng_pptr++] = t & 255;
+            while(rng_pptr < rng_psize) {
+                rng_pool[rng_pptr] = word_array[rng_pptr];
+                rng_pptr++;
+            }
+        } catch (e) {
+            MyWallet.makeNotice('error', 'null-error', 'Can\'t seed random pool with window.crypto.getRandomValues!', 15000);
         }
+    }
+    while(rng_pptr < rng_psize) {  // extract some randomness from Math.random()
+        t = Math.floor(65536 * Math.random());
+        rng_pool[rng_pptr++] = t >>> 8;
+        rng_pool[rng_pptr++] = t & 255;
     }
 
     rng_pptr = 0;
