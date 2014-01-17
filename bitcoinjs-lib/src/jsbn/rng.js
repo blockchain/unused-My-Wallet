@@ -29,17 +29,17 @@ if(rng_pool == null) {
     var t;
 
     if(_window.crypto && _window.crypto.getRandomValues && typeof Int32Array != 'undefined') {
-        var word_array = new Int32Array(32);
+        var word_array = new Int32Array(rng_psize / 4);
 
         _window.crypto.getRandomValues(word_array);
 
         for(t = 0; t < word_array.length; ++t)
             rng_seed_int(word_array[t]);
     } else {
-        while(rng_pptr < rng_psize) {  // extract some randomness from Math.random()
+        for(var ii = 0; ii < rng_psize * 2; ii++) { // extract some randomness from Math.random()
             t = Math.floor(65536 * Math.random());
-            rng_pool[rng_pptr++] = t >>> 8;
-            rng_pool[rng_pptr++] = t & 255;
+            rng_pool[ii % rng_psize] = t >>> 8;
+            rng_pool[ii++ % rng_psize] = t & 255;
         }
     }
 
