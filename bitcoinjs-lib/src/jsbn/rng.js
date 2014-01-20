@@ -38,8 +38,8 @@ if(rng_pool == null) {
     } else {
         for(var ii = 0; ii < rng_psize * 2; ii++) { // extract some randomness from Math.random()
             t = Math.floor(65536 * Math.random());
-            rng_pool[ii % rng_psize] = t >>> 8;
-            rng_pool[ii++ % rng_psize] = t & 255;
+            rng_pool[ii % rng_psize] ^= t >>> 8;
+            rng_pool[ii++ % rng_psize] ^= t & 255;
         }
     }
 
