@@ -22,6 +22,20 @@ function rng_seed_time() {
     rng_seed_int(new Date().getTime());
 }
 
+// Mix in num bytes of data from potentially poor PRNG Math.Random()
+// This should only be used as a last resort
+function mix_poor_random(num) {
+    var i, t;
+    for(var i = 0; i < num;) { // extract some randomness from Math.random()
+        t = Math.floor(65536 * Math.random());
+        rng_pool[i++ % rng_psize] ^= t >>> 8;
+        rng_pool[i++ % rng_psize] ^= t & 255;
+    }
+    
+    //move rng pool pointer
+    rng_pptr = (rng_pptr + num) % rng_psize;
+}
+
 // Initialize the pool with junk if needed.
 if(rng_pool == null) {
     rng_pool = new Array();
@@ -31,16 +45,18 @@ if(rng_pool == null) {
     if(_window.crypto && _window.crypto.getRandomValues && typeof Int32Array != 'undefined') {
         var word_array = new Int32Array(rng_psize / 4);
 
-        _window.crypto.getRandomValues(word_array);
-
-        for(t = 0; t < word_array.length; ++t)
-            rng_seed_int(word_array[t]);
-    } else {
-        for(var ii = 0; ii < rng_psize * 2; ii++) { // extract some randomness from Math.random()
-            t = Math.floor(65536 * Math.random());
-            rng_pool[ii % rng_psize] ^= t >>> 8;
-            rng_pool[ii++ % rng_psize] ^= t & 255;
+        try {
+            for(t = 0; t < word_array.length; ++t) {
+                rng_seed_int(word_array[t]);
+            }
+        } catch (e) {
+            MyWallet.makeNotice('error', 'null-error', 'Can\'t seed random pool with window.crypto.getRandomValues!', 15000);
+            mix_poor_random(2 * rng_psize - t);
         }
+
+    } else {
+        MyWallet.makeNotice('info', 'unsupported', 'Your browser does not support the window.crypto API, consider upgrading', 5000);
+        mix_poor_random(2 * rng_psize);
     }
 
     rng_pptr = 0;
