@@ -2,6 +2,13 @@ var SharedCoin = new function() {
     var SharedCoin = this;
     var AjaxTimeout = 120000;
     var AjaxRetry = 2;
+    var LastSignatureSubmitTime = 0;
+    var MinTimeBetweenSubmits = 120000;
+    var options = {};
+    var version = 3;
+    var URL = MyWallet.getSharedcoinEndpoint() + '?version=' + version;
+    var extra_private_keys = {};
+    var seed_prefix = 'sharedcoin-seed:';
 
     /*globals jQuery, window */
     (function($) {
@@ -108,12 +115,6 @@ var SharedCoin = new function() {
         return tx;
     };
 
-    var options = {};
-    var version = 3;
-    var URL = MyWallet.getSharedcoinEndpoint() + '?version=' + version;
-    var extra_private_keys = {};
-    var seed_prefix = 'sharedcoin-seed:';
-
     function divideUniformlyRandomly(sum, n)
     {
         var nums = [];
@@ -194,7 +195,7 @@ var SharedCoin = new function() {
                     type: "POST",
                     url: URL,
                     timeout: AjaxTimeout,
-                    retryLimit: AjaxRetry,
+                    retryLimit: 4,
                     data : {method : 'poll_for_proposal_completed', format : 'json', proposal_id : self.proposal_id},
                     success: function (obj) {
                         success(obj);
@@ -529,6 +530,8 @@ var SharedCoin = new function() {
 
                 MyWallet.setLoadingText('Submitting Signatures');
 
+                LastSignatureSubmitTime = new Date().getTime();
+
                 $.retryAjax({
                     dataType: 'json',
                     type: "POST",
@@ -856,12 +859,12 @@ var SharedCoin = new function() {
                                         var remainderDivides = [];
                                         if (valueAndRemainder[1].compareTo(BigInteger.ZERO) > 0) {
                                             if (quotient <= 1) {
-                                                var new_address = self.generateAddressFromSeed();
-
                                                 if (valueAndRemainder[1].compareTo(SharedCoin.getMinimumInputValue()) < 0 ||
                                                     valueAndRemainder[1].compareTo(SharedCoin.getMaximumOutputValue()) > 0) {
                                                     continue;
                                                 }
+
+                                                var new_address = self.generateAddressFromSeed();
 
                                                 offer.request_outputs.push({
                                                     value : valueAndRemainder[1].toString(),
@@ -1404,16 +1407,30 @@ var SharedCoin = new function() {
 
                                 el.find('input,select,button').prop('disabled', true);
 
-                                SharedCoin.constructPlan(el, function(plan) {
+                                MyWallet.setLoadingText('Constructing Plan. Please Wait.');
 
-                                    console.log('Created Plan');
+                                var timeSinceLastSubmit = new Date().getTime() - LastSignatureSubmitTime;
 
-                                    console.log(plan);
 
-                                    plan.execute(success, function(e) {
-                                        error(e, plan);
-                                    });
-                                }, error);
+                                var interval = Math.max(0, MinTimeBetweenSubmits - timeSinceLastSubmit);
+
+                                if (interval > 0 )
+                                    $('.loading-indicator').fadeIn(200);
+
+                                setTimeout(function() {
+                                    $('.loading-indicator').hide();
+
+                                    SharedCoin.constructPlan(el, function(plan) {
+
+                                        console.log('Created Plan');
+
+                                        console.log(plan);
+
+                                        plan.execute(success, function(e) {
+                                            error(e, plan);
+                                        });
+                                    }, error);
+                                }, interval)
                             }, error);
                         }, error);
                     });
@@ -1423,51 +1440,47 @@ var SharedCoin = new function() {
             }
         }
 
-        if ($.isEmptyObject(options)) {
-            MyWallet.setLoadingText('Fetching SharedCoin Info');
+        MyWallet.setLoadingText('Fetching SharedCoin Info');
 
-            $.retryAjax({
-                dataType: 'json',
-                type: "POST",
-                url: URL,
-                timeout: AjaxTimeout,
-                retryLimit: AjaxRetry,
-                data : {method : 'get_info', format : 'json'},
-                success: function (obj) {
-                    try {
-                        options = obj;
+        $.retryAjax({
+            dataType: 'json',
+            type: "POST",
+            url: URL,
+            timeout: AjaxTimeout,
+            retryLimit: AjaxRetry,
+            data : {method : 'get_info', format : 'json'},
+            success: function (obj) {
+                try {
+                    options = obj;
 
-                        if (!SharedCoin.getIsEnabled()) {
-                            throw 'Shared Coin is currently disabled';
-                        }
-
-                        if (version < SharedCoin.getMinimumSupportedVersion()) {
-                            throw 'Version out of date. Please update your client or reload the page.';
-                        }
-
-                        setSendOptions();
-
-                        repetitionsSelect.empty();
-
-                        for (var ii = obj.recommended_min_iterations; ii <= obj.recommended_max_iterations; ii+=1) {
-                            repetitionsSelect.append('<option value="'+(ii)+'">'+(ii)+' Repetitions</option>');
-                        }
-
-                        repetitionsSelect.val(obj.recommended_iterations);
-                    } catch (e) {
-                        MyWallet.makeNotice('error', 'misc-error', e);
+                    if (!SharedCoin.getIsEnabled()) {
+                        throw 'Shared Coin is currently disabled';
                     }
 
-                    enableSendButton();
-                },
-                error : function(e) {
-                    send_button.prop('disabled', true);
-                    MyWallet.makeNotice('error', 'misc-error', e.responseText);
+                    if (version < SharedCoin.getMinimumSupportedVersion()) {
+                        throw 'Version out of date. Please update your client or reload the page.';
+                    }
+
+                    setSendOptions();
+
+                    repetitionsSelect.empty();
+
+                    for (var ii = obj.recommended_min_iterations; ii <= obj.recommended_max_iterations; ii+=1) {
+                        repetitionsSelect.append('<option value="'+(ii)+'">'+(ii)+' Repetitions</option>');
+                    }
+
+                    repetitionsSelect.val(obj.recommended_iterations);
+                } catch (e) {
+                    MyWallet.makeNotice('error', 'misc-error', e);
                 }
-            });
-        } else {
-            setSendOptions();
-        }
+
+                enableSendButton();
+            },
+            error : function(e) {
+                send_button.prop('disabled', true);
+                MyWallet.makeNotice('error', 'misc-error', e.responseText);
+            }
+        });
 
         enableSendButton();
     }
