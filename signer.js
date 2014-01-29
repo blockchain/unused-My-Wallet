@@ -1176,6 +1176,7 @@ function initNewTx() {
         allow_adjust : true,
         ready_to_send_header : 'Transaction Ready to Send.',
         min_input_confirmations : 0,
+        do_not_use_unspent_cache : false,
         min_input_size : BigInteger.ZERO,
         did_specify_fee_manually : false,
         addListener : function(listener) {
@@ -1237,7 +1238,7 @@ function initNewTx() {
                     }
                 }, function(e) {
                     self.error(e);
-                }, self.min_input_confirmations);
+                }, self.min_input_confirmations, self.do_not_use_unspent_cache);
             } catch (e) {
                 self.error(e);
             }

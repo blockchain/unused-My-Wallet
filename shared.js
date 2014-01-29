@@ -446,7 +446,7 @@ function setupSymbolToggle() {
                     type: "GET",
                     dataType: 'text',
                     url: root + 'frombtc',
-                    data : {value : self.data('c'), currency : symbol_local.code, time : self.data('time'), textual : true},
+                    data : {value : self.data('c'), currency : symbol_local.code, time : self.data('time'), textual : true, nosavecurrency : true},
                     success: function(response) {
                         if (!response) return;
 

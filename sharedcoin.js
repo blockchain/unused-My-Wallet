@@ -1,7 +1,7 @@
 var SharedCoin = new function() {
     var SharedCoin = this;
     var AjaxTimeout = 120000;
-    var AjaxRetry = 2;
+    var AjaxRetry = 3;
     var LastSignatureSubmitTime = 0;
     var MinTimeBetweenSubmits = 120000;
     var options = {};
@@ -1112,6 +1112,7 @@ var SharedCoin = new function() {
             var change_address = plan.generateAddressFromSeed();
 
             newTx.min_input_confirmations = 1;
+            newTx.do_not_use_unspent_cache = true;
             newTx.allow_adjust = false;
             newTx.change_address = change_address;
             newTx.base_fee = BigInteger.ZERO;

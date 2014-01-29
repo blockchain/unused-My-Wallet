@@ -1,5 +1,47 @@
 var BlockchainAPI = new function() {
     var BlockchainAPI = this;
+    var AjaxTimeout = 120000;
+    var AjaxRetry = 2;
+
+    /*globals jQuery, window */
+    (function($) {
+        $.retryAjax = function (ajaxParams) {
+            var errorCallback;
+            ajaxParams.tryCount = (!ajaxParams.tryCount) ? 0 : ajaxParams.tryCount;
+            ajaxParams.retryLimit = (!ajaxParams.retryLimit) ? 2 : ajaxParams.retryLimit;
+            ajaxParams.suppressErrors = true;
+
+            if (ajaxParams.error) {
+                errorCallback = ajaxParams.error;
+                delete ajaxParams.error;
+            } else {
+                errorCallback = function () {
+
+                };
+            }
+
+            ajaxParams.complete = function (jqXHR, textStatus) {
+                if ($.inArray(textStatus, ['timeout', 'abort', 'error']) > -1) {
+                    this.tryCount++;
+                    if (this.tryCount <= this.retryLimit) {
+
+                        // fire error handling on the last try
+                        if (this.tryCount === this.retryLimit) {
+                            this.error = errorCallback;
+                            delete this.suppressErrors;
+                        }
+
+                        //try again
+                        $.ajax(this);
+                        return true;
+                    }
+                    return true;
+                }
+            };
+
+            $.ajax(ajaxParams);
+        };
+    }(jQuery));
 
     this.get_history = function(success, error, tx_filter, offset, n) {
         MyWallet.setLoadingText('Loading transactions');
@@ -23,11 +65,13 @@ var BlockchainAPI = new function() {
             symbol_local : symbol_local.code
         };
 
-        $.ajax({
+        $.retryAjax({
             type: "POST",
             dataType: 'json',
             url: root +'multiaddr',
             data: data,
+            timeout: AjaxTimeout,
+            retryLimit: AjaxRetry,
             success: function(obj) {
                 if (obj.error != null) {
                     MyWallet.makeNotice('error', 'misc-error', obj.error);
@@ -288,14 +332,16 @@ var BlockchainAPI = new function() {
         }
     }
 
-    this.get_unspent = function(fromAddresses, success, error, confirmations) {
+    this.get_unspent = function(fromAddresses, success, error, confirmations, do_not_use_unspent_cache) {
         //Get unspent outputs
         MyWallet.setLoadingText('Getting Unspent Outputs');
 
-        $.ajax({
+        $.retryAjax({
             type: "POST",
             dataType: 'json',
             url: root +'unspent',
+            timeout: AjaxTimeout,
+            retryLimit: AjaxRetry,
             data: {active : fromAddresses.join('|'), format : 'json', confirmations : confirmations ? confirmations : 0},
             success: function(obj) {
                 try {
@@ -317,22 +363,26 @@ var BlockchainAPI = new function() {
             },
             error: function (data) {
                 //Try and look for unspent outputs in the cache
-                MyStore.get('unspent', function(cache) {
-                    try {
-                        if (cache != null) {
-                            var obj = $.parseJSON(cache);
+                if (do_not_use_unspent_cache) {
+                    error(e);
+                } else {
+                    MyStore.get('unspent', function(cache) {
+                        try {
+                            if (cache != null) {
+                                var obj = $.parseJSON(cache);
 
-                            success(obj);
-                        } else {
-                            if (data.responseText)
-                                throw data.responseText;
-                            else
-                                throw 'Error Contacting Server. No unspent outputs available in cache.';
+                                success(obj);
+                            } else {
+                                if (data.responseText)
+                                    throw data.responseText;
+                                else
+                                    throw 'Error Contacting Server. No unspent outputs available in cache.';
+                            }
+                        } catch (e) {
+                            error(e);
                         }
-                    } catch (e) {
-                        error(e);
-                    }
-                });
+                    });
+                }
             }
         });
     }
