@@ -98,6 +98,9 @@ Script.prototype.getOutType = function () {
     } else if (this.chunks.length == 2 && this.chunks[1] == Opcode.map.OP_CHECKSIG) {
         // Transfer to IP address
         return 'Pubkey';
+    } else if (this.chunks.length == 3 && this.chunks[0] == Opcode.map.OP_HASH160 && this.chunks[2] == Opcode.map.OP_EQUAL) {
+        // Transfer to pay-to-scripthash
+        return 'P2SH';
     } else if (this.chunks[this.chunks.length-1] == Opcode.map.OP_CHECKMULTISIG && this.chunks[this.chunks.length-2] <= 3) {
         // Transfer to M-OF-N
         return 'Multisig';
@@ -125,6 +128,8 @@ Script.prototype.simpleOutHash = function ()
             return this.chunks[2];
         case 'Pubkey':
             return Bitcoin.Util.sha256ripe160(this.chunks[0]);
+        case 'P2SH':
+            return this.chunks[1];
         default:
             throw new Error("Encountered non-standard scriptPubKey " + this.getOutType() + ' Hex: ' + Bitcoin.Util.bytesToHex(this.buffer));
     }
@@ -269,12 +274,21 @@ Script.prototype.writeBytes = function (data)
 Script.createOutputScript = function (address)
 {
     var script = new Script();
-    script.writeOp(Opcode.map.OP_DUP);
-    script.writeOp(Opcode.map.OP_HASH160);
-    script.writeBytes(address.hash);
-    script.writeOp(Opcode.map.OP_EQUALVERIFY);
-    script.writeOp(Opcode.map.OP_CHECKSIG);
-    return script;
+    if (address.version == Bitcoin.Address.pubKeyHashVersion) {
+        script.writeOp(Opcode.map.OP_DUP);
+        script.writeOp(Opcode.map.OP_HASH160);
+        script.writeBytes(address.hash);
+        script.writeOp(Opcode.map.OP_EQUALVERIFY);
+        script.writeOp(Opcode.map.OP_CHECKSIG);
+        return script;
+    } else if (address.version == Bitcoin.Address.p2shVersion) {
+        script.writeOp(Opcode.map.OP_HASH160);
+        script.writeBytes(address.hash);
+        script.writeOp(Opcode.map.OP_EQUAL);
+        return script;
+    } else {
+        throw "Unknown address version";
+    }
 };
 
 /**
@@ -288,6 +302,9 @@ Script.prototype.extractAddresses = function (addresses)
             return 1;
         case 'Pubkey':
             addresses.push(new Bitcoin.Address(Bitcoin.Util.sha256ripe160(this.chunks[0])));
+            return 1;
+        case 'P2SH':
+            addresses.push(new Bitcoin.Address(this.chunks[1], Bitcoin.Address.p2shVersion));
             return 1;
         case 'Multisig':
             for (var i = 1; i < this.chunks.length-2; ++i) {

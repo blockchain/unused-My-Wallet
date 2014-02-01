@@ -1,10 +1,11 @@
-Bitcoin.Address = function (bytes) {
+Bitcoin.Address = function (bytes, version) {
   if ("string" == typeof bytes) {
-    bytes = Bitcoin.Address.decodeString(bytes);
+    this.fromString(bytes);
+    return;
   }
   this.hash = bytes;
 
-  this.version = 0x00;
+  this.version = version || Bitcoin.Address.pubKeyHashVersion;
 };
 
 /**
@@ -33,7 +34,7 @@ Bitcoin.Address.prototype.getHashBase64 = function () {
 /**
  * Parse a Bitcoin address contained in a string.
  */
-Bitcoin.Address.decodeString = function (string) {
+Bitcoin.Address.prototype.fromString = function (string) {
   var bytes = Bitcoin.Base58.decode(string);
 
   var hash = bytes.slice(0, 21);
@@ -47,11 +48,21 @@ Bitcoin.Address.decodeString = function (string) {
     throw "Checksum validation failed!";
   }
 
-  var version = hash.shift();
+  this.version = hash.shift();
+  this.hash = hash;
 
-  if (version != 0) {
+  if (this.version != Bitcoin.Address.pubKeyHashVersion && this.version != Bitcoin.Address.p2shVersion) {
     throw "Version "+version+" not supported!";
   }
-
-  return hash;
 };
+
+Bitcoin.Address.isP2SHAddress = function () {
+  return this.version == Bitcoin.Address.p2shVersion;
+}
+
+Bitcoin.Address.isPubKeyHashAddress = function () {
+  return this.version == Bitcoin.Address.pubKeyHashVersion;
+}
+
+Bitcoin.Address.pubKeyHashVersion = 0;
+Bitcoin.Address.p2shVersion = 5;
