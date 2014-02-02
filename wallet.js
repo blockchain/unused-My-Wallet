@@ -2812,6 +2812,9 @@ var MyWallet = new function() {
             data.checksum = payload_checksum;
         }
 
+        //Deprecate Local Browser Caching
+        MyStore.remove('payload');
+
         $.ajax({
             type: "GET",
             dataType: 'json',
@@ -2861,7 +2864,6 @@ var MyWallet = new function() {
                 MyStore.get('guid', function(local_guid) {
                     if (local_guid != guid) {
                         MyStore.remove('guid');
-                        MyStore.remove('payload');
                         MyStore.remove('multiaddr');
 
                         //Demo Account Guid
@@ -4382,24 +4384,6 @@ var MyWallet = new function() {
         if (MyWallet.skip_init)
             return;
 
-        var pendingGets = 1;
-        function isInitialReady() {
-            --pendingGets;
-
-            if (pendingGets == -1) {
-                bindInitial();
-            }
-        }
-
-        MyStore.get('payload', function(result) {
-            if (!encrypted_wallet_data && result) {
-                encrypted_wallet_data = result;
-                payload_checksum = generatePayloadChecksum();
-            }
-
-            isInitialReady();
-        });
-
         MyStore.get('server_time_offset', function (_serverTimeOffset) {
             serverTimeOffset = parseInt(_serverTimeOffset);
 
@@ -4408,16 +4392,17 @@ var MyWallet = new function() {
         });
 
         if ((!guid || guid.length == 0) && (isExtension || window.location.href.indexOf('/login') > 0)) {
-            ++pendingGets;
             MyStore.get('guid', function(result) {
                 guid = result;
 
                 tSetGUID();
 
-                isInitialReady();
+                bindInitial();
             });
         } else {
             tSetGUID();
+
+            bindInitial();
         }
 
         //Frame break
@@ -4444,8 +4429,6 @@ var MyWallet = new function() {
                     rng_seed_int(event.clientX * event.clientY);
                 }
             });
-
-        isInitialReady();
 
         $('.auth-'+auth_type).show();
 

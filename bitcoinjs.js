@@ -3639,13 +3639,14 @@ var B58 = {
 };
 
 Bitcoin.Base58 = B58;
-Bitcoin.Address = function (bytes) {
+Bitcoin.Address = function (bytes, version) {
   if ("string" == typeof bytes) {
-    bytes = Bitcoin.Address.decodeString(bytes);
+    this.fromString(bytes);
+    return;
   }
   this.hash = bytes;
 
-  this.version = 0x00;
+  this.version = version || Bitcoin.Address.pubKeyHashVersion;
 };
 
 /**
@@ -3674,7 +3675,7 @@ Bitcoin.Address.prototype.getHashBase64 = function () {
 /**
  * Parse a Bitcoin address contained in a string.
  */
-Bitcoin.Address.decodeString = function (string) {
+Bitcoin.Address.prototype.fromString = function (string) {
   var bytes = Bitcoin.Base58.decode(string);
 
   var hash = bytes.slice(0, 21);
@@ -3688,14 +3689,24 @@ Bitcoin.Address.decodeString = function (string) {
     throw "Checksum validation failed!";
   }
 
-  var version = hash.shift();
+  this.version = hash.shift();
+  this.hash = hash;
 
-  if (version != 0) {
+  if (this.version != Bitcoin.Address.pubKeyHashVersion && this.version != Bitcoin.Address.p2shVersion) {
     throw "Version "+version+" not supported!";
   }
-
-  return hash;
 };
+
+Bitcoin.Address.isP2SHAddress = function () {
+  return this.version == Bitcoin.Address.p2shVersion;
+}
+
+Bitcoin.Address.isPubKeyHashAddress = function () {
+  return this.version == Bitcoin.Address.pubKeyHashVersion;
+}
+
+Bitcoin.Address.pubKeyHashVersion = 0;
+Bitcoin.Address.p2shVersion = 5;
 function integerToBytes(i, len) {
     var bytes = i.toByteArrayUnsigned();
 
@@ -4654,6 +4665,9 @@ Script.prototype.getOutType = function () {
     } else if (this.chunks.length == 2 && this.chunks[1] == Opcode.map.OP_CHECKSIG) {
         // Transfer to IP address
         return 'Pubkey';
+    } else if (this.chunks.length == 3 && this.chunks[0] == Opcode.map.OP_HASH160 && this.chunks[2] == Opcode.map.OP_EQUAL) {
+        // Transfer to pay-to-scripthash
+        return 'P2SH';
     } else if (this.chunks[this.chunks.length-1] == Opcode.map.OP_CHECKMULTISIG && this.chunks[this.chunks.length-2] <= 3) {
         // Transfer to M-OF-N
         return 'Multisig';
@@ -4681,6 +4695,8 @@ Script.prototype.simpleOutHash = function ()
             return this.chunks[2];
         case 'Pubkey':
             return Bitcoin.Util.sha256ripe160(this.chunks[0]);
+        case 'P2SH':
+            return this.chunks[1];
         default:
             throw new Error("Encountered non-standard scriptPubKey " + this.getOutType() + ' Hex: ' + Bitcoin.Util.bytesToHex(this.buffer));
     }
@@ -4825,12 +4841,21 @@ Script.prototype.writeBytes = function (data)
 Script.createOutputScript = function (address)
 {
     var script = new Script();
-    script.writeOp(Opcode.map.OP_DUP);
-    script.writeOp(Opcode.map.OP_HASH160);
-    script.writeBytes(address.hash);
-    script.writeOp(Opcode.map.OP_EQUALVERIFY);
-    script.writeOp(Opcode.map.OP_CHECKSIG);
-    return script;
+    if (address.version == Bitcoin.Address.pubKeyHashVersion) {
+        script.writeOp(Opcode.map.OP_DUP);
+        script.writeOp(Opcode.map.OP_HASH160);
+        script.writeBytes(address.hash);
+        script.writeOp(Opcode.map.OP_EQUALVERIFY);
+        script.writeOp(Opcode.map.OP_CHECKSIG);
+        return script;
+    } else if (address.version == Bitcoin.Address.p2shVersion) {
+        script.writeOp(Opcode.map.OP_HASH160);
+        script.writeBytes(address.hash);
+        script.writeOp(Opcode.map.OP_EQUAL);
+        return script;
+    } else {
+        throw "Unknown address version";
+    }
 };
 
 /**
@@ -4844,6 +4869,9 @@ Script.prototype.extractAddresses = function (addresses)
             return 1;
         case 'Pubkey':
             addresses.push(new Bitcoin.Address(Bitcoin.Util.sha256ripe160(this.chunks[0])));
+            return 1;
+        case 'P2SH':
+            addresses.push(new Bitcoin.Address(this.chunks[1], Bitcoin.Address.p2shVersion));
             return 1;
         case 'Multisig':
             for (var i = 1; i < this.chunks.length-2; ++i) {
@@ -4903,7 +4931,8 @@ Script.createInputScript = function (signature, pubKey)
 Script.prototype.clone = function ()
 {
     return new Script(this.buffer);
-};var OP_CODESEPARATOR = 171;
+};
+var OP_CODESEPARATOR = 171;
 
 var SIGHASH_ALL = 1;
 var SIGHASH_NONE = 2;
