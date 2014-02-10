@@ -355,9 +355,12 @@ Script.createPubKeyScript = function (pubkey_bytes)
  */
 Script.createInputScript = function (signature, pubKey)
 {
+
     var script = new Script();
+
     script.writeBytes(signature);
     script.writeBytes(pubKey);
+
     return script;
 };
 

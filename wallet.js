@@ -2812,15 +2812,12 @@ var MyWallet = new function() {
             data.checksum = payload_checksum;
         }
 
-        //Deprecate Local Browser Caching
-        MyStore.remove('payload');
-
         $.ajax({
             type: "GET",
             dataType: 'json',
             url: root + 'wallet/'+guid_or_alias,
             data : data,
-            timeout: 10000,
+            timeout: 30000,
             success: function(obj) {
                 MyWallet.handleNTPResponse(obj, clientTime);
 
@@ -2865,6 +2862,7 @@ var MyWallet = new function() {
                     if (local_guid != guid) {
                         MyStore.remove('guid');
                         MyStore.remove('multiaddr');
+                        MyStore.remove('payload');
 
                         //Demo Account Guid
                         if (guid != demo_guid) {
@@ -4055,20 +4053,6 @@ var MyWallet = new function() {
                 buildSendForm(self, true);
 
                 self.find('select[name="from"]').trigger('change');
-            });
-        });
-
-        $('#send-satoshi-dice').on('show', function(e, reset) {
-            var self = this;
-
-            loadScript('wallet/dicegames', function() {
-                try {
-                    DICEGame.init($(self));
-                } catch (e) {
-                    MyWallet.makeNotice('error', 'misc-error', 'Unable To Load Dice Bets');
-                }
-            }, function (e) {
-                MyWallet.makeNotice('error', 'misc-error', e);
             });
         });
 
