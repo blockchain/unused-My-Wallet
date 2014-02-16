@@ -120,7 +120,6 @@ $(document).ready(function() {
                         var from_address = privateKeyToSweep.getBitcoinAddress().toString();
 
                         BlockchainAPI.get_balance([from_address], function(value) {
-
                             if (value == 0) {
                                 MyWallet.makeNotice('error', 'misc-error', 'The payment has already been claimed');
                                 return;

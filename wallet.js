@@ -137,6 +137,12 @@ var MyWallet = new function() {
         event_listeners.push(func);
     }
 
+    this.sendEvent = function(event_name) {
+        for (var listener in event_listeners) {
+            event_listeners[listener](event_name)
+        }
+    }
+
     this.getLogoutTime = function() {
         return wallet_options.logout_time;
     }
@@ -159,6 +165,18 @@ var MyWallet = new function() {
 
     this.disableLogout = function(value) {
         disable_logout = value;
+    }
+
+    this.getFinalBalance = function() {
+        return final_balance;
+    }
+
+    this.getTotalSent = function() {
+        return total_sent;
+    }
+
+    this.getTotalReceived = function() {
+        return total_received;
     }
 
     this.setLogoutTime = function(logout_time) {
@@ -715,7 +733,6 @@ var MyWallet = new function() {
                     }
 
                 } else if (obj.op == 'utx') {
-
                     var tx = TransactionFromJSON(obj.x);
 
                     //Check if this is a duplicate
@@ -755,6 +772,8 @@ var MyWallet = new function() {
                             did_pop = true;
                         }
                     }
+
+                    MyWallet.sendEvent('on_tx');
 
                     var id = buildVisibleViewPre();
                     if ("my-transactions" == id) {
@@ -800,6 +819,8 @@ var MyWallet = new function() {
                     }
 
                     setLatestBlock(BlockFromJSON(obj.x));
+
+                    MyWallet.sendEvent('on_block');
 
                     //Need to update latest block
                     buildTransactionsView();
@@ -1849,6 +1870,8 @@ var MyWallet = new function() {
             if (obj.info.latest_block)
                 setLatestBlock(obj.info.latest_block);
         }
+
+        MyWallet.sendEvent('did_multiaddr');
     }
 
     this.handleURI = function(hash, recipient) {
@@ -1883,9 +1906,7 @@ var MyWallet = new function() {
 
         logout_timeout = setTimeout(MyWallet.logout, MyWallet.getLogoutTime());
 
-        for (var listener in event_listeners) {
-            event_listeners[listener]('did_decrypt')
-        }
+        MyWallet.sendEvent('did_decrypt');
 
         MyStore.get('multiaddr', function(multiaddrjson) {
             if (multiaddrjson != null) {
@@ -2276,6 +2297,13 @@ var MyWallet = new function() {
             return;
         }
 
+        function error(e) {
+            isRestoringWallet = false;
+            MyWallet.makeNotice('error', 'misc-error', e);
+
+            MyWallet.sendEvent('error_restoring_wallet');
+        }
+
         try {
             isRestoringWallet = true;
 
@@ -2288,11 +2316,6 @@ var MyWallet = new function() {
 
             //Main Password times out after 10 minutes
             last_input_main_password = new Date().getTime();
-
-            function error(e) {
-                isRestoringWallet = false;
-                MyWallet.makeNotice('error', 'misc-error', e);
-            }
 
             //If we don't have any wallet data then we must have two factor authentication enabled
             if (encrypted_wallet_data == null || encrypted_wallet_data.length == 0) {
@@ -2812,6 +2835,10 @@ var MyWallet = new function() {
             data.checksum = payload_checksum;
         }
 
+        if (sharedKey) {
+            data.sharedKey = sharedKey;
+        }
+
         $.ajax({
             type: "GET",
             dataType: 'json',
@@ -2839,6 +2866,8 @@ var MyWallet = new function() {
                 if (obj.payload && obj.payload.length > 0 && obj.payload != 'Not modified') {
                     MyWallet.setEncryptedWalletData(obj.payload);
                 }
+
+                MyWallet.sendEvent('did_set_guid');
 
                 war_checksum = obj.war_checksum;
 
@@ -2890,6 +2919,8 @@ var MyWallet = new function() {
                         $('#restore-guid').val(guid);
 
                         $('.auth-'+auth_type).show();
+
+                        MyWallet.sendEvent('did_set_guid');
 
                         return;
                     }
@@ -4200,6 +4231,7 @@ var MyWallet = new function() {
                 return;
 
             if (guid != tguid) {
+                sharedKey = null;
                 MyWallet.setGUID(tguid, false);
             } else {
                 restoreWallet();
