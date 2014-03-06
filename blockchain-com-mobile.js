@@ -63,6 +63,7 @@ var Mobile = new function() {
         });
     }
 <<<<<<< HEAD
+<<<<<<< HEAD
 
     function addNotePopover(el, tx_hash) {
         (function(el, tx_hash) {
