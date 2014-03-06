@@ -15,7 +15,7 @@ $(document).ready(function() {
     //Chrome should automatically grant notification permissions
     MyWallet.setHTML5Notifications(true);
 
-    $('#create-account-btn').click(function() {
+    $('#create-account').click(function() {
         Mobile.loadTemplate('create-account')
     });
 });
