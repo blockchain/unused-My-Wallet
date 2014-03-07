@@ -35,7 +35,7 @@ $(document).ready(function() {
     MyWallet.setHTML5Notifications(true);
 
     $('#pair-device-btn').click(function() {
-        Mobile.loadTemplate('login')
+        Mobile.loadTemplate('pair-device')
     });
 });
 
