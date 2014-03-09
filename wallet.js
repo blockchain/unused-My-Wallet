@@ -124,6 +124,18 @@ var MyWallet = new function() {
         return wallet_options.additional_seeds;
     }
 
+    this.getWalletOptions = function() {
+        return wallet_options;
+    }
+
+    this.getTxPage = function() {
+        return tx_page;
+    }
+
+    this.getAddresses = function() {
+        return addresses;
+    }
+
     this.getLanguage = function() {
         return language;
     }
@@ -2468,7 +2480,7 @@ var MyWallet = new function() {
         }, error);
     }
 
-    function restoreWallet() {
+    this.restoreWallet = function restoreWallet() {
 
         if (isInitialized || isRestoringWallet) {
             return;
