@@ -1898,6 +1898,11 @@ var MyWallet = new function() {
             }
 
             for (var cc in country_codes) {
+                var array =  country_codes[cc];
+
+                if (array.length == 0 && all.length == 0)
+                    continue;
+
                 var li = $('<li><a></a></li>');
 
                 if (cc == 'US')
