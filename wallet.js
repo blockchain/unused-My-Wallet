@@ -1810,6 +1810,161 @@ var MyWallet = new function() {
         });
     }
 
+    function handlePartners(obj) {
+
+        /* Partner buttons on Home View */
+        var home_buttons= $('#partner-home-buttons');
+        if (obj.home_buttons && obj.home_buttons.length > 0) {
+            home_buttons.show();
+            home_buttons.find('p').empty();
+
+            for (var key in obj.home_buttons) {
+                var button =  obj.home_buttons[key];
+
+                var a = $('<a class="btn" style="margin-left:3px;" href="" target="blank"><img src=""></a>');
+
+                if (button.button_class)
+                    a.addClass(button.button_class);
+
+                a.attr('href', button.link);
+                a.text(' ' + button.title);
+                if (button.image) {
+                    a.prepend('<img>').find('img').attr('src', button.image.replace('{0}', resource));
+                }
+
+                home_buttons.find('p').append(a);
+            }
+        } else {
+            home_buttons.hide();
+        }
+
+        /* Send Coins Partner buttons */
+        var send_coins_nav = $('#send-coins-nav');
+        send_coins_nav.find('li.send_partner').remove();
+        var send_coins_divider = $('#partners-send-divider');
+        if (obj.send_buttons && obj.send_buttons.length > 0) {
+            send_coins_divider.show().next().show();
+
+            for (var key in obj.send_buttons) {
+                var button =  obj.send_buttons[key];
+                var el = $('<li class="send_partner"><a target="blank"></a></li>');
+
+                var a = el.find('a');
+
+                a.attr('href', button.link);
+                a.text(' ' + button.title);
+                if (button.image) {
+                    a.prepend('<i class="icon-dice" style="background-position:0px;width:16px;height:16px;"></i>').find('i').css('background-image', 'url(' + button.image.replace('{0}', resource) + ')');
+                }
+
+                send_coins_divider.next().after(el);
+            }
+        } else {
+            send_coins_divider.hide().next().hide();
+        }
+
+
+        /* Deposit Buttons */
+        var home_deposit_container = $('#home-deposit-container').empty();
+
+        if (obj.deposit_buttons.length > 0) {
+            home_deposit_container.show();
+
+            var ul = $('<ul id="myTab" class="nav nav-tabs">');
+
+            var country_codes = {
+                US : [],
+                GB : [],
+                EU : []
+            };
+
+            var all = [];
+            for (var key in obj.deposit_buttons) {
+                var button =  obj.deposit_buttons[key];
+
+                if (button.country_code == null || button.country_code.length == 0) {
+                  all.push(button);
+                  continue;
+                }
+
+                var array = country_codes[button.country_code];
+
+                if (array == null) {
+                    array = [];
+                    country_codes[button.country_code] = array;
+                }
+
+                array.push(button);
+            }
+
+            for (var cc in country_codes) {
+                var li = $('<li><a></a></li>');
+
+                if (cc == 'US')
+                    li.addClass('active');
+
+                var a = li.find('a');
+
+                a.attr('href', '#deposit-' + cc.toLowerCase());
+
+                a.text(' ' + cc.toUpperCase())
+
+                a.prepend('<img>').find('img').attr('src', resource + 'flags/' + cc.toLowerCase() + '.png');
+
+                ul.append(li);
+
+            }
+
+            ul.find('a').click(function() {
+                $(this).tab('show');
+            });
+
+            home_deposit_container.append(ul);
+
+            var content = $('<div class="tab-content page-header">');
+
+            for (var cc in country_codes) {
+                var array =  country_codes[cc];
+
+                var pane = $('<div class="tab-pane" style="text-align:right">');
+
+                if (cc == 'US')
+                    pane.addClass('active');
+
+                pane.attr('id', 'deposit-' + cc.toLowerCase());
+
+                array = array.concat(all);
+
+                if (array.length == 0)
+                    continue;
+
+                for (var i in array) {
+                    var button = array[i];
+
+                    var a = $('<a class="btn" target="blank"></a>');
+
+                    if (button.button_class)
+                        a.addClass(button.button_class);
+
+                    a.attr('href', button.link);
+                    a.text(' ' + button.title);
+                    if (button.image) {
+                        a.prepend('<img>').find('img').attr('src', button.image.replace('{0}', resource));
+                    }
+
+                    pane.append(a);
+                }
+
+                content.append(pane)
+            }
+
+            home_deposit_container.append(content);
+
+        } else {
+            home_deposit_container.hide();
+        }
+    }
+
     function parseMultiAddressJSON(obj, cached) {
         if (!cached) {
 
@@ -1869,6 +2024,10 @@ var MyWallet = new function() {
         if (!cached) {
             if (obj.info.latest_block)
                 setLatestBlock(obj.info.latest_block);
+        }
+
+        if (obj.partners) {
+            handlePartners(obj.partners);
         }
 
         MyWallet.sendEvent('did_multiaddr');
