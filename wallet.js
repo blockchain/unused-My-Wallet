@@ -2879,7 +2879,7 @@ var MyWallet = new function() {
         }, error);
     }
 
-    function restoreWallet() {
+    this.restoreWallet = function restoreWallet() {
 
         if (isInitialized || isRestoringWallet) {
             return;
