@@ -280,8 +280,15 @@ var Mobile = new function() {
         var result = tx.result;
 
         var html = '<div class="row rowlines">';
-    	html += '<div class="col-xs-2"> <img class="bound" src="${resource}mobile/images/outbound.png" alt="sent"> </div>';
+        if (result > 0) {
+        	html += '<div class="col-xs-2"> <img class="bound" src="'+resource+'mobile/images/inbound.png" alt="sent"> </div>';
+        }
+        else if (result < 0) {
+        	html += '<div class="col-xs-2"> <img class="bound" src="'+resource+'mobile/images/outbound.png" alt="sent"> </div>';
+        }
+
         html += '<div class="col-xs-8">';
+
         if (tx.time > 0) {
             html += '<p class="details">' + dateToString(new Date(tx.time * 1000))+ '</p>';
         }
