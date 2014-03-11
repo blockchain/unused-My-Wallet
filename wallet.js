@@ -1620,19 +1620,37 @@ var MyWallet = new function() {
         return cVisible.attr('id');
     }
 
+    function showMobileWalletHeadAndFooter() {
+        if($("#head-mobile-part1").is(":visible") == false) {
+            $('#head-mobile-part1').show();
+        }
+        if($("#head-mobile-part2").is(":visible") == false) {
+            $('#head-mobile-part2').show();
+        }
+        if($("#footer-mobile").is(":visible") == false) {
+            $('#footer-mobile').show();
+        }
+    }
+
     //Reset is true when called manually with changeview
     function buildVisibleView(reset) {
 
         var id = buildVisibleViewPre();
 
-        if ("send-coins" == id)
+
+        if ("send-coins" == id) {
+            showMobileWalletHeadAndFooter();
             buildSendTxView(reset);
-        else if ("home-intro" == id)
+        } else if ("home-intro" == id) {
+            showMobileWalletHeadAndFooter();
             buildHomeIntroView(reset);
-        else if ("receive-coins" == id)
+        } else if ("receive-coins" == id) {
+            showMobileWalletHeadAndFooter();
             buildReceiveCoinsView(reset)
-        else if ("my-transactions" == id)
+        } else if ("my-transactions" == id) {
+            showMobileWalletHeadAndFooter();
             buildTransactionsView(reset)
+        }
     }
 
     function buildHomeIntroView(reset) {
