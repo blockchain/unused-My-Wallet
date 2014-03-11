@@ -1919,13 +1919,6 @@ var MyWallet = new function() {
 
         var id = buildVisibleViewPre();
 
-        var body = $(document.body);
-        body.attr('class', id);
-
-        //only bind scroll in TransactionsView
-        if (isMobile)
-            $(window).unbind('scroll');
-
         if ("send-coins" == id) {
             showMobileWalletHeadAndFooter();
             buildSendTxView(reset);
