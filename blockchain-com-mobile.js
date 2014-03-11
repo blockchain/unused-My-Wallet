@@ -303,10 +303,18 @@ $(document).ready(function() {
 
     $("#scanpaircode").on("change", function(event) {
         $('#camPlaceholder').trigger('click');
+    $('#create-account-btn').click(function() {
+        console.log('create-account-btn__clicked');
+        //Mobile.loadTemplate('create-account');
+        $("#landing-container").hide();
+        $("#createacct-container").show();
+
     });
 });
 
 $(document).ready(function() {
+    console.log('bindmobile__clicked');
+
     var body = $(document.body);
 
     var data_root = body.data('root');
@@ -321,7 +329,91 @@ $(document).ready(function() {
     MyWallet.setHTML5Notifications(true);
 
     $('#pair-device-btn').click(function() {
-        Mobile.loadTemplate('pair-device')
+        $("#landing-container").hide();
+        $("#restore-wallet").show();
+        $("#pairdevice-stage1").show();
+    });
+
+    $('#pairdevice-Continue1').click(function() {
+        $("#pairdevice-stage1").hide();
+        $("#pairdevice-stage2").show();
+    });
+
+    $('#pairdevice-Continue2').click(function() {
+        $("#pairdevice-stage2").hide();
+        $("#pairdevice-stage3").show();
+    });
+
+    /*
+    $('#overlay').on('click', function (e) {
+        $(this).fadeOut();
+        e.preventDefault();
+    });
+    window.mySwipe = new Swipe(document.getElementById('#mySwipe'), {
+        continuous: false,
+        callback: function(index, elem) {
+            document.getElementById('#pagenum').innerHTML=mySwipe.getPos() + 1;
+        }
+    });
+
+    $('.jumpNext').on('click', function (e) {
+        mySwipe.next();
+        e.preventDefault();
+    });
+    */
+
+    // Camera
+    $('#camPlaceholder').on('click', function (e) {
+        MyWallet.scanQRCode(function(data) {
+        console.log('Scanned: ' + data);
+        //*
+        var components = data.split("|");
+
+        var guid = components[0];
+        var sharedKey = components[1];
+        var password = components[2];
+
+        console.log('guid: ' + guid);
+        console.log('sharedKey: ' + sharedKey);
+        console.log('password: ' + password);
+        $('#restore-guid').val(guid);
+        $('#restore-password').val(password);
+        console.log('restore__password__val: ' + $('#restore-password').val());
+
+         MyWallet.addEventListener(function(event) {
+             if (event == 'did_decrypt') {
+                console.log('event_did_decrypt: ');
+
+                //$("#pairdevice-container").hide();
+                $("#footer-mobile").show();
+
+
+                Mobile.buildTransactionsView();
+                /*
+                Mobile.loadTemplate('transactions', function() {
+                       //MyWallet.buildTransactionsView();
+                }, function() {
+                });
+                //*/
+             }
+        });
+
+         MyWallet.addEventListener(function(event) {
+             if (event == 'did_set_guid') {
+                console.log('did_set_guid: ');
+
+                $('#restore-wallet-continue').trigger('click');
+                //MyWallet.restoreWallet();
+             }
+         });
+
+        MyWallet.setGUID(guid, false);
+
+
+        //*/
+        }, function(e) {
+            MyWallet.makeNotice('error', 'misc-error', e);
+        });
     });
 });
 
@@ -526,8 +618,10 @@ var Mobile = new function() {
                     if (out.addr_tag_link)
                         link = ' <a class="external" rel="nofollow" href="'+root + 'r?url='+out.addr_tag_link+'" target="new"></a>';
 
+                    console.log('addr: ' + addr);
                     return '<a target="new" href="'+root+'address/'+addr+'" class="tag-address">'+addr+'</a> <span class="tag">('+out.addr_tag+link+')</span>';
                 } else {
+                    console.log('addr: ' + addr);
                     return '<a target="new" href="'+root+'address/'+addr+'">'+addr+'</a>';
                 }
             }
@@ -646,6 +740,12 @@ var Mobile = new function() {
         var addresses = MyWallet.getAddresses();
         var address_book = MyWallet.getAddressBook();
 
+                console.log('buildTransactionsView1: ' + wallet_options);
+                console.log('buildTransactionsView1: ' + transactions);
+                console.log('buildTransactionsView1: ' + tx_page);
+                console.log('buildTransactionsView1: ' + addresses);
+                console.log('buildTransactionsView1: ' + address_book);
+
 
         var interval = null;
         var start = 0;
@@ -654,6 +754,7 @@ var Mobile = new function() {
             clearInterval(interval);
             interval = null;
         }
+                console.log('buildTransactionsView1: ');
 
         var txcontainer;
         if (wallet_options.tx_display == 0) {
@@ -663,6 +764,7 @@ var Mobile = new function() {
             $('#transactions-compact').hide();
             txcontainer = $('#transactions-detailed').empty().show();
         }
+                console.log('buildTransactionsView2: ');
 
         if (transactions.length == 0) {
             $('#transactions-detailed, #transactions-compact').hide();
@@ -675,6 +777,7 @@ var Mobile = new function() {
         var buildSome = function() {
             for (var i = start; i < transactions.length && i < (start+MyWallet.getNTransactionsPerPage()); ++i) {
                 var tx = transactions[i];
+                console.log('buildTransactionsView3: ');
 
                 if (wallet_options.tx_display == 0) {
 
