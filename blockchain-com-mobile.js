@@ -2,6 +2,8 @@ isExtension = true;
 APP_NAME = 'javascript_blockchain_com_mobile';
 
 $(document).ready(function() {
+    MyWallet.setIsMobile(true);
+
     var body = $(document.body);
 
     var data_root = body.data('root');
