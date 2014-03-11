@@ -1636,6 +1636,9 @@ var MyWallet = new function() {
     }
 
     function buildHomeIntroView(reset) {
+        $('#head-mobile-part1').show();
+        $('#head-mobile-part2').show();
+
         $('#summary-n-tx').html(n_tx);
 
         $('#summary-received').html(formatMoney(total_received, true));
@@ -2480,7 +2483,7 @@ var MyWallet = new function() {
         }, error);
     }
 
-    this.restoreWallet = function restoreWallet() {
+    function restoreWallet() {
 
         if (isInitialized || isRestoringWallet) {
             return;
