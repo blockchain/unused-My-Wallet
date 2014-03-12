@@ -58,6 +58,25 @@ $(document).ready(function() {
         $("#pairdevice-stage3").show();
     });
 
+    $('#mobile-settings-btn').click(function() {
+        console.log('mobile__settings__btn: ');
+        MyWallet.changeView($("#mobile-settings"));
+    });
+
+    $('#settings-general').on('show', function() {
+        console.log('settings-general-show: ');
+    });
+
+    $('#settings-display').on('show', function() {
+        console.log('settings-display-show: ');
+
+    });
+
+    $('#settings-security').on('show', function() {
+        console.log('settings-security-show: ');
+    });
+
+
     /*
     $('#overlay').on('click', function (e) {
         $(this).fadeOut();
