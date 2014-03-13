@@ -77,6 +77,28 @@ $(document).ready(function() {
     });
 
 
+    $('#address-book').click(function() {
+        console.log('address-book_show: ');
+        var table = document.getElementById("address-book-table");
+        var address_book = MyWallet.getAddressBook();
+
+        table.innerHTML = "";
+        for (var key in address_book) {
+            var row = table.insertRow(0);
+            row.class = "address-label-row";
+            var cell1 = row.insertCell(0);
+            var cell2 = row.insertCell(1);
+            cell1.innerHTML = "<a href=\"#\" class=\"address-label\" id=\""+key+"\">"+address_book[key]+"</a>";
+            cell2.innerHTML = "<p>"+key.substring(0,19)+"</p>";
+        }
+    });
+
+    $('#address-book-table').on('click', '.address-label', function(){
+        $('#send-to-quick').val($(this).attr('id'));
+        $('#myModalBook').modal('hide');
+    });
+
+
     /*
     $('#overlay').on('click', function (e) {
         $(this).fadeOut();
