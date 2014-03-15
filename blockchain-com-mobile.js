@@ -345,8 +345,29 @@ $(document).ready(function() {
     });
 
     $('#mobile-settings-btn').click(function() {
-        console.log('mobile__settings__btn: ');
-        MyWallet.changeView($("#mobile-settings"));
+            MyWallet.getMainPassword(function() {
+            var content = $('#mobile-settings');
+
+            loadScript('wallet/account', function() {
+                AccountSettings.init(content, function() {
+                    MyWallet.changeView($("#mobile-settings"));
+                    $("#inactivity-logout-time-drop-down").change(function(e) {
+                        MyWallet.setLogoutTime(parseInt($(this).val()));
+
+                        //Fee Policy is stored in wallet so must save it
+                        MyWallet.backupWallet();
+                    });
+
+                }, function() {
+                    MyWallet.changeView($("#home-intro"));
+                })
+            }, function (e) {
+                MyWallet.makeNotice('error', 'misc-error', e);
+                MyWallet.changeView($("#home-intro"));
+            });
+        }, function() {
+            MyWallet.changeView($("#home-intro"));
+        });
     });
 
     $('#settings-general').on('show', function() {
