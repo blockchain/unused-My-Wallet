@@ -3876,7 +3876,7 @@ var MyWallet = new function() {
 
                 var action_tx = null;
                 if (isMobile) {
-                        action_tx = $('<tr><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatMoney(addr.balance, true) + '</span><img src="'+resource+'qrcode.png" class="pop address-qr-code" data-toggle="modal" data-target="#myModalQr" id="'+addr.addr+'"/></td>');
+                        action_tx = $('<tr><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatMoney(addr.balance, true) + '</span><img src="'+resource+'qrcode.png" class="pop modal-address" data-toggle="modal" data-target="#myModalAddress" id="'+addr.addr+'"/></td>');
                 } else {
                         action_tx = $('<tr><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatMoney(addr.balance, true) + '</span></td>\
                     <td><div class="btn-group pull-right"><a class="btn btn-mini dropdown-toggle" data-toggle="dropdown" href="#"><span class="hidden-phone">Actions </span><span class="caret"></span></a><ul class="dropdown-menu"> \

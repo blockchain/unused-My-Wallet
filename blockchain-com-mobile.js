@@ -119,13 +119,24 @@ $(document).ready(function() {
         $('#myModalBook').modal('hide');
     });
 
-    $('#active-addresses-table').on('click', '.address-qr-code', function(){
-        var address = $(this).attr('id');
-        var modal = $('#myModalQr');
+    $('#myModalAddress').on('show', function() {
+        var address = document.getElementById("bitcoin-address").innerHTML;
 
-        loadScript('wallet/jquery.qrcode', function() {
-            modal.find('.address-qr-code').empty().qrcode({width: 300, height: 300, text: address});
+        var primary_button = $(this).find('.btn.btn-primary');
+        primary_button.click(function() {
+            $('#myModalAddress').modal('hide');
+            var modal = $('#myModalQr');
+            modal.modal('show');
+            loadScript('wallet/jquery.qrcode', function() {
+                modal.find('.address-qr-code').empty().qrcode({width: 300, height: 300, text: address});
+            });
         });
+    });
+
+    $('#active-addresses-table').on('click', '.modal-address', function(){
+        var address = $(this).attr('id');
+        var addr = document.getElementById("bitcoin-address");
+        addr.innerHTML = address;
     });
 
     $('#import-private-scan').on('click', function (e) {
