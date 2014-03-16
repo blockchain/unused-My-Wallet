@@ -414,6 +414,57 @@ $(document).ready(function() {
         });
     });
 
+    $('#import-private-scan').on('click', function (e) {
+        console.log('import-private-scan: ');
+    });
+
+    $('#import-address-scan').on('click', function (e) {
+        console.log('import-address-scan: ');
+        MyWallet.scanQRCode(function(data) {
+            console.log('Scanned: ' + data);
+            importWatchOnlyAddress(data);
+        }, function(e) {
+            MyWallet.makeNotice('error', 'misc-error', e);
+        });
+    });
+
+    function importWatchOnlyAddress(value) {
+            if (value.length = 0) {
+                MyWallet.makeNotice('error', 'misc-error', 'You must enter an address to import');
+                return;
+            }
+            console.log('importWatchOnlyAddress: ' + value);
+
+            try {
+                 var address = new Bitcoin.Address(value);
+
+                 if (address.toString() != value) {
+                     throw 'Inconsistency between addresses';
+                 }
+
+                    try {
+                        if (MyWallet.addWatchOnlyAddress(value)) {
+                            MyWallet.makeNotice('success', 'added-address', 'Successfully Added Address ' + address);
+
+                            try {
+                                ws.send('{"op":"addr_sub", "addr":"'+address+'"}');
+                            } catch (e) { }
+
+                            //Backup
+                            MyWallet.backupWallet('update', function() {
+                                MyWallet.get_history();
+                            });
+                        } else {
+                            throw 'Wallet Full Or Addresses Exists'
+                        }
+                    } catch (e) {
+                        MyWallet.makeNotice('error', 'misc-error', e);
+                    }
+            } catch (e) {
+                MyWallet.makeNotice('error', 'misc-error', 'Error importing address: ' + e);
+                return;
+            }
+    }
     /*
     $('#overlay').on('click', function (e) {
         $(this).fadeOut();
