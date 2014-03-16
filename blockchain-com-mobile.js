@@ -405,6 +405,14 @@ $(document).ready(function() {
         $('#myModalBook').modal('hide');
     });
 
+    $('#active-addresses-table').on('click', '.address-qr-code', function(){
+        var address = $(this).attr('id');
+        var modal = $('#myModalQr');
+
+        loadScript('wallet/jquery.qrcode', function() {
+            modal.find('.address-qr-code').empty().qrcode({width: 300, height: 300, text: address});
+        });
+    });
 
     /*
     $('#overlay').on('click', function (e) {
