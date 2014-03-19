@@ -408,8 +408,7 @@ $(document).ready(function() {
     $('#myModalAddress').on('show', function() {
         var address = document.getElementById("bitcoin-address").innerHTML;
 
-        var primary_button = $(this).find('.btn.btn-primary');
-        primary_button.click(function() {
+        $('#arequest-payment-btn').click(function() {
             $('#myModalAddress').modal('hide');
             var modal = $('#myModalQr');
             modal.modal('show');
@@ -417,6 +416,12 @@ $(document).ready(function() {
                 modal.find('.address-qr-code').empty().qrcode({width: 300, height: 300, text: address});
             });
         });
+
+        $('#archive-address-btn').click(function() {
+            MyWallet.archiveAddr(address);
+            $('#myModalAddress').modal('hide');
+        });
+
     });
 
     $('#active-addresses-table').on('click', '.modal-address', function(){
