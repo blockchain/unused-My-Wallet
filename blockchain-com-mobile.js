@@ -1,4 +1,4 @@
-isExtension = true;
+isExtension = false;
 APP_NAME = 'javascript_blockchain_com_mobile';
 
 $(document).ready(function() {
