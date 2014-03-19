@@ -1910,8 +1910,6 @@ var MyWallet = new function() {
                 if (ii == 0)
                     li.addClass('active');
 
-                ++ii;
-
                 var a = li.find('a');
 
                 a.attr('href', '#deposit-' + cc.toLowerCase());
@@ -1919,6 +1917,8 @@ var MyWallet = new function() {
                 a.text(' ' + cc.toUpperCase())
 
                 a.prepend('<img>').find('img').attr('src', resource + 'flags/' + cc.toLowerCase() + '.png');
+
+                ++ii;
 
                 ul.append(li);
 
@@ -1940,8 +1940,6 @@ var MyWallet = new function() {
 
                 if (ii == 0)
                     pane.addClass('active');
-
-                ++ii;
 
                 pane.attr('id', 'deposit-' + cc.toLowerCase());
 
@@ -1966,6 +1964,8 @@ var MyWallet = new function() {
 
                     pane.append(a);
                 }
+
+                ++ii;
 
                 content.append(pane);
             }
