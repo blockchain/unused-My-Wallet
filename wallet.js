@@ -1828,6 +1828,7 @@ var MyWallet = new function() {
 
                 a.attr('href', button.link);
                 a.text(' ' + button.title);
+
                 if (button.image) {
                     a.prepend('<img>').find('img').attr('src', button.image.replace('{0}', resource));
                 }
@@ -1897,6 +1898,7 @@ var MyWallet = new function() {
                 array.push(button);
             }
 
+            var ii = 0;
             for (var cc in country_codes) {
                 var array =  country_codes[cc];
 
@@ -1905,8 +1907,10 @@ var MyWallet = new function() {
 
                 var li = $('<li><a></a></li>');
 
-                if (cc == 'US')
+                if (ii == 0)
                     li.addClass('active');
+
+                ++ii;
 
                 var a = li.find('a');
 
@@ -1928,13 +1932,16 @@ var MyWallet = new function() {
 
             var content = $('<div class="tab-content page-header">');
 
+            var ii = 0;
             for (var cc in country_codes) {
                 var array =  country_codes[cc];
 
                 var pane = $('<div class="tab-pane" style="text-align:right">');
 
-                if (cc == 'US')
+                if (ii == 0)
                     pane.addClass('active');
+
+                ++ii;
 
                 pane.attr('id', 'deposit-' + cc.toLowerCase());
 
@@ -1946,7 +1953,7 @@ var MyWallet = new function() {
                 for (var i in array) {
                     var button = array[i];
 
-                    var a = $('<a class="btn" target="blank"></a>');
+                    var a = $('<a style="margin-left:3px;" class="btn" target="blank"></a>');
 
                     if (button.button_class)
                         a.addClass(button.button_class);
@@ -1960,7 +1967,7 @@ var MyWallet = new function() {
                     pane.append(a);
                 }
 
-                content.append(pane)
+                content.append(pane);
             }
 
             home_deposit_container.append(content);
@@ -4087,6 +4094,8 @@ var MyWallet = new function() {
 
                             MyWallet.get_history();
                         });
+                    }, function() {
+                        MyWallet.logout();
                     });
                 });
             } catch (e) {
