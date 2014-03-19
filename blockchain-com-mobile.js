@@ -430,8 +430,98 @@ $(document).ready(function() {
         addr.innerHTML = address;
     });
 
+
+    function importScannedPrivateKey(value, success, error) {
+       try {
+            if (value.length == 0) {
+                throw  'You must enter a private key to import';
+            }
+
+            var format = MyWallet.detectPrivateKeyFormat(value);
+
+            console.log('PK Format ' + format);
+
+            if (format == 'bip38') {
+                //modal.modal('hide');
+
+                loadScript('wallet/import-export', function() {
+
+                    MyWallet.getPassword($('#import-private-key-password'), function(_password) {
+                        ImportExport.parseBIP38toECKey(value, _password, function(key, isCompPoint) {
+                            scanned_key = key;
+                            compressed = isCompPoint;
+
+                            //modal.modal('hide');
+
+                            if (scanned_key)
+                                success(scanned_key);
+                            else
+                                error(error_msg);
+
+                        }, error);
+                    }, error);
+                }, error);
+
+                return;
+            }
+
+            scanned_key = MyWallet.privateKeyStringToKey(value, format);
+            compressed = (format == 'compsipa');
+
+            if (scanned_key == null) {
+                throw 'Could not decode private key';
+            }
+        } catch(e) {
+            error_msg = 'Error importing private key ' + e;
+        }
+
+        //modal.modal('hide');
+
+        if (scanned_key)
+            success(scanned_key);
+        else
+            error(error_msg);
+
+    }
+
     $('#import-private-scan').on('click', function (e) {
-        console.log('import-private-scan: ');
+        MyWallet.getSecondPassword(function() {
+
+            MyWallet.scanQRCode(function(code) {
+                console.log('Scanned ' + code);
+
+                //modal.modal('show');
+
+                //key_input.val(code);
+
+                //modal.find('.btn.btn-primary').trigger('click');
+
+                  importScannedPrivateKey(code, function (key, compressed) {
+
+                            if (MyWallet.addPrivateKey(key, {compressed : compressed, app_name : IMPORTED_APP_NAME, app_version : IMPORTED_APP_VERSION})) {
+
+                                //Perform a wallet backup
+                                MyWallet.backupWallet('update', function() {
+                                    MyWallet.get_history();
+                                });
+
+                                MyWallet.makeNotice('success', 'added-address', 'Imported Bitcoin Address ' + key.getBitcoinAddress());
+                            } else {
+                                throw 'Unable to add private key for bitcoin address ' + key.getBitcoinAddress();
+                            }
+
+                        }, function(e) {
+
+                            MyWallet.makeNotice('error', 'misc-error', e);
+                        });
+
+            }, function(e) {
+                //modal.modal('show');
+
+                MyWallet.makeNotice('error', 'misc-error', e);
+            });
+
+        });
     });
 
     $('#import-address-scan').on('click', function (e) {
