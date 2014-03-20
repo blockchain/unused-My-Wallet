@@ -1,4 +1,6 @@
 (function() {
+    //temporary fix: change root from / to following. Because now signup is on index, so need to change root here
+    var root = "https://blockchain.info/";
 
     //Save the javascript wallet to the remote server
     function insertWallet(guid, sharedKey, password, extra, successcallback, errorcallback) {
