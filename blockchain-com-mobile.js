@@ -985,11 +985,11 @@ var Mobile = new function() {
 
         var txcontainer;
         if (wallet_options.tx_display == 0) {
-            $('#transactions-detailed').hide();
-            txcontainer = $('#transactions-compact').show().find('tbody').empty();
+            $('#transactions-detailed-home').hide();
+            txcontainer = $('#transactions-compact-home').show().find('tbody').empty();
         } else {
-            $('#transactions-compact').hide();
-            txcontainer = $('#transactions-detailed').empty().show();
+            $('#transactions-compact-home').hide();
+            txcontainer = $('#transactions-detailed-home').empty().show();
         }
                 console.log('buildTransactionsView2: ');
 
