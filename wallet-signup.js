@@ -35,7 +35,7 @@
                         extra = '';
                     }
 
-                    MyWallet.securePost('wallet' + extra, { length: crypted.length, payload: crypted, checksum: new_checksum, method : 'insert', format : 'plain', sharedKey : sharedKey, guid : guid, active : MyWallet.getActiveAddresses().join('|') }, function(data) {
+                    MyWallet.securePostWithIndexRoot('wallet' + extra, { length: crypted.length, payload: crypted, checksum: new_checksum, method : 'insert', format : 'plain', sharedKey : sharedKey, guid : guid, active : MyWallet.getActiveAddresses().join('|') }, function(data) {
                         MyWallet.makeNotice('success', 'misc-success', data);
 
                         if (successcallback != null)

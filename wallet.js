@@ -363,6 +363,51 @@ var MyWallet = new function() {
         $.ajax({
             dataType: dataType,
             type: "POST",
+            url: root + url,
+            data : clone,
+            success: success,
+            error : error
+        });
+    }
+
+    this.securePostWithIndexRoot = function(url, data, success, error) {
+        var clone = jQuery.extend({}, data);
+
+        if (!data.sharedKey) {
+            if (!sharedKey || sharedKey.length == 0 || sharedKey.length != 36) {
+                throw 'Shared key is invalid';
+            }
+
+            //Rather than sending the shared key plain text
+            //send a hash using a totp scheme
+            var now = new Date().getTime();
+            var timestamp = parseInt((now - serverTimeOffset) / 10000);
+
+            var SKHashHex = Crypto.SHA256(sharedKey.toLowerCase() + timestamp);
+
+            var i = 0;
+            var tSKUID = SKHashHex.substring(i, i+=8)+'-'+SKHashHex.substring(i, i+=4)+'-'+SKHashHex.substring(i, i+=4)+'-'+SKHashHex.substring(i, i+=4)+'-'+SKHashHex.substring(i, i+=12);
+
+            clone.sharedKey = tSKUID;
+            clone.sKTimestamp = timestamp;
+            clone.sKDebugHexHash = SKHashHex;
+            clone.sKDebugTimeOffset = serverTimeOffset;
+            clone.sKDebugOriginalClientTime = now;
+            clone.sKDebugOriginalSharedKey = sharedKey; //Debugging only needs removing ASAP
+        }
+
+        if (!data.guid)
+            clone.guid = guid;
+
+        clone.format =  data.format ? data.format : 'plain'
+
+        var dataType = 'text';
+        if (data.format == 'json')
+            dataType = 'json';
+
+        $.ajax({
+            dataType: dataType,
+            type: "POST",
             url: '/' + url,
             data : clone,
             success: success,
