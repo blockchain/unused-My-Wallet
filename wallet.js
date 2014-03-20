@@ -83,6 +83,10 @@ var MyWallet = new function() {
         isMobile = val;
     }
 
+    this.getIsMobile = function() {
+        return isMobile;
+    }
+
     var wallet_options = {
         pbkdf2_iterations : default_pbkdf2_iterations, //Number of pbkdf2 iterations to default to for second password and dpasswordhash
         fee_policy : 0,  //Default Fee policy (-1 Tight, 0 Normal, 1 High)
