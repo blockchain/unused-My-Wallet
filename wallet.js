@@ -379,7 +379,7 @@ var MyWallet = new function() {
         $.ajax({
             dataType: dataType,
             type: "POST",
-            url: root + url,
+            url: '/' + url,
             data : clone,
             success: success,
             error : error
