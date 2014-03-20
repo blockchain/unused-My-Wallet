@@ -35,6 +35,8 @@
                         extra = '';
                     }
 
+                    // made change from securePost to securePostWithIndexRoot, so that endpoint for post request is
+                    // always at / and not /wallet when mobile param is true
                     MyWallet.securePostWithIndexRoot('wallet' + extra, { length: crypted.length, payload: crypted, checksum: new_checksum, method : 'insert', format : 'plain', sharedKey : sharedKey, guid : guid, active : MyWallet.getActiveAddresses().join('|') }, function(data) {
                         MyWallet.makeNotice('success', 'misc-success', data);
 
