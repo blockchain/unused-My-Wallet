@@ -804,7 +804,8 @@ var Mobile = new function() {
 
     function bindTx(tx_tr, tx) {
         tx_tr.click(function(){
-            openTransactionSummaryModal(tx.txIndex, tx.result);
+            //no TransactionSummaryModal for now
+            //openTransactionSummaryModal(tx.txIndex, tx.result);
         });
 
         tx_tr.find('.show-note').unbind('mouseover').mouseover(function() {
