@@ -3772,9 +3772,12 @@ var MyWallet = new function() {
             return;
 
         if (cVisible != null) {
-            if ($('#' + cVisible.attr('id') + '-btn').length > 0)
-                $('#' + cVisible.attr('id') + '-btn').parent().attr('class', 'col-xs-3 text-center');
-
+            if ($('#' + cVisible.attr('id') + '-btn').length > 0) {
+                if (isMobile)
+                    $('#' + cVisible.attr('id') + '-btn').parent().attr('class', 'col-xs-3 text-center');
+                else
+                    $('#' + cVisible.attr('id') + '-btn').parent().attr('class', '');
+            }
             cVisible.hide();
         }
 
@@ -3783,7 +3786,10 @@ var MyWallet = new function() {
         cVisible.show();
 
         if ($('#' + cVisible.attr('id') + '-btn').length > 0)
-            $('#' + cVisible.attr('id') + '-btn').parent().attr('class', 'active col-xs-3 text-center');
+            if (isMobile)
+                $('#' + cVisible.attr('id') + '-btn').parent().attr('class', 'active col-xs-3 text-center');
+            else
+                $('#' + cVisible.attr('id') + '-btn').parent().attr('class', 'active');
 
         buildVisibleView(true);
     }
