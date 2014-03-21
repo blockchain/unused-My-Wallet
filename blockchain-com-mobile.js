@@ -344,46 +344,6 @@ $(document).ready(function() {
         $("#pairdevice-stage3").show();
     });
 
-    $('#mobile-settings-btn').click(function() {
-            MyWallet.getMainPassword(function() {
-            var content = $('#mobile-settings');
-
-            loadScript('wallet/account', function() {
-                AccountSettings.init(content, function() {
-                    MyWallet.changeView($("#mobile-settings"));
-                    $("#inactivity-logout-time-drop-down").change(function(e) {
-                        MyWallet.setLogoutTime(parseInt($(this).val()));
-
-                        //Fee Policy is stored in wallet so must save it
-                        MyWallet.backupWallet();
-                    });
-
-                }, function() {
-                    MyWallet.changeView($("#home-intro"));
-                })
-            }, function (e) {
-                MyWallet.makeNotice('error', 'misc-error', e);
-                MyWallet.changeView($("#home-intro"));
-            });
-        }, function() {
-            MyWallet.changeView($("#home-intro"));
-        });
-    });
-
-    $('#settings-general').on('show', function() {
-        console.log('settings-general-show: ');
-    });
-
-    $('#settings-display').on('show', function() {
-        console.log('settings-display-show: ');
-
-    });
-
-    $('#settings-security').on('show', function() {
-        console.log('settings-security-show: ');
-    });
-
-
     $('#address-book').click(function() {
         console.log('address-book_show: ');
         var table = document.getElementById("address-book-table");
