@@ -715,7 +715,9 @@ var MyWallet = new function() {
 
     function bindTx(tx_tr, tx) {
         tx_tr.click(function(){
-            openTransactionSummaryModal(tx.txIndex, tx.result);
+            //for mobile, no TransactionSummaryModal for now
+            if (! isMobile)
+                openTransactionSummaryModal(tx.txIndex, tx.result);
         });
 
         tx_tr.find('.show-note').unbind('mouseover').mouseover(function() {
