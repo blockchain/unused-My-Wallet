@@ -98,6 +98,13 @@ $(document).ready(function() {
 
     });
 
+
+    $('#change-password-btn').click(function() {
+        $('#password').val($('#change-password').val());
+        $('#password2').val($('#change-password2').val());
+        $('#update-password-btn').trigger('click');
+    });
+
     $('#active-addresses-table').on('click', '.modal-address', function(){
         var address = $(this).attr('id');
         var addr = document.getElementById("bitcoin-address");
