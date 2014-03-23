@@ -1000,7 +1000,7 @@ var Mobile = new function() {
                     pagination.show();
                 }
 
-                var pages = Math.ceil(n_tx_filtered / MyWallet.getNTransactionsPerPage());
+                var pages = Math.ceil(MyWallet.getNTxFiltered() / MyWallet.getNTransactionsPerPage());
 
                 var disabled = ' disabled';
                 if (tx_page > 0)
