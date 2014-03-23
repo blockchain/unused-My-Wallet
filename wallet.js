@@ -240,6 +240,10 @@ var MyWallet = new function() {
         return wallet_options.transactions_per_page;
     }
 
+    this.getNTxFiltered = function() {
+        return n_tx_filtered;
+    }
+
     this.getGuid = function() {
         return guid;
     }
