@@ -324,6 +324,7 @@ $(document).ready(function() {
         $("#pairdevice-stage3").show();
     });
 
+
     $('#address-book').click(function() {
         var table = document.getElementById("address-book-table");
         var address_book = MyWallet.getAddressBook();
