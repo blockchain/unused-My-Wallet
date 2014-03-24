@@ -1180,6 +1180,23 @@ var MyWallet = new function() {
     }
 
     function buildSendForm(el, reset) {
+        el.find('.scan-send-address').unbind().click(function() {
+            var input = $(this).prev();
+            MyWallet.scanQRCode(function(data) {
+                console.log(data);
+
+                try {
+                    new Bitcoin.Address(data);
+                    input.val(data);
+                } catch (e) {
+                   //If invalid address try and parse URI
+                    MyWallet.handleURI(data, $(this));
+                }
+            }, function(e) {
+                MyWallet.makeNotice('error', 'misc-error', e);
+            });
+        });
+
         buildSelect(el.find('select[name="from"]'), false, reset);
 
         buildSelect(el.find('select[name="change"]'), true, reset);
