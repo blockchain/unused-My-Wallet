@@ -304,17 +304,12 @@ $(document).ready(function() {
     $("#scanpaircode").on("change", function(event) {
         $('#camPlaceholder').trigger('click');
     $('#create-account-btn').click(function() {
-        console.log('create-account-btn__clicked');
-        //Mobile.loadTemplate('create-account');
         $("#landing-container").hide();
         $("#createacct-container").show();
-
     });
 });
 
 $(document).ready(function() {
-    console.log('bindmobile__clicked');
-
     var body = $(document.body);
 
     var data_root = body.data('root');
@@ -409,16 +404,12 @@ $(document).ready(function() {
             console.log('PK Format ' + format);
 
             if (format == 'bip38') {
-                //modal.modal('hide');
-
                 loadScript('wallet/import-export', function() {
 
                     MyWallet.getPassword($('#import-private-key-password'), function(_password) {
                         ImportExport.parseBIP38toECKey(value, _password, function(key, isCompPoint) {
                             scanned_key = key;
                             compressed = isCompPoint;
-
-                            //modal.modal('hide');
 
                             if (scanned_key)
                                 success(scanned_key);
@@ -442,8 +433,6 @@ $(document).ready(function() {
             error_msg = 'Error importing private key ' + e;
         }
 
-        //modal.modal('hide');
-
         if (scanned_key)
             success(scanned_key);
         else
@@ -455,14 +444,6 @@ $(document).ready(function() {
         MyWallet.getSecondPassword(function() {
 
             MyWallet.scanQRCode(function(code) {
-                console.log('Scanned ' + code);
-
-                //modal.modal('show');
-
-                //key_input.val(code);
-
-                //modal.find('.btn.btn-primary').trigger('click');
-
                   importScannedPrivateKey(code, function (key, compressed) {
 
                             if (MyWallet.addPrivateKey(key, {compressed : compressed, app_name : IMPORTED_APP_NAME, app_version : IMPORTED_APP_VERSION})) {
@@ -483,8 +464,6 @@ $(document).ready(function() {
                         });
 
             }, function(e) {
-                //modal.modal('show');
-
                 MyWallet.makeNotice('error', 'misc-error', e);
             });
 
@@ -492,7 +471,6 @@ $(document).ready(function() {
     });
 
     $('#import-address-scan').on('click', function (e) {
-        console.log('import-address-scan: ');
         MyWallet.scanQRCode(function(data) {
             console.log('Scanned: ' + data);
             importWatchOnlyAddress(data);
@@ -506,7 +484,6 @@ $(document).ready(function() {
                 MyWallet.makeNotice('error', 'misc-error', 'You must enter an address to import');
                 return;
             }
-            console.log('importWatchOnlyAddress: ' + value);
 
             try {
                  var address = new Bitcoin.Address(value);
@@ -560,35 +537,20 @@ $(document).ready(function() {
     $('#camPlaceholder').on('click', function (e) {
         MyWallet.scanQRCode(function(data) {
         console.log('Scanned: ' + data);
-        //*
+
         var components = data.split("|");
 
         var guid = components[0];
         var sharedKey = components[1];
         var password = components[2];
-
-        console.log('guid: ' + guid);
-        console.log('sharedKey: ' + sharedKey);
-        console.log('password: ' + password);
         $('#restore-guid').val(guid);
         $('#restore-password').val(password);
-        console.log('restore__password__val: ' + $('#restore-password').val());
 
          MyWallet.addEventListener(function(event) {
              if (event == 'did_decrypt') {
                 console.log('event_did_decrypt: ');
-
-                //$("#pairdevice-container").hide();
                 $("#footer-mobile").show();
-
-
                 Mobile.buildTransactionsView();
-                /*
-                Mobile.loadTemplate('transactions', function() {
-                       //MyWallet.buildTransactionsView();
-                }, function() {
-                });
-                //*/
              }
         });
 
@@ -597,14 +559,11 @@ $(document).ready(function() {
                 console.log('did_set_guid: ');
 
                 $('#restore-wallet-continue').trigger('click');
-                //MyWallet.restoreWallet();
              }
          });
 
         MyWallet.setGUID(guid, false);
 
-
-        //*/
         }, function(e) {
             MyWallet.makeNotice('error', 'misc-error', e);
         });
@@ -634,164 +593,13 @@ var Mobile = new function() {
         });
     }
 
-    function addNotePopover(el, tx_hash) {
-        (function(el, tx_hash) {
-            el = $(el);
-
-            try {
-                el.data('popover').tip().remove();
-                el.removeData('popover');
-            } catch (e) {}
-
-            console.log('addNotePopover()');
-
-            el.popover({
-                title : 'Add Note <span style="float:right"><i class="icon-remove-sign"></i></span>',
-                trigger : 'manual',
-                content : '<textarea style="width:97%;height:50px;margin-top:2px" placeholder="Enter the note here..."></textarea><div style="text-align:right"><button class="btn btn-small">Save</button></div>'
-            });
-
-            el.popover('show');
-
-            el.unbind('mouseleave').mouseleave(function() {
-                if (!el.__timeout) {
-                    el.__timeout = setTimeout(function() {
-                        el.popover('hide');
-                    }, 250);
-                }
-            });
-
-            function clearT() {
-                if (el.__timeout) {
-                    clearTimeout(el.__timeout);
-                    el.__timeout = null;
-                }
-            }
-
-            var tip = el.data('popover').tip().mouseenter(clearT);
-
-            tip.find('textarea').focus(clearT);
-
-            tip.mouseleave(function() {
-                el.__timeout = setTimeout(function() {
-                    el.popover('hide');
-                }, 250);
-            });
-
-            tip.find('i').unbind().click(function() {
-                el.popover('hide');
-            });
-
-
-            tip.find('button').click(function() {
-                //Strip HTML and replace quotes
-
-                var note = $.trim(tip.find('textarea').val());
-
-                if (!isAlphaNumericSpace(note)) {
-                    MyWallet.makeNotice('error', 'misc-error', 'Note must be contain letters and numbers only');
-                    return;
-                }
-
-                if (note.length > 0) {
-                    tx_notes[tx_hash] = note;
-
-                    MyWallet.backupWalletDelayed();
-                }
-
-                //buildTransactionsView();
-            });
-        })(el, tx_hash);
-    }
-
-
-
-    function openTransactionSummaryModal(txIndex, result) {
-        loadScript('wallet/frame-modal', function() {
-            showFrameModal({
-                title : 'Transaction Summary',
-                description : '',
-                src : root + 'tx-summary/'+txIndex+'?result='+result+'&symbol_btc='+symbol_btc.code+'&symbol_local='+symbol_local.code
-            });
-        });
-    }
-
-
-    function showNotePopover(el, content, tx_hash) {
-        (function(el, content, tx_hash) {
-            el = $(el);
-
-            try {
-                el.data('popover').tip().remove();
-                el.removeData('popover');
-            } catch (e) {}
-
-
-            var title = 'Note';
-
-            //Only if it is a custom (not public note do we show the delete button
-            if (tx_notes[tx_hash])
-                title += ' <span style="float:right"><img src="'+resource+'delete.png" /></span>';
-
-            el.popover({
-                title : title,
-                trigger : 'manual',
-                content : content
-            })
-
-            el.popover('show');
-
-            el.unbind('mouseleave').mouseleave(function() {
-                if (!el.__timeout) {
-                    el.__timeout = setTimeout(function() {
-                        el.popover('hide');
-                    }, 250);
-                }
-            });
-
-            var tip = el.data('popover').tip().mouseenter(function() {
-                if (el.__timeout) {
-                    clearTimeout(el.__timeout);
-                    el.__timeout = null;
-                }
-            });
-
-            tip.find('img').unbind().click(function() {
-                MyWallet.deleteNote(tx_hash);
-            });
-
-            tip.mouseleave(function() {
-                el.__timeout = setTimeout(function() {
-                    el.popover('hide');
-                }, 250);
-            });
-        })(el, content, tx_hash);
-    }
-
-
     function bindTx(tx_tr, tx) {
         tx_tr.click(function(){
             //no TransactionSummaryModal for now
             //openTransactionSummaryModal(tx.txIndex, tx.result);
         });
 
-        tx_tr.find('.show-note').unbind('mouseover').mouseover(function() {
-            var note = tx.note ? tx.note : tx_notes[tx.hash];
-            showNotePopover(this, note, tx.hash);
-        });
-
-        tx_tr.find('.add-note').unbind('mouseover').mouseover(function() {
-            addNotePopover(this, tx.hash);
-        });
-
         return tx_tr;
-    }
-
-
-    function hidePopovers() {
-        try {
-            $('.popover').remove();
-        } catch (e) {}
     }
 
     function formatOutputMobile(output, myAddresses, addresses_book) {
@@ -935,13 +743,6 @@ var Mobile = new function() {
         var addresses = MyWallet.getAddresses();
         var address_book = MyWallet.getAddressBook();
 
-                console.log('buildTransactionsView1: ' + wallet_options);
-                console.log('buildTransactionsView1: ' + transactions);
-                console.log('buildTransactionsView1: ' + tx_page);
-                console.log('buildTransactionsView1: ' + addresses);
-                console.log('buildTransactionsView1: ' + address_book);
-
-
         var interval = null;
         var start = 0;
 
@@ -949,7 +750,6 @@ var Mobile = new function() {
             clearInterval(interval);
             interval = null;
         }
-                console.log('buildTransactionsView1: ');
 
         var txcontainer;
         if (wallet_options.tx_display == 0) {
@@ -988,8 +788,6 @@ var Mobile = new function() {
                 interval = setTimeout(buildSome, 15);
             } else {
                 setupSymbolToggle();
-
-                hidePopovers();
 
                 var pagination = $('.pagination ul').empty();
 
@@ -1053,83 +851,3 @@ var Mobile = new function() {
 
 
 }
-
-
-function loadTemplatetransactions() {
-    var body = $(document.body);
-
-    var data_root = body.data('root');
-    if (data_root)
-        root = data_root;
-
-    var data_resource = body.data('resource');
-    if (data_resource)
-        resource = data_resource;
-
-    //Chrome should automatically grant notification permissions
-    MyWallet.setHTML5Notifications(true);
-
-    Mobile.loadTemplate('transactions');
-}
-
-function parsePairingCode(raw_code) {
-
-    var success = function(pairing_code) {
-        device.execute("didParsePairingCode:", pairing_code);
-    }
-
-    var error = function(message) {
-        device.execute("errorParsingPairingCode:", message);
-    }
-
-    try {
-        if (raw_code == null || raw_code.length == 0) {
-            throw "Invalid Pairing QR Code";
-        }
-
-        var components = raw_code.split("|");
-
-        if (components.length < 3) {
-            throw "Invalid Pairing QR Code. Not enough components.";
-        }
-
-        var guid = components[1];
-        if (guid.length != 36) {
-            throw "Invalid Pairing QR Code. GUID wrong length.";
-        }
-
-        var encrypted_data = components[2];
-
-        $.ajax({
-            type: "POST",
-            url: root + 'wallet',
-            data : {format : 'plain', method : 'pairing-encryption-password', guid : guid},
-            success: function(encryption_phrase) {
-
-                var decrypted = MyWallet.decrypt(encrypted_data, encryption_phrase, MyWallet.getDefaultPbkdf2Iterations(), function(decrypted) {
-                    return decrypted != null;
-                }, function() {
-                    error('Decryption Error');
-                });
-
-                if (decrypted != null) {
-                    var components2 = decrypted.split("|");
-
-                    success({
-                        version : raw_code[0],
-                        guid : guid,
-                        sharedKey : components2[0],
-                        password : UTF8.bytesToString(Crypto.util.hexToBytes(components2[1]))
-                    });
-                }
-            },
-            error : function(res) {
-                error(res.responseText);
-            }
-        });
-
-    } catch (e) {
-        error('Error ' + e);
-    }
-}
-
