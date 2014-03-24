@@ -1181,13 +1181,13 @@ var MyWallet = new function() {
 
     function buildSendForm(el, reset) {
         el.find('.scan-send-address').unbind().click(function() {
-            var input = $(this).prev();
             MyWallet.scanQRCode(function(data) {
+                var sendAddressInput = el.find('.send-to-address');
                 console.log(data);
-
+                
                 try {
                     new Bitcoin.Address(data);
-                    input.val(data);
+                    sendAddressInput.val(data);
                 } catch (e) {
                    //If invalid address try and parse URI
                     MyWallet.handleURI(data, $(this));
