@@ -248,7 +248,6 @@ $(document).ready(function() {
          MyWallet.addEventListener(function(event) {
              if (event == 'did_decrypt') {
                 console.log('event_did_decrypt: ');
-                $("#footer-mobile").show();
                 Mobile.buildTransactionsView();
              }
         });
