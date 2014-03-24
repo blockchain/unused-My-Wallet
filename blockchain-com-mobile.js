@@ -39,7 +39,6 @@ $(document).ready(function() {
     });
 
     $('#address-book').click(function() {
-        console.log('address-book_show: ');
         var table = document.getElementById("address-book-table");
         var address_book = MyWallet.getAddressBook();
 
@@ -171,7 +170,6 @@ $(document).ready(function() {
 
     $('#import-address-scan').on('click', function (e) {
         MyWallet.scanQRCode(function(data) {
-            console.log('Scanned: ' + data);
             importWatchOnlyAddress(data);
         }, function(e) {
             MyWallet.makeNotice('error', 'misc-error', e);
@@ -247,15 +245,12 @@ $(document).ready(function() {
 
          MyWallet.addEventListener(function(event) {
              if (event == 'did_decrypt') {
-                console.log('event_did_decrypt: ');
                 Mobile.buildTransactionsView();
              }
         });
 
          MyWallet.addEventListener(function(event) {
              if (event == 'did_set_guid') {
-                console.log('did_set_guid: ');
-
                 $('#restore-wallet-continue').trigger('click');
              }
          });
@@ -320,10 +315,8 @@ var Mobile = new function() {
                     if (out.addr_tag_link)
                         link = ' <a class="external" rel="nofollow" href="'+root + 'r?url='+out.addr_tag_link+'" target="new"></a>';
 
-                    console.log('addr: ' + addr);
                     return '<a target="new" href="'+root+'address/'+addr+'" class="tag-address">'+addr+'</a> <span class="tag">('+out.addr_tag+link+')</span>';
                 } else {
-                    console.log('addr: ' + addr);
                     return '<a target="new" href="'+root+'address/'+addr+'">'+addr+'</a>';
                 }
             }
@@ -458,7 +451,6 @@ var Mobile = new function() {
             $('#transactions-compact-home').hide();
             txcontainer = $('#transactions-detailed-home').empty().show();
         }
-                console.log('buildTransactionsView2: ');
 
         if (transactions.length == 0) {
             $('#transactions-detailed, #transactions-compact').hide();
@@ -471,7 +463,6 @@ var Mobile = new function() {
         var buildSome = function() {
             for (var i = start; i < transactions.length && i < (start+MyWallet.getNTransactionsPerPage()); ++i) {
                 var tx = transactions[i];
-                console.log('buildTransactionsView3: ');
 
                 if (wallet_options.tx_display == 0) {
 
