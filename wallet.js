@@ -1180,11 +1180,11 @@ var MyWallet = new function() {
     }
 
     function buildSendForm(el, reset) {
+        var sendAddressInput = el.find('.send-to-address');
         el.find('.scan-send-address').unbind().click(function() {
             MyWallet.scanQRCode(function(data) {
-                var sendAddressInput = el.find('.send-to-address');
                 console.log(data);
-                
+
                 try {
                     new Bitcoin.Address(data);
                     sendAddressInput.val(data);
@@ -1195,6 +1195,26 @@ var MyWallet = new function() {
             }, function(e) {
                 MyWallet.makeNotice('error', 'misc-error', e);
             });
+        });
+
+        el.find('.address-book-btn').click(function() {
+            var table = document.getElementById("address-book-table");
+            var address_book = MyWallet.getAddressBook();
+
+            table.innerHTML = "";
+            for (var key in address_book) {
+                var row = table.insertRow(0);
+                row.class = "address-label-row";
+                var cell1 = row.insertCell(0);
+                var cell2 = row.insertCell(1);
+                cell1.innerHTML = "<a href=\"#\" class=\"address-label\" id=\""+key+"\">"+address_book[key]+"</a>";
+                cell2.innerHTML = "<p>"+key.substring(0,19)+"</p>";
+            }
+        });
+
+        $('#address-book-table').on('click', '.address-label', function(){
+            sendAddressInput.val($(this).attr('id'));
+            $('#myModalBook').modal('hide');
         });
 
         buildSelect(el.find('select[name="from"]'), false, reset);
