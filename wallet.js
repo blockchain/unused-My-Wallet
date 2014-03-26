@@ -723,16 +723,16 @@ var MyWallet = new function() {
             if (! isMobile)
                 openTransactionSummaryModal(tx.txIndex, tx.result);
         });
+        if (! isMobile) {
+            tx_tr.find('.show-note').unbind('mouseover').mouseover(function() {
+                var note = tx.note ? tx.note : tx_notes[tx.hash];
+                showNotePopover(this, note, tx.hash);
+            });
 
-        tx_tr.find('.show-note').unbind('mouseover').mouseover(function() {
-            var note = tx.note ? tx.note : tx_notes[tx.hash];
-            showNotePopover(this, note, tx.hash);
-        });
-
-        tx_tr.find('.add-note').unbind('mouseover').mouseover(function() {
-            addNotePopover(this, tx.hash);
-        });
-
+            tx_tr.find('.add-note').unbind('mouseover').mouseover(function() {
+                addNotePopover(this, tx.hash);
+            });
+            }
         return tx_tr;
     }
 
@@ -1618,24 +1618,116 @@ var MyWallet = new function() {
 
 
     function getCompactHTML(tx, myAddresses, addresses_book) {
-        var result = tx.result;
+        if (isMobile) {
+            var result = tx.result;
 
-        var html = '<tr class="pointer" id="tx-' + tx.txIndex + '"><td class="hidden-phone" style="width:365px"><div><ul style="margin-left:0px;" class="short-addr">';
+            var html = '<div class="row rowlines">';
+            if (result > 0) {
+                html += '<div class="col-xs-2"> <img class="bound" src="'+resource+'mobile/images/inbound.png" alt="sent"> </div>';
+            }
+            else if (result < 0) {
+                html += '<div class="col-xs-2"> <img class="bound" src="'+resource+'mobile/images/outbound.png" alt="sent"> </div>';
+            }
 
-        var all_from_self = true;
-        if (result >= 0) {
-            for (var i = 0; i < tx.inputs.length; ++i) {
-                var out = tx.inputs[i].prev_out;
+            html += '<div class="col-xs-8">';
 
-                if (!out || !out.addr) {
-                    all_from_self = false;
+            if (tx.time > 0) {
+                html += '<p class="details">' + dateToString(new Date(tx.time * 1000))+ '</p>';
+            }
 
-                    html += '<span class="label">Newly Generated Coins</span>';
-                } else {
+            if (result > 0) {
+                html += '<p class="green">'+ formatMoney(result, true)+'</p>';
+                html += '<p class="received">Received from:</p>';
+            }
+            else if (result < 0) {
+                html += '<p class="red">'+ formatMoney(result, true)+'</p>';
+                html += '<p class="sent">Sent to:</p>';
+            }
+            else {
+                html += '<p>'+ formatMoney(result, true)+'</p>';
+                html += '<p class="sent">Between wallet:</p>';
+            }
+
+            var all_from_self = true;
+            if (result >= 0) {
+                for (var i = 0; i < tx.inputs.length; ++i) {
+                    var out = tx.inputs[i].prev_out;
+
+                    if (!out || !out.addr) {
+                        all_from_self = false;
+
+                        html += '<span class="label">Newly Generated Coins</span>';
+                    } else {
+                        var my_addr = myAddresses[out.addr];
+
+                        //Don't Show sent from self
+                        if (my_addr)
+                            continue;
+
+                        all_from_self = false;
+
+                        html += formatOutputMobile(out, myAddresses, addresses_book);
+                    }
+                }
+            } else if (result < 0) {
+                for (var i = 0; i < tx.out.length; ++i) {
+                    var out = tx.out[i];
+
                     var my_addr = myAddresses[out.addr];
 
-                    //Don't Show sent from self
-                    if (my_addr)
+                    //Don't Show sent to self
+                    if (my_addr && out.type == 0)
+                        continue;
+
+                    all_from_self = false;
+
+                    html += formatOutputMobile(out, myAddresses, addresses_book);
+                }
+            }
+
+            if (all_from_self)
+                html += '<span class="label">Moved Between Wallet</info>';
+
+
+            html += '</div><div class="col-xs-2 text-right"></div></div>';
+
+            return html;
+
+        } else {
+
+            var result = tx.result;
+
+            var html = '<tr class="pointer" id="tx-' + tx.txIndex + '"><td class="hidden-phone" style="width:365px"><div><ul style="margin-left:0px;" class="short-addr">';
+
+            var all_from_self = true;
+            if (result >= 0) {
+                for (var i = 0; i < tx.inputs.length; ++i) {
+                    var out = tx.inputs[i].prev_out;
+
+                    if (!out || !out.addr) {
+                        all_from_self = false;
+
+                        html += '<span class="label">Newly Generated Coins</span>';
+                    } else {
+                        var my_addr = myAddresses[out.addr];
+
+                        //Don't Show sent from self
+                        if (my_addr)
+                            continue;
+
+                        all_from_self = false;
+
+                        html += formatOutput(out, myAddresses, addresses_book);
+                    }
+                }
+            } else if (result < 0) {
+                for (var i = 0; i < tx.out.length; ++i) {
+                    var out = tx.out[i];
+
+                    var my_addr = myAddresses[out.addr];
+
+                    //Don't Show sent to self
+                    if (my_addr && out.type == 0)
                         continue;
 
                     all_from_self = false;
@@ -1643,60 +1735,46 @@ var MyWallet = new function() {
                     html += formatOutput(out, myAddresses, addresses_book);
                 }
             }
-        } else if (result < 0) {
-            for (var i = 0; i < tx.out.length; ++i) {
-                var out = tx.out[i];
 
-                var my_addr = myAddresses[out.addr];
+            if (all_from_self)
+                html += '<span class="label">Moved Between Wallet</info>';
 
-                //Don't Show sent to self
-                if (my_addr && out.type == 0)
-                    continue;
+            html += '</ul></div></td><td><div>';
 
-                all_from_self = false;
+            var note = tx.note ? tx.note : tx_notes[tx.hash];
 
-                html += formatOutput(out, myAddresses, addresses_book);
+            if (note) {
+                html += '<img src="'+resource+'note.png" class="show-note"> ';
+            } else {
+                html += '<img src="'+resource+'note_grey.png" class="add-note"> ';
             }
+
+            if (tx.time > 0) {
+                html += dateToString(new Date(tx.time * 1000));
+            }
+
+            if (tx.confirmations == 0) {
+                html += ' <span class="label label-important hidden-phone">Unconfirmed Transaction!</span> ';
+            } else if (tx.confirmations > 0) {
+                html += ' <span class="label label-info hidden-phone">' + tx.confirmations + ' Confirmations</span> ';
+            }
+
+            html += '</div></td>';
+    
+            if (result > 0)
+                html += '<td style="color:green"><div>' + formatMoney(result, true) + '</div></td>';
+            else if (result < 0)
+                html += '<td style="color:red"><div>' + formatMoney(result, true) + '</div></td>';
+            else
+                html += '<td><div>' + formatMoney(result, true) + '</div></td>';
+
+            if (tx.balance == null)
+                html += '<td></td></tr>';
+            else
+                html += '<td class="hidden-phone"><div>' + formatMoney(tx.balance) + '</div></td></tr>';
+
+            return html;
         }
-
-        if (all_from_self)
-            html += '<span class="label">Moved Between Wallet</info>';
-
-        html += '</ul></div></td><td><div>';
-
-        var note = tx.note ? tx.note : tx_notes[tx.hash];
-
-        if (note) {
-            html += '<img src="'+resource+'note.png" class="show-note"> ';
-        } else {
-            html += '<img src="'+resource+'note_grey.png" class="add-note"> ';
-        }
-
-        if (tx.time > 0) {
-            html += dateToString(new Date(tx.time * 1000));
-        }
-
-        if (tx.confirmations == 0) {
-            html += ' <span class="label label-important hidden-phone">Unconfirmed Transaction!</span> ';
-        } else if (tx.confirmations > 0) {
-            html += ' <span class="label label-info hidden-phone">' + tx.confirmations + ' Confirmations</span> ';
-        }
-
-        html += '</div></td>';
-
-        if (result > 0)
-            html += '<td style="color:green"><div>' + formatMoney(result, true) + '</div></td>';
-        else if (result < 0)
-            html += '<td style="color:red"><div>' + formatMoney(result, true) + '</div></td>';
-        else
-            html += '<td><div>' + formatMoney(result, true) + '</div></td>';
-
-        if (tx.balance == null)
-            html += '<td></td></tr>';
-        else
-            html += '<td class="hidden-phone"><div>' + formatMoney(tx.balance) + '</div></td></tr>';
-
-        return html;
     };
 
 
@@ -1817,6 +1895,60 @@ var MyWallet = new function() {
             });
         });
     };
+
+    function formatOutputMobile(output, myAddresses, addresses_book) {
+        function formatOut(addr, out) {
+            var myAddr = null;
+            if (myAddresses != null)
+                myAddr = myAddresses[addr];
+
+            if (myAddr != null) {
+                if (myAddr.label != null)
+                    return myAddr.label;
+                else
+                    return addr;
+            } else {
+                if (addresses_book && addresses_book[addr])
+                    return '<a target="new" href="'+root+'address/'+addr+'">'+addresses_book[addr]+'</a>';
+                else if (out.addr_tag) {
+                    var link = '';
+                    if (out.addr_tag_link)
+                        link = ' <a class="external" rel="nofollow" href="'+root + 'r?url='+out.addr_tag_link+'" target="new"></a>';
+
+                    return '<a target="new" href="'+root+'address/'+addr+'" class="tag-address">'+addr+'</a> <span class="tag">('+out.addr_tag+link+')</span>';
+                } else {
+                    return '<a target="new" href="'+root+'address/'+addr+'">'+addr+'</a>';
+                }
+            }
+        }
+
+        //total_fees -= output.value;
+        var str = '';
+
+        if (output.type == 0) {
+        } else if (output.type == 1 || output.type == 2 || output.type == 3) {
+            str = '(<font color="red">Escrow</font> ' + output.type + ' of ';
+        } else {
+            str = '<font color="red">Strange</font> ';
+        }
+
+        if (output.addr != null)
+            str += formatOut(output.addr, output);
+
+        if (output.addr2 != null)
+            str += ', ' + formatOut(output.addr2, output);
+
+        if (output.addr3 != null)
+            str += ', ' + formatOut(output.addr3, output);
+
+        if (output.type == 1 || output.type == 2 || output.type == 3) {
+            str += ')';
+        }
+
+        str += '<br />';
+
+        return str;
+    }
 
     //Display The My Transactions view
     function buildTransactionsView() {
