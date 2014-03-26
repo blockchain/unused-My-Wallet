@@ -327,7 +327,7 @@ $(document).ready(function() {
     $('#myModalAddress').on('show', function() {
         var address = document.getElementById("bitcoin-address").innerHTML;
 
-        $('#arequest-payment-btn').click(function() {
+        $('#request-payment-btn').click(function() {
             $('#myModalAddress').modal('hide');
             var modal = $('#myModalQr');
             modal.modal('show');
