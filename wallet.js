@@ -1904,6 +1904,7 @@ var MyWallet = new function() {
                     if (my_addr && out.type == 0)
                         continue;
 
+
                     all_from_self = false;
 
                     html += formatOutput(out, myAddresses, addresses_book);
