@@ -224,12 +224,6 @@ $(document).ready(function() {
         $('#restore-password').val(password);
 
          MyWallet.addEventListener(function(event) {
-             if (event == 'did_decrypt') {
-                MyWallet.changeView($("#my-transactions"));
-             }
-        });
-
-         MyWallet.addEventListener(function(event) {
              if (event == 'did_set_guid') {
                 $('#restore-wallet-continue').trigger('click');
              }
