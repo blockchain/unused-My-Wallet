@@ -1110,6 +1110,32 @@ var MyWallet = new function() {
         return out;
     }
 
+    this.get_history_after_did_decrypt = function(success, error) {
+        BlockchainAPI.get_history(function(data) {
+
+            // don't call parseMultiAddressJSON in mobile version cause symbol_local & symbol_btc in data is wrong
+            // and parseMultiAddressJSON will set the display with the wrong symbol_local & symbol_btc
+            if (! isMobile) {
+                parseMultiAddressJSON(data, false);
+            }
+
+            if (transactions.length == 0 && tx_page > 0) {
+                //We have set a higher page number than transactions we actually have to display
+                //So rewind the page number to 0
+                MyWallet.setPage(0);
+            } else {
+                //Rebuild the my-addresses list with the new updated balances (Only if visible)
+                buildVisibleView();
+            }
+
+            if (success) success();
+
+        }, function() {
+            if (error) error();
+
+        }, tx_filter, tx_page*MyWallet.getNTransactionsPerPage(), MyWallet.getNTransactionsPerPage());
+    }
+
     this.get_history = function(success, error) {
         BlockchainAPI.get_history(function(data) {
 
@@ -2358,7 +2384,7 @@ var MyWallet = new function() {
         });
 
         ///Get the list of transactions from the http API
-        MyWallet.get_history();
+        MyWallet.get_history_after_did_decrypt();
 
         $('#initial_error,#initial_success').remove();
 
