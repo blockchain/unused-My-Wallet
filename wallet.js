@@ -1621,15 +1621,18 @@ var MyWallet = new function() {
         if (isMobile) {
             var result = tx.result;
 
-            var html = '<div class="row rowlines">';
+            var html = '<div class="row rowlines tx">';
             if (result > 0) {
-                html += '<div class="col-xs-2"> <img class="bound" src="'+resource+'mobile/images/inbound.png" alt="sent"> </div>';
+//                html += '<div class="col-xs-2"> <img class="bound" src="'+resource+'mobile/images/inbound.png" alt="sent"> </div>';
+                html += '<div class="col-xs-2"> <p class="status received">Received</p> </div>';
             }
             else if (result < 0) {
-                html += '<div class="col-xs-2"> <img class="bound" src="'+resource+'mobile/images/outbound.png" alt="sent"> </div>';
+//                html += '<div class="col-xs-2"> <img class="bound" src="'+resource+'mobile/images/outbound.png" alt="sent"> </div>';
+                html += '<div class="col-xs-2"> <p class="status sent">Sent</p> </div>';
+
             }
 
-            html += '<div class="col-xs-8">';
+            html += '<div class="col-xs-10">';
 
             if (tx.time > 0) {
                 html += '<p class="details">' + dateToString(new Date(tx.time * 1000))+ '</p>';
@@ -1637,15 +1640,16 @@ var MyWallet = new function() {
 
             if (result > 0) {
                 html += '<p class="green">'+ formatMoney(result, true)+'</p>';
-                html += '<p class="received">Received from:</p>';
+                html += '<ul>'
             }
             else if (result < 0) {
                 html += '<p class="red">'+ formatMoney(result, true)+'</p>';
-                html += '<p class="sent">Sent to:</p>';
+                html += '<ul>'
             }
             else {
                 html += '<p>'+ formatMoney(result, true)+'</p>';
                 html += '<p class="sent">Between wallet:</p>';
+                html += '<ul>'
             }
 
             var all_from_self = true;
@@ -1665,10 +1669,10 @@ var MyWallet = new function() {
                             continue;
 
                         all_from_self = false;
-
                         html += formatOutputMobile(out, myAddresses, addresses_book);
                     }
                 }
+                html += '</ul>'
             } else if (result < 0) {
                 for (var i = 0; i < tx.out.length; ++i) {
                     var out = tx.out[i];
@@ -1683,13 +1687,14 @@ var MyWallet = new function() {
 
                     html += formatOutputMobile(out, myAddresses, addresses_book);
                 }
+                html += '</ul>'
             }
 
             if (all_from_self)
                 html += '<span class="label">Moved Between Wallet</info>';
 
 
-            html += '</div><div class="col-xs-2 text-right"></div></div>';
+            html += '</div></div>';
 
             return html;
 
@@ -1909,15 +1914,15 @@ var MyWallet = new function() {
                     return addr;
             } else {
                 if (addresses_book && addresses_book[addr])
-                    return '<a target="new" href="'+root+'address/'+addr+'">'+addresses_book[addr]+'</a>';
+                    return '<li><a target="new" href="'+root+'address/'+addr+'">'+addresses_book[addr]+'</a></li>';
                 else if (out.addr_tag) {
                     var link = '';
                     if (out.addr_tag_link)
-                        link = ' <a class="external" rel="nofollow" href="'+root + 'r?url='+out.addr_tag_link+'" target="new"></a>';
+                        link = '<li><a class="external" rel="nofollow" href="'+root + 'r?url='+out.addr_tag_link+'" target="new"></a></li>';
 
-                    return '<a target="new" href="'+root+'address/'+addr+'" class="tag-address">'+addr+'</a> <span class="tag">('+out.addr_tag+link+')</span>';
+                    return '<li><a target="new" href="'+root+'address/'+addr+'" class="tag-address">'+addr+'</a> <span class="tag">('+out.addr_tag+link+')</span></li>';
                 } else {
-                    return '<a target="new" href="'+root+'address/'+addr+'">'+addr+'</a>';
+                    return '<li><a target="new" href="'+root+'address/'+addr+'">'+addr+'</a></li>';
                 }
             }
         }
@@ -1945,7 +1950,7 @@ var MyWallet = new function() {
             str += ')';
         }
 
-        str += '<br />';
+//        str += '<br />';
 
         return str;
     }
