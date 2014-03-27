@@ -3570,10 +3570,6 @@ var MyWallet = new function() {
         });
     }
 
-    this.changeView = function(id) {
-        changeView(id);
-    }
-
     function changeView(id) {
         if (isMobile && id.attr('id') == "home-intro")
             id = $("#my-transactions");
