@@ -4114,7 +4114,7 @@ var MyWallet = new function() {
 
                 var action_tx = null;
                 if (isMobile) {
-                        action_tx = $('<tr><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatMoney(addr.balance, true) + '</span><img src="'+resource+'qrcode.png" class="pop modal-address" data-toggle="modal" data-target="#myModalAddress" id="'+addr.addr+'"/></td>');
+                        action_tx = $('<div class="short-addr"><ul><li class="bal">' + formatMoney(addr.balance, true) + '</li><li class="addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' +noPrivateKey + '</li><li class="qr"><img src="'+resource+'mobile/images/qr.png" class="pop modal-address" data-toggle="modal" data-target="#myModalAddress" id="'+addr.addr+'"/></li></div>')
                 } else {
                         action_tx = $('<tr><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatMoney(addr.balance, true) + '</span></td>\
                     <td><div class="btn-group pull-right"><a class="btn btn-mini dropdown-toggle" data-toggle="dropdown" href="#"><span class="hidden-phone">Actions </span><span class="caret"></span></a><ul class="dropdown-menu"> \
@@ -4195,6 +4195,8 @@ var MyWallet = new function() {
         });
 
         $('#archived-addresses').on('show', function() {
+        
+
 
             $('#archived-addr tbody').empty();
 
@@ -4223,8 +4225,13 @@ var MyWallet = new function() {
                         label = addr.label;
                         extra = '<span class="hidden-phone"> - ' + addr.addr + '</span>';
                     }
-
-                    var tr = $('<tr><td style="width:20px;"><input type="checkbox" class="archived_checkbox" value="'+addr.addr+'"></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatBTC(addr.balance) + '</span></td><td style="width:16px"><img src="'+resource+'unarchive.png" class="act-unarchive" /></td></tr>');
+                    
+		        	if (isMobile) {
+		        		var tr = $('<div class="short-addr"><ul><li class="bal">' + formatMoney(addr.balance) + '</li><li class="addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' +noPrivateKey + '</li><li class="qr"><img src="'+resource+'mobile/images/unarchive.png" class="act-unarchive" />');
+		        					        	
+		        	} else {              
+                    	var tr = $('<tr><td style="width:20px;"><input type="checkbox" class="archived_checkbox" value="'+addr.addr+'"></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatBTC(addr.balance) + '</span></td><td style="width:16px"><img src="'+resource+'unarchive.png" class="act-unarchive" /></td></tr>');
+                    }
 
                     (function(address) {
                         tr.find('.act-unarchive').click(function() {
