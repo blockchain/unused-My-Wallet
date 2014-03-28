@@ -1624,13 +1624,10 @@ var MyWallet = new function() {
 
             var html = '<div class="row rowlines tx">';
             if (result > 0) {
-//                html += '<div class="col-xs-2"> <img class="bound" src="'+resource+'mobile/images/inbound.png" alt="sent"> </div>';
                 html += '<div class="col-xs-2"> <p class="status received">Received</p> </div>';
             }
             else if (result < 0) {
-//                html += '<div class="col-xs-2"> <img class="bound" src="'+resource+'mobile/images/outbound.png" alt="sent"> </div>';
                 html += '<div class="col-xs-2"> <p class="status sent">Sent</p> </div>';
-
             }
 
             html += '<div class="col-xs-12">';
@@ -1692,7 +1689,7 @@ var MyWallet = new function() {
             }
 
             if (all_from_self)
-                html += '<span class="label sent">Moved Between Wallet</info>';
+                html += '<p class="sent">Moved Between Wallets</p>';
 
 
             html += '</div></div>';
