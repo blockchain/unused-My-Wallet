@@ -2013,6 +2013,9 @@ var MyWallet = new function() {
 
         var id = buildVisibleViewPre();
 
+        var body = $(document.body);
+        body.attr('class', id);
+
         if ("send-coins" == id) {
             showMobileWalletHeadAndFooter();
             buildSendTxView(reset);
