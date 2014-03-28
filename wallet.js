@@ -1658,7 +1658,7 @@ var MyWallet = new function() {
 
             }
 
-            html += '<div class="col-xs-10">';
+            html += '<div class="col-xs-12">';
 
             if (tx.time > 0) {
                 html += '<p class="details">' + dateToString(new Date(tx.time * 1000))+ '</p>';
@@ -1666,16 +1666,16 @@ var MyWallet = new function() {
 
             if (result > 0) {
                 html += '<p class="green">'+ formatMoney(result, true)+'</p>';
-                html += '<ul>'
+                html += '<ul class="rec">'
             }
             else if (result < 0) {
                 html += '<p class="red">'+ formatMoney(result, true)+'</p>';
-                html += '<ul>'
+                html += '<ul class="send">'
             }
             else {
                 html += '<p>'+ formatMoney(result, true)+'</p>';
                 html += '<p class="sent">Between wallet:</p>';
-                html += '<ul>'
+                html += '<ul class="send">'
             }
 
             var all_from_self = true;
@@ -1686,7 +1686,7 @@ var MyWallet = new function() {
                     if (!out || !out.addr) {
                         all_from_self = false;
 
-                        html += '<span class="label">Newly Generated Coins</span>';
+                        html += '<span class="label green">Newly Generated Coins</span>';
                     } else {
                         var my_addr = myAddresses[out.addr];
 
@@ -1717,7 +1717,7 @@ var MyWallet = new function() {
             }
 
             if (all_from_self)
-                html += '<span class="label">Moved Between Wallet</info>';
+                html += '<span class="label sent">Moved Between Wallet</info>';
 
 
             html += '</div></div>';
@@ -1844,7 +1844,7 @@ var MyWallet = new function() {
         var id = buildVisibleViewPre();
 
         var body = $(document.body);
-        body.attr('name', id);
+        body.attr('class', id);
 
         if ("send-coins" == id) {
             showMobileWalletHeadAndFooter();
