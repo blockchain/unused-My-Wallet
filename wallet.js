@@ -1110,36 +1110,11 @@ var MyWallet = new function() {
         return out;
     }
 
-    this.get_history_after_did_decrypt = function(success, error) {
-        BlockchainAPI.get_history(function(data) {
-
-            // don't call parseMultiAddressJSON in mobile version cause symbol_local & symbol_btc in data is wrong
-            // and parseMultiAddressJSON will set the display with the wrong symbol_local & symbol_btc
-            if (! isMobile) {
-                parseMultiAddressJSON(data, false);
-            }
-
-            if (transactions.length == 0 && tx_page > 0) {
-                //We have set a higher page number than transactions we actually have to display
-                //So rewind the page number to 0
-                MyWallet.setPage(0);
-            } else {
-                //Rebuild the my-addresses list with the new updated balances (Only if visible)
-                buildVisibleView();
-            }
-
-            if (success) success();
-
-        }, function() {
-            if (error) error();
-
-        }, tx_filter, tx_page*MyWallet.getNTransactionsPerPage(), MyWallet.getNTransactionsPerPage());
-    }
-
     this.get_history = function(success, error) {
         BlockchainAPI.get_history(function(data) {
 
-            parseMultiAddressJSON(data, false);
+            //dont update currency symbol here cuz BlockchainAPI.get_history does not return current symbol
+            parseMultiAddressJSON(data, false, false);
 
             if (transactions.length == 0 && tx_page > 0) {
                 //We have set a higher page number than transactions we actually have to display
@@ -2275,7 +2250,7 @@ var MyWallet = new function() {
         }
     }
 
-    function parseMultiAddressJSON(obj, cached) {
+    function parseMultiAddressJSON(obj, cached, shouldSetCurrencySymbol) {
         if (!cached) {
 
             if (obj.mixer_fee) {
@@ -2284,12 +2259,14 @@ var MyWallet = new function() {
 
             recommend_include_fee = obj.recommend_include_fee;
 
-            if (obj.info) {
-                if (obj.info.symbol_local)
-                    setLocalSymbol(obj.info.symbol_local);
+            if (shouldSetCurrencySymbol) {
+                if (obj.info) {
+                    if (obj.info.symbol_local)
+                        setLocalSymbol(obj.info.symbol_local);
 
-                if (obj.info.symbol_btc)
-                    setBTCSymbol(obj.info.symbol_btc);
+                    if (obj.info.symbol_btc)
+                        setBTCSymbol(obj.info.symbol_btc);
+                }
             }
         }
 
@@ -2379,14 +2356,14 @@ var MyWallet = new function() {
 
         MyStore.get('multiaddr', function(multiaddrjson) {
             if (multiaddrjson != null) {
-                parseMultiAddressJSON($.parseJSON(multiaddrjson), true);
+                parseMultiAddressJSON($.parseJSON(multiaddrjson), true, true);
 
                 buildVisibleView();
             }
         });
 
         ///Get the list of transactions from the http API
-        MyWallet.get_history_after_did_decrypt();
+        MyWallet.get_history();
 
         $('#initial_error,#initial_success').remove();
 
