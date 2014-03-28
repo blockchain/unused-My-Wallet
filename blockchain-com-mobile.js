@@ -55,6 +55,12 @@ $(document).ready(function() {
             $('#myModalAddress').modal('hide');
         });
 
+        $('#set-label-btn').click(function() {
+            $('#myModalAddress').modal('hide');
+            loadScript('wallet/address_modal', function() {
+                showLabelAddressModal(address);
+            });
+        });
     });
 
 
