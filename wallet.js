@@ -1923,7 +1923,7 @@ var MyWallet = new function() {
                     if (out.addr_tag_link)
                         link = '<li><a class="external" rel="nofollow" href="'+root + 'r?url='+out.addr_tag_link+'" target="new"></a></li>';
 
-                    return '<li><a target="new" href="'+root+'address/'+addr+'" class="tag-address">'+addr+'</a> <span class="tag">('+out.addr_tag+link+')</span></li>';
+                    return '<li><a target="new" href="'+root+'address/'+addr+'" class="tag-address">'+out.addr_tag+link+'</a></li>';
                 } else {
                     return '<li><a target="new" href="'+root+'address/'+addr+'">'+addr+'</a></li>';
                 }
