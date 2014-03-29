@@ -4286,6 +4286,14 @@ var MyWallet = new function() {
 
                     loadScript('wallet/account', function() {
                         AccountSettings.init(content, function() {
+                            if (isMobile) {
+                                $("#inactivity-logout-time-drop-down").change(function(e) {
+                                     MyWallet.setLogoutTime(parseInt($(this).val()));
+
+                                    //Fee Policy is stored in wallet so must save it
+                                     MyWallet.backupWallet();
+                                 });
+                            }
                             content.show();
                         }, function() {
                             changeView($("#home-intro"));
