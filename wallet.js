@@ -1193,14 +1193,30 @@ var MyWallet = new function() {
                     var sendAddressAmountTable = document.getElementById("address-book-table");
 
                     sendAddressAmountTable.innerHTML = "";
-                    for (var key in address_book) {
+                    var addressCount = 0;
+                    for (var address in address_book) {
                         var row = sendAddressAmountTable.insertRow(0);
                         row.class = "address-label-row";
                         var cell1 = row.insertCell(0);
                         var cell2 = row.insertCell(1);
-                        cell1.innerHTML = "<a href=\"#\" class=\"address-label\" id=\""+key+"\">"+address_book[key]+"</a>";
-                        cell2.innerHTML = "<p>"+key.substring(0,19)+"</p>";
+                        var cell3 = row.insertCell(2);
+                        cell1.innerHTML = "<a href=\"#\" class=\"address-label\" id=\""+address+"\">"+address_book[address]+"</a>";
+                        cell2.innerHTML = "<p>"+address.substring(0,19)+"</p>";
+                        var deleteId = 'act-delete'+addressCount;
+                        cell3.innerHTML = '<button class="act-delete" id="'+ deleteId +'">delete</button>';
+                        addressCount = addressCount + 1;
+
+                        (function(address) {
+                            $('#'+deleteId).click(function() {
+                                MyWallet.deleteAddressBook(address);
+                            });
+                        })(address);
                     }
+
+                    $('#add-address-book-entry-btn').click(function() {
+                        $('#myModalBook').modal('hide');
+                        addAddressBookModal();
+                    });
 
                     $("#address-book-table").unbind().on('click', '.address-label', function() {
                         sendAddressInput.val($(this).attr('id'));
