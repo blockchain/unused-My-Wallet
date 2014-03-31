@@ -3743,6 +3743,25 @@ var MyWallet = new function() {
         modal.find('.btn.btn-secondary').unbind().click(function() {
             modal.modal('hide');
         });
+
+        if (isMobile) {
+            $('#add-to-address-book-scan').click(function() {
+                //$('#myModalBook').modal('hide');
+                MyWallet.scanQRCode(function(data) {
+                    console.log(data);
+
+                    try {
+                        new Bitcoin.Address(data);
+                        addrField.val(data);
+
+                    } catch (e) {
+                        MyWallet.makeNotice('error', 'misc-error', e);
+                    }
+                }, function(e) {
+                    MyWallet.makeNotice('error', 'misc-error', e);
+                });
+            });
+        }
     }
 
     this.logout = function() {
