@@ -1181,42 +1181,51 @@ var MyWallet = new function() {
     }
 
     function buildSendForm(el, reset) {
-        var sendAddressInput = el.find('.send-to-address');
-        el.find('.scan-send-address').unbind().click(function() {
-            MyWallet.scanQRCode(function(data) {
-                console.log(data);
+        if(isMobile) {
+            var sendAddressInput = el.find('.send-to-address');
 
-                try {
-                    new Bitcoin.Address(data);
-                    sendAddressInput.val(data);
-                } catch (e) {
-                   //If invalid address try and parse URI
-                    MyWallet.handleURI(data, $(this));
-                }
-            }, function(e) {
-                MyWallet.makeNotice('error', 'misc-error', e);
+
+            el.find('.address-book-btn').click(function() {
+                $('#myModalBook').modal('show');
             });
-        });
 
-        el.find('.address-book-btn').click(function() {
-            var table = document.getElementById("address-book-table");
-            var address_book = MyWallet.getAddressBook();
+            function bindFillSendAddressButtons(el, sendAddressInput) {
+                    var sendAddressAmountTable = document.getElementById("address-book-table");
 
-            table.innerHTML = "";
-            for (var key in address_book) {
-                var row = table.insertRow(0);
-                row.class = "address-label-row";
-                var cell1 = row.insertCell(0);
-                var cell2 = row.insertCell(1);
-                cell1.innerHTML = "<a href=\"#\" class=\"address-label\" id=\""+key+"\">"+address_book[key]+"</a>";
-                cell2.innerHTML = "<p>"+key.substring(0,19)+"</p>";
+                    sendAddressAmountTable.innerHTML = "";
+                    for (var key in address_book) {
+                        var row = sendAddressAmountTable.insertRow(0);
+                        row.class = "address-label-row";
+                        var cell1 = row.insertCell(0);
+                        var cell2 = row.insertCell(1);
+                        cell1.innerHTML = "<a href=\"#\" class=\"address-label\" id=\""+key+"\">"+address_book[key]+"</a>";
+                        cell2.innerHTML = "<p>"+key.substring(0,19)+"</p>";
+                    }
+
+                    $("#address-book-table").unbind().on('click', '.address-label', function() {
+                        sendAddressInput.val($(this).attr('id'));
+                        $('#myModalBook').modal('hide');
+                    });
+
+                    $('.scan-send-address').unbind().click(function() {
+                        MyWallet.scanQRCode(function(data) {
+                            console.log(data);
+
+                            try {
+                                new Bitcoin.Address(data);
+                                sendAddressInput.val(data);
+                            } catch (e) {
+                               //If invalid address try and parse URI
+                                MyWallet.handleURI(data, $(this));
+                            }
+                        }, function(e) {
+                            MyWallet.makeNotice('error', 'misc-error', e);
+                        });
+                    });
+
             }
-        });
-
-        $('#address-book-table').on('click', '.address-label', function(){
-            sendAddressInput.val($(this).attr('id'));
-            $('#myModalBook').modal('hide');
-        });
+            bindFillSendAddressButtons(el, sendAddressInput);
+        }
 
         buildSelect(el.find('select[name="from"]'), false, reset);
 
@@ -1251,27 +1260,28 @@ var MyWallet = new function() {
         }
 
         function bindRecipient(recipient) {
+            if (! isMobile) {
+                recipient.find('input[name="send-to-address"]').typeahead({
+                    source : getActiveLabels()
+                }).next().unbind().click(function() {
+                        var input = $(this).prev();
+                        MyWallet.scanQRCode(function(data) {
+                            console.log(data);
 
-            recipient.find('input[name="send-to-address"]').typeahead({
-                source : getActiveLabels()
-            }).next().unbind().click(function() {
-                    var input = $(this).prev();
-                    MyWallet.scanQRCode(function(data) {
-                        console.log(data);
+                            try {
+                                new Bitcoin.Address(data);
 
-                        try {
-                            new Bitcoin.Address(data);
+                                input.val(data);
+                            } catch (e) {
 
-                            input.val(data);
-                        } catch (e) {
-
-                            //If invalid address try and parse URI
-                            MyWallet.handleURI(data, recipient);
-                        }
-                    }, function(e) {
-                        MyWallet.makeNotice('error', 'misc-error', e);
+                                //If invalid address try and parse URI
+                                MyWallet.handleURI(data, recipient);
+                            }
+                        }, function(e) {
+                            MyWallet.makeNotice('error', 'misc-error', e);
+                        });
                     });
-                });
+            }
 
             recipient.find('.send-value').unbind().bind('keyup change', function(e) {
                 if (e.keyCode == '9') {
@@ -1304,6 +1314,12 @@ var MyWallet = new function() {
                     $(this).hide(200);
 
                 recipient_container.find(".recipient:last-child").remove();
+
+                if (isMobile) {
+                    var recipient = recipient_container.find(".recipient:last-child");
+                    var latestSendAddressInput = recipient.find(".send-to-address");
+                    bindFillSendAddressButtons(recipient, latestSendAddressInput);
+                }
             }
         });
 
@@ -1315,6 +1331,15 @@ var MyWallet = new function() {
             recipient.appendTo(recipient_container);
 
             bindRecipient(recipient);
+
+            if (isMobile) {
+                var latestSendAddressInput = recipient.find(".send-to-address");
+                bindFillSendAddressButtons(recipient, latestSendAddressInput);
+
+                recipient.find('.address-book-btn').click(function() {
+                    $('#myModalBook').modal('show');
+                });
+            }
 
             el.find('.remove-recipient').show(200);
         });
