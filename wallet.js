@@ -78,6 +78,8 @@ var MyWallet = new function() {
     var isRestoringWallet = false;
     var sync_pubkeys = false;
     var isMobile = false;
+    var fromGetHistory = false;
+    var getHistoryCallSuccessCount = 0;
 
     this.setIsMobile = function(val) {
         isMobile = val;
@@ -1122,6 +1124,12 @@ var MyWallet = new function() {
                 MyWallet.setPage(0);
             } else {
                 //Rebuild the my-addresses list with the new updated balances (Only if visible)
+
+                if (isMobile) {
+                    fromGetHistory = true;
+                    getHistoryCallSuccessCount++;
+                }
+
                 buildVisibleView();
             }
 
@@ -1859,6 +1867,10 @@ var MyWallet = new function() {
         var body = $(document.body);
         body.attr('class', id);
 
+        //only bind scroll in TransactionsView
+        if (isMobile)
+            $(window).unbind('scroll');
+
         if ("send-coins" == id) {
             showMobileWalletHeadAndFooter();
             buildSendTxView(reset);
@@ -1996,6 +2008,15 @@ var MyWallet = new function() {
         return str;
     }
 
+    function bindScroll(){
+        if($(window).scrollTop() + $(window).height() > $(document).height() - 100) {
+            console.log("bindScroll transactions.length: " + transactions.length);
+
+            $(window).unbind('scroll');
+            MyWallet.setPage(tx_page+1);
+        }
+    }
+
     //Display The My Transactions view
     function buildTransactionsView() {
         var interval = null;
@@ -2009,10 +2030,16 @@ var MyWallet = new function() {
         var txcontainer;
         if (wallet_options.tx_display == 0) {
             $('#transactions-detailed').hide();
-            txcontainer = $('#transactions-compact').show().find('tbody').empty();
+            txcontainer = $('#transactions-compact').show().find('tbody');
+            if (! isMobile)
+                txcontainer.empty();
         } else {
             $('#transactions-compact').hide();
-            txcontainer = $('#transactions-detailed').empty().show();
+            txcontainer = $('#transactions-detailed');
+            if (! isMobile)
+                txcontainer.empty();
+
+            txcontainer.show();
         }
 
         if (transactions.length == 0) {
@@ -2024,13 +2051,20 @@ var MyWallet = new function() {
         }
 
         var buildSome = function() {
-            for (var i = start; i < transactions.length && i < (start+MyWallet.getNTransactionsPerPage()); ++i) {
-                var tx = transactions[i];
+            // getHistoryCallSuccessCount used because on pairing diddecrypt and get_history calls buildTransactionsView
+            // so to avoid loading twice, use getHistoryCallSuccessCount
+            //fromGetHistory use to avoid loading transactions again when switching to my-transactions view
+            if (! isMobile || (getHistoryCallSuccessCount == 0 && isMobile) || (fromGetHistory && getHistoryCallSuccessCount > 1 && isMobile)) {
+                fromGetHistory = false;
+                for (var i = start; i < transactions.length && i < (start+MyWallet.getNTransactionsPerPage()); ++i) {
+                    var tx = transactions[i];
+                    console.log("add transaction date: " + dateToString(new Date(tx.time * 1000)) + " amount: " + formatSymbol(tx.result, symbol));
 
-                if (wallet_options.tx_display == 0) {
-                    txcontainer.append(bindTx($(getCompactHTML(tx, addresses, address_book)), tx));
-                } else {
-                    txcontainer.append(tx.getHTML(addresses, address_book));
+                    if (wallet_options.tx_display == 0) {
+                        txcontainer.append(bindTx($(getCompactHTML(tx, addresses, address_book)), tx));
+                    } else {
+                        txcontainer.append(tx.getHTML(addresses, address_book));
+                    }
                 }
             }
 
@@ -2097,7 +2131,12 @@ var MyWallet = new function() {
                 pagination.append($('<li class="next'+disabled+'"><a>Next &rarr;</a></li>').click(function() {
                     MyWallet.setPage(tx_page+1)
                 }));
+
+                if (isMobile)
+                    $("#my-transactions").find('.pagination').hide();
             }
+            if (isMobile)
+                $(window).unbind('scroll').scroll(bindScroll);
         };
 
         buildSome();
@@ -2106,9 +2145,18 @@ var MyWallet = new function() {
     this.setPage = function(i) {
         tx_page = i;
 
-        scroll(0,0);
+        // Don't scroll back to top if in mobile, because in mobile we are doing lazy load
+        if (! isMobile) {
+            scroll(0,0);
+            MyWallet.get_history();
+        } else {
+            MyWallet.get_history(function() {
+                $(window).unbind('scroll').scroll(bindScroll);
+            }, function() {
+                $(window).unbind('scroll').scroll(bindScroll);
+            });
+        }
 
-        MyWallet.get_history();
     }
 
     function exportHistory() {
