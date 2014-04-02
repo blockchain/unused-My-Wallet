@@ -1170,8 +1170,7 @@ var MyWallet = new function() {
     this.get_history = function(success, error) {
         BlockchainAPI.get_history(function(data) {
 
-            //dont update currency symbol here cuz BlockchainAPI.get_history does not return current symbol
-            parseMultiAddressJSON(data, false, false);
+            parseMultiAddressJSON(data, false);
 
             if (transactions.length == 0 && tx_page > 0) {
                 //We have set a higher page number than transactions we actually have to display
@@ -2441,7 +2440,7 @@ var MyWallet = new function() {
         }
     }
 
-    function parseMultiAddressJSON(obj, cached, shouldSetCurrencySymbol) {
+    function parseMultiAddressJSON(obj, cached) {
         if (!cached) {
 
             if (obj.mixer_fee) {
@@ -2547,7 +2546,7 @@ var MyWallet = new function() {
 
         MyStore.get('multiaddr', function(multiaddrjson) {
             if (multiaddrjson != null) {
-                parseMultiAddressJSON($.parseJSON(multiaddrjson), true, true);
+                parseMultiAddressJSON($.parseJSON(multiaddrjson), true);
 
                 buildVisibleView();
             }
