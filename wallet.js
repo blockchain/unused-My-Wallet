@@ -79,7 +79,7 @@ var MyWallet = new function() {
     var sync_pubkeys = false;
     var isMobile = false;
     var fromGetHistory = false;
-    var getHistoryCallSuccessCount = 0;
+    var historyCallSuccessCount = 0;
 
     this.setIsMobile = function(val) {
         isMobile = val;
@@ -1126,7 +1126,7 @@ var MyWallet = new function() {
 
                 if (isMobile) {
                     fromGetHistory = true;
-                    getHistoryCallSuccessCount++;
+                    historyCallSuccessCount++;
                 }
 
                 buildVisibleView();
@@ -2050,10 +2050,10 @@ var MyWallet = new function() {
         }
 
         var buildSome = function() {
-            // getHistoryCallSuccessCount used because on pairing diddecrypt and get_history calls buildTransactionsView
-            // so to avoid loading twice, use getHistoryCallSuccessCount
+            // historyCallSuccessCount used because on pairing diddecrypt and get_history calls buildTransactionsView
+            // so to avoid loading twice, use historyCallSuccessCount
             //fromGetHistory use to avoid loading transactions again when switching to my-transactions view
-            if (! isMobile || (getHistoryCallSuccessCount == 0 && isMobile) || (fromGetHistory && getHistoryCallSuccessCount > 1 && isMobile)) {
+            if (! isMobile || (historyCallSuccessCount == 0 && isMobile) || (fromGetHistory && historyCallSuccessCount > 1 && isMobile)) {
                 fromGetHistory = false;
                 for (var i = start; i < transactions.length && i < (start+MyWallet.getNTransactionsPerPage()); ++i) {
                     var tx = transactions[i];
@@ -2344,7 +2344,7 @@ var MyWallet = new function() {
 
             recommend_include_fee = obj.recommend_include_fee;
 
-            if (! isMobile || getHistoryCallSuccessCount > 0) {
+            if (! isMobile || historyCallSuccessCount > 0) {
                 if (obj.info) {
                     if (obj.info.symbol_local)
                         setLocalSymbol(obj.info.symbol_local);
