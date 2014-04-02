@@ -80,6 +80,7 @@ var MyWallet = new function() {
     var isMobile = false;
     var isLazyLoadingTransactions = false;
     var historyCallSuccessCount = 0;
+    var hasBuiltTransactionsListOnce = false;
 
     this.setIsMobile = function(val) {
         isMobile = val;
@@ -2047,12 +2048,12 @@ var MyWallet = new function() {
         }
 
         var buildSome = function() {
-            // historyCallSuccessCount used because on pairing diddecrypt and get_history calls buildTransactionsView
-            // so to avoid loading twice, use historyCallSuccessCount
+            // hasBuiltTransactionsListOnce use to avoid loading twice on pair device on html5 mobile
             if (! isMobile ||
-                (historyCallSuccessCount == 0 && isMobile) ||
+                ! hasBuiltTransactionsListOnce ||
                 isLazyLoadingTransactions) {
 
+                hasBuiltTransactionsListOnce = true;
                 isLazyLoadingTransactions = false;
                 for (var i = start; i < transactions.length && i < (start+MyWallet.getNTransactionsPerPage()); ++i) {
                     var tx = transactions[i];
