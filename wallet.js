@@ -2007,8 +2007,6 @@ var MyWallet = new function() {
 
     function bindScroll(){
         if($(window).scrollTop() + $(window).height() > $(document).height() - 100) {
-            console.log("bindScroll transactions.length: " + transactions.length);
-
             $(window).unbind('scroll');
             isLazyLoadingTransactions = true;
             MyWallet.setPage(tx_page+1);
