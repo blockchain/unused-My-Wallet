@@ -2153,7 +2153,6 @@ var MyWallet = new function() {
         }
 
         var buildSome = function() {
-            // hasBuiltTransactionsListOnce use to avoid loading twice on pair device on html5 mobile
             if (! isMobile ||
                 ! hasBuiltTransactionsListOnce ||
                 isLazyLoadingTransactions) {
