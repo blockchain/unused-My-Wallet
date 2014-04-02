@@ -78,7 +78,7 @@ var MyWallet = new function() {
     var isRestoringWallet = false;
     var sync_pubkeys = false;
     var isMobile = false;
-    var fromGetHistory = false;
+    var isLazyLoadingTransactions = false;
     var historyCallSuccessCount = 0;
 
     this.setIsMobile = function(val) {
@@ -1124,10 +1124,8 @@ var MyWallet = new function() {
             } else {
                 //Rebuild the my-addresses list with the new updated balances (Only if visible)
 
-                if (isMobile) {
-                    fromGetHistory = true;
+                if (isMobile)
                     historyCallSuccessCount++;
-                }
 
                 buildVisibleView();
             }
@@ -2012,6 +2010,7 @@ var MyWallet = new function() {
             console.log("bindScroll transactions.length: " + transactions.length);
 
             $(window).unbind('scroll');
+            isLazyLoadingTransactions = true;
             MyWallet.setPage(tx_page+1);
         }
     }
@@ -2052,9 +2051,11 @@ var MyWallet = new function() {
         var buildSome = function() {
             // historyCallSuccessCount used because on pairing diddecrypt and get_history calls buildTransactionsView
             // so to avoid loading twice, use historyCallSuccessCount
-            //fromGetHistory use to avoid loading transactions again when switching to my-transactions view
-            if (! isMobile || (historyCallSuccessCount == 0 && isMobile) || (fromGetHistory && historyCallSuccessCount > 1 && isMobile)) {
-                fromGetHistory = false;
+            if (! isMobile ||
+                (historyCallSuccessCount == 0 && isMobile) ||
+                isLazyLoadingTransactions) {
+
+                isLazyLoadingTransactions = false;
                 for (var i = start; i < transactions.length && i < (start+MyWallet.getNTransactionsPerPage()); ++i) {
                     var tx = transactions[i];
                     console.log("add transaction date: " + dateToString(new Date(tx.time * 1000)) + " amount: " + formatSymbol(tx.result, symbol));
