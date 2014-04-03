@@ -24,6 +24,39 @@ $(document).ready(function() {
         $(".scanqrinput").attr('type', "text");
     }
 
+    // dont ever logout in mobile
+    MyWallet.setLogoutTime("86400000");
+
+    var guid = null;
+    MyStore.get('guid', function(result) {
+        guid = result;
+    });
+
+    var passphrase = null;
+    MyStore.get('passphrase', function(result) {
+        passphrase = result;
+    });
+
+    if (guid != null && passphrase != null) {
+        $('#restore-guid').val(guid);
+        $('#restore-password').val(passphrase);
+
+        MyWallet.addEventListener(function(event) {
+            if (event == 'did_set_guid')
+                $('#restore-wallet-continue').trigger('click');
+        });
+
+        MyWallet.setGUID(guid, false);
+    } else {
+        $("#landing-container").show();
+    }
+
+
+    $('#unpairdevice').click(function() {
+        MyStore.clear();
+        $('#logout').trigger('click');
+    });
+
     $('#create-account-btn').click(function() {
         $("#landing-container").hide();
         $("#createacct-container").show();
@@ -234,6 +267,13 @@ $(document).ready(function() {
 
             $('#restore-guid').val(guid);
             $('#restore-password').val(password);
+
+             MyWallet.addEventListener(function(event) {
+                 if (event == 'did_decrypt') {
+                    MyStore.put('passphrase', password);
+                 }
+             });
+
              MyWallet.addEventListener(function(event) {
                  if (event == 'did_set_guid') {
                     $('#restore-wallet-continue').trigger('click');
