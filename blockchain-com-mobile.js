@@ -3,6 +3,8 @@ APP_NAME = 'javascript_blockchain_com_mobile';
 
 $(document).ready(function() {
     MyWallet.setIsMobile(true);
+    var isIOSDevice = ( navigator.userAgent.match(/(iPad|iPhone|iPod)/g) ? true : false );
+    MyWallet.setIsIOSDevice(isIOSDevice);
 
     var body = $(document.body);
 
@@ -16,6 +18,11 @@ $(document).ready(function() {
 
     //Chrome should automatically grant notification permissions
     MyWallet.setHTML5Notifications(true);
+
+    if (! MyWallet.getIsIOSDevice()) {
+        //change type from file to text if device is not iOS
+        $(".scanqrinput").attr('type', "text");
+    }
 
     $('#create-account-btn').click(function() {
         $("#landing-container").hide();
@@ -216,30 +223,31 @@ $(document).ready(function() {
     });
     */
 
-    // Camera
     $('#camPlaceholder').on('click', function (e) {
         MyWallet.scanQRCode(function(data) {
-        console.log('Scanned: ' + data);
+            console.log('Scanned: ' + data);
+            var components = data.split("|");
 
-        var components = data.split("|");
+            var guid = components[0];
+            var sharedKey = components[1];
+            var password = components[2];
 
-        var guid = components[0];
-        var sharedKey = components[1];
-        var password = components[2];
-        $('#restore-guid').val(guid);
-        $('#restore-password').val(password);
+            $('#restore-guid').val(guid);
+            $('#restore-password').val(password);
+             MyWallet.addEventListener(function(event) {
+                 if (event == 'did_set_guid') {
+                    $('#restore-wallet-continue').trigger('click');
+                 }
+             });
 
-         MyWallet.addEventListener(function(event) {
-             if (event == 'did_set_guid') {
-                $('#restore-wallet-continue').trigger('click');
-             }
-         });
-
-        MyWallet.setGUID(guid, false);
-
+            MyWallet.setGUID(guid, false);
         }, function(e) {
             MyWallet.makeNotice('error', 'misc-error', e);
         });
+    });
+
+    $("#scanpaircode").on("change", function(event) {
+        $('#camPlaceholder').trigger('click');
     });
 });
 

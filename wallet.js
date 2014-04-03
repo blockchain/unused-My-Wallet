@@ -81,6 +81,15 @@ var MyWallet = new function() {
     var isLazyLoadingTransactions = false;
     var historyCallSuccessCount = 0;
     var hasBuiltTransactionsListOnce = false;
+    var isIOSDevice = false;
+
+    this.setIsIOSDevice = function(val) {
+        isIOSDevice = val;
+    }
+
+    this.getIsIOSDevice = function() {
+        return isIOSDevice;
+    }
 
     this.setIsMobile = function(val) {
         isMobile = val;
@@ -1229,6 +1238,7 @@ var MyWallet = new function() {
                         $('#myModalBook').modal('hide');
                     });
 
+
                     $('.scan-send-address').unbind().click(function() {
                         MyWallet.scanQRCode(function(data) {
                             console.log(data);
@@ -1434,37 +1444,66 @@ var MyWallet = new function() {
     }
 
     this.scanQRCode = function(success, error) {
+        if (MyWallet.getIsIOSDevice()) {
+                qrcode.callback = success;
 
-        var modal = $('#qr-code-reader-modal');
+                var canvas = document.createElement('canvas');
+                var context = canvas.getContext('2d');
 
-        modal.modal({
-            keyboard: false,
-            backdrop: "static",
-            show: true
-        });
+                var img = new Image();
+                img.onload = function() {
 
-        //WebCam
-        loadScript('wallet/qr.code.reader', function() {
-            QRCodeReader.init(modal, function(data) {
+                    if((img.width == 2448 && img.height == 3264) || (img.width == 3264 && img.height == 2448)) {
+                        canvas.width = 1024;
+                        canvas.height = 1365;
+                        context.drawImage(img, 0, 0, 1024, 1365);
+                    } else if(img.width > 1024 || img.height > 1024) {
+                        canvas.width = img.width*0.15;
+                        canvas.height = img.height*0.15;
+                        context.drawImage(img, 0, 0, img.width*0.15, img.height*0.15);
+                    } else {
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        context.drawImage(img, 0, 0, img.width, img.height);
+                    }
+
+                    qrcode.decode(canvas.toDataURL('image/png'));
+                }
+
+                img.src = URL.createObjectURL(event.target.files[0]);
+        } else {
+                console.log("scanQRCode: ");
+            var modal = $('#qr-code-reader-modal');
+
+            modal.modal({
+                keyboard: false,
+                backdrop: "static",
+                show: true
+            });
+
+            //WebCam
+            loadScript('wallet/qr.code.reader', function() {
+                QRCodeReader.init(modal, function(data) {
+                    QRCodeReader.stop();
+
+                    modal.modal('hide');
+
+                    success(data);
+                }, function(e) {
+                    modal.modal('hide');
+
+                    error(e);
+                });
+            }, error);
+
+            modal.find('.btn.btn-secondary').unbind().click(function() {
                 QRCodeReader.stop();
 
                 modal.modal('hide');
 
-                success(data);
-            }, function(e) {
-                modal.modal('hide');
-
-                error(e);
+                error();
             });
-        }, error);
-
-        modal.find('.btn.btn-secondary').unbind().click(function() {
-            QRCodeReader.stop();
-
-            modal.modal('hide');
-
-            error();
-        });
+        }
     }
 
     this.getActiveAddresses = function() {
