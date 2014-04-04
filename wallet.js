@@ -1170,14 +1170,23 @@ var MyWallet = new function() {
         }
     }
 
+    function resetFormElement(e) {
+      e.wrap('<form>').closest('form').get(0).reset();
+      e.unwrap();
+    }
+
     function bindScanSendAddress(sendAddressInput) {
-        $('.scan-send-address').unbind().click(function() {
+        $('.scan-send-address').unbind().on("change", function(event) {
             MyWallet.scanQRCode(function(data) {
                 console.log(data);
 
                 try {
                     new Bitcoin.Address(data);
                     sendAddressInput.val(data);
+
+                    resetFormElement($('#quicksend-qrcodeinput'));
+                    resetFormElement($('#customsend-qrcodeinput'));
+                    resetFormElement($('#sharedsend-qrcodeinput'));
                 } catch (e) {
                     //If invalid address try and parse URI
                     MyWallet.handleURI(data, $(this));
