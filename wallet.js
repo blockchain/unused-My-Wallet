@@ -731,9 +731,7 @@ var MyWallet = new function() {
 
     function bindTx(tx_tr, tx) {
         tx_tr.click(function(){
-            //for mobile, no TransactionSummaryModal for now
-            if (! isMobile)
-                openTransactionSummaryModal(tx.txIndex, tx.result);
+            openTransactionSummaryModal(tx.txIndex, tx.result);
         });
         if (! isMobile) {
             tx_tr.find('.show-note').unbind('mouseover').mouseover(function() {
@@ -1576,13 +1574,17 @@ var MyWallet = new function() {
 
 
     function openTransactionSummaryModal(txIndex, result) {
-        loadScript('wallet/frame-modal', function() {
-            showFrameModal({
-                title : 'Transaction Summary',
-                description : '',
-                src : root + 'tx-summary/'+txIndex+'?result='+result+'&symbol_btc='+symbol_btc.code+'&symbol_local='+symbol_local.code
+        if (isMobile) {
+            window.open(root+'tx/'+txIndex);
+        } else {
+            loadScript('wallet/frame-modal', function() {
+                showFrameModal({
+                    title : 'Transaction Summary',
+                    description : '',
+                    src : root + 'tx-summary/'+txIndex+'?result='+result+'&symbol_btc='+symbol_btc.code+'&symbol_local='+symbol_local.code
+                });
             });
-        });
+        }
     }
 
     this.deleteNote = function(tx_hash) {
