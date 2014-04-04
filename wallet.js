@@ -864,7 +864,7 @@ var MyWallet = new function() {
                         if (tx_filter == 0 && tx_page == 0) {
                             $('#no-transactions').hide();
 
-                            if (wallet_options.tx_display == 0) {
+                            if (wallet_options.tx_display == 0 || isMobile) {
                                 var txcontainer = $('#transactions-compact').show();
 
                                 bindTx($(getCompactHTML(tx, addresses, address_book)), tx).prependTo(txcontainer.find('tbody')).find('div').hide().slideDown('slow');
@@ -2080,7 +2080,7 @@ var MyWallet = new function() {
         }
 
         var txcontainer;
-        if (wallet_options.tx_display == 0) {
+        if (wallet_options.tx_display == 0 || isMobile) {
             $('#transactions-detailed').hide();
             txcontainer = $('#transactions-compact').show().find('tbody');
             if (! isMobile)
@@ -2114,7 +2114,7 @@ var MyWallet = new function() {
                     var tx = transactions[i];
                     console.log("add transaction date: " + dateToString(new Date(tx.time * 1000)) + " amount: " + formatSymbol(tx.result, symbol));
 
-                    if (wallet_options.tx_display == 0) {
+                    if (wallet_options.tx_display == 0 || isMobile) {
                         txcontainer.append(bindTx($(getCompactHTML(tx, addresses, address_book)), tx));
                     } else {
                         txcontainer.append(tx.getHTML(addresses, address_book));
