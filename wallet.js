@@ -1159,11 +1159,33 @@ var MyWallet = new function() {
     function buildSendTxView(reset) {
         $('#send-coins').find('.tab-pane.active').trigger('show', reset);
 
+        //bind scan qr code button
+        if (isMobile)
+            bindScanSendAddress($("#send-quick").find('.send-to-address'));
+
         if (reset) {
             BlockchainAPI.get_ticker();
 
             $('.send').prop('disabled', false);
         }
+    }
+
+    function bindScanSendAddress(sendAddressInput) {
+        $('.scan-send-address').unbind().click(function() {
+            MyWallet.scanQRCode(function(data) {
+                console.log(data);
+
+                try {
+                    new Bitcoin.Address(data);
+                    sendAddressInput.val(data);
+                } catch (e) {
+                    //If invalid address try and parse URI
+                    MyWallet.handleURI(data, $(this));
+                }
+            }, function(e) {
+                MyWallet.makeNotice('error', 'misc-error', e);
+            });
+        });
     }
 
     function buildSelect(select, zero_balance, reset) {
@@ -1238,22 +1260,7 @@ var MyWallet = new function() {
                         $('#myModalBook').modal('hide');
                     });
 
-
-                    $('.scan-send-address').unbind().click(function() {
-                        MyWallet.scanQRCode(function(data) {
-                            console.log(data);
-
-                            try {
-                                new Bitcoin.Address(data);
-                                sendAddressInput.val(data);
-                            } catch (e) {
-                               //If invalid address try and parse URI
-                                MyWallet.handleURI(data, $(this));
-                            }
-                        }, function(e) {
-                            MyWallet.makeNotice('error', 'misc-error', e);
-                        });
-                    });
+                    bindScanSendAddress(sendAddressInput);
 
             }
             bindFillSendAddressButtons(el, sendAddressInput);

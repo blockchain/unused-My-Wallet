@@ -238,6 +238,8 @@ $(document).ready(function() {
                 return;
             }
     }
+
+
     /*
     $('#overlay').on('click', function (e) {
         $(this).fadeOut();
