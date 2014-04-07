@@ -1160,11 +1160,12 @@ var MyWallet = new function() {
         //bind scan qr code button
         if (isMobile)
             bindScanSendAddress($("#send-quick").find('.send-to-address'));
-        
-        if (reset) {
-            BlockchainAPI.get_ticker();
+        else {
+            if (reset) {
+                BlockchainAPI.get_ticker();
 
-            $('.send').prop('disabled', false);
+                $('.send').prop('disabled', false);
+            }
         }
     }
 
