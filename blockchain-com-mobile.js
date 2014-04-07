@@ -78,6 +78,11 @@ $(document).ready(function() {
         $("#pairdevice-stage3").show();
     });
 
+    function toFixed(value, precision) {
+        var power = Math.pow(10, precision || 0);
+        return String(Math.round(value * power) / power);
+    }
+
     $('#myModalAddress').on('show', function() {
         var address = document.getElementById("bitcoin-address").innerHTML;
 
@@ -87,6 +92,14 @@ $(document).ready(function() {
             modal.modal('show');
             loadScript('wallet/jquery.qrcode', function() {
                 modal.find('.address-qr-code').empty().qrcode({width: 300, height: 300, text: address});
+            });
+
+            $('#requestAmount').unbind().bind('keyup change', function() {
+                var value = parseFloat($('#requestAmount').val());
+                var result = toFixed(value, 8);
+                var bitcoinURI = "bitcoin://"+ address +"?amount=" + result;
+                console.log('bitcoinURI: ' + bitcoinURI);
+                $('#myModalQr').find('.address-qr-code').empty().qrcode({width: 300, height: 300, text: bitcoinURI});
             });
         });
 
