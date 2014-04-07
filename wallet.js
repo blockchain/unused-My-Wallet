@@ -1160,7 +1160,7 @@ var MyWallet = new function() {
         //bind scan qr code button
         if (isMobile)
             bindScanSendAddress($("#send-quick").find('.send-to-address'));
-
+        
         if (reset) {
             BlockchainAPI.get_ticker();
 
@@ -4221,21 +4221,6 @@ var MyWallet = new function() {
 
                     loadScript('wallet/account', function() {
                         AccountSettings.init(content, function() {
-                            if (isMobile) {
-                                var dropDown = document.getElementById("inactivity-logout-time-drop-down");;
-                                var logoutTime = MyWallet.getLogoutTime();
-                                for (var i=0; i<dropDown.length; i++){
-                                    if (dropDown.options[i].value == logoutTime) {
-                                    dropDown.selectedIndex = i;
-                                    }
-                                }
-                                $("#inactivity-logout-time-drop-down").change(function(e) {
-                                     MyWallet.setLogoutTime(parseInt($(this).val()));
-
-                                    //Fee Policy is stored in wallet so must save it
-                                     MyWallet.backupWallet();
-                                 });
-                            }
                             content.show();
                         }, function() {
                             changeView($("#home-intro"));
