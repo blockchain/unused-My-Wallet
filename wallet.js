@@ -4264,10 +4264,18 @@ var MyWallet = new function() {
 
                 var noPrivateKey = '';
 
-                if (addr.tag == 1) {
-                    noPrivateKey = ' <font color="red" class="pop" title="Not Synced" data-content="This is a new address which has not yet been synced with our the server. Do not used this address yet.">(Not Synced)</font>';
-                } else if (addr.priv == null) {
-                    noPrivateKey = ' <font color="red" class="pop" title="Watch Only" data-content="Watch Only means there is no private key associated with this bitcoin address. <br /><br /> Unless you have the private key stored elsewhere you do not own the funds at this address and can only observe the transactions.">(Watch Only)</font>';
+                if (isMobile) {
+                    if (addr.tag == 1) {
+                        noPrivateKey = ' <font color="red">(Not Synced)</font>';
+                    } else if (addr.priv == null) {
+                        noPrivateKey = ' <font color="red">(Watch Only)</font>';
+                    }
+                } else {
+                    if (addr.tag == 1) {
+                        noPrivateKey = ' <font color="red" class="pop" title="Not Synced" data-content="This is a new address which has not yet been synced with our the server. Do not used this address yet.">(Not Synced)</font>';
+                    } else if (addr.priv == null) {
+                        noPrivateKey = ' <font color="red" class="pop" title="Watch Only" data-content="Watch Only means there is no private key associated with this bitcoin address. <br /><br /> Unless you have the private key stored elsewhere you do not own the funds at this address and can only observe the transactions.">(Watch Only)</font>';
+                    }
                 }
 
                 var extra = '';
