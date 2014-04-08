@@ -1487,7 +1487,6 @@ var MyWallet = new function() {
 
                 img.src = URL.createObjectURL(event.target.files[0]);
         } else {
-                console.log("scanQRCode: ");
             var modal = $('#qr-code-reader-modal');
 
             modal.modal({
