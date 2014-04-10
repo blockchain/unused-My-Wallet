@@ -2451,7 +2451,10 @@ var MyWallet = new function() {
         }
 
         if (obj.disable_mixer) {
-            $('#shared-addresses,#send-shared').hide();
+            $('#shared-addresses').hide();
+            $('#send-shared').hide();
+            $('#send-shared-tab').hide();
+            $('#shared-addresses-tab').hide();
         }
 
         sharedcoin_endpoint = obj.sharedcoin_endpoint;
