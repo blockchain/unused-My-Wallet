@@ -32,7 +32,7 @@ function showFrameModal(options) {
        el_name = 'webview';
     }
 
-    $('body').append('<div id="frame-modal" class="modal hide"><div class="modal-header"><button type="button" class="close" data-dismiss="modal">×</button>'+top_right+'<h3>'+options.title+'</h3></div><div class="modal-body" style="overflow-y:hidden;"><'+el_name+' border="0" scrolling="auto" style="overflow-y:hidden;border-style:none;"></'+el_name+'></div><div class="modal-footer btn-group">'+options.description+' <a class="btn btn-secondary">Close</a></div></div>');
+    $('body').append('<div id="frame-modal" class="modal"><div class="modal-header"><button type="button" class="close" data-dismiss="modal">×</button>'+top_right+'<h3>'+options.title+'</h3></div><div class="modal-body" style="overflow-y:hidden;"><'+el_name+' border="0" scrolling="auto" style="overflow-y:hidden;border-style:none;"></'+el_name+'></div><div class="modal-footer btn-group">'+options.description+' <a class="btn btn-secondary">Close</a></div></div>');
 
     modal = $('#frame-modal');
 

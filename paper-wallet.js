@@ -9,7 +9,7 @@ var PaperWallet = new function() {
         var modal = $('#did-print-modal');
 
         if (modal.length == 0) {
-            modal = $('<div id="did-print-modal" class="modal hide">\
+            modal = $('<div id="did-print-modal" class="modal">\
             <div class="modal-header">\
             <button type="button" class="close" data-dismiss="modal">×</button>\
             <h3>Cold Storage Address</h3>\
