@@ -88,7 +88,7 @@ var MyWallet = new function() {
     }
 
     this.getIsIOSDevice = function() {
-        return isIOSDevice;
+        return true;
     }
 
     var wallet_options = {
@@ -4440,7 +4440,7 @@ var MyWallet = new function() {
                     }
                     
 		        	if (isMobile) {
-		        		var tr = $('<div class="short-addr"><ul><li class="bal">' + formatMoney(addr.balance) + '</li><li class="addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' +noPrivateKey + '</li><li class="qr"><img src="'+resource+'mobile/images/unarchive.png" class="act-unarchive" />');
+		        		var tr = $('<div class="short-addr"><ul><li class="bal">' + formatMoney(addr.balance) + '</li><li class="addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' +noPrivateKey + '</li><li class="qr"><img src="'+resource+'unarchive.png" class="act-unarchive" />');
 		        					        	
 		        	} else {              
                     	var tr = $('<tr><td style="width:20px;"><input type="checkbox" class="archived_checkbox" value="'+addr.addr+'"></td><td><div class="short-addr"><a href="'+root+'address/'+addr.addr+'" target="new">' + label + '</a>'+ extra + ' ' + noPrivateKey +'<div></td><td><span style="color:green">' + formatBTC(addr.balance) + '</span></td><td style="width:16px"><img src="'+resource+'unarchive.png" class="act-unarchive" /></td></tr>');
