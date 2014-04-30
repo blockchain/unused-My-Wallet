@@ -230,6 +230,7 @@ var SharedCoin = new function() {
             offered_outpoints : [], //The outpoints we want to offer
             request_outputs : [], //The outputs we want in return
             offer_id : 0, //A unique ID for this offer (set by server)
+            fee_percent : BigInteger.ZERO, //The Offer fee percentage
             submit : function(success, error, complete) {
                 var self = this;
 
@@ -241,7 +242,7 @@ var SharedCoin = new function() {
                     url: URL,
                     timeout: AjaxTimeout,
                     retryLimit: AjaxRetry,
-                    data : {method : 'submit_offer', format : 'json', token : SharedCoin.getToken(), offer : JSON.stringify(self)},
+                    data : {method : 'submit_offer', fee_percent : self.fee_percent.toString(), format : 'json', token : SharedCoin.getToken(), offer : JSON.stringify(self)},
                     success: function (obj) {
                         if (obj.status == 'complete') {
                             complete(obj.tx_hash, obj.tx);
@@ -637,6 +638,8 @@ var SharedCoin = new function() {
             address_seed  : null,
             address_seen_n : 0,
             generated_addresses : [],
+            fee_percent_each_repetition : [],
+            fee_each_repetition : [],
             generateAddressFromSeed : function() {
 
                 if (this.address_seed == null) {
@@ -696,7 +699,7 @@ var SharedCoin = new function() {
                                 offer.signInputs(proposal, tx, function(signatures) {
                                     console.log('Inputs Signed');
 
-                                    offer.submitInputScripts(proposal, signatures, function (obj) {
+                                   offer.submitInputScripts(proposal, signatures, function (obj) {
                                         console.log('Submitted Input Scripts');
 
                                         proposal.pollForCompleted(complete, error);
@@ -762,7 +765,7 @@ var SharedCoin = new function() {
                     }
                 }, error);
             },
-            constructRepetitions : function(initial_offer, fee_each_repetition, success, error) {
+            constructRepetitions : function(initial_offer, success, error) {
                 try {
                     var self = this;
 
@@ -799,7 +802,9 @@ var SharedCoin = new function() {
                             initial_offer.offered_outpoints = [];
                         }
 
-                        totalValueLeftToConsume = totalValueLeftToConsume.subtract(fee_each_repetition[ii]);
+                        offer.fee_percent = self.fee_percent_each_repetition[ii];
+
+                        totalValueLeftToConsume = totalValueLeftToConsume.subtract(self.fee_each_repetition[ii]);
 
                         var splitValues = [10,5,1,0.5,0.3,0.1];
                         var maxSplits = 8;
@@ -1017,6 +1022,11 @@ var SharedCoin = new function() {
 
             var repetitionsSelect = el.find('select[name="repetitions"]');
 
+            var donate = el.find('input[name="shared-coin-donate"]').is(':checked');
+
+
+            console.log('donate ' + donate);
+
             var repetitions = parseInt(repetitionsSelect.val());
 
             if (repetitions <= 0) {
@@ -1090,13 +1100,24 @@ var SharedCoin = new function() {
 
             var to_values_before_fees = [];
             var fee_each_repetition = [];
+            var fee_percent_each_repetition = [];
+
             for (var i in newTx.to_addresses) {
                 var to_address = newTx.to_addresses[i];
 
                 to_values_before_fees.push(to_address.value);
 
                 for (var ii = repetitions-1; ii >= 0; --ii) {
-                    var feeThisOutput = SharedCoin.calculateFeeForValue(to_address.value);
+
+                    var feePercent = SharedCoin.getFee();
+
+                    if (ii == 0 && donate) {
+                        feePercent += 0.1;
+                    }
+
+                    fee_percent_each_repetition[ii] = feePercent;
+
+                    var feeThisOutput = SharedCoin.calculateFeeForValue(feePercent, to_address.value);
 
                     to_address.value = to_address.value.add(feeThisOutput);
 
@@ -1118,7 +1139,7 @@ var SharedCoin = new function() {
             newTx.base_fee = BigInteger.ZERO;
             newTx.min_input_size = BigInteger.valueOf(SharedCoin.getMinimumInputValue());
             newTx.min_free_output_size = BigInteger.valueOf(satoshi);
-            newTx.fee = BigInteger.ZERO
+            newTx.fee = BigInteger.ZERO;
             newTx.ask_for_fee = function(yes, no) {
                 no();
             };
@@ -1178,8 +1199,10 @@ var SharedCoin = new function() {
 
                     plan.n_stages = repetitions;
                     plan.c_stage = 0;
+                    plan.fee_each_repetition = fee_each_repetition;
+                    plan.fee_percent_each_repetition = fee_percent_each_repetition;
 
-                    plan.constructRepetitions(offer, fee_each_repetition, success, function(e) {
+                    plan.constructRepetitions(offer, success, function(e) {
                         _error(e);
                     });
 
@@ -1194,11 +1217,11 @@ var SharedCoin = new function() {
         }
     }
 
-    this.calculateFeeForValue = function(input_value) {
+    this.calculateFeeForValue = function(fee_percent, input_value) {
         var minFee = BigInteger.valueOf(SharedCoin.getMinimumFee());
 
-        if (input_value.compareTo(BigInteger.ZERO) > 0 && SharedCoin.getFee() > 0) {
-            var mod = Math.ceil(100 / SharedCoin.getFee());
+        if (input_value.compareTo(BigInteger.ZERO) > 0 && fee_percent > 0) {
+            var mod = Math.ceil(100 / fee_percent);
 
             var fee = input_value.divide(BigInteger.valueOf(mod));
 
