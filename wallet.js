@@ -1340,6 +1340,7 @@ var MyWallet = new function() {
             el.find('.send-value').each(function(){
                 total_value = total_value.add(precisionToSatoshiBN($(this).val()));
             });
+            total_value = total_value.add(precisionToSatoshiBN(el.find('input[name="fees"]').val()));
             return total_value;
         }
 
@@ -1383,6 +1384,15 @@ var MyWallet = new function() {
                 }
 
                 recipient.find('.send-value').val(formatSatoshi(parseFloat($(this).val()) * symbol_local.conversion, sShift(symbol_btc), true));
+            });
+
+           el.find('input[name="fees"]').unbind().bind('keyup change', function(e) {
+                if (e.keyCode == '9') {
+                    return;
+                }
+
+                el.find('.amount-needed').text(formatBTC(totalValueBN().toString()));
+                recipient.find('.send-value-usd').val(convert($(this).val() *  symbol_btc.conversion, symbol_local.conversion)).text(formatSymbol($(this).val() *  symbol_btc.conversion, symbol_local));
             });
         }
 
@@ -4756,14 +4766,6 @@ var MyWallet = new function() {
                         startTxUI(self, 'custom', initNewTx());
                     });
                 }
-            });
-
-            self.find('input[name="fees"]').unbind().bind('keyup change', function(e) {
-                if (e.keyCode == '9') {
-                    return;
-                }
-
-                $(this).parent().find('.send-value-usd').val(convert($(this).val() *  symbol_btc.conversion, symbol_local.conversion)).text(formatSymbol($(this).val() *  symbol_btc.conversion, symbol_local));
             });
 
             self.find('.reset').unbind().click(function() {
