@@ -1,5 +1,6 @@
 var SharedCoin = new function() {
     var SharedCoin = this;
+    var DonationPercent = 0.5;
     var AjaxTimeout = 120000;
     var AjaxRetry = 3;
     var LastSignatureSubmitTime = 0;
@@ -1112,7 +1113,7 @@ var SharedCoin = new function() {
                     var feePercent = SharedCoin.getFee();
 
                     if (ii == 0 && donate) {
-                        feePercent += 0.1;
+                        feePercent += DonationPercent;
                     }
 
                     fee_percent_each_repetition[ii] = feePercent;
