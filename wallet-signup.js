@@ -135,6 +135,7 @@
                 if (MyWallet.getAllAddresses().length == 0)
                     MyWallet.generateNewKey(password);
 
+                //User reported this browser generated an invalid private key
                 if(navigator.userAgent.match(/MeeGo/i)) {
                     throw 'MeeGo browser currently not supported.';
                 }
