@@ -28,7 +28,12 @@ if(rng_pool == null) {
     rng_pptr = 0;
     var t;
 
-    if(_window.crypto && _window.crypto.getRandomValues && typeof Int32Array != 'undefined') {
+    var crypto = _window.crypto || window.msCrypto;
+
+    if(crypto && crypto.getRandomValues && typeof Int32Array != 'undefined') {
+
+        console.log('Real Rand ');
+
         var word_array = new Int32Array(32);
 
         _window.crypto.getRandomValues(word_array);
