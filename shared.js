@@ -553,6 +553,27 @@ $(document).ready(function() {
     show_adv = getCookie('show_adv');
 
     try {
+        var language_links = $('#languages_select').find('a');
+        language_links.click(function(e) {
+            e.preventDefault();
+
+            var new_code = $(this).data('code');
+
+            SetCookie('clang', new_code);
+
+            var path = window.location.pathname;
+
+            language_links.each(function() {
+               var code = $(this).data('code');
+               if (path.indexOf('/'+code) == 0) {
+                   path = path.replace('/'+code, '/'+new_code);
+                   return false;
+               }
+            });
+
+            window.location.href = path;
+        });
+
         $('#currencies').change(function() {
             var val = $(this).val();
 
