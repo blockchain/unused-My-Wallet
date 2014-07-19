@@ -1333,6 +1333,10 @@ var MyWallet = new function() {
         return array;
     }
 
+    this.getLatestBlock = function() {
+        return latest_block;
+    }
+
     function setLatestBlock(block) {
 
         if (block != null) {
@@ -1352,6 +1356,8 @@ var MyWallet = new function() {
                     tx.setConfirmations(0);
                 }
             }
+
+            MyWallet.sendEvent('did_set_latest_block');
         }
     }
 
