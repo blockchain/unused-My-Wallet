@@ -4311,6 +4311,10 @@ var MyWallet = new function() {
         $('#active-addresses').on('show', function() {
             var table = $(this).find('table:first');
 
+            if (isMobile) {
+                table.empty();
+            }
+            
             table.find("tbody:gt(0)").remove();
 
             var tbody = table.find('tbody').empty();
