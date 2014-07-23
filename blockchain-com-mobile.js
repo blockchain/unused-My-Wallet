@@ -9,12 +9,14 @@ $(document).ready(function() {
     var body = $(document.body);
 
     var data_root = body.data('root');
-    if (data_root)
+    if (data_root) {
         root = data_root;
+    }
 
     var data_resource = body.data('resource');
-    if (data_resource)
+    if (data_resource) {
         resource = data_resource;
+    }
 
     //Chrome should automatically grant notification permissions
     MyWallet.setHTML5Notifications(true);
@@ -42,8 +44,9 @@ $(document).ready(function() {
         $('#restore-password').val(passphrase);
 
         MyWallet.addEventListener(function(event) {
-            if (event == 'did_set_guid')
+            if (event == 'did_set_guid') {
                 $('#restore-wallet-continue').trigger('click');
+            }
         });
 
         MyWallet.setGUID(guid, false);
@@ -148,11 +151,11 @@ $(document).ready(function() {
                             scanned_key = key;
                             compressed = isCompPoint;
 
-                            if (scanned_key)
+                            if (scanned_key) {
                                 success(scanned_key);
-                            else
+                            } else {
                                 error(error_msg);
-
+                            }
                         }, error);
                     }, error);
                 }, error);
@@ -170,11 +173,11 @@ $(document).ready(function() {
             error_msg = 'Error importing private key ' + e;
         }
 
-        if (scanned_key)
+        if (scanned_key) {
             success(scanned_key);
-        else
+        } else {
             error(error_msg);
-
+        }
     }
 
     $('#import-private-scan').on('change', function (e) {
@@ -241,7 +244,7 @@ $(document).ready(function() {
                                 MyWallet.get_history();
                             });
                         } else {
-                            throw 'Wallet Full Or Addresses Exists'
+                            throw 'Wallet Full Or Addresses Exists';
                         }
                     } catch (e) {
                         MyWallet.makeNotice('error', 'misc-error', e);
