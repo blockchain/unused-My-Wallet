@@ -842,7 +842,7 @@ function _ImportExport() {
                 };
                 return worker;
             };
-            var workers = [makeWorker(), makeWorker()];
+            var workers = [makeWorker()];
             workers[0].postMessage([N, r, p, B, i++]);
             if (p > 1) {
                 workers[1].postMessage([N, r, p, B, i++]);

@@ -78,6 +78,8 @@ try {
 //Init WebWorker
 //Window is not defined in WebWorker
     if (typeof window == "undefined" || !window) {
+        var window = {};
+
         self.addEventListener('message', function(e) {
             var data = e.data;
             try {
@@ -1630,7 +1632,7 @@ function initNewTx() {
 
                 self.worker = [];
                 for (var i = 0; i < nWorkers; ++i)  {
-                    self.worker[i] =  new Worker(resource + 'wallet/signer' + (min ? '.min.js' : '.js'));
+                    self.worker[i] =  new Worker(MyWallet.getWebWorkerLoadPrefix() + 'signer' + (min ? '.min.js' : '.js'));
 
                     self.worker[i].addEventListener('message', function(e) {
                         var data = e.data;
@@ -1668,7 +1670,7 @@ function initNewTx() {
                         error(e);
                     });
 
-                    self.worker[i].postMessage({cmd : 'load_resource' , path : resource + 'wallet/bitcoinjs' + (min ? '.min.js' : '.js')});
+                    self.worker[i].postMessage({cmd : 'load_resource' , path : MyWallet.getWebWorkerLoadPrefix() + 'bitcoinjs' + (min ? '.min.js' : '.js')});
 
                     //Generate and pass seed to the webworker
                     var seed = new Array(32);
