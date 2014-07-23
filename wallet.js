@@ -2262,7 +2262,7 @@ var MyWallet = new function() {
                     payload_checksum = generatePayloadChecksum();
                 }
 
-                setIsIntialized();
+                setIsInitialized();
 
                 success();
             } catch (e) {
@@ -2584,7 +2584,7 @@ var MyWallet = new function() {
         return isInitialized;
     }
 
-    function setIsIntialized() {
+    function setIsInitialized() {
         if (isInitialized) return;
 
         setLogoutImageStatus('error');
