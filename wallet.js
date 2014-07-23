@@ -234,6 +234,10 @@ var MyWallet = new function() {
     this.setHTML5Notifications = function(val) {
         wallet_options.html5_notifications = val;
     }
+    
+    this.getNTransactions = function() {
+        return n_tx;
+    }
 
     this.getTransactions = function() {
         return transactions;
@@ -2575,6 +2579,10 @@ var MyWallet = new function() {
         });;
 
     }
+    
+    this.getIsInitialized = function() {
+        return isInitialized;
+    }
 
     function setIsIntialized() {
         if (isInitialized) return;
@@ -3007,7 +3015,7 @@ var MyWallet = new function() {
             console.log('Server Time offset ' + serverTimeOffset + 'ms - This offset ' + thisOffset);
         }
     }
-
+    
 
     //Fetch information on a new wallet identfier
     this.setGUID = function(guid_or_alias, resend_code) {
