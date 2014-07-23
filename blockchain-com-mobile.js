@@ -177,7 +177,7 @@ $(document).ready(function() {
 
     }
 
-    $('#import-private-scan').on('click', function (e) {
+    $('#import-private-scan').on('change', function (e) {
         MyWallet.getSecondPassword(function() {
 
             MyWallet.scanQRCode(function(code) {
@@ -207,7 +207,7 @@ $(document).ready(function() {
         });
     });
 
-    $('#import-address-scan').on('click', function (e) {
+    $('#import-address-scan').on('change', function (e) {
         MyWallet.scanQRCode(function(data) {
             importWatchOnlyAddress(data);
         }, function(e) {
