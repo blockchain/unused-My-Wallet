@@ -1,6 +1,6 @@
 var BlockchainAPI = new function() {
     var BlockchainAPI = this;
-    var AjaxTimeout = 120000;
+    var AjaxTimeout = 60000;
     var AjaxRetry = 2;
 
     /*globals jQuery, window */
