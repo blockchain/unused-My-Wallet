@@ -239,7 +239,7 @@ var MyWalletSignup = new function() {
                                         
             var email = $.trim($('#email').val());
                         
-            MyWalletSignup.generateNewWallet(function(tpassword, email, guid, sharedKey, password) {
+            MyWalletSignup.generateNewWallet(tpassword, email, function(guid, sharedKey, password) {
                 MyStore.clear();
 
                 MyStore.put('guid', guid);
