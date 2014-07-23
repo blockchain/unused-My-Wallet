@@ -3026,7 +3026,7 @@ var MyWallet = new function() {
             throw 'Cannot Set GUID Once Initialized';
         }
 
-        MyWallet.setLoadingText('Changing Wallet Identifier');
+        MyWallet.setLoadingText('Downloading Wallet');
 
         $('#initial_error,#initial_success').remove();
 
