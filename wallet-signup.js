@@ -60,6 +60,8 @@ var MyWalletSignup = new function() {
     }
 
     function generateUUIDs(n, success, error) {
+        MyWallet.setLoadingText('Generating Wallet Identifier');
+
         $.ajax({
             type: "GET",
             url: root + 'uuid-generator',
