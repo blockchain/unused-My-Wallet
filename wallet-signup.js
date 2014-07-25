@@ -229,12 +229,12 @@ var MyWalletSignup = new function() {
             var self = $(this);
 
             self.prop("disabled", true);
-
             
             var tpassword = $("#password").val();
             var tpassword2 = $("#password2").val();
             
             if (tpassword != tpassword2) {
+                self.removeAttr("disabled");
                 makeNotice('error', 'misc-error', 'Passwords do not match.');
                 return;
             }
