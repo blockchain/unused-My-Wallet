@@ -523,10 +523,6 @@ var AccountSettings = new function() {
 
         $('#pairing_code').unbind().on('show', function() {
             MyWallet.makePairingQRCode(function(device_qr) {
-                $('#pairing-code-v0').html(device_qr);
-            }, 0);
-
-            MyWallet.makePairingQRCode(function(device_qr) {
                 $('#pairing-code-v1').html(device_qr);
             }, 1);
 
@@ -535,7 +531,6 @@ var AccountSettings = new function() {
             }, 30000);
         }).on('hide', function() {
                 $('#pairing-code-v1').empty();
-                $('#pairing-code-v0').empty();
             });
 
         $('#update-password-btn').unbind().click(function() {
