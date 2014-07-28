@@ -4051,9 +4051,9 @@ var MyWallet = new function() {
         $('#logout').click(MyWallet.logout);
 
         $('#refresh').click(function () {
-            getWallet();
-
-            MyWallet.get_history();
+            getWallet(function() {
+               MyWallet.get_history();
+            });
         });
 
         $('#summary-n-tx-chart').click(function() {
