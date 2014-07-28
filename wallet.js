@@ -66,7 +66,6 @@ var MyWallet = new function() {
     var main_password_timeout = 60000;
     var isInitialized = false;
     var extra_seed; //Help for browsers that don't support window.crypto
-    var show_unsynced = false;
     var language = 'en'; //Current language
     var supported_encryption_version = 2.0;  //The maxmimum supported encryption version
     var encryption_version_used = 0.0; //The encryption version of the current wallet. Set by decryptWallet()
@@ -2149,14 +2148,6 @@ var MyWallet = new function() {
     //Fetch a new wallet from the server
     //success(modified true/false)
     function getWallet(success, error) {
-        for (var key in addresses) {
-            var addr = addresses[key];
-            if (addr.tag == 1) { //Don't fetch a new wallet if we have any keys which are marked un-synced
-                alert('Warning! wallet data may have changed but cannot sync as you have un-saved keys');
-                return;
-            }
-        }
-
         var data = {method : 'wallet.aes.json', format : 'json'};
 
         if (payload_checksum && payload_checksum.length > 0)
@@ -2169,9 +2160,7 @@ var MyWallet = new function() {
                 if (success) success();
                 return;
             }
-
-            console.log('Wallet data modified');
-
+                            
             MyWallet.setEncryptedWalletData(obj.payload);
 
             internalRestoreWallet(function() {
@@ -2569,17 +2558,6 @@ var MyWallet = new function() {
         }
     }
 
-    function showNotSyncedModal() {
-        $('#not-synced-warning-modal').modal('show').find('.btn.btn-danger').unbind().click(function() {
-            $(this).modal('hide');
-
-            show_unsynced = true;
-
-            buildVisibleView();
-        });;
-
-    }
-    
     this.getIsInitialized = function() {
         return isInitialized;
     }
@@ -2658,6 +2636,9 @@ var MyWallet = new function() {
 
             MyWallet.makeNotice('error', 'misc-error', 'Error Saving Wallet: ' + e, 10000);
 
+            //Fetch the wallet agin from server
+            getWallet();
+
             buildVisibleView();
 
             if (errorcallback != null)
@@ -2728,14 +2709,6 @@ var MyWallet = new function() {
                             _errorcallback('Checksum Did Not Match Expected Value')
                         });
                     }, function(e) {
-                        for (var key in addresses) {
-                            var addr = addresses[key];
-                            if (addr.tag == 1) {
-                                showNotSyncedModal();
-                                break;
-                            }
-                        }
-
                         _errorcallback(e.responseText);
                     });
                 } catch (e) {
@@ -3847,7 +3820,7 @@ var MyWallet = new function() {
                 var addr = addresses[key];
 
                 //Hide Archived or un-synced
-                if (addr.tag == 2 || (addr.tag == 1 && !show_unsynced))
+                if (addr.tag == 2 || addr.tag == 1)
                     continue;
 
                 var noPrivateKey = '';
@@ -3956,7 +3929,7 @@ var MyWallet = new function() {
                     var addr = addresses[archived[key]];
 
                     //Hide none archived and unsynced
-                    if (addr.tag != 2 || (addr.tag == 1 && !show_unsynced))
+                    if (addr.tag != 2 || addr.tag == 1)
                         continue;
 
                     var noPrivateKey = '';
@@ -4114,29 +4087,25 @@ var MyWallet = new function() {
         });
 
         $("#new-addr").click(function() {
-            try {
-                getWallet(function() {
-                    MyWallet.getSecondPassword(function() {
-                        var key = MyWallet.generateNewKey();
+            getWallet(function() {
+                MyWallet.getSecondPassword(function() {
+                    var key = MyWallet.generateNewKey();
 
-                        var address = key.getBitcoinAddress().toString();
+                    var address = key.getBitcoinAddress().toString();
 
-                        MyWallet.backupWallet('update', function() {
-                            MyWallet.makeNotice('info', 'new-address', 'Generated new Bitcoin Address ' + address);
+                    MyWallet.backupWallet('update', function() {
+                        MyWallet.makeNotice('info', 'new-address', 'Generated new Bitcoin Address ' + address);
 
-                            loadScript('wallet/address_modal', function() {
-                                showLabelAddressModal(address);
-                            });
-
-                            MyWallet.get_history();
+                        loadScript('wallet/address_modal', function() {
+                            showLabelAddressModal(address);
                         });
-                    }, function() {
-                        MyWallet.logout();
+
+                        MyWallet.get_history();
                     });
+                }, function() {
+                    MyWallet.logout();
                 });
-            } catch (e) {
-                MyWallet.makeNotice('error', 'misc-error', e);
-            }
+              });
         });
 
         $('.tx_filter a').click(function(){
@@ -4677,8 +4646,6 @@ var MyWallet = new function() {
                     if (addr != null) {
                         if (addr.priv == null) {
                             $('#watch-only-copy-warning-modal').modal('show');
-                        } else if (addr.tag == 1) {
-                            showNotSyncedModal();
                         }
                     }
                 }
