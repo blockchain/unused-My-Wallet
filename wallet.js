@@ -3019,7 +3019,7 @@ var MyWallet = new function() {
     //Fetch information on a new wallet identfier
     this.setGUID = function(guid_or_alias, resend_code) {
 
-        console.log('Set GUID ' + guid_or_alias);
+//        console.log('Set GUID ' + guid_or_alias);
 
         if (isInitialized) {
             throw 'Cannot Set GUID Once Initialized';
