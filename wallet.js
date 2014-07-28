@@ -2662,7 +2662,6 @@ var MyWallet = new function() {
 
             if (errorcallback != null)
                 errorcallback(e);
-            else throw e;
         };
 
         try {
