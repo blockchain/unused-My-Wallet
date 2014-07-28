@@ -8,7 +8,7 @@ var BlockchainAPI = new function() {
         $.retryAjax = function (ajaxParams) {
             var errorCallback;
             ajaxParams.tryCount = (!ajaxParams.tryCount) ? 0 : ajaxParams.tryCount;
-            ajaxParams.retryLimit = (!ajaxParams.retryLimit) ? 2 : ajaxParams.retryLimit;
+            ajaxParams.retryLimit = (!ajaxParams.retryLimit) ? AjaxRetry : ajaxParams.retryLimit;
             ajaxParams.suppressErrors = true;
 
             if (ajaxParams.error) {
@@ -71,7 +71,6 @@ var BlockchainAPI = new function() {
             url: root +'multiaddr',
             data: data,
             timeout: AjaxTimeout,
-            retryLimit: AjaxRetry,
             success: function(obj) {
                 if (obj.error != null) {
                     MyWallet.makeNotice('error', 'misc-error', obj.error);
@@ -112,6 +111,7 @@ var BlockchainAPI = new function() {
             type: "POST",
             url: root + 'multiaddr',
             dataType: 'json',
+            timeout: AjaxTimeout,
             data : {active : addresses.join('|'), simple : true, format : 'json'},
             success: function(obj) {
                 for (var key in obj) {
@@ -150,6 +150,7 @@ var BlockchainAPI = new function() {
             dataType: 'json',
             url: root +'ticker',
             data: {format : 'json'},
+            timeout: AjaxTimeout,
             success: function(data) {
                 var container = $('#send-ticker ul').empty();
 
@@ -170,6 +171,7 @@ var BlockchainAPI = new function() {
             type: "GET",
             url: root + 'q/resolvefirstbits/'+addr,
             data : {format : 'plain'},
+            timeout: AjaxTimeout,
             success: function(data) {
                 if (data == null || data.length == 0)
                     error();
@@ -189,6 +191,7 @@ var BlockchainAPI = new function() {
             type: "GET",
             url: root + 'q/rejected/'+hexhash,
             data : {format : 'plain'},
+            timeout: AjaxTimeout,
             success: function(data) {
                 if (data == null || data.length == 0)
                     error();
@@ -267,6 +270,7 @@ var BlockchainAPI = new function() {
                 $.ajax({
                     type: "POST",
                     url: root + 'pushtx',
+                    timeout: AjaxTimeout,
                     data : post_data,
                     success: function() {
                         did_push();
@@ -305,6 +309,7 @@ var BlockchainAPI = new function() {
                     data: fd,
                     processData: false,
                     contentType: false,
+                    timeout: AjaxTimeout,
                     type: 'POST',
                     success: function(){
                         did_push();
@@ -341,7 +346,6 @@ var BlockchainAPI = new function() {
             dataType: 'json',
             url: root +'unspent',
             timeout: AjaxTimeout,
-            retryLimit: AjaxRetry,
             data: {active : fromAddresses.join('|'), format : 'json', confirmations : confirmations ? confirmations : 0},
             success: function(obj) {
                 try {

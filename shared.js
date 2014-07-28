@@ -443,6 +443,7 @@ function setupSymbolToggle() {
 
             if (!self.data('tooltip')) {
                 $.ajax({
+                    timeout: 60000,
                     type: "GET",
                     dataType: 'text',
                     url: root + 'frombtc',

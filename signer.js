@@ -446,6 +446,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     MyWallet.setLoadingText('Checking Connectivity');
 
                     $.ajax({
+                        timeout: 60000,
                         type: "GET",
                         url: root + 'ping',
                         data : {format : 'plain', date : new Date().getTime()},

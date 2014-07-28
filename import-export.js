@@ -12,6 +12,7 @@ function _ImportExport() {
         $.ajax({
             type: "GET",
             url: root + 'wallet/import-export-template',
+            timeout: 60000,
             data : {format : 'plain', language : MyWallet.getLanguage()},
             success: function(html) {
                 try {

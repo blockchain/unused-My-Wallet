@@ -352,6 +352,7 @@ var MyWallet = new function() {
         $.ajax({
             dataType: dataType,
             type: "POST",
+            timeout: 60000,
             url: root + url,
             data : clone,
             success: success,
@@ -2511,6 +2512,7 @@ var MyWallet = new function() {
                 }
 
                 $.ajax({
+                    timeout: 60000,
                     type: "POST",
                     url: root + "wallet",
                     data :  { guid: guid, payload: auth_key, length : auth_key.length,  method : 'get-wallet', format : 'plain' },
@@ -3022,7 +3024,7 @@ var MyWallet = new function() {
             dataType: 'json',
             url: root + 'wallet/'+guid_or_alias,
             data : data,
-            timeout: 30000,
+            timeout: 60000,
             success: function(obj) {
                 MyWallet.handleNTPResponse(obj, clientTime);
 
@@ -3443,6 +3445,7 @@ var MyWallet = new function() {
         } else {
             $.ajax({
                 type: "GET",
+                timeout: 60000,
                 url: root + 'wallet/logout',
                 data : {format : 'plain'},
                 success: function(data) {
@@ -4293,6 +4296,7 @@ var MyWallet = new function() {
 
             $.ajax({
                 type: "GET",
+                timeout: 60000,
                 url: resource + 'wallet/country_codes.html',
                 success: function(data) {
                     self.find('select[name="sms-country-code"]').html(data);

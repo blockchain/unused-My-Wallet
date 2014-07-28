@@ -64,6 +64,7 @@ var MyWalletSignup = new function() {
 
         $.ajax({
             type: "GET",
+            timeout: 60000,
             url: root + 'uuid-generator',
             data: { format : 'json', n : n },
             success: function(data) {
