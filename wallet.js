@@ -2767,6 +2767,24 @@ var MyWallet = new function() {
     this.decryptWallet = function(data, password, success, error) {
 
         try {
+            MyWallet.sendEvent('on_wallet_decrypt_start')
+            
+            var _success = function (root, obj) {
+                MyWallet.sendEvent('on_wallet_decrypt_success')
+                
+                if (success != null) {
+                    success(root, obj);
+                }
+            }
+            
+            var _error = function (e) {
+                MyWallet.sendEvent('on_backup_wallet_error')
+                
+                if (error != null) {
+                    error(e);
+                }
+            }
+            
             //Test if the payload is valid json
             //If it is json then check the payload and pbkdf2_iterations keys are available
             var obj = null;
@@ -2780,9 +2798,9 @@ var MyWallet = new function() {
 
                     var root = $.parseJSON(decrypted);
 
-                    success(root, obj);
+                    _success(root, obj);
                 } catch (e) {
-                    error('Error Decrypting Wallet. Please check your password is correct.');
+                    _error('Error Decrypting Wallet. Please check your password is correct.');
                 }
             };
 
@@ -2811,7 +2829,7 @@ var MyWallet = new function() {
                         try {
                             var root = $.parseJSON(decrypted);
 
-                            success(root, obj);
+                            _success(root, obj);
                         } catch (e) {
                             decryptNormal();
                         }
@@ -2831,21 +2849,20 @@ var MyWallet = new function() {
                         var root = $.parseJSON(decrypted);
 
                         try {
-                            success(root);
+                            _success(root);
                         }  catch (e) {
                             console.log(e);
                         }
-
                         return true;
                     } catch (e) {
                         return false;
                     }
                 }, function() {
-                    error('Error Decrypting Wallet. Please check your password is correct.');
+                    _error('Error Decrypting Wallet. Please check your password is correct.');
                 });
             }
         } catch (e) {
-            if (error) error(e);
+            _error(e);
         }
     }
 
