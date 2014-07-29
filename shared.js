@@ -565,11 +565,11 @@ $(document).ready(function() {
             var path = window.location.pathname;
 
             language_links.each(function() {
-               var code = $(this).data('code');
-               if (path.indexOf('/'+code) == 0) {
-                   path = path.replace('/'+code, '/'+new_code);
-                   return false;
-               }
+                var code = $(this).data('code');
+                if (path.indexOf('/'+code) == 0) {
+                    path = path.replace('/'+code, '/'+new_code);
+                    return false;
+                }
             });
 
             window.location.href = path;
@@ -598,20 +598,28 @@ $(document).ready(function() {
 });
 
 function loadScript(src, success, error) {
-    src = resource + src + (min ? '.min.js' : '.js') + '?'+war_checksum;
+    var found = false;
 
-    console.log('Load ' + src);
+    $('script').each(function() {
+        var attr_src = $(this).attr('src');
+        if (attr_src && attr_src.replace(/^.*[\\\/]/, '').indexOf(src) == 0) {
+            success();
+            found = true;
+            return false;
+        }
+    });
 
-    if ($('script[src="'+src+'"]').length > 0) {
-        success();
+    if (found) {
         return;
     }
+
+    console.log('Load ' + src);
 
     var error_fired = false;
     var s = document.createElement('script');
     s.type = "text/javascript";
     s.async = true;
-    s.src = src;
+    s.src = resource + src + (min ? '.min.js' : '.js') + '?'+war_checksum;
     try {
         s.addEventListener('error', function(e){ error_fired = true;  if (error) error('Error Loading Script. Are You Offline?'); }, false);
         s.addEventListener('load', function (e) { if (!error_fired) success(); }, false);
@@ -619,7 +627,7 @@ function loadScript(src, success, error) {
         //IE 7 & 8 Will throw an exception here
         setTimeout(function() {
             if (!error_fired) success();
-        }, 2000);
+        }, 10000);
     }
 
     var head = document.getElementsByTagName('head')[0];
