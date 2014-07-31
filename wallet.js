@@ -157,7 +157,7 @@ var MyWallet = new function() {
     this.getDefaultPbkdf2Iterations = function() {
         return default_pbkdf2_iterations;
     }
-    
+
     this.getSharedKey = function() {
         return sharedKey;
     }
@@ -233,7 +233,7 @@ var MyWallet = new function() {
     this.setHTML5Notifications = function(val) {
         wallet_options.html5_notifications = val;
     }
-    
+
     this.getNTransactions = function() {
         return n_tx;
     }
@@ -2161,7 +2161,7 @@ var MyWallet = new function() {
                 if (success) success();
                 return;
             }
-                            
+
             MyWallet.setEncryptedWalletData(obj.payload);
 
             internalRestoreWallet(function() {
@@ -2765,26 +2765,27 @@ var MyWallet = new function() {
     }
 
     this.decryptWallet = function(data, password, success, error) {
-
         try {
+            MyWallet.setLoadingText('Decrypting Wallet');
+
             MyWallet.sendEvent('on_wallet_decrypt_start')
-            
+
             var _success = function (root, obj) {
-                MyWallet.sendEvent('on_wallet_decrypt_success')
-                
+                MyWallet.sendEvent('on_wallet_decrypt_finish')
+
                 if (success != null) {
                     success(root, obj);
                 }
             }
-            
+
             var _error = function (e) {
-                MyWallet.sendEvent('on_backup_wallet_error')
-                
+                MyWallet.sendEvent('on_wallet_decrypt_finish')
+
                 if (error != null) {
                     error(e);
                 }
             }
-            
+
             //Test if the payload is valid json
             //If it is json then check the payload and pbkdf2_iterations keys are available
             var obj = null;
@@ -2985,7 +2986,6 @@ var MyWallet = new function() {
         return null;
     }
 
-
     this.handleNTPResponse = function(obj, clientTime) {
         //Calculate serverTimeOffset using NTP alog
         var nowTime = (new Date()).getTime();
@@ -3006,7 +3006,7 @@ var MyWallet = new function() {
             console.log('Server Time offset ' + serverTimeOffset + 'ms - This offset ' + thisOffset);
         }
     }
-    
+
 
     //Fetch information on a new wallet identfier
     this.setGUID = function(guid_or_alias, resend_code) {
@@ -4072,7 +4072,7 @@ var MyWallet = new function() {
 
         $('#refresh').click(function () {
             getWallet(function() {
-               MyWallet.get_history();
+                MyWallet.get_history();
             });
         });
 
@@ -4125,7 +4125,7 @@ var MyWallet = new function() {
                 }, function() {
                     MyWallet.logout();
                 });
-              });
+            });
         });
 
         $('.tx_filter a').click(function(){
@@ -4594,7 +4594,7 @@ var MyWallet = new function() {
         guid = body.data('guid');
         sharedKey = body.data('sharedkey');
         language = body.data('language');
-                      
+
         //Deposit pages set this flag so it can be loaded in an iframe
         if (MyWallet.skip_init)
             return;
