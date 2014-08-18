@@ -41,11 +41,14 @@ if(rng_pool == null) {
         for(t = 0; t < word_array.length; ++t)
             rng_seed_int(word_array[t]);
     } else {
-        while(rng_pptr < rng_psize) {  // extract some randomness from Math.random()
-            t = Math.floor(65536 * Math.random());
-            rng_pool[rng_pptr++] = t >>> 8;
-            rng_pool[rng_pptr++] = t & 255;
-        }
+        alert('Your browser does not support crypto secured PRNG!');
+        return;
+
+//        while(rng_pptr < rng_psize) {  // extract some randomness from Math.random()
+//            t = Math.floor(65536 * Math.random());
+//            rng_pool[rng_pptr++] = t >>> 8;
+//            rng_pool[rng_pptr++] = t & 255;
+//        }
     }
 
     rng_pptr = 0;
