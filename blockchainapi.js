@@ -195,20 +195,46 @@ var BlockchainAPI = new function() {
             success: function(data) {
                 if (data == null || data.length == 0)
                     error();
+                else if (data == 'Transaction Not Rejected')
+                    not_rejected();
                 else
                     got_reason(data);
             },
             error : function(e) {
-                if (e.status == 404)
-                    not_rejected();
-                else
-                    error(e.responseText);
+                error(e.responseText);
             }
         });
     }
 
     this.push_tx = function(tx, note, success, error) {
         try {
+            
+            var _success = function() {
+                //Clear the Check Interval
+                if (checkTxExistsInterval) {
+                    clearInterval(checkTxExistsInterval);
+                    checkTxExistsInterval = null;
+                }
+                
+                if (success) {
+                    success(); //Call success to enable send button again
+                    success = null;
+                }
+            }
+            
+            var _error = function(e) {
+                //Clear the Check Interval
+                if (checkTxExistsInterval) {
+                    clearInterval(checkTxExistsInterval);
+                    checkTxExistsInterval = null;
+                }
+                
+                if (error) {
+                    error();
+                    error = null;
+                }
+            }
+                        
             MyWallet.setLoadingText('Pushing Transaction');
 
             var transactions = MyWallet.getTransactions();
@@ -221,9 +247,9 @@ var BlockchainAPI = new function() {
 
             var tx_hash = Crypto.util.bytesToHex(Crypto.SHA256(Crypto.SHA256(s, {asBytes: true}), {asBytes: true}).reverse());
 
-            function did_push() {
-                success(); //Call success to enable send button again
-
+            var did_push = function() {
+                _success();
+                
                 function call_history() {
                     MyWallet.get_history(function() {
                         if (transactions.length == 0 || transactions[0].txIndex == first_tx_index) {
@@ -253,6 +279,25 @@ var BlockchainAPI = new function() {
                     }
                 }, 3000);
             };
+       
+            
+            //Add Polling checker to check if the transaction exists on Blockchain
+            //Appear that there are conditions where the ajax call to pushtx may not respond in a timely fashion
+            var checkTxExistsInterval = setInterval(function() {
+               BlockchainAPI.get_rejection_reason(tx_hash, function(e) {
+                 console.log(e);
+               }, function() {
+                  if (did_push) {
+                    did_push();
+                    did_push = null;
+                  }
+              
+                  clearInterval(checkTxExistsInterval);
+                  checkTxExistsInterval = null;
+               }, function(e) {
+                 console.log(e);
+               });
+            }, 5000);
 
             function push_normal() {
                 var hex = Crypto.util.bytesToHex(s);
@@ -273,10 +318,13 @@ var BlockchainAPI = new function() {
                     timeout: AjaxTimeout,
                     data : post_data,
                     success: function() {
-                        did_push();
+                       if (did_push) {
+                         did_push();
+                         did_push = null;
+                       }
                     },
                     error : function(e) {
-                        error(e ? e.responseText : null);
+                        _error(e ? e.responseText : null);
                     }
                 });
             }
@@ -312,7 +360,10 @@ var BlockchainAPI = new function() {
                     timeout: AjaxTimeout,
                     type: 'POST',
                     success: function(){
-                        did_push();
+                       if (did_push) {
+                         did_push();
+                         did_push = null;
+                       }
                     },
                     error : function(e) {
                         if (!e.responseText || e.responseText.indexOf('Parse:') == 0) {
@@ -320,7 +371,7 @@ var BlockchainAPI = new function() {
                                 push_normal();
                             }, 2000);
                         } else {
-                            error(e ? e.responseText : null);
+                            _error(e ? e.responseText : null);
                         }
                     }
                 });
@@ -333,7 +384,7 @@ var BlockchainAPI = new function() {
         } catch (e) {
             console.log(e);
 
-            error(e);
+            _error(e);
         }
     }
 
