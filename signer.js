@@ -1862,7 +1862,7 @@ function initNewTx() {
             this.start = new Date().getTime();
         },
         on_finish_signing : function() {
-            console.log('Took ' + (new Date().getTime() - this.start) + 'ms');
+            console.log('Signing Took ' + (new Date().getTime() - this.start) + 'ms');
         }
     });
 
