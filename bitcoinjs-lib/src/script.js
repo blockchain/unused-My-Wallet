@@ -1,370 +1,133 @@
-var Script = Bitcoin.Script = function (data) {
-    if (!data) {
-        this.buffer = [];
-    } else if ("string" == typeof data) {
-        this.buffer = Crypto.util.base64ToBytes(data);
-    } else if (Bitcoin.Util.isArray(data)) {
-        this.buffer = data;
-    } else if (data.buffer) {
-        this.buffer = data.buffer;
-    } else {
-        throw new Error("Invalid script");
-    }
+var assert = require('assert')
+var bufferutils = require('./bufferutils')
+var crypto = require('./crypto')
+var opcodes = require('./opcodes')
 
-    this.parse();
-};
+function Script(buffer, chunks) {
+  assert(Buffer.isBuffer(buffer), 'Expected Buffer, got ' + buffer)
+  assert(Array.isArray(chunks), 'Expected Array, got ' + chunks)
 
-/**
- * Update the parsed script representation.
- *
- * Each Script object stores the script in two formats. First as a raw byte
- * array and second as an array of "chunks", such as opcodes and pieces of
- * data.
- *
- * This method updates the chunks cache. Normally this is called by the
- * constructor and you don't need to worry about it. However, if you change
- * the script buffer manually, you should update the chunks using this method.
- */
-Script.prototype.parse = function () {
-    var self = this;
-
-    this.chunks = [];
-
-    // Cursor
-    var i = 0;
-
-    // Read n bytes and store result as a chunk
-    function readChunk(n) {
-        self.chunks.push(self.buffer.slice(i, i + n));
-        i += n;
-    };
-
-    while (i < this.buffer.length) {
-        var opcode = this.buffer[i++];
-        if (opcode >= 0xF0) {
-            // Two byte opcode
-            opcode = (opcode << 8) | this.buffer[i++];
-        }
-
-        var len;
-        if (opcode > 0 && opcode < Opcode.map.OP_PUSHDATA1) {
-            // Read some bytes of data, opcode value is the length of data
-            readChunk(opcode);
-        } else if (opcode == Opcode.map.OP_PUSHDATA1) {
-            len = this.buffer[i++];
-            readChunk(len);
-        } else if (opcode == Opcode.map.OP_PUSHDATA2) {
-            len = (this.buffer[i++] << 8) | this.buffer[i++];
-            readChunk(len);
-        } else if (opcode == Opcode.map.OP_PUSHDATA4) {
-            len = (this.buffer[i++] << 24) |
-                (this.buffer[i++] << 16) |
-                (this.buffer[i++] << 8) |
-                this.buffer[i++];
-            readChunk(len);
-        } else {
-            this.chunks.push(opcode);
-        }
-    }
-};
-
-/**
- * Compare the script to known templates of scriptPubKey.
- *
- * This method will compare the script to a small number of standard script
- * templates and return a string naming the detected type.
- *
- * Currently supported are:
- * Address:
- *   Paying to a Bitcoin address which is the hash of a pubkey.
- *   OP_DUP OP_HASH160 [pubKeyHash] OP_EQUALVERIFY OP_CHECKSIG
- *
- * Pubkey:
- *   Paying to a public key directly.
- *   [pubKey] OP_CHECKSIG
- *
- * Strange:
- *   Any other script (no template matched).
- */
-Script.prototype.getOutType = function () {
-
-    if (this.chunks.length == 5 &&
-        this.chunks[0] == Opcode.map.OP_DUP &&
-        this.chunks[1] == Opcode.map.OP_HASH160 &&
-        this.chunks[3] == Opcode.map.OP_EQUALVERIFY &&
-        this.chunks[4] == Opcode.map.OP_CHECKSIG) {
-        // Transfer to Bitcoin address
-        return 'Address';
-    } else if (this.chunks.length == 2 && this.chunks[1] == Opcode.map.OP_CHECKSIG) {
-        // Transfer to IP address
-        return 'Pubkey';
-    } else if (this.chunks.length == 3 && this.chunks[0] == Opcode.map.OP_HASH160 && this.chunks[2] == Opcode.map.OP_EQUAL) {
-        // Transfer to pay-to-scripthash
-        return 'P2SH';
-    } else if (this.chunks[this.chunks.length-1] == Opcode.map.OP_CHECKMULTISIG && this.chunks[this.chunks.length-2] <= 3) {
-        // Transfer to M-OF-N
-        return 'Multisig';
-    } else {
-        return 'Strange';
-    }
+  this.buffer = buffer
+  this.chunks = chunks
 }
 
-/**
- * Returns the affected address hash for this output.
- *
- * For standard transactions, this will return the hash of the pubKey that
- * can spend this output.
- *
- * In the future, for payToScriptHash outputs, this will return the
- * scriptHash. Note that non-standard and standard payToScriptHash transactions
- * look the same
- *
- * This method is useful for indexing transactions.
- */
-Script.prototype.simpleOutHash = function ()
-{
-    switch (this.getOutType()) {
-        case 'Address':
-            return this.chunks[2];
-        case 'Pubkey':
-            return Bitcoin.Util.sha256ripe160(this.chunks[0]);
-        case 'P2SH':
-            return this.chunks[1];
-        default:
-            throw new Error("Encountered non-standard scriptPubKey " + this.getOutType() + ' Hex: ' + Bitcoin.Util.bytesToHex(this.buffer));
-    }
-};
+// Import operations
+Script.fromASM = function(asm) {
+  var strChunks = asm.split(' ')
 
-/**
- * Old name for Script#simpleOutHash.
- *
- * @deprecated
- */
-Script.prototype.simpleOutPubKeyHash = Script.prototype.simpleOutHash;
+  var chunks = strChunks.map(function(strChunk) {
+    if (strChunk in opcodes) {
+      return opcodes[strChunk]
 
-/**
- * Compare the script to known templates of scriptSig.
- *
- * This method will compare the script to a small number of standard script
- * templates and return a string naming the detected type.
- *
- * WARNING: Use this method with caution. It merely represents a heuristic
- * based on common transaction formats. A non-standard transaction could
- * very easily match one of these templates by accident.
- *
- * Currently supported are:
- * Address:
- *   Paying to a Bitcoin address which is the hash of a pubkey.
- *   [sig] [pubKey]
- *
- * Pubkey:
- *   Paying to a public key directly.
- *   [sig]
- *
- * Strange:
- *   Any other script (no template matched).
- */
-Script.prototype.getInType = function ()
-{
-    if (this.chunks.length == 1 &&
-        Bitcoin.Util.isArray(this.chunks[0])) {
-        // Direct IP to IP transactions only have the signature in their scriptSig.
-        // TODO: We could also check that the length of the data is correct.
-        return 'Pubkey';
-    } else if (this.chunks.length == 2 &&
-        Bitcoin.Util.isArray(this.chunks[0]) &&
-        Bitcoin.Util.isArray(this.chunks[1])) {
-        return 'Address';
     } else {
-        return 'Strange';
+      return new Buffer(strChunk, 'hex')
     }
-};
+  })
 
-/**
- * Returns the affected public key for this input.
- *
- * This currently only works with payToPubKeyHash transactions. It will also
- * work in the future for standard payToScriptHash transactions that use a
- * single public key.
- *
- * However for multi-key and other complex transactions, this will only return
- * one of the keys or raise an error. Therefore, it is recommended for indexing
- * purposes to use Script#simpleInHash or Script#simpleOutHash instead.
- *
- * @deprecated
- */
-Script.prototype.simpleInPubKey = function ()
-{
-    switch (this.getInType()) {
-        case 'Address':
-            return this.chunks[1];
-        case 'Pubkey':
-            // TODO: Theoretically, we could recover the pubkey from the sig here.
-            //       See https://bitcointalk.org/?topic=6430.0
-            throw new Error("Script does not contain pubkey.");
-        default:
-            throw new Error("Encountered non-standard scriptSig");
-    }
-};
+  return Script.fromChunks(chunks)
+}
 
-/**
- * Returns the affected address hash for this input.
- *
- * For standard transactions, this will return the hash of the pubKey that
- * can spend this output.
- *
- * In the future, for standard payToScriptHash inputs, this will return the
- * scriptHash.
- *
- * Note: This function provided for convenience. If you have the corresponding
- * scriptPubKey available, you are urged to use Script#simpleOutHash instead
- * as it is more reliable for non-standard payToScriptHash transactions.
- *
- * This method is useful for indexing transactions.
- */
-Script.prototype.simpleInHash = function ()
-{
-    return Bitcoin.Util.sha256ripe160(this.simpleInPubKey());
-};
+Script.fromBuffer = function(buffer) {
+  var chunks = []
 
-/**
- * Old name for Script#simpleInHash.
- *
- * @deprecated
- */
-Script.prototype.simpleInPubKeyHash = Script.prototype.simpleInHash;
+  var i = 0
 
-/**
- * Add an op code to the script.
- */
-Script.prototype.writeOp = function (opcode)
-{
-    this.buffer.push(opcode);
-    this.chunks.push(opcode);
-};
+  while (i < buffer.length) {
+    var opcode = buffer.readUInt8(i)
 
-/**
- * Add a data chunk to the script.
- */
-Script.prototype.writeBytes = function (data)
-{
-    if (data.length < Opcode.map.OP_PUSHDATA1) {
-        this.buffer.push(data.length);
-    } else if (data.length <= 0xff) {
-        this.buffer.push(Opcode.map.OP_PUSHDATA1);
-        this.buffer.push(data.length);
-    } else if (data.length <= 0xffff) {
-        this.buffer.push(Opcode.map.OP_PUSHDATA2);
-        this.buffer.push(data.length & 0xff);
-        this.buffer.push((data.length >>> 8) & 0xff);
+    if ((opcode > opcodes.OP_0) && (opcode <= opcodes.OP_PUSHDATA4)) {
+      var d = bufferutils.readPushDataInt(buffer, i)
+      i += d.size
+
+      var data = buffer.slice(i, i + d.number)
+      i += d.number
+
+      chunks.push(data)
+
     } else {
-        this.buffer.push(Opcode.map.OP_PUSHDATA4);
-        this.buffer.push(data.length & 0xff);
-        this.buffer.push((data.length >>> 8) & 0xff);
-        this.buffer.push((data.length >>> 16) & 0xff);
-        this.buffer.push((data.length >>> 24) & 0xff);
-    }
-    this.buffer = this.buffer.concat(data);
-    this.chunks.push(data);
-};
+      chunks.push(opcode)
 
-/**
- * Create a standard payToPubKeyHash output.
- */
-Script.createOutputScript = function (address)
-{
-    var script = new Script();
-    if (address.version == Bitcoin.Address.pubKeyHashVersion) {
-        script.writeOp(Opcode.map.OP_DUP);
-        script.writeOp(Opcode.map.OP_HASH160);
-        script.writeBytes(address.hash);
-        script.writeOp(Opcode.map.OP_EQUALVERIFY);
-        script.writeOp(Opcode.map.OP_CHECKSIG);
-        return script;
-    } else if (address.version == Bitcoin.Address.p2shVersion) {
-        script.writeOp(Opcode.map.OP_HASH160);
-        script.writeBytes(address.hash);
-        script.writeOp(Opcode.map.OP_EQUAL);
-        return script;
+      i += 1
+    }
+  }
+
+  return new Script(buffer, chunks)
+}
+
+Script.fromChunks = function(chunks) {
+  assert(Array.isArray(chunks), 'Expected Array, got ' + chunks)
+
+  var bufferSize = chunks.reduce(function(accum, chunk) {
+    if (Buffer.isBuffer(chunk)) {
+      return accum + bufferutils.pushDataSize(chunk.length) + chunk.length
+    }
+
+    return accum + 1
+  }, 0.0)
+
+  var buffer = new Buffer(bufferSize)
+  var offset = 0
+
+  chunks.forEach(function(chunk) {
+    if (Buffer.isBuffer(chunk)) {
+      offset += bufferutils.writePushDataInt(buffer, chunk.length, offset)
+
+      chunk.copy(buffer, offset)
+      offset += chunk.length
+
     } else {
-        throw "Unknown address version";
+      buffer.writeUInt8(chunk, offset)
+      offset += 1
     }
-};
+  })
 
-/**
- * Extract bitcoin addresses from an output script
- */
-Script.prototype.extractAddresses = function (addresses)
-{
-    switch (this.getOutType()) {
-        case 'Address':
-            addresses.push(new Bitcoin.Address(this.chunks[2]));
-            return 1;
-        case 'Pubkey':
-            addresses.push(new Bitcoin.Address(Bitcoin.Util.sha256ripe160(this.chunks[0])));
-            return 1;
-        case 'P2SH':
-            addresses.push(new Bitcoin.Address(this.chunks[1], Bitcoin.Address.p2shVersion));
-            return 1;
-        case 'Multisig':
-            for (var i = 1; i < this.chunks.length-2; ++i) {
-                addresses.push(new Bitcoin.Address(Bitcoin.Util.sha256ripe160(this.chunks[i])));
-            }
-            return this.chunks[0] - Opcode.map.OP_1 + 1;
-        default:
-            throw new Error('ExtractAddresses Encountered non-standard scriptPubKey ' + this.getOutType()+ ' Hex: ' + Bitcoin.Util.bytesToHex(this.serialize()));
+  assert.equal(offset, buffer.length, 'Could not decode chunks')
+  return new Script(buffer, chunks)
+}
+
+Script.fromHex = function(hex) {
+  return Script.fromBuffer(new Buffer(hex, 'hex'))
+}
+
+// Constants
+Script.EMPTY = Script.fromChunks([])
+
+// Operations
+Script.prototype.getHash = function() {
+  return crypto.hash160(this.buffer)
+}
+
+// FIXME: doesn't work for data chunks, maybe time to use buffertools.compare...
+Script.prototype.without = function(needle) {
+  return Script.fromChunks(this.chunks.filter(function(op) {
+    return op !== needle
+  }))
+}
+
+// Export operations
+var reverseOps = []
+for (var op in opcodes) {
+  var code = opcodes[op]
+  reverseOps[code] = op
+}
+
+Script.prototype.toASM = function() {
+  return this.chunks.map(function(chunk) {
+    if (Buffer.isBuffer(chunk)) {
+      return chunk.toString('hex')
+
+    } else {
+      return reverseOps[chunk]
     }
-};
+  }).join(' ')
+}
 
-/**
- * Create an m-of-n output script
- */
-Script.createMultiSigOutputScript = function (m, pubkeys)
-{
-    var script = new Bitcoin.Script();
+Script.prototype.toBuffer = function() {
+  return this.buffer
+}
 
-    script.writeOp(Opcode.map.OP_1 + m - 1);
+Script.prototype.toHex = function() {
+  return this.toBuffer().toString('hex')
+}
 
-    for (var i = 0; i < pubkeys.length; ++i) {
-        script.writeBytes(pubkeys[i]);
-    }
-
-    script.writeOp(Opcode.map.OP_1 + pubkeys.length - 1);
-
-    script.writeOp(Opcode.map.OP_CHECKMULTISIG);
-
-    return script;
-};
-
-/**
- * Create an m-of-n output script
- */
-Script.createPubKeyScript = function (pubkey_bytes)
-{
-    var script = new Bitcoin.Script();
-
-    script.writeBytes(pubkey_bytes);
-
-    script.writeOp(Opcode.map.OP_CHECKSIG);
-
-    return script;
-};
-
-/**
- * Create a standard payToPubKeyHash input.
- */
-Script.createInputScript = function (signature, pubKey)
-{
-
-    var script = new Script();
-
-    script.writeBytes(signature);
-    script.writeBytes(pubKey);
-
-    return script;
-};
-
-Script.prototype.clone = function ()
-{
-    return new Script(this.buffer);
-};
+module.exports = Script

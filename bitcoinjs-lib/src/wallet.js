@@ -1,308 +1,304 @@
-Bitcoin.Wallet = (function () {
-  var Script = Bitcoin.Script,
-  TransactionIn = Bitcoin.TransactionIn,
-  TransactionOut = Bitcoin.TransactionOut;
+var assert = require('assert')
+var crypto = require('crypto')
+var networks = require('./networks')
 
-  var Wallet = function () {
-    // Keychain
-    //
-    // The keychain is stored as a var in this closure to make accidental
-    // serialization less likely.
-    //
-    // Any functions accessing this value therefore have to be defined in
-    // the closure of this constructor.
-    var keys = [];
+var Address = require('./address')
+var HDNode = require('./hdnode')
+var Transaction = require('./transaction')
 
-    // Public hashes of our keys
-    this.addressHashes = [];
+function Wallet(seed, network) {
+  network = network || networks.bitcoin
 
-    // Transaction data
-    this.txIndex = {};
-    this.unspentOuts = [];
+  // Stored in a closure to make accidental serialization less likely
+  var masterkey = null
+  var me = this
+  var accountZero = null
+  var internalAccount = null
+  var externalAccount = null
 
-    // Other fields
-    this.addressPointer = 0;
+  // Addresses
+  this.addresses = []
+  this.changeAddresses = []
 
-    /**
-     * Add a key to the keychain.
-     *
-     * The corresponding public key can be provided as a second parameter. This
-     * adds it to the cache in the ECKey object and avoid the need to
-     * expensively calculate it later.
-     */
-    this.addKey = function (key, pub) {
-      if (!(key instanceof Bitcoin.ECKey)) {
-        key = new Bitcoin.ECKey(key);
+  // Transaction output data
+  this.outputs = {}
+
+  // Make a new master key
+  this.newMasterKey = function(seed) {
+    seed = seed || crypto.randomBytes(32)
+    masterkey = HDNode.fromSeedBuffer(seed, network)
+
+    // HD first-level child derivation method should be hardened
+    // See https://bitcointalk.org/index.php?topic=405179.msg4415254#msg4415254
+    accountZero = masterkey.deriveHardened(0)
+    externalAccount = accountZero.derive(0)
+    internalAccount = accountZero.derive(1)
+
+    me.addresses = []
+    me.changeAddresses = []
+
+    me.outputs = {}
+  }
+
+  this.newMasterKey(seed)
+
+  this.generateAddress = function() {
+    var key = externalAccount.derive(this.addresses.length)
+    this.addresses.push(key.getAddress().toString())
+    return this.addresses[this.addresses.length - 1]
+  }
+
+  this.generateChangeAddress = function() {
+    var key = internalAccount.derive(this.changeAddresses.length)
+    this.changeAddresses.push(key.getAddress().toString())
+    return this.changeAddresses[this.changeAddresses.length - 1]
+  }
+
+  this.getBalance = function() {
+    return this.getUnspentOutputs().reduce(function(memo, output){
+      return memo + output.value
+    }, 0)
+  }
+
+  this.getUnspentOutputs = function() {
+    var utxo = []
+
+    for(var key in this.outputs){
+      var output = this.outputs[key]
+      if(!output.to) utxo.push(outputToUnspentOutput(output))
+    }
+
+    return utxo
+  }
+
+  this.setUnspentOutputs = function(utxo) {
+    var outputs = {}
+
+    utxo.forEach(function(uo){
+      validateUnspentOutput(uo)
+      var o = unspentOutputToOutput(uo)
+      outputs[o.from] = o
+    })
+
+    this.outputs = outputs
+  }
+
+  function outputToUnspentOutput(output){
+    var hashAndIndex = output.from.split(":")
+
+    return {
+      hash: hashAndIndex[0],
+      outputIndex: parseInt(hashAndIndex[1]),
+      address: output.address,
+      value: output.value,
+      pending: output.pending
+    }
+  }
+
+  function unspentOutputToOutput(o) {
+    var hash = o.hash
+    var key = hash + ":" + o.outputIndex
+    return {
+      from: key,
+      address: o.address,
+      value: o.value,
+      pending: o.pending
+    }
+  }
+
+  function validateUnspentOutput(uo) {
+    var missingField
+
+    if (isNullOrUndefined(uo.hash)) {
+      missingField = "hash"
+    }
+
+    var requiredKeys = ['outputIndex', 'address', 'value']
+    requiredKeys.forEach(function (key) {
+      if (isNullOrUndefined(uo[key])){
+        missingField = key
       }
-      keys.push(key);
+    })
 
-      if (pub) {
-        if ("string" === typeof pub) {
-          pub = Crypto.util.base64ToBytes(pub);
+    if (missingField) {
+      var message = [
+        'Invalid unspent output: key', missingField, 'is missing.',
+        'A valid unspent output must contain'
+      ]
+      message.push(requiredKeys.join(', '))
+      message.push("and hash")
+      throw new Error(message.join(' '))
+    }
+  }
+
+  function isNullOrUndefined(value) {
+    return value == undefined
+  }
+
+  this.processPendingTx = function(tx){
+    processTx(tx, true)
+  }
+
+  this.processConfirmedTx = function(tx){
+    processTx(tx, false)
+  }
+
+  function processTx(tx, isPending) {
+    var txid = tx.getId()
+
+    tx.outs.forEach(function(txOut, i) {
+      var address
+
+      try {
+        address = Address.fromOutputScript(txOut.script, network).toString()
+      } catch(e) {
+        if (!(e.message.match(/has no matching Address/))) throw e
+      }
+
+      if (isMyAddress(address)) {
+        var output = txid + ':' + i
+
+        me.outputs[output] = {
+          from: output,
+          value: txOut.value,
+          address: address,
+          pending: isPending
         }
-        key.pub = pub;
       }
+    })
 
-      this.addressHashes.push(key.getBitcoinAddress().getHashBase64());
-    };
+    tx.ins.forEach(function(txIn, i) {
+      // copy and convert to big-endian hex
+      var txinId = new Buffer(txIn.hash)
+      Array.prototype.reverse.call(txinId)
+      txinId = txinId.toString('hex')
 
-    /**
-     * Add multiple keys at once.
-     */
-    this.addKeys = function (keys, pubs) {
-      if ("string" === typeof keys) {
-        keys = keys.split(',');
-      }
-      if ("string" === typeof pubs) {
-        pubs = pubs.split(',');
-      }
-      var i;
-      if (Array.isArray(pubs) && keys.length == pubs.length) {
-        for (i = 0; i < keys.length; i++) {
-          this.addKey(keys[i], pubs[i]);
-        }
+      var output = txinId + ':' + txIn.index
+
+      if (!(output in me.outputs)) return
+
+      if (isPending) {
+        me.outputs[output].to = txid + ':' + i
+        me.outputs[output].pending = true
       } else {
-        for (i = 0; i < keys.length; i++) {
-          this.addKey(keys[i]);
+        delete me.outputs[output]
+      }
+    })
+  }
+
+  this.createTx = function(to, value, fixedFee, changeAddress) {
+    assert(value > network.dustThreshold, value + ' must be above dust threshold (' + network.dustThreshold + ' Satoshis)')
+
+    var utxos = getCandidateOutputs(value)
+    var accum = 0
+    var subTotal = value
+    var addresses = []
+
+    var tx = new Transaction()
+    tx.addOutput(to, value)
+
+    for (var i = 0; i < utxos.length; ++i) {
+      var utxo = utxos[i]
+      addresses.push(utxo.address)
+
+      var outpoint = utxo.from.split(':')
+      tx.addInput(outpoint[0], parseInt(outpoint[1]))
+
+      var fee = fixedFee == undefined ? estimateFeePadChangeOutput(tx) : fixedFee
+
+      accum += utxo.value
+      subTotal = value + fee
+      if (accum >= subTotal) {
+        var change = accum - subTotal
+
+        if (change > network.dustThreshold) {
+          tx.addOutput(changeAddress || getChangeAddress(), change)
         }
-      }
-    };
 
-    /**
-     * Get the key chain.
-     *
-     * Returns an array of base64-encoded private values.
-     */
-    this.getKeys = function () {
-      var serializedWallet = [];
-
-      for (var i = 0; i < keys.length; i++) {
-        serializedWallet.push(keys[i].toString('base64'));
-      }
-
-      return serializedWallet;
-    };
-
-    /**
-     * Get the public keys.
-     *
-     * Returns an array of base64-encoded public keys.
-     */
-    this.getPubKeys = function () {
-      var pubs = [];
-
-      for (var i = 0; i < keys.length; i++) {
-        pubs.push(Crypto.util.bytesToBase64(keys[i].getPub()));
-      }
-
-      return pubs;
-    };
-
-    /**
-     * Delete all keys.
-     */
-    this.clear = function () {
-      keys = [];
-    };
-
-    /**
-     * Return the number of keys in this wallet.
-     */
-    this.getLength = function () {
-      return keys.length;
-    };
-
-    /**
-     * Get the addresses for this wallet.
-     *
-     * Returns an array of Address objects.
-     */
-    this.getAllAddresses = function () {
-      var addresses = [];
-      for (var i = 0; i < keys.length; i++) {
-        addresses.push(keys[i].getBitcoinAddress());
-      }
-      return addresses;
-    };
-
-    this.getCurAddress = function () {
-      if (keys[this.addressPointer]) {
-        return keys[this.addressPointer].getBitcoinAddress();
-      } else {
-        return null;
-      }
-    };
-
-    /**
-     * Go to the next address.
-     *
-     * If there are no more new addresses available, one will be generated
-     * automatically.
-     */
-    this.getNextAddress = function () {
-      this.addressPointer++;
-      if (!keys[this.addressPointer]) {
-        this.generateAddress();
-      }
-      return keys[this.addressPointer].getBitcoinAddress();
-    };
-
-    /**
-     * Sign a hash with a key.
-     *
-     * This method expects the pubKeyHash as the first parameter and the hash
-     * to be signed as the second parameter.
-     */
-    this.signWithKey = function (pubKeyHash, hash) {
-      pubKeyHash = Crypto.util.bytesToBase64(pubKeyHash);
-      for (var i = 0; i < this.addressHashes.length; i++) {
-        if (this.addressHashes[i] == pubKeyHash) {
-          return keys[i].sign(hash);
-        }
-      }
-      throw new Error("Missing key for signature");
-    };
-
-    /**
-     * Retrieve the corresponding pubKey for a pubKeyHash.
-     *
-     * This function only works if the pubKey in question is part of this
-     * wallet.
-     */
-    this.getPubKeyFromHash = function (pubKeyHash) {
-      pubKeyHash = Crypto.util.bytesToBase64(pubKeyHash);
-      for (var i = 0; i < this.addressHashes.length; i++) {
-        if (this.addressHashes[i] == pubKeyHash) {
-          return keys[i].getPub();
-        }
-      }
-      throw new Error("Hash unknown");
-    };
-  };
-
-  Wallet.prototype.generateAddress = function () {
-    this.addKey(new Bitcoin.ECKey());
-  };
-
-  /**
-   * Add a transaction to the wallet's processed transaction.
-   *
-   * This will add a transaction to the wallet, updating its balance and
-   * available unspent outputs.
-   */
-  Wallet.prototype.process = function (tx) {
-    if (this.txIndex[tx.hash]) return;
-
-    var j;
-    var k;
-    var hash;
-    // Gather outputs
-    for (j = 0; j < tx.outs.length; j++) {
-      var txout = new TransactionOut(tx.outs[j]);
-      hash = Crypto.util.bytesToBase64(txout.script.simpleOutPubKeyHash());
-      for (k = 0; k < this.addressHashes.length; k++) {
-        if (this.addressHashes[k] === hash) {
-          this.unspentOuts.push({tx: tx, index: j, out: txout});
-          break;
-        }
+        break
       }
     }
 
-    // Remove spent outputs
-    for (j = 0; j < tx.ins.length; j++) {
-      var txin = new TransactionIn(tx.ins[j]);
-      var pubkey = txin.script.simpleInPubKey();
-      hash = Crypto.util.bytesToBase64(Bitcoin.Util.sha256ripe160(pubkey));
-      for (k = 0; k < this.addressHashes.length; k++) {
-        if (this.addressHashes[k] === hash) {
-          for (var l = 0; l < this.unspentOuts.length; l++) {
-            if (txin.outpoint.hash == this.unspentOuts[l].tx.hash &&
-                txin.outpoint.index == this.unspentOuts[l].index) {
-              this.unspentOuts.splice(l, 1);
-            }
-          }
-          break;
-        }
-      }
+    assert(accum >= subTotal, 'Not enough funds (incl. fee): ' + accum + ' < ' + subTotal)
+
+    this.signWith(tx, addresses)
+    return tx
+  }
+
+  function getCandidateOutputs() {
+    var unspent = []
+
+    for (var key in me.outputs) {
+      var output = me.outputs[key]
+      if (!output.pending) unspent.push(output)
     }
 
-    // Index transaction
-    this.txIndex[tx.hash] = tx;
-  };
+    var sortByValueDesc = unspent.sort(function(o1, o2){
+      return o2.value - o1.value
+    })
 
-  Wallet.prototype.getBalance = function () {
-    var balance = BigInteger.valueOf(0);
-    for (var i = 0; i < this.unspentOuts.length; i++) {
-      var txout = this.unspentOuts[i].out;
-      balance = balance.add(Bitcoin.Util.valueToBigInt(txout.value));
+    return sortByValueDesc
+  }
+
+  function estimateFeePadChangeOutput(tx) {
+    var tmpTx = tx.clone()
+    tmpTx.addOutput(getChangeAddress(), network.dustSoftThreshold || 0)
+
+    return network.estimateFee(tmpTx)
+  }
+
+  function getChangeAddress() {
+    if(me.changeAddresses.length === 0) me.generateChangeAddress();
+    return me.changeAddresses[me.changeAddresses.length - 1]
+  }
+
+  this.signWith = function(tx, addresses) {
+    assert.equal(tx.ins.length, addresses.length, 'Number of addresses must match number of transaction inputs')
+
+    addresses.forEach(function(address, i) {
+      var key = me.getPrivateKeyForAddress(address)
+
+      tx.sign(i, key)
+    })
+
+    return tx
+  }
+
+  this.getMasterKey = function() { return masterkey }
+  this.getAccountZero = function() { return accountZero }
+  this.getInternalAccount = function() { return internalAccount }
+  this.getExternalAccount = function() { return externalAccount }
+
+  this.getPrivateKey = function(index) {
+    return externalAccount.derive(index).privKey
+  }
+
+  this.getInternalPrivateKey = function(index) {
+    return internalAccount.derive(index).privKey
+  }
+
+  this.getPrivateKeyForAddress = function(address) {
+    var index
+    if((index = this.addresses.indexOf(address)) > -1) {
+      return this.getPrivateKey(index)
+    } else if((index = this.changeAddresses.indexOf(address)) > -1) {
+      return this.getInternalPrivateKey(index)
+    } else {
+      throw new Error('Unknown address. Make sure the address is from the keychain and has been generated.')
     }
-    return balance;
-  };
+  }
 
-  Wallet.prototype.createSend = function (address, sendValue, feeValue) {
-    var selectedOuts = [];
-    var txValue = sendValue.add(feeValue);
-    var availableValue = BigInteger.ZERO;
-    var i;
-    for (i = 0; i < this.unspentOuts.length; i++) {
-      selectedOuts.push(this.unspentOuts[i]);
-      availableValue = availableValue.add(Bitcoin.Util.valueToBigInt(this.unspentOuts[i].out.value));
+  function isReceiveAddress(address){
+    return me.addresses.indexOf(address) > -1
+  }
 
-      if (availableValue.compareTo(txValue) >= 0) break;
-    }
+  function isChangeAddress(address){
+    return me.changeAddresses.indexOf(address) > -1
+  }
 
-    if (availableValue.compareTo(txValue) < 0) {
-      throw new Error('Insufficient funds.');
-    }
+  function isMyAddress(address) {
+    return isReceiveAddress(address) || isChangeAddress(address)
+  }
+}
 
-
-    var changeValue = availableValue.subtract(txValue);
-
-    var sendTx = new Bitcoin.Transaction();
-
-    for (i = 0; i < selectedOuts.length; i++) {
-      sendTx.addInput(selectedOuts[i].tx, selectedOuts[i].index);
-    }
-
-    sendTx.addOutput(address, sendValue);
-    if (changeValue.compareTo(BigInteger.ZERO) > 0) {
-      sendTx.addOutput(this.getNextAddress(), changeValue);
-    }
-
-    var hashType = 1; // SIGHASH_ALL
-
-    for (i = 0; i < sendTx.ins.length; i++) {
-      var hash = sendTx.hashTransactionForSignature(selectedOuts[i].out.script, i, hashType);
-      var pubKeyHash = selectedOuts[i].out.script.simpleOutPubKeyHash();
-      var signature = this.signWithKey(pubKeyHash, hash);
-
-      // Append hash type
-      signature.push(parseInt(hashType, 10));
-
-      sendTx.ins[i].script = Script.createInputScript(signature, this.getPubKeyFromHash(pubKeyHash));
-    }
-
-    return sendTx;
-  };
-
-  Wallet.prototype.clearTransactions = function () {
-    this.txIndex = {};
-    this.unspentOuts = [];
-  };
-
-  /**
-   * Check to see if a pubKeyHash belongs to this wallet.
-   */
-  Wallet.prototype.hasHash = function (hash) {
-    if (Bitcoin.Util.isArray(hash)) hash = Crypto.util.bytesToBase64(hash);
-
-    // TODO: Just create an object with  base64 hashes as keys for faster lookup
-    for (var k = 0; k < this.addressHashes.length; k++) {
-      if (this.addressHashes[k] === hash) return true;
-    }
-    return false;
-  };
-
-  return Wallet;
-})();
-
+module.exports = Wallet

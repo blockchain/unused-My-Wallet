@@ -1,77 +1,57 @@
-/**
- * Implements Bitcoin's feature for signing arbitrary messages.
- */
-Bitcoin.Message = (function () {
-    var Message = {};
+/// Implements Bitcoin's feature for signing arbitrary messages.
+var Address = require('./address')
+var BigInteger = require('bigi')
+var bufferutils = require('./bufferutils')
+var crypto = require('./crypto')
+var ecdsa = require('./ecdsa')
+var networks = require('./networks')
 
-    Message.magicPrefix = "Bitcoin Signed Message:\n";
+var Address = require('./address')
+var ECPubKey = require('./ecpubkey')
+var ECSignature = require('./ecsignature')
 
-    Message.makeMagicMessage = function (message) {
-        var magicBytes = Crypto.charenc.UTF8.stringToBytes(Message.magicPrefix);
-        var messageBytes = Crypto.charenc.UTF8.stringToBytes(message);
+var ecurve = require('ecurve')
+var ecparams = ecurve.getCurveByName('secp256k1')
 
-        var buffer = [];
-        buffer = buffer.concat(Bitcoin.Util.numToVarInt(magicBytes.length));
-        buffer = buffer.concat(magicBytes);
-        buffer = buffer.concat(Bitcoin.Util.numToVarInt(messageBytes.length));
-        buffer = buffer.concat(messageBytes);
+function magicHash(message, network) {
+  var magicPrefix = new Buffer(network.magicPrefix)
+  var messageBuffer = new Buffer(message)
+  var lengthBuffer = new Buffer(bufferutils.varIntSize(messageBuffer.length))
+  bufferutils.writeVarInt(lengthBuffer, messageBuffer.length, 0)
 
+  var buffer = Buffer.concat([magicPrefix, lengthBuffer, messageBuffer])
+  return crypto.hash256(buffer)
+}
 
-        return buffer;
-    };
+function sign(privKey, message, network) {
+  network = network || networks.bitcoin
 
-    Message.getHash = function (message) {
-        var buffer = Message.makeMagicMessage(message);
-        return Crypto.SHA256(Crypto.SHA256(buffer, {asBytes: true}), {asBytes: true});
-    };
+  var hash = magicHash(message, network)
+  var signature = privKey.sign(hash)
+  var e = BigInteger.fromBuffer(hash)
+  var i = ecdsa.calcPubKeyRecoveryParam(ecparams, e, signature, privKey.pub.Q)
 
-    Message.signMessage = function (key, message, target_address) {
-        var hash = Message.getHash(message);
+  return signature.toCompact(i, privKey.pub.compressed)
+}
 
-        var obj = key.sign(hash);
+// TODO: network could be implied from address
+function verify(address, signatureBuffer, message, network) {
+  if (address instanceof Address) {
+    address = address.toString()
+  }
+  network = network || networks.bitcoin
 
-        //var sig = Bitcoin.ECDSA.serializeSig(obj.r, obj.s);
+  var hash = magicHash(message, network)
+  var parsed = ECSignature.parseCompact(signatureBuffer)
+  var e = BigInteger.fromBuffer(hash)
+  var Q = ecdsa.recoverPubKey(ecparams, e, parsed.signature, parsed.i)
 
-        var address = key.getBitcoinAddress().toString();
+  var pubKey = new ECPubKey(Q, parsed.compressed)
+  return pubKey.getAddress(network).toString() === address
+}
 
-        var compressed = !(address == target_address);
-
-        var i = Bitcoin.ECDSA.calcPubkeyRecoveryParam(address, obj.r, obj.s, hash);
-
-        i += 27;
-        if (compressed) i += 4;
-
-        var rBa = obj.r.toByteArrayUnsigned();
-        var sBa = obj.s.toByteArrayUnsigned();
-
-        // Pad to 32 bytes per value
-        while (rBa.length < 32) rBa.unshift(0);
-        while (sBa.length < 32) sBa.unshift(0);
-
-        var sig = [i].concat(rBa).concat(sBa);
-
-        return Crypto.util.bytesToBase64(sig);
-    };
-
-    Message.verifyMessage = function (address, sig, message) {
-        sig = Crypto.util.base64ToBytes(sig);
-
-        sig = Bitcoin.ECDSA.parseSigCompact(sig);
-
-        var hash = Message.getHash(message);
-
-        var isCompressed = !!(sig.i & 4);
-
-        var pubKey = Bitcoin.ECDSA.recoverPubKey(sig.r, sig.s, hash, sig.i);
-
-        pubKey.setCompressed(isCompressed);
-
-        if (pubKey.getBitcoinAddress().toString() == address || pubKey.getBitcoinAddressCompressed().toString() == address)
-            return true;
-        else
-            return false;
-    };
-
-
-    return Message;
-})();
+module.exports = {
+  magicHash: magicHash,
+  sign: sign,
+  verify: verify
+}

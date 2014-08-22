@@ -1,68 +1,64 @@
-Bitcoin.Address = function (bytes, version) {
-  if ("string" == typeof bytes) {
-    this.fromString(bytes);
-    return;
+var assert = require('assert')
+var base58check = require('bs58check')
+var networks = require('./networks')
+var scripts = require('./scripts')
+
+function findScriptTypeByVersion(version) {
+  for (var networkName in networks) {
+    var network = networks[networkName]
+
+    if (version === network.pubKeyHash) return 'pubkeyhash'
+    if (version === network.scriptHash) return 'scripthash'
   }
-  this.hash = bytes;
-
-  this.version = version || Bitcoin.Address.pubKeyHashVersion;
-};
-
-/**
- * Serialize this object as a standard Bitcoin address.
- *
- * Returns the address as a base58-encoded string in the standardized format.
- */
-Bitcoin.Address.prototype.toString = function () {
-  // Get a copy of the hash
-  var hash = this.hash.slice(0);
-
-  // Version
-  hash.unshift(this.version);
-
-  var checksum = Crypto.SHA256(Crypto.SHA256(hash, {asBytes: true}), {asBytes: true});
-
-  var bytes = hash.concat(checksum.slice(0,4));
-
-  return Bitcoin.Base58.encode(bytes);
-};
-
-Bitcoin.Address.prototype.getHashBase64 = function () {
-  return Crypto.util.bytesToBase64(this.hash);
-};
-
-/**
- * Parse a Bitcoin address contained in a string.
- */
-Bitcoin.Address.prototype.fromString = function (string) {
-  var bytes = Bitcoin.Base58.decode(string);
-
-  var hash = bytes.slice(0, 21);
-
-  var checksum = Crypto.SHA256(Crypto.SHA256(hash, {asBytes: true}), {asBytes: true});
-
-  if (checksum[0] != bytes[21] ||
-      checksum[1] != bytes[22] ||
-      checksum[2] != bytes[23] ||
-      checksum[3] != bytes[24]) {
-    throw "Checksum validation failed!";
-  }
-
-  this.version = hash.shift();
-  this.hash = hash;
-
-  if (this.version != Bitcoin.Address.pubKeyHashVersion && this.version != Bitcoin.Address.p2shVersion) {
-    throw "Version "+version+" not supported!";
-  }
-};
-
-Bitcoin.Address.isP2SHAddress = function () {
-  return this.version == Bitcoin.Address.p2shVersion;
 }
 
-Bitcoin.Address.isPubKeyHashAddress = function () {
-  return this.version == Bitcoin.Address.pubKeyHashVersion;
+function Address(hash, version) {
+  assert(Buffer.isBuffer(hash), 'Expected Buffer, got ' + hash)
+  assert.strictEqual(hash.length, 20, 'Invalid hash length')
+  assert.strictEqual(version & 0xff, version, 'Invalid version byte')
+
+  this.hash = hash
+  this.version = version
 }
 
-Bitcoin.Address.pubKeyHashVersion = 0;
-Bitcoin.Address.p2shVersion = 5;
+// Import functions
+Address.fromBase58Check = function(string) {
+  var payload = base58check.decode(string)
+  var version = payload.readUInt8(0)
+  var hash = payload.slice(1)
+
+  return new Address(hash, version)
+}
+
+Address.fromOutputScript = function(script, network) {
+  network = network || networks.bitcoin
+
+  var type = scripts.classifyOutput(script)
+
+  if (type === 'pubkeyhash') return new Address(script.chunks[2], network.pubKeyHash)
+  if (type === 'scripthash') return new Address(script.chunks[1], network.scriptHash)
+
+  assert(false, type + ' has no matching Address')
+}
+
+// Export functions
+Address.prototype.toBase58Check = function () {
+  var payload = new Buffer(21)
+  payload.writeUInt8(this.version, 0)
+  this.hash.copy(payload, 1)
+
+  return base58check.encode(payload)
+}
+
+Address.prototype.toOutputScript = function() {
+  var scriptType = findScriptTypeByVersion(this.version)
+
+  if (scriptType === 'pubkeyhash') return scripts.pubKeyHashOutput(this.hash)
+  if (scriptType === 'scripthash') return scripts.scriptHashOutput(this.hash)
+
+  assert(false, this.toString() + ' has no matching Script')
+}
+
+Address.prototype.toString = Address.prototype.toBase58Check
+
+module.exports = Address

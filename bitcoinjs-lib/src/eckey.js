@@ -1,116 +1,79 @@
-Bitcoin.ECKey = (function () {
-    var ECDSA = Bitcoin.ECDSA;
-    var ecparams = secp256k1();
-    var rng = new SecureRandom();
+var assert = require('assert')
+var base58check = require('bs58check')
+var crypto = require('crypto')
+var ecdsa = require('./ecdsa')
+var networks = require('./networks')
 
-    var ECKey = function (input) {
-        if (!input) {
-            // Generate new key
-            var n = ecparams.getN();
-            this.priv = ECDSA.getBigRandom(n);
-        } else if (input instanceof BigInteger) {
-            // Input is a private key value
-            this.priv = input;
-        } else if (Bitcoin.Util.isArray(input)) {
-            // Prepend zero byte to prevent interpretation as negative integer
-            this.priv = BigInteger.fromByteArrayUnsigned(input);
-        } else if ("string" == typeof input) {
-            if (input.length == 51 && input[0] == '5') {
-                // Base58 encoded private key
-                this.priv = BigInteger.fromByteArrayUnsigned(ECKey.decodeString(input));
-            } else {
-                // Prepend zero byte to prevent interpretation as negative integer
-                this.priv = BigInteger.fromByteArrayUnsigned(Crypto.util.base64ToBytes(input));
-            }
-        }
-        this.compressed = !!ECKey.compressByDefault;
-    };
+var BigInteger = require('bigi')
+var ECPubKey = require('./ecpubkey')
 
-    /**
-     * Whether public keys should be returned compressed by default.
-     */
-    ECKey.compressByDefault = false;
+var ecurve = require('ecurve')
+var curve = ecurve.getCurveByName('secp256k1')
 
-    /**
-     * Set whether the public key should be returned compressed or not.
-     */
-    ECKey.prototype.setCompressed = function (v) {
-        this.compressed = !!v;
-    };
+function ECKey(d, compressed) {
+  assert(d.signum() > 0, 'Private key must be greater than 0')
+  assert(d.compareTo(curve.n) < 0, 'Private key must be less than the curve order')
 
-    ECKey.prototype.isCompressed = function () {
-       return this.compressed;
-    };
+  var Q = curve.G.multiply(d)
 
-    /**
-     * Return public key in DER encoding.
-     */
-    ECKey.prototype.getPub = function () {
-        return this.getPubPoint().getEncoded(this.compressed);
-    };
+  this.d = d
+  this.pub = new ECPubKey(Q, compressed)
+}
 
-    /**
-     * Return public point as ECPoint object.
-     */
-    ECKey.prototype.getPubPoint = function () {
-        if (!this.pub) this.pub = ecparams.getG().multiply(this.priv);
+// Static constructors
+ECKey.fromWIF = function(string) {
+  var payload = base58check.decode(string)
+  var compressed = false
 
-        return this.pub;
-    };
+  // Ignore the version byte
+  payload = payload.slice(1)
 
-    /**
-     * Get the pubKeyHash for this key.
-     *
-     * This is calculated as RIPE160(SHA256([encoded pubkey])) and returned as
-     * a byte array.
-     */
-    ECKey.prototype.getPubKeyHash = function () {
-        if (this.pubKeyHash) return this.pubKeyHash;
+  if (payload.length === 33) {
+    assert.strictEqual(payload[32], 0x01, 'Invalid compression flag')
 
-        return this.pubKeyHash = Bitcoin.Util.sha256ripe160(this.getPub());
-    };
+    // Truncate the compression flag
+    payload = payload.slice(0, -1)
+    compressed = true
+  }
 
-    ECKey.prototype.getBitcoinAddress = function () {
-        var hash = this.getPubKeyHash();
-        return new Bitcoin.Address(hash);
-    };
+  assert.equal(payload.length, 32, 'Invalid WIF payload length')
 
+  var d = BigInteger.fromBuffer(payload)
+  return new ECKey(d, compressed)
+}
 
-    ECKey.prototype.getPubCompressed = function () {
-        if (this.pubCompressed) return this.pubCompressed;
-        return this.pubCompressed = this.getPubPoint().getEncoded(1);
-    };
+ECKey.makeRandom = function(compressed, rng) {
+  rng = rng || crypto.randomBytes
 
-    ECKey.prototype.getPubKeyHashCompressed = function () {
-        if (this.pubKeyHashCompressed) return this.pubKeyHashCompressed;
-        return this.pubKeyHashCompressed = Bitcoin.Util.sha256ripe160(this.getPubCompressed());
-    }
+  var buffer = rng(32)
+  assert(Buffer.isBuffer(buffer), 'Expected Buffer, got ' + buffer)
 
-    ECKey.prototype.getBitcoinAddressCompressed = function () {
-        var hash = this.getPubKeyHashCompressed();
-        return new Bitcoin.Address(hash);
-    }
+  var d = BigInteger.fromBuffer(buffer)
+  d = d.mod(curve.n)
 
-    ECKey.prototype.setPub = function (pub) {
-        this.pub = ECPointFp.decodeFrom(ecparams.getCurve(), pub);
-    };
+  return new ECKey(d, compressed)
+}
 
-    ECKey.prototype.toString = function (format) {
-        if (format === "base64") {
-            return Crypto.util.bytesToBase64(this.priv.toByteArrayUnsigned());
-        } else {
-            return Crypto.util.bytesToHex(this.priv.toByteArrayUnsigned());
-        }
-    };
+// Export functions
+ECKey.prototype.toWIF = function(network) {
+  network = network || networks.bitcoin
 
-    ECKey.prototype.sign = function (hash) {
-        return ECDSA.sign(hash, this.priv);
-    };
+  var bufferLen = this.pub.compressed ? 34 : 33
+  var buffer = new Buffer(bufferLen)
 
-    ECKey.prototype.verify = function (hash, sig) {
-        return ECDSA.verify(hash, sig, this.getPub());
-    };
+  buffer.writeUInt8(network.wif, 0)
+  this.d.toBuffer(32).copy(buffer, 1)
 
+  if (this.pub.compressed) {
+    buffer.writeUInt8(0x01, 33)
+  }
 
-    return ECKey;
-})();
+  return base58check.encode(buffer)
+}
+
+// Operations
+ECKey.prototype.sign = function(hash) {
+  return ecdsa.sign(curve, hash, this.d)
+}
+
+module.exports = ECKey
