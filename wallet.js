@@ -77,6 +77,10 @@ var MyWallet = new function() {
     var isRestoringWallet = false;
     var sync_pubkeys = false;
 
+    var BigInteger = Bitcoin.BigInteger;
+    var ECKey = Bitcoin.ECKey;
+
+
     var wallet_options = {
         pbkdf2_iterations : default_pbkdf2_iterations, //Number of pbkdf2 iterations to default to for second password and dpasswordhash
         fee_policy : 0,  //Default Fee policy (-1 Tight, 0 Normal, 1 High)
@@ -572,16 +576,20 @@ var MyWallet = new function() {
         if (opts == null)
             opts = {};
 
-        var addr = opts.compressed ? key.getBitcoinAddressCompressed().toString() : key.getBitcoinAddress().toString();
+        //var addr = opts.compressed ? key.getBitcoinAddressCompressed().toString() : key.getBitcoinAddress().toString();
+        //TODO: note opts.compressed no longer does anything, fix later
+        var addr = key.pub.getAddress().toString();
 
-        var encoded = encodePK(key.priv);
+        var encoded = encodePK(key.d);
 
         if (encoded == null)
             throw 'Error Encoding key';
 
-        var decoded_key = new Bitcoin.ECKey(MyWallet.decodePK(encoded));
+        //TODO: set opts.compressed and use opts.compressed properly
+        var decoded_key = new ECKey(new BigInteger.fromBuffer(MyWallet.decodePK(encoded)), true);
 
-        if (addr != decoded_key.getBitcoinAddress().toString() && addr != decoded_key.getBitcoinAddressCompressed().toString()) {
+        //if (addr != decoded_key.getBitcoinAddress().toString() && addr != decoded_key.getBitcoinAddressCompressed().toString()) {
+        if (addr != decoded_key.pub.getAddress().toString()) {
             throw 'Decoded Key address does not match generated address';
         }
 
@@ -635,7 +643,7 @@ var MyWallet = new function() {
     this.generateNewKey = function(_password) {
         MyWallet._seed(_password);
 
-        var key = new Bitcoin.ECKey(false);
+        var key = Bitcoin.ECKey.makeRandom();
 
         if (MyWallet.addPrivateKey(key)) {
             return key;
@@ -3154,7 +3162,8 @@ var MyWallet = new function() {
 
 
     function encodePK(priv) {
-        var base58 = B58.encode(priv);
+        var base58 = Bitcoin.base58.encode(priv.toBuffer(32));
+
         return encryptPK(base58);
     }
 
@@ -3176,7 +3185,7 @@ var MyWallet = new function() {
 
         var decrypted = MyWallet.decryptPK(priv);
         if (decrypted != null) {
-            return B58.decode(decrypted);
+            return Bitcoin.base58.decode(decrypted);
         }
         return null;
     }
@@ -4112,7 +4121,7 @@ var MyWallet = new function() {
                 MyWallet.getSecondPassword(function() {
                     var key = MyWallet.generateNewKey();
 
-                    var address = key.getBitcoinAddress().toString();
+                    var address = key.pub.getAddress().toString();
 
                     MyWallet.backupWallet('update', function() {
                         MyWallet.makeNotice('info', 'new-address', 'Generated new Bitcoin Address ' + address);

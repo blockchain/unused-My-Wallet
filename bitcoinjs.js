@@ -10337,6 +10337,11 @@
         "bitcoinjs-lib": [
             function(require, module, exports) {
                 module.exports = {
+                    BigInteger: require("./bigi"),
+                    base58: require("./bs58"),
+                    base58check: require("./bs58check"),
+                    Crypto: require("./crypto-js"),
+
                     Address: require("./address"),
                     bufferutils: require("./bufferutils"),
                     convert: require("./convert"),
@@ -10356,6 +10361,11 @@
                     Wallet: require("./wallet")
                 }
             }, {
+                "./bigi": 3,
+                "./bs58": 4,
+                "./bs58check": 5,
+                "./crypto-js": 27,
+
                 "./address": 58,
                 "./bufferutils": 59,
                 "./convert": 60,
