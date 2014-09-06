@@ -586,7 +586,7 @@ function _ImportExport() {
                     try {
                         if (MyWallet.addPrivateKey(key, {compressed : compressed, app_name : app_name ? app_name : IMPORTED_APP_NAME, app_version : IMPORTED_APP_VERSION})) {
 
-                            var addr = compressed ? key.getBitcoinAddressCompressed().toString() : key.getBitcoinAddress().toString();
+                            var addr = compressed ? MyWallet.getCompressedAddressString(key) : MyWallet.getUnCompressedAddressString(key);
 
                             if (label && label.length > 0)
                                 MyWallet.setAddressLabel(addr, label);
@@ -627,9 +627,9 @@ function _ImportExport() {
 
                 var addr = null;
                 if (format == 'compsipa') {
-                    addr = key.getBitcoinAddressCompressed().toString();
+                    addr = MyWallet.getCompressedAddressString(key);
                 } else {
-                    addr = key.getBitcoinAddress().toString();
+                    addr = MyWallet.getUnCompressedAddressString(key);
                 }
 
                 if (addr == null || addr.length == 0 || addr == 'undefined')

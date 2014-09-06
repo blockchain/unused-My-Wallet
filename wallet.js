@@ -4554,9 +4554,8 @@ var MyWallet = new function() {
     this.privateKeyStringToKey = function(value, format) {
 
         var key_bytes = null;
-
         if (format == 'base58') {
-            key_bytes = B58.decode(value);
+            key_bytes = BigInteger.fromBuffer(Bitcoin.base58.decode(value)).toByteArray();
         } else if (format == 'base64') {
             key_bytes = Crypto.util.base64ToBytes(value);
         } else if (format == 'hex') {
@@ -4564,11 +4563,14 @@ var MyWallet = new function() {
         } else if (format == 'mini') {
             key_bytes = parseMiniKey(value);
         } else if (format == 'sipa') {
-            var tbytes = B58.decode(value);
+            var tbytes = BigInteger.fromBuffer(Bitcoin.base58.decode(value)).toByteArray();
+            tbytes.shift(); //extra shift cuz BigInteger.fromBuffer prefixed extra 0 byte to array
             tbytes.shift();
             key_bytes = tbytes.slice(0, tbytes.length - 4);
+
         } else if (format == 'compsipa') {
-            var tbytes = B58.decode(value);
+            var tbytes = BigInteger.fromBuffer(Bitcoin.base58.decode(value)).toByteArray();
+            tbytes.shift(); //extra shift cuz BigInteger.fromBuffer prefixed extra 0 byte to array
             tbytes.shift();
             tbytes.pop();
             key_bytes = tbytes.slice(0, tbytes.length - 4);
@@ -4579,7 +4581,7 @@ var MyWallet = new function() {
         if (key_bytes.length != 32)
             throw 'Result not 32 bytes in length';
 
-        return new Bitcoin.ECKey(key_bytes);
+        return new ECKey(new BigInteger.fromByteArrayUnsigned(key_bytes), false);
     }
 
     $(document).ready(function() {
