@@ -563,6 +563,13 @@ var MyWallet = new function() {
         return internalAddKey(address);
     }
 
+    //temperary workaround instead instead of modding bitcoinjs to do it TODO: not efficient
+    this.getCompressedAddressString = function(key) {
+        return new ECKey(key.d, true).pub.getAddress().toString();
+    }
+    this.getUnCompressedAddressString = function(key) {
+        return new ECKey(key.d, false).pub.getAddress().toString();
+    }
 
     //opts = {compressed, app_name, app_version, created_time}
     this.addPrivateKey = function(key, opts) {
@@ -576,20 +583,16 @@ var MyWallet = new function() {
         if (opts == null)
             opts = {};
 
-        //var addr = opts.compressed ? key.getBitcoinAddressCompressed().toString() : key.getBitcoinAddress().toString();
-        //TODO: note opts.compressed no longer does anything, fix later
-        var addr = key.pub.getAddress().toString();
+        var addr = opts.compressed ? MyWallet.getCompressedAddressString(key) : MyWallet.getUnCompressedAddressString(key);
 
         var encoded = encodePK(key.d);
 
         if (encoded == null)
             throw 'Error Encoding key';
 
-        //TODO: set opts.compressed and use opts.compressed properly
-        var decoded_key = new ECKey(new BigInteger.fromBuffer(MyWallet.decodePK(encoded)), true);
+        var decoded_key = new ECKey(new BigInteger.fromBuffer(MyWallet.decodePK(encoded)), opts.compressed);
 
-        //if (addr != decoded_key.getBitcoinAddress().toString() && addr != decoded_key.getBitcoinAddressCompressed().toString()) {
-        if (addr != decoded_key.pub.getAddress().toString()) {
+        if (addr != MyWallet.getUnCompressedAddressString(key) && addr != MyWallet.getCompressedAddressString(key)) {
             throw 'Decoded Key address does not match generated address';
         }
 
@@ -643,8 +646,9 @@ var MyWallet = new function() {
     this.generateNewKey = function(_password) {
         MyWallet._seed(_password);
 
-        var key = Bitcoin.ECKey.makeRandom();
+        var key = Bitcoin.ECKey.makeRandom(false);
 
+        // key is uncompressed, so cannot passed in opts.compressed = true here
         if (MyWallet.addPrivateKey(key)) {
             return key;
         }
