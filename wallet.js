@@ -570,6 +570,12 @@ var MyWallet = new function() {
     this.getUnCompressedAddressString = function(key) {
         return new ECKey(key.d, false).pub.getAddress().toString();
     }
+    this.getCompressedPubKey = function(key) {
+        return new ECKey(key.d, true).pub;
+    }
+    this.getUncompressedPubKey = function(key) {
+        return new ECKey(key.d, false).pub;
+    }
 
     //opts = {compressed, app_name, app_version, created_time}
     this.addPrivateKey = function(key, opts) {
@@ -3908,15 +3914,15 @@ var MyWallet = new function() {
                                 return;
                             }
 
-                            var key = new Bitcoin.ECKey(MyWallet.decodePK(priv));
+                            var key = new ECKey(new BigInteger.fromBuffer(MyWallet.decodePK(priv)), false);
 
-                            if (key.getBitcoinAddressCompressed().toString() == address) {
-                                var pub = key.getPubCompressed();
+                            if (MyWallet.getCompressedAddressString(key) == address) {
+                                var pub = MyWallet.getCompressedPubKey(key);
                             } else {
-                                var pub = key.getPub();
+                                var pub = MyWallet.getUncompressedPubKey(key);
                             }
 
-                            MyWallet.makeNotice('success', 'pub-key', 'Public Key of '+ address +' is ' + Crypto.util.bytesToHex(pub), 20000);
+                            MyWallet.makeNotice('success', 'pub-key', 'Public Key of '+ address +' is ' + pub.toHex(), 20000);
 
                         });
                     });
