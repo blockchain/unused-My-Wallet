@@ -3208,9 +3208,13 @@ var MyWallet = new function() {
 
         var decryptedpk = MyWallet.decodePK(addr.priv);
 
-        var key = new Bitcoin.ECKey(decryptedpk);
+        var key = new ECKey(new BigInteger.fromBuffer(decryptedpk), false);
+        if (key.pub.getAddress().toString() != address) {
+            key = new ECKey(new BigInteger.fromBuffer(decryptedpk), true);
+        }
 
-        return Bitcoin.Message.signMessage(key, message, addr.addr);
+        var signatureBuffer = Bitcoin.Message.sign(key, message, Bitcoin.networks.bitcoin);
+        return signatureBuffer.toString("base64", 0, signatureBuffer.length);
     }
 
     this.validateSecondPassword = function(input) {
