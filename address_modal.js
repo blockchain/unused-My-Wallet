@@ -53,7 +53,7 @@ function verifyMessageModal() {
             }
 
             try {
-                new Bitcoin.Address(address);
+                Bitcoin.Address.fromBase58Check(address)
             } catch(e) {
                 throw 'Invalid Bitcoin Address';
             }
@@ -68,7 +68,7 @@ function verifyMessageModal() {
                 throw 'You Must Enter A Signature To Verify';
             }
 
-            if (Bitcoin.Message.verifyMessage(address, signature, message))
+            if (Bitcoin.Message.verify(Bitcoin.Address.fromBase58Check(address), signature, message, Bitcoin.networks.bitcoin))
                 modal.find('.address-result-txt').html('<font color="green">Message Successfully Verified</font>');
             else
                 modal.find('.address-result-txt').html('<font color="red">Error Verifying Message!</font>');
