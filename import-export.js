@@ -113,7 +113,7 @@ function _ImportExport() {
             }
 
             try {
-                var address = new Bitcoin.Address(value);
+                var address = Bitcoin.Address.fromBase58Check(value);
 
                 if (address.toString() != value) {
                     throw 'Inconsistency between addresses';
