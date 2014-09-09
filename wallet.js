@@ -3452,7 +3452,7 @@ var MyWallet = new function() {
 
             var addr;
             try {
-                addr = new Bitcoin.Address(bitcoinAddress);
+                addr = Bitcoin.Address.fromBase58Check(bitcoinAddress);
 
                 if (addr == null)
                     throw 'Null address';
