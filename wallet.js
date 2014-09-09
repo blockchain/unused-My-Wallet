@@ -79,6 +79,7 @@ var MyWallet = new function() {
 
     var BigInteger = Bitcoin.BigInteger;
     var ECKey = Bitcoin.ECKey;
+    var buffer = Bitcoin.Buffer;
 
 
     var wallet_options = {
@@ -958,14 +959,17 @@ var MyWallet = new function() {
     }
 
     this.pkBytesToSipa = function(bytes, addr) {
-        var eckey = new Bitcoin.ECKey(bytes);
+        var bytesBigInt = new BigInteger.fromBuffer(bytes);
+        var eckey = new ECKey(bytesBigInt, false);
+
+        bytes = bytesBigInt.toByteArray();
 
         while (bytes.length < 32) bytes.unshift(0);
 
         bytes.unshift(0x80); // prepend 0x80 byte
 
-        if (eckey.getBitcoinAddress().toString() == addr) {
-        } else if (eckey.getBitcoinAddressCompressed().toString() == addr) {
+        if (MyWallet.getUnCompressedAddressString(eckey) == addr) {
+        } else if (MyWallet.getCompressedAddressString(eckey) == addr) {
             bytes.push(0x01);    // append 0x01 byte for compressed format
         } else {
             throw 'Private Key does not match bitcoin address' + addr;
@@ -975,7 +979,7 @@ var MyWallet = new function() {
 
         bytes = bytes.concat(checksum.slice(0, 4));
 
-        var privWif = B58.encode(bytes);
+        var privWif = Bitcoin.base58.encode(new buffer.Buffer(bytes));
 
         return privWif;
     }

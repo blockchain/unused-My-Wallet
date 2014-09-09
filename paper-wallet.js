@@ -98,7 +98,7 @@ var PaperWallet = new function() {
             var addr = addr_array[key];
 
             var address = addr.addr;
-            var display_pk = MyWallet.pkBytesToSipa(B58.decode(addr.priv), address);
+            var display_pk = MyWallet.pkBytesToSipa(Bitcoin.base58.decode(addr.priv), address);
             var label = addr.label;
 
             //Draw the address
@@ -215,11 +215,11 @@ var PaperWallet = new function() {
         function callModal() {
             MyWallet._seed();
 
-            var key = new Bitcoin.ECKey();
+            var key = Bitcoin.ECKey.makeRandom(false);
 
-            var address = key.getBitcoinAddress().toString();
+            var address = MyWallet.getUnCompressedAddressString(key);
 
-            var b58 = B58.encode(key.priv);
+            var b58 = Bitcoin.base58.encode(key.d.toBuffer(32));
 
             if (internalShowModal([{addr : address, priv : b58, label : 'Cold Storage'}])) {
                 showDidPrintModal(function() {
