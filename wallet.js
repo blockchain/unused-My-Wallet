@@ -455,7 +455,7 @@ var MyWallet = new function() {
                             var addr = addresses[key];
 
                             if (addr.priv) {
-                                addr.priv = encodePK(B58.decode(addr.priv));
+                                addr.priv = encodePK(new BigInteger(Bitcoin.base58.decode(addr.priv)));
 
                                 if (!addr.priv) throw 'addr.priv is null';
                             }
@@ -3333,10 +3333,11 @@ var MyWallet = new function() {
             if (addr.priv != null) {
                 var decryptedpk = MyWallet.decodePK(addr.priv);
 
-                var privatekey = new Bitcoin.ECKey(decryptedpk);
+                var privatekey = new ECKey(new BigInteger.fromBuffer(decryptedpk), false);
 
-                var actual_addr = privatekey.getBitcoinAddress().toString();
-                if (actual_addr != addr.addr && privatekey.getBitcoinAddressCompressed().toString() != addr.addr) {
+
+                var actual_addr = MyWallet.getUnCompressedAddressString(privatekey);
+                if (actual_addr != addr.addr && MyWallet.getCompressedAddressString(privatekey) != addr.addr) {
                     throw 'Private key does not match bitcoin address ' + addr.addr + " != " + actual_addr;
                 }
 
