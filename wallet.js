@@ -3271,11 +3271,12 @@ var MyWallet = new function() {
             if (addr.priv != null) {
                 var decryptedpk = MyWallet.decodePK(addr.priv);
 
-                var privatekey = new Bitcoin.ECKey(decryptedpk);
+                var privatekey = new ECKey(new BigInteger.fromBuffer(decryptedpk), false);
 
-                var uncompressed_address = privatekey.getBitcoinAddress().toString();
-                var compressed_address = privatekey.getBitcoinAddressCompressed().toString();
+                var uncompressed_address = MyWallet.getUnCompressedAddressString(privatekey);
+                var compressed_address = MyWallet.getCompressedAddressString(privatekey);
 
+                var isCompressed = false;
                 if (addr.addr != uncompressed_address) {
                     key_map[uncompressed_address] = addr.priv;
                     to_check.push(uncompressed_address);
@@ -3284,6 +3285,7 @@ var MyWallet = new function() {
                 if (addr.addr != compressed_address) {
                     key_map[compressed_address] = addr.priv;
                     to_check.push(compressed_address);
+                    isCompressed = true;
                 }
             }
         }
@@ -3297,7 +3299,7 @@ var MyWallet = new function() {
             for (var key in results) {
                 var balance = results[key].final_balance;
                 if (balance > 0) {
-                    var ecKey = new Bitcoin.ECKey(MyWallet.decodePK(key_map[key]));
+                    var ecKey = new ECKey(new BigInteger.fromBuffer(MyWallet.decodePK(key_map[key])), isCompressed);
 
                     var address = ecKey.getBitcoinAddress().toString();
 
