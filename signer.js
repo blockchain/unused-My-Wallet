@@ -226,7 +226,7 @@ function resolveAddress(label) {
     label = $.trim(label);
 
     try {
-        return new Bitcoin.Address(label).toString();
+        return Bitcoin.Address.fromBase58Check(label).toString();
     } catch (e) {}
 
     label = label.toLowerCase();
@@ -686,10 +686,10 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
         //Default is 0.0001 Base Fee, No fee
         if (MyWallet.getFeePolicy() == 1) {
-            pending_transaction.base_fee = BigInteger.valueOf(100000); //0.001 BTC
-            pending_transaction.fee = BigInteger.valueOf(100000); //0.001 BTC
+            pending_transaction.base_fee = Bitcoin.BigInteger.valueOf(100000); //0.001 BTC
+            pending_transaction.fee = Bitcoin.BigInteger.valueOf(100000); //0.001 BTC
         } else if (MyWallet.getFeePolicy() == -1) {
-            pending_transaction.base_fee = BigInteger.valueOf(10000); //0.0001 BTC
+            pending_transaction.base_fee = Bitcoin.BigInteger.valueOf(10000); //0.0001 BTC
             pending_transaction.ask_for_fee = function(yes, no) {
                 no();
             };
@@ -723,7 +723,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     if (changeAddressVal == 'new') {
                         var key = MyWallet.generateNewKey();
 
-                        var bitcoin_address = key.getBitcoinAddress();
+                        var bitcoin_address = key.pub.getAddress();
 
                         pending_transaction.change_address = bitcoin_address;
 
@@ -731,7 +731,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                     } else if (changeAddressVal != 'any') {
                         try {
-                            pending_transaction.change_address = new Bitcoin.Address(changeAddressVal);
+                            pending_transaction.change_address = Bitcoin.Address.fromBase58Check(changeAddressVal);
                         } catch (e) {
                             throw 'Invalid change address: ' + e;
                         };
@@ -741,7 +741,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                 var input_fee_string = el.find('input[name="fees"]').val();
                 if (input_fee_string != null && input_fee_string.length > 0) {
                     var input_fee = precisionToSatoshiBN(input_fee_string);
-                    if (input_fee.compareTo(BigInteger.ZERO) >= 0) {
+                    if (input_fee.compareTo(Bitcoin.BigInteger.ZERO) >= 0) {
                         pending_transaction.fee = input_fee;
                         pending_transaction.did_specify_fee_manually = true;
                     }
@@ -790,7 +790,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                         try {
                             value = precisionToSatoshiBN(value_input.val());
 
-                            if (value == null || value.compareTo(BigInteger.ZERO) <= 0)
+                            if (value == null || value.compareTo(Bitcoin.BigInteger.ZERO) <= 0)
                                 throw 'You must enter a value greater than zero';
                         } catch (e) {
                             console.log(e);
@@ -832,7 +832,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                                 throw 'The mixer fee may have changed';
                                             }
 
-                                            pending_transaction.to_addresses.push({address: new Bitcoin.Address(obj.input_address), value : value});
+                                            pending_transaction.to_addresses.push({address: Bitcoin.Address.fromBase58Check(obj.input_address), value : value});
 
                                             //Call again now we have got the forwarding address
                                             try_continue();
@@ -844,12 +844,12 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                     });
                                 } else {
                                     if (address) {
-                                        pending_transaction.to_addresses.push({address: new Bitcoin.Address(address), value : value});
+                                        pending_transaction.to_addresses.push({address: Bitcoin.Address.fromBase58Check(address), value : value});
                                     } else if (send_to_address.length < 10) {
                                         //Try and Resolve firstbits
                                         BlockchainAPI.resolve_firstbits(send_to_address, function(data) {
                                             try {
-                                                pending_transaction.to_addresses.push({address: new Bitcoin.Address(data), value : value});
+                                                pending_transaction.to_addresses.push({address: Bitcoin.Address.fromBase58Check(data), value : value});
 
                                                 //Call again now we have resolved the address
                                                 try_continue();
@@ -888,7 +888,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                             pending_transaction.generated_addresses.push(address);
 
-                            pending_transaction.to_addresses.push({address: new Bitcoin.Address(address), value : value});
+                            pending_transaction.to_addresses.push({address: Bitcoin.Address.fromBase58Check(address), value : value});
 
                             if (pending_transaction.sms_data)
                                 throw 'Cannot send to more than one SMS recipient at a time';
@@ -922,7 +922,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                                 pending_transaction.generated_addresses.push(address);
 
-                                pending_transaction.to_addresses.push({address: new Bitcoin.Address(address), value : value});
+                                pending_transaction.to_addresses.push({address: Bitcoin.Address.fromBase58Check(address), value : value});
 
                                 if (pending_transaction.email_data)
                                     throw 'Cannot send to more than one email recipient at a time';
@@ -963,19 +963,17 @@ function signInput(tx, inputN, base58Key, connected_script, type) {
 
     type = type ? type : SIGHASH_ALL;
 
-    var pubKeyHash = connected_script.simpleOutPubKeyHash();
-
-    var inputBitcoinAddress = new Bitcoin.Address(pubKeyHash).toString();
+    var inputBitcoinAddress = Bitcoin.Address.fromOutputScript(connected_script).toString();
 
     var key = new Bitcoin.ECKey(base58Key);
 
     var compressed;
-    if (key.getBitcoinAddress().toString() == inputBitcoinAddress.toString()) {
+    if (MyWallet.getUnCompressedAddressString(key) == inputBitcoinAddress.toString()) {
         compressed = false;
-    } else if (key.getBitcoinAddressCompressed().toString() == inputBitcoinAddress.toString()) {
+    } else if (MyWallet.getCompressedAddressString(key) == inputBitcoinAddress.toString()) {
         compressed = true;
     } else {
-        throw 'Private key does not match bitcoin address ' + inputBitcoinAddress.toString() + ' = ' + key.getBitcoinAddress().toString() + ' | '+ key.getBitcoinAddressCompressed().toString();
+        throw 'Private key does not match bitcoin address ' + inputBitcoinAddress.toString() + ' = ' + MyWallet.getUnCompressedAddressString(key) + ' | '+ MyWallet.getCompressedAddressString(key);
     }
 
     var hash = tx.hashTransactionForSignature(connected_script, inputN, type);
@@ -1037,12 +1035,12 @@ function setReviewTransactionContent(modal, tx, type) {
     $('#rtc-from').html('');
     $('#rtc-to').html('');
 
-    var total = BigInteger.ZERO;
-    var total_fees =  BigInteger.ZERO;
-    var wallet_effect =  BigInteger.ZERO;
+    var total = Bitcoin.BigInteger.ZERO;
+    var total_fees =  Bitcoin.BigInteger.ZERO;
+    var wallet_effect =  Bitcoin.BigInteger.ZERO;
     var basic_str = 'send ';
     var all_txs_to_self = true;
-    var amount =  BigInteger.ZERO;
+    var amount =  Bitcoin.BigInteger.ZERO;
 
     for (var i = 0; i < tx.ins.length; ++i) {
         var input = tx.ins[i];
@@ -1069,7 +1067,7 @@ function setReviewTransactionContent(modal, tx, type) {
 
         array.reverse();
 
-        var val =  new BigInteger(array);
+        var val =  new Bitcoin.BigInteger(array);
 
         var out_addresses = [];
 
@@ -1109,7 +1107,7 @@ function setReviewTransactionContent(modal, tx, type) {
             var address = out_addresses[0].toString();
             if (!MyWallet.addressExists(address)|| MyWallet.getAddressTag(address) == 2) {
 
-                if (val.compareTo(BigInteger.ZERO) == 0)
+                if (val.compareTo(Bitcoin.BigInteger.ZERO) == 0)
                     continue;
 
                 //Our fees
@@ -1134,7 +1132,7 @@ function setReviewTransactionContent(modal, tx, type) {
         isFirst = false;
     }
 
-    if (total_fees.compareTo(BigInteger.valueOf(1).multiply(BigInteger.valueOf(satoshi))) >= 0) {
+    if (total_fees.compareTo(Bitcoin.BigInteger.valueOf(1).multiply(Bitcoin.BigInteger.valueOf(satoshi))) >= 0) {
         alert('Warning fees are very high for this transaction. Please double check each output!');
     }
 
@@ -1156,10 +1154,10 @@ function setReviewTransactionContent(modal, tx, type) {
  pending_transaction {
  change_address : BitcoinAddress
  from_addresses : [String]
- to_addresses : [{address: BitcoinAddress, value : BigInteger}]
+ to_addresses : [{address: BitcoinAddress, value : Bitcoin.BigInteger}]
  generated_addresses : [String]
  extra_private_keys : {addr : String, priv : ECKey}
- fee : BigInteger
+ fee : Bitcoin.BigInteger
  on_error : function
  on_success : function
  on_ready_to_send : function
@@ -1170,17 +1168,17 @@ function initNewTx() {
     var pending_transaction = {
         generated_addresses : [],
         to_addresses : [],
-        fee : BigInteger.ZERO,
+        fee : Bitcoin.BigInteger.ZERO,
         extra_private_keys : {},
         listeners : [],
         is_cancelled : false,
-        base_fee : BigInteger.valueOf(10000),
-        min_free_output_size : BigInteger.valueOf(1000000),
+        base_fee : Bitcoin.BigInteger.valueOf(10000),
+        min_free_output_size : Bitcoin.BigInteger.valueOf(1000000),
         allow_adjust : true,
         ready_to_send_header : 'Transaction Ready to Send.',
         min_input_confirmations : 0,
         do_not_use_unspent_cache : false,
-        min_input_size : BigInteger.ZERO,
+        min_input_size : Bitcoin.BigInteger.ZERO,
         did_specify_fee_manually : false,
         addListener : function(listener) {
             this.listeners.push(listener);
@@ -1215,9 +1213,9 @@ function initNewTx() {
                         for (var i = 0; i < obj.unspent_outputs.length; ++i) {
                             var script;
                             try {
-                                script = new Bitcoin.Script(Crypto.util.hexToBytes(obj.unspent_outputs[i].script));
+                                script = Bitcoin.Script.fromHex(obj.unspent_outputs[i].script);
 
-                                if (script.getOutType() == 'Strange')
+                                if (Bitcoin.scripts.classifyOutput(script) == 'nonstandard')
                                     throw 'Strange Script';
 
                             } catch(e) {
@@ -1226,7 +1224,7 @@ function initNewTx() {
                             }
 
                             var out = {script : script,
-                                value : BigInteger.fromByteArrayUnsigned(Crypto.util.hexToBytes(obj.unspent_outputs[i].value_hex)),
+                                value : Bitcoin.BigInteger.fromByteArrayUnsigned(Crypto.util.hexToBytes(obj.unspent_outputs[i].value_hex)),
                                 tx_output_n : obj.unspent_outputs[i].tx_output_n,
                                 tx_hash : obj.unspent_outputs[i].tx_hash,
                                 confirmations : obj.unspent_outputs[i].confirmations
@@ -1260,12 +1258,12 @@ function initNewTx() {
 
                 self.selected_outputs = [];
 
-                var txValue = BigInteger.ZERO;
+                var txValue = Bitcoin.BigInteger.ZERO;
                 for (var i = 0; i < self.to_addresses.length; ++i) {
                     txValue = txValue.add(self.to_addresses[i].value);
                 }
 
-                var availableValue = BigInteger.ZERO;
+                var availableValue = Bitcoin.BigInteger.ZERO;
 
                 //Add the miners fees
                 if (self.fee != null) {
@@ -1280,7 +1278,7 @@ function initNewTx() {
                 //If we don't have enough funds ask for the watch only private key
                 var unspent_copy = self.unspent.slice(0);
                 function parseOut(out) {
-                    var addr = new Bitcoin.Address(out.script.simpleOutPubKeyHash()).toString();
+                    var addr = Bitcoin.Address.fromOutputScript(out.script).toString();
 
                     if (addr == null) {
                         throw 'Unable to decode output address from transaction hash ' + out.tx_hash;
@@ -1372,14 +1370,14 @@ function initNewTx() {
                 }
 
                 var difference = availableValue.subtract(txValue);
-                if (difference.compareTo(BigInteger.ZERO) < 0) {
+                if (difference.compareTo(Bitcoin.BigInteger.ZERO) < 0) {
                     //Can only adjust when there is one recipient
-                    if (self.to_addresses.length == 1 && availableValue.compareTo(BigInteger.ZERO) > 0 && self.allow_adjust) {
+                    if (self.to_addresses.length == 1 && availableValue.compareTo(Bitcoin.BigInteger.ZERO) > 0 && self.allow_adjust) {
                         self.insufficient_funds(txValue, availableValue, function() {
 
                             //Subtract the difference from the to address
                             var adjusted = self.to_addresses[0].value.add(difference);
-                            if (adjusted.compareTo(BigInteger.ZERO) > 0 && adjusted.compareTo(txValue) <= 0) {
+                            if (adjusted.compareTo(Bitcoin.BigInteger.ZERO) > 0 && adjusted.compareTo(txValue) <= 0) {
                                 self.to_addresses[0].value = adjusted;
 
                                 self.makeTransaction();
@@ -1425,13 +1423,13 @@ function initNewTx() {
 
                 //Now deal with the change
                 var	changeValue = availableValue.subtract(txValue);
-                if (changeValue.compareTo(BigInteger.ZERO) > 0) {
+                if (changeValue.compareTo(Bitcoin.BigInteger.ZERO) > 0) {
                     if (self.change_address != null) //If change address speicified return to that
                         sendTx.addOutput(self.change_address, changeValue);
                     else if (addresses_used.length > 0) { //Else return to a random from address if specified
-                        sendTx.addOutput(new Bitcoin.Address(addresses_used[Math.floor(Math.random() * addresses_used.length)]), changeValue);
+                        sendTx.addOutput(Bitcoin.Address.fromBase58Check(addresses_used[Math.floor(Math.random() * addresses_used.length)]), changeValue);
                     } else { //Otherwise return to random unarchived
-                        sendTx.addOutput(new Bitcoin.Address(MyWallet.getPreferredAddress()), changeValue);
+                        sendTx.addOutput(Bitcoin.Address.fromBase58Check(MyWallet.getPreferredAddress()), changeValue);
                     }
 
                     //If less than 0.01 BTC force fee
@@ -1467,7 +1465,7 @@ function initNewTx() {
                  tbytes = tbytes.concat(makeArrayOf(0, 33-tbytes.length));
                  }
 
-                 sendTx.addOutputScript(Bitcoin.Script.createPubKeyScript(tbytes), BigInteger.ZERO);
+                 sendTx.addOutputScript(Bitcoin.Script.createPubKeyScript(tbytes), Bitcoin.BigInteger.ZERO);
 
                  ibyte += 120;
                  }
@@ -1487,7 +1485,7 @@ function initNewTx() {
 
                 var set_fee_auto = function() {
                     //Forced Fee
-                    self.fee = self.base_fee.multiply(BigInteger.valueOf(kilobytes));
+                    self.fee = self.base_fee.multiply(Bitcoin.BigInteger.valueOf(kilobytes));
 
                     self.makeTransaction();
                 }
@@ -1503,7 +1501,7 @@ function initNewTx() {
                             self.determinePrivateKeys(function() {
                                 self.signInputs();
                             });
-                        }, self.fee, self.base_fee.multiply(BigInteger.valueOf(kilobytes)));
+                        }, self.fee, self.base_fee.multiply(Bitcoin.BigInteger.valueOf(kilobytes)));
                     } else {
                         //Forced Fee
                         set_fee_auto();
@@ -1583,7 +1581,7 @@ function initNewTx() {
                             self.ask_for_private_key(function (key) {
 
                                 try {
-                                    if (inputAddress == key.getBitcoinAddress().toString() || inputAddress == key.getBitcoinAddressCompressed().toString()) {
+                                    if (inputAddress == MyWallet.getUnCompressedAddressString(key) || inputAddress == MyWallet.getCompressedAddressString(key)) {
                                         self.extra_private_keys[inputAddress] = Bitcoin.Base58.encode(key.priv);
 
                                         self.determinePrivateKeys(success); //Try Again

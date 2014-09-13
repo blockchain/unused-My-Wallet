@@ -1,23 +1,55 @@
+function valueToBigInt(valueBuffer) {
+    if (valueBuffer instanceof Bitcoin.BigInteger) return valueBuffer;
+
+    // Prepend zero byte to prevent interpretation as negative integer
+    //return Bitcoin.BigInteger.fromByteArrayUnsigned(valueBuffer);
+    return new Bitcoin.BigInteger.fromByteArrayUnsigned(valueBuffer);
+}
+
+function formatValueBitcoin(valueBuffer) {
+    var value = valueToBigInt(valueBuffer).toString();
+    var integerPart = value.length > 8 ? value.substr(0, value.length-8) : '0';
+    var decimalPart = value.length > 8 ? value.substr(value.length-8) : value;
+    while (decimalPart.length < 8) decimalPart = "0"+decimalPart;
+    decimalPart = decimalPart.replace(/0*$/, '');
+    while (decimalPart.length < 2) decimalPart += "0";
+    return integerPart+"."+decimalPart;
+}
+
+function parseValueBitcoin(valueString) {
+    var valueString = valueString.toString();
+    // TODO: Detect other number formats (e.g. comma as decimal separator)
+    var valueComp = valueString.split('.');
+    var integralPart = valueComp[0];
+    var fractionalPart = valueComp[1] || "0";
+    while (fractionalPart.length < 8) fractionalPart += "0";
+    fractionalPart = fractionalPart.replace(/^0+/g, '');
+    var value = Bitcoin.BigInteger.valueOf(parseInt(integralPart));
+    value = value.multiply(Bitcoin.BigInteger.valueOf(100000000));
+    value = value.add(Bitcoin.BigInteger.valueOf(parseInt(fractionalPart)));
+    return value;
+}
+
 //------
 //Should find somewhere else for these
 //user precision (e.g. BTC or mBTC) to satoshi big int
 function precisionToSatoshiBN(x) {
-    return Bitcoin.Util.parseValue(x).divide(BigInteger.valueOf(Math.pow(10, sShift(symbol_btc)).toString()));
+    return parseValueBitcoin(x).divide(Bitcoin.BigInteger.valueOf(Math.pow(10, sShift(symbol_btc)).toString()));
 }
 
 //user precision (e.g. 0.02 BTC or 0.02 mBTC) to BTC decimal
 function precisionToBTC(x) {
-    return Bitcoin.Util.formatValue(precisionToSatoshiBN(x));
+    return formatValueBitcoin(precisionToSatoshiBN(x));
 }
 
 //Satoshi BN to precision decimal
 function precisionFromSatoshi(x) {
-    return Bitcoin.Util.formatValue(x.multiply(BigInteger.valueOf(Math.pow(10, sShift(symbol_btc)))));
+    return formatValueBitcoin(x.multiply(Bitcoin.BigInteger.valueOf(Math.pow(10, sShift(symbol_btc)))));
 }
 
 //BTC decimal to user precision (e.g. BdeleteAddressTC or mBTC)
 function precisionFromBTC(x) {
-    return precisionFromSatoshi(Bitcoin.Util.parseValue(x));
+    return precisionFromSatoshi(parseValueBitcoin(x));
 }
 
 //user precision to display string
@@ -2612,7 +2644,7 @@ var MyWallet = new function() {
 
                     obj.from_addresses = MyWallet.getActiveAddresses();
 
-                    obj.to_addresses.push({address: new Bitcoin.Address(to), value :  Bitcoin.Util.parseValue(value)});
+                    obj.to_addresses.push({address: new Bitcoin.Address(to), value :  parseValueBitcoin(value)});
 
                     obj.addListener(listener);
 
