@@ -3714,9 +3714,9 @@ var MyWallet = new function() {
             return result;
         }
 
-        window.open(url, null, "scroll=1,status=1,location=1,toolbar=1");
+        var openedWindow = window.open(url, null, "scroll=1,status=1,location=1,toolbar=1");
 
-        if (_hasPopupBlocker(window)) {
+        if (_hasPopupBlocker(openedWindow)) {
             MyWallet.makeNotice('error', 'misc-error', "Popup Blocked. Try and click again.");
             return false;
         } else {

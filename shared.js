@@ -68,10 +68,11 @@ function webSocketConnect(success) {
         var ii = 0;
         function reallyConnect() {
             try {
-                if (ii % 2 == 0)
+                if (ii % 2 == 0) {
                     var url = "wss://ws.blockchain.info/inv";
-                else
+                } else  {
                     var url = "ws://ws.blockchain.info/inv";
+                }
 
                 ++ii;
 

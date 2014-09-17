@@ -10,9 +10,9 @@ $(document).ready(function() {
                 timer = null;
             }
 
-            setTimeout(function() {
+            timer = setTimeout(function() {
                 $('form').submit();
-            }, 500);
+            }, 1000);
         }
 
         $('#amount').on('keyup change', function() {
