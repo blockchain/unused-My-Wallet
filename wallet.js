@@ -3106,11 +3106,12 @@ var MyWallet = new function() {
 
                 MyStore.get('guid', function(local_guid) {
                     MyStore.get('payload', function(local_payload) {
+                        //Error downloading wallet from server
+                        //But we can use the local cache
+                                
                         if (local_guid == guid_or_alias && local_payload) {
                             MyWallet.setEncryptedWalletData(local_payload);
-
-                            MyWallet.makeNotice('error', 'misc-error', 'Error Contacting Server. Using Local Wallet Cache.');
-
+                                
                             //Generate a new Checksum
                             guid = local_guid;
                             payload_checksum = generatePayloadChecksum();
