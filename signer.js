@@ -1395,7 +1395,7 @@ function initNewTx() {
                 for (var i =0; i < self.to_addresses.length; ++i) {
                     var addrObj = self.to_addresses[i];
                     if (addrObj.m != null) {
-                        sendTx.addOutputScript(Bitcoin.Script.createMultiSigOutputScript(addrObj.m, addrObj.pubkeys), addrObj.value);
+                        sendTx.addOutputScript(Bitcoin.scripts.multisigOutput(addrObj.m, addrObj.pubkeys), parseInt(addrObj.value));
                         this.sendTxOutAmounts.push(addrObj.value);
                     } else {
                         sendTx.addOutput(addrObj.address, parseInt(addrObj.value));

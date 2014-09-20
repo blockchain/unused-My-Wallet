@@ -624,6 +624,10 @@ var MyWallet = new function() {
         case 'pubkey':
             addresses.push(new Bitcoin.Address(Bitcoin.crypto.hash160(script.chunks[0]), Bitcoin.networks.bitcoin.pubKeyHash));
             return 1;
+        case 'scripthash':
+            //if script output is to a multisig address, classifyOutput will return scripthash
+            addresses.push(Bitcoin.Address.fromOutputScript(script));
+            return 1;
         case 'multisig':
             for (var i = 1; i < script.chunks.length-2; ++i) {
                 addresses.push(new Bitcoin.Address(Bitcoin.crypto.hash160(script.chunks[i]), Bitcoin.networks.bitcoin.pubKeyHash));
