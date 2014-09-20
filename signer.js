@@ -963,7 +963,7 @@ function signInput(tx, inputN, base58Key, connected_script, type) {
 
     var inputBitcoinAddress = Bitcoin.Address.fromOutputScript(connected_script);
 
-    var key = new Bitcoin.ECKey(new Bitcoin.BigInteger(base58Key), false);
+    var key = new Bitcoin.ECKey(new Bitcoin.BigInteger.fromBuffer(base58Key), false);
 
     if (MyWallet.getUnCompressedAddressString(key) == inputBitcoinAddress.toString()) {
     } else if (MyWallet.getCompressedAddressString(key) == inputBitcoinAddress.toString()) {
