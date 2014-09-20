@@ -243,9 +243,9 @@ var BlockchainAPI = new function() {
             if (transactions.length > 0)
                 var first_tx_index = transactions[0].txIndex;
 
-            var s = tx.serialize();
+            var txHex = tx.toHex();
 
-            var tx_hash = Crypto.util.bytesToHex(Crypto.SHA256(Crypto.SHA256(s, {asBytes: true}), {asBytes: true}).reverse());
+            var tx_hash = tx.getId();
 
             var did_push = function() {
                 _success();
@@ -300,11 +300,9 @@ var BlockchainAPI = new function() {
             }, 5000);
 
             function push_normal() {
-                var hex = Crypto.util.bytesToHex(s);
-
                 var post_data = {
                     format : "plain",
-                    tx: hex,
+                    tx: txHex,
                     hash : tx_hash
                 };
 
@@ -330,16 +328,16 @@ var BlockchainAPI = new function() {
             }
 
             try {
-                var buffer = new ArrayBuffer(s.length);
+                var buffer = tx.toBuffer();
 
                 var int8_array = new Int8Array(buffer);
 
-                int8_array.set(s);
+                int8_array.set(buffer);
 
                 var blob = new Blob([buffer], {type : 'application/octet-stream'});
 
-                if (blob.size != s.length)
-                    throw 'Inconsistent Data Sizes (blob : ' + blob.size + ' s : ' + s.length + ' buffer : ' + buffer.byteLength + ')';
+                if (blob.size != txHex.length/2)
+                    throw 'Inconsistent Data Sizes (blob : ' + blob.size + ' s : ' + txHex.length/2 + ' buffer : ' + buffer.byteLength + ')';
 
                 var fd = new FormData();
 

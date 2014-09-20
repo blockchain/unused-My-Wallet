@@ -609,6 +609,41 @@ var MyWallet = new function() {
     this.getUncompressedPubKey = function(key) {
         return new ECKey(key.d, false).pub;
     }
+    this.getCompressedKey = function(key) {
+        return new ECKey(key.d, true);
+    }
+    this.getUnCompressedAddressString = function(key) {
+        return new ECKey(key.d, false).pub.getAddress().toString();
+    }
+
+    this.extractAddresses = function(script, addresses) {
+        switch (Bitcoin.scripts.classifyOutput(script)) {
+        case 'pubkeyhash':
+            addresses.push(Bitcoin.Address.fromOutputScript(script));
+            return 1;
+        case 'pubkey':
+            addresses.push(new Bitcoin.Address(Bitcoin.crypto.hash160(script.chunks[0]), Bitcoin.networks.bitcoin.pubKeyHash));
+            return 1;
+        case 'multisig':
+            for (var i = 1; i < script.chunks.length-2; ++i) {
+                addresses.push(new Bitcoin.Address(Bitcoin.crypto.hash160(script.chunks[i]), Bitcoin.networks.bitcoin.pubKeyHash));
+            }
+            return script.chunks[0] - Bitcoin.opcodes.OP_1 + 1;
+        default:
+            throw 'Encountered non-standard scriptPubKey';
+        }
+    }
+
+    this.simpleInPubKeyHash = function(script) {
+        switch (Bitcoin.scripts.classifyInput(script)) {
+        case 'pubkeyhash':
+            return Bitcoin.crypto.hash160(script.chunks[1]);
+        case 'pubkey':
+          throw new Error("Script does not contain pubkey.");
+        default:
+          throw new Error("Encountered non-standard scriptSig");
+        }
+    }
 
     //opts = {compressed, app_name, app_version, created_time}
     this.addPrivateKey = function(key, opts) {

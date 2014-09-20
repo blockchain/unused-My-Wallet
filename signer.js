@@ -37,7 +37,7 @@ function IsCanonicalSignature(vchSig) {
     if (vchSig.length > 73)
         throw 'Non-canonical signature: too long';
     var nHashType = vchSig[vchSig.length - 1];
-    if (nHashType != SIGHASH_ALL && nHashType != SIGHASH_NONE && nHashType != SIGHASH_SINGLE && nHashType != SIGHASH_ANYONECANPAY)
+    if (nHashType != Bitcoin.Transaction.SIGHASH_ALL && nHashType != Bitcoin.Transaction.SIGHASH_NONE && nHashType != Bitcoin.Transaction.SIGHASH_SINGLE && nHashType != Bitcoin.Transaction.SIGHASH_ANYONECANPAY)
         throw 'Non-canonical signature: unknown hashtype byte ' + nHashType;
     if (vchSig[0] != 0x30)
         throw 'Non-canonical signature: wrong type';
@@ -434,7 +434,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                     self.modal.find('#review-tx').show();
 
-                    setReviewTransactionContent(self.modal, self.tx, self.type);
+                    setReviewTransactionContent(self.modal, self.tx, self.sendTxInAmounts, self.sendTxOutAmounts, self.type);
 
                     setAdv(false);
 
@@ -479,9 +479,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                 self.modal.find('#review-tx').hide();
                                 self.modal.find('.offline-transaction').show();
 
-                                var s = self.tx.serialize();
-
-                                var hex = Crypto.util.bytesToHex(s);
+                                var hex = self.tx.toHex();
 
                                 self.modal.find('.offline-transaction textarea[name="data"]').val(hex);
                             });
@@ -961,45 +959,31 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
 function signInput(tx, inputN, base58Key, connected_script, type) {
 
-    type = type ? type : SIGHASH_ALL;
+    type = type ? type : Bitcoin.Transaction.SIGHASH_ALL;
 
-    var inputBitcoinAddress = Bitcoin.Address.fromOutputScript(connected_script).toString();
+    var inputBitcoinAddress = Bitcoin.Address.fromOutputScript(connected_script);
 
-    var key = new Bitcoin.ECKey(base58Key);
+    var key = new Bitcoin.ECKey(new Bitcoin.BigInteger(base58Key), false);
 
-    var compressed;
     if (MyWallet.getUnCompressedAddressString(key) == inputBitcoinAddress.toString()) {
-        compressed = false;
     } else if (MyWallet.getCompressedAddressString(key) == inputBitcoinAddress.toString()) {
-        compressed = true;
+        key = new Bitcoin.ECKey(key.d, true);
     } else {
         throw 'Private key does not match bitcoin address ' + inputBitcoinAddress.toString() + ' = ' + MyWallet.getUnCompressedAddressString(key) + ' | '+ MyWallet.getCompressedAddressString(key);
     }
-
-    var hash = tx.hashTransactionForSignature(connected_script, inputN, type);
-
-    var rs = key.sign(hash);
-
-    var signature = Bitcoin.ECDSA.serializeSig(rs.r, rs.s);
-
-    // Append hash type
-    signature.push(type);
+    var signature = tx.signInput(inputN, connected_script, key);
 
     if (!IsCanonicalSignature(signature)) {
         throw 'IsCanonicalSignature returned false';
     }
 
-    var script;
-    if (compressed)
-        script = Bitcoin.Script.createInputScript(signature, key.getPubCompressed());
-    else
-        script = Bitcoin.Script.createInputScript(signature, key.getPub());
+    tx.setInputScript(inputN, Bitcoin.scripts.pubKeyHashInput(signature, key.pub));
 
-    if (script == null) {
+    if (tx.ins[inputN].script == null) {
         throw 'Error creating input script';
     }
 
-    return script;
+    return tx.ins[inputN].script;
 }
 
 
@@ -1028,7 +1012,7 @@ function formatAddresses(m, faddresses, resolve_labels) {
     return str;
 }
 
-function setReviewTransactionContent(modal, tx, type) {
+function setReviewTransactionContent(modal, tx, sendTxInAmounts, sendTxOutAmounts, type) {
 
     $('#rtc-hash').html(Crypto.util.bytesToHex(tx.getHash()));
     $('#rtc-version').html(tx.version);
@@ -1045,39 +1029,33 @@ function setReviewTransactionContent(modal, tx, type) {
     for (var i = 0; i < tx.ins.length; ++i) {
         var input = tx.ins[i];
 
-        total_fees = total_fees.add(input.outpoint.value);
+        total_fees = total_fees.add(sendTxInAmounts[i]);
 
-        wallet_effect = wallet_effect.add(input.outpoint.value);
+        wallet_effect = wallet_effect.add(sendTxInAmounts[i]);
 
         var addr = null;
         try {
-            addr = new Bitcoin.Address(input.script.simpleInPubKeyHash());
+            addr = new Bitcoin.Address(MyWallet.simpleInPubKeyHash(input.script), Bitcoin.networks.bitcoin.pubKeyHash);
         } catch(e) {
             addr = 'Unable To Decode Address';
         }
 
-        $('#rtc-from').append(addr + ' <font color="green">' + formatBTC(input.outpoint.value.toString()) + ' <br />');
+        $('#rtc-from').append(addr + ' <font color="green">' + formatBTC(sendTxInAmounts[i].toString()) + ' <br />');
     }
 
     var isFirst = true;
     for (var i = 0; i < tx.outs.length; ++i) {
         var out = tx.outs[i];
 
-        var array = out.value.slice();
-
-        array.reverse();
-
-        var val =  new Bitcoin.BigInteger(array);
+        var val =  sendTxOutAmounts[i];
 
         var out_addresses = [];
 
         var m = 1;
 
         try {
-            m = out.script.extractAddresses(out_addresses);
+            m = MyWallet.extractAddresses(out.script, out_addresses);
         } catch (e) {
-            console.log(e);
-
             out_addresses.push('Unknown Address!');
         }
 
@@ -1180,6 +1158,8 @@ function initNewTx() {
         do_not_use_unspent_cache : false,
         min_input_size : Bitcoin.BigInteger.ZERO,
         did_specify_fee_manually : false,
+        sendTxInAmounts : [],
+        sendTxOutAmounts : [],
         addListener : function(listener) {
             this.listeners.push(listener);
         },
@@ -1288,11 +1268,12 @@ function initNewTx() {
                         throw 'Output script is null (' + out.tx_hash + ':' + out.tx_output_n + ')';
                     }
 
-                    var b64hash = Crypto.util.bytesToBase64(Crypto.util.hexToBytes(out.tx_hash));
+                    var outTxHash = new Bitcoin.Buffer.Buffer(out.tx_hash, "hex");
+                    Array.prototype.reverse.call(outTxHash);
 
-                    var input = new Bitcoin.TransactionIn({outpoint: {hash: b64hash, index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295});
+                    var transactionInputDict = {outpoint: {hash: outTxHash.toString("hex"), index: out.tx_output_n, value:out.value}, script: out.script, sequence: 4294967295};
 
-                    return {addr : addr , input : input}
+                    return {addr : addr , transactionInputDict : transactionInputDict}
                 };
 
                 //Loop once without watch only, then again with watch only
@@ -1324,7 +1305,7 @@ function initNewTx() {
                             //out.value.compareTo(self.min_free_output_size) >= 0 because we want to prefer a change output of greater than 0.01 BTC
                             //Unless we have the extact tx value
                             if (out.value.compareTo(txValue) == 0 || self.isSelectedValueSufficient(txValue, out.value)) {
-                                self.selected_outputs = [addr_input_obj.input];
+                                self.selected_outputs = [addr_input_obj.transactionInputDict];
 
                                 unspent_copy[i] = null; //Mark it null so we know it is used
 
@@ -1337,7 +1318,7 @@ function initNewTx() {
                                 break;
                             } else {
                                 //Otherwise we add the value of the selected output and continue looping if we don't have sufficient funds yet
-                                self.selected_outputs.push(addr_input_obj.input);
+                                self.selected_outputs.push(addr_input_obj.transactionInputDict);
 
                                 unspent_copy[i] = null; //Mark it null so we know it is used
 
@@ -1403,16 +1384,22 @@ function initNewTx() {
 
                 var sendTx = new Bitcoin.Transaction();
 
+                this.sendTxInAmounts = [];
                 for (var i = 0; i < self.selected_outputs.length; i++) {
-                    sendTx.addInput(self.selected_outputs[i]);
+                    var transactionInputDict = self.selected_outputs[i];
+                    sendTx.addInput(transactionInputDict.outpoint.hash, transactionInputDict.outpoint.index);
+                    this.sendTxInAmounts.push(transactionInputDict.outpoint.value);
                 }
 
+                this.sendTxOutAmounts = [];
                 for (var i =0; i < self.to_addresses.length; ++i) {
                     var addrObj = self.to_addresses[i];
                     if (addrObj.m != null) {
                         sendTx.addOutputScript(Bitcoin.Script.createMultiSigOutputScript(addrObj.m, addrObj.pubkeys), addrObj.value);
+                        this.sendTxOutAmounts.push(addrObj.value);
                     } else {
-                        sendTx.addOutput(addrObj.address, addrObj.value);
+                        sendTx.addOutput(addrObj.address, parseInt(addrObj.value));
+                        this.sendTxOutAmounts.push(addrObj.value);
                     }
 
                     //If less than 0.01 BTC force fee
@@ -1425,12 +1412,13 @@ function initNewTx() {
                 var	changeValue = availableValue.subtract(txValue);
                 if (changeValue.compareTo(Bitcoin.BigInteger.ZERO) > 0) {
                     if (self.change_address != null) //If change address speicified return to that
-                        sendTx.addOutput(self.change_address, changeValue);
+                        sendTx.addOutput(self.change_address, parseInt(changeValue));
                     else if (addresses_used.length > 0) { //Else return to a random from address if specified
-                        sendTx.addOutput(Bitcoin.Address.fromBase58Check(addresses_used[Math.floor(Math.random() * addresses_used.length)]), changeValue);
+                        sendTx.addOutput(Bitcoin.Address.fromBase58Check(addresses_used[Math.floor(Math.random() * addresses_used.length)]), parseInt(changeValue));
                     } else { //Otherwise return to random unarchived
-                        sendTx.addOutput(Bitcoin.Address.fromBase58Check(MyWallet.getPreferredAddress()), changeValue);
+                        sendTx.addOutput(Bitcoin.Address.fromBase58Check(MyWallet.getPreferredAddress()), parseInt(changeValue));
                     }
+                    this.sendTxOutAmounts.push(changeValue);
 
                     //If less than 0.01 BTC force fee
                     if (changeValue.compareTo(self.min_free_output_size) < 0) {
@@ -1465,7 +1453,8 @@ function initNewTx() {
                  tbytes = tbytes.concat(makeArrayOf(0, 33-tbytes.length));
                  }
 
-                 sendTx.addOutputScript(Bitcoin.Script.createPubKeyScript(tbytes), Bitcoin.BigInteger.ZERO);
+                 sendTx.addOutputScript(Bitcoin.Script.createPubKeyScript(tbytes), 0);
+                 this.sendTxOutAmounts.push(0);
 
                  ibyte += 120;
                  }
@@ -1475,7 +1464,7 @@ function initNewTx() {
                 //18 bytes standard header
                 //standard scriptPubKey 24 bytes
                 //Stanard scriptSig 64 bytes
-                var estimatedSize = sendTx.serialize(sendTx).length + (138 * sendTx.ins.length);
+                var estimatedSize = sendTx.toHex().length/2 + (138 * sendTx.ins.length);
 
                 priority /= estimatedSize;
 
@@ -1560,8 +1549,7 @@ function initNewTx() {
                     }
 
                     if (connected_script.priv_to_use == null) {
-                        var pubKeyHash = connected_script.simpleOutPubKeyHash();
-                        var inputAddress = new Bitcoin.Address(pubKeyHash).toString();
+                        var inputAddress = Bitcoin.Address.fromOutputScript(connected_script).toString();
 
                         //Find the matching private key
                         if (tmp_cache[inputAddress]) {
