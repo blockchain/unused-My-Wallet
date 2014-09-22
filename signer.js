@@ -9,10 +9,10 @@ function exceptionToString(err) {
 function generateNewMiniPrivateKey() {
     while (true) {
         //Use a normal ECKey to generate random bytes
-        var key = new Bitcoin.ECKey(false);
+        var key = Bitcoin.ECKey.makeRandom(false);
 
         //Make Candidate Mini Key
-        var minikey = 'S' + Bitcoin.Base58.encode(key.priv).substr(0, 21);
+        var minikey = 'S' + Bitcoin.base58.encode(key.d.toBuffer(32)).substr(0, 21);
 
         //Append ? & hash it again
         var bytes_appended = Crypto.SHA256(minikey + '?', {asBytes: true});
@@ -23,7 +23,7 @@ function generateNewMiniPrivateKey() {
             //SHA256
             var bytes = Crypto.SHA256(minikey, {asBytes: true});
 
-            var eckey = new Bitcoin.ECKey(bytes);
+            var eckey = new Bitcoin.ECKey(new Bitcoin.BigInteger.fromBuffer(bytes), false);
 
             if (MyWallet.addPrivateKey(eckey))
                 return {key : eckey, miniKey : minikey};
@@ -543,7 +543,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                             type : 'sms',
                             to : self.sms_data.number,
                             priv : self.sms_data.miniKey,
-                            hash : Crypto.util.bytesToHex(self.tx.getHash().reverse())
+                            hash : self.tx.getId()
                         }, function() {
                             self.send();
                         }, function(data) {
@@ -594,7 +594,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                             type : 'email',
                                             to : self.email_data.email,
                                             priv : self.email_data.priv,
-                                            hash : Crypto.util.bytesToHex(self.tx.getHash().reverse())
+                                            hash : self.tx.getId()
                                         }, function(data) {
                                             self.send();
                                         }, function(data) {
@@ -877,7 +877,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                             var miniKeyAddrobj = generateNewMiniPrivateKey();
 
                             //Fetch the newly generated address
-                            var address = miniKeyAddrobj.key.getBitcoinAddress().toString();
+                            var address = miniKeyAddrobj.key.pub.getAddress().toString();
 
                             //Archive the address
                             MyWallet.setAddressTag(address, 2);
@@ -911,7 +911,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                                 var key = MyWallet.generateNewKey();
 
                                 //Fetch the newly generated address
-                                var address = key.getBitcoinAddress().toString();
+                                var address = key.pub.getAddress().toString();
 
                                 //Archive the address
                                 MyWallet.setAddressTag(address, 2);
@@ -927,7 +927,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                                 pending_transaction.email_data = {
                                     email : send_to_email,
-                                    priv : B58.encode(key.priv),
+                                    priv : Bitcoin.base58.encode(key.d.toBuffer(32)),
                                     amount : value
                                 }
                             } else {
