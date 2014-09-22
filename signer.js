@@ -1014,7 +1014,7 @@ function formatAddresses(m, faddresses, resolve_labels) {
 
 function setReviewTransactionContent(modal, tx, sendTxInAmounts, sendTxOutAmounts, type) {
 
-    $('#rtc-hash').html(Crypto.util.bytesToHex(tx.getHash()));
+    $('#rtc-hash').html(tx.getId());
     $('#rtc-version').html(tx.version);
     $('#rtc-from').html('');
     $('#rtc-to').html('');
