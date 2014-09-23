@@ -13,7 +13,7 @@ function showClaimModal(key) {
 
     modal.find('.balance').text('Loading...');
 
-    var from_address = key.getBitcoinAddress().toString();
+    var from_address = key.pub.getAddress().toString();
 
     BlockchainAPI.get_balance([from_address], function(data) {
 
@@ -29,7 +29,7 @@ function showClaimModal(key) {
     });
 
     modal.find('.create').unbind().click(function() {
-        window.location = root + 'wallet/new#' + B58.encode(privateKeyToSweep.priv);
+        window.location = root + 'wallet/new#' + Bitcoin.base58.encode(privateKeyToSweep.d.toBuffer(32));
     });
 
     modal.find('.login').unbind().click(function() {
@@ -46,7 +46,7 @@ function showClaimModal(key) {
                     var to_address = $.trim($('#claim-manual-address').val());
 
                     try {
-                        var bitcoin_address = new Bitcoin.Address(to_address);
+                        var bitcoin_address = Bitcoin.Address.fromBase58Check(to_address);
                     } catch (e) {
                         MyWallet.makeNotice('error', 'misc-error', 'Invalid Bitcoin Address');
                         return;
@@ -58,9 +58,9 @@ function showClaimModal(key) {
                         var obj = initNewTx();
 
                         obj.fee = obj.base_fee; //Always include a fee
-                        obj.to_addresses.push({address: bitcoin_address, value : BigInteger.valueOf(value).subtract(obj.fee)});
+                        obj.to_addresses.push({address: bitcoin_address, value : Bitcoin.BigInteger.valueOf(value).subtract(obj.fee)});
                         obj.from_addresses = [from_address];
-                        obj.extra_private_keys[from_address] = B58.encode(privateKeyToSweep.priv);
+                        obj.extra_private_keys[from_address] = Bitcoin.base58.encode(privateKeyToSweep.d.toBuffer(32));
                         obj.ready_to_send_header = 'Bitcoins Ready to Claim.';
 
                         obj.start();
@@ -117,7 +117,7 @@ $(document).ready(function() {
             if (event == 'did_decrypt') {
                 if (privateKeyToSweep) {
                     loadScript('wallet/signer', function() {
-                        var from_address = privateKeyToSweep.getBitcoinAddress().toString();
+                        var from_address = privateKeyToSweep.pub.getAddress().toString();
 
                         BlockchainAPI.get_balance([from_address], function(value) {
                             if (value == 0) {
@@ -126,11 +126,10 @@ $(document).ready(function() {
                             }
 
                             var obj = initNewTx();
-
                             obj.fee = obj.base_fee; //Always include a fee
-                            obj.to_addresses.push({address: new Bitcoin.Address(MyWallet.getPreferredAddress()), value : BigInteger.valueOf(value).subtract(obj.fee)});
+                            obj.to_addresses.push({address: Bitcoin.Address.fromBase58Check(MyWallet.getPreferredAddress()), value : Bitcoin.BigInteger.valueOf(value).subtract(obj.fee)});
                             obj.from_addresses = [from_address];
-                            obj.extra_private_keys[from_address] = B58.encode(privateKeyToSweep.priv);
+                            obj.extra_private_keys[from_address] = Bitcoin.base58.encode(privateKeyToSweep.d.toBuffer(32));
 
                             obj.start();
 
