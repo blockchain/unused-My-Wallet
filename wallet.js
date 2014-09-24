@@ -651,8 +651,9 @@ var MyWallet = new function() {
 
     //opts = {compressed, app_name, app_version, created_time}
     this.addPrivateKey = function(key, opts) {
-        if (walletIsFull())
-            return false;
+        if (walletIsFull()) {
+            throw 'Wallet is full.';
+        }
 
         if (key == null) {
             throw 'Cannot add null key.';
@@ -2345,8 +2346,6 @@ var MyWallet = new function() {
                     payload_checksum = generatePayloadChecksum();
                 }
 
-                setIsInitialized();
-
                 success();
             } catch (e) {
                 error(e);
@@ -2568,7 +2567,7 @@ var MyWallet = new function() {
         }, error);
     }
 
-    function restoreWallet() {
+    this.restoreWallet = function(pw, auth_key) {
 
         if (isInitialized || isRestoringWallet) {
             return;
@@ -2576,7 +2575,7 @@ var MyWallet = new function() {
 
         function error(e) {
             isRestoringWallet = false;
-            MyWallet.makeNotice('error', 'misc-error', e);
+            console.log("makeNotice: error: misc-error: " + e);
 
             MyWallet.sendEvent('error_restoring_wallet');
         }
@@ -2584,21 +2583,18 @@ var MyWallet = new function() {
         try {
             isRestoringWallet = true;
 
-            var input_field = $("#restore-password");
-
-            password = input_field.val();
-
-            //Clear the password field now we are done with it
-            input_field.val('');
+            password = pw;
 
             //Main Password times out after 10 minutes
             last_input_main_password = new Date().getTime();
 
             //If we don't have any wallet data then we must have two factor authentication enabled
             if (encrypted_wallet_data == null || encrypted_wallet_data.length == 0) {
-                MyWallet.setLoadingText('Validating Authentication key');
+                console.log("setLoadingText: " + 'Validating Authentication key');
 
-                var auth_key = $.trim($('.auth-'+auth_type).find('.code').val());
+                if (auth_key == null) {
+                    throw 'Two Factor Authentication code this null';
+                }
 
                 if (auth_key.length == 0 || auth_key.length > 255) {
                     throw 'You must enter a Two Factor Authentication code';
@@ -2619,17 +2615,10 @@ var MyWallet = new function() {
                                 MyWallet.setEncryptedWalletData(data);
                             }
 
-                            //We can now hide the auth token input
-                            $('.auth-'+auth_type).hide();
-
-                            $('.auth-0').show();
-
                             internalRestoreWallet(function() {
                                 isRestoringWallet = false;
 
-                                bindReady();
-
-                                didDecryptWallet();
+                                //didDecryptWallet();
                             }, error);
                         } catch (e) {
                             error(e);
@@ -2643,9 +2632,7 @@ var MyWallet = new function() {
                 internalRestoreWallet(function() {
                     isRestoringWallet = false;
 
-                    bindReady();
-
-                    didDecryptWallet();
+                    //didDecryptWallet();
                 }, error);
             }
         } catch (e) {
@@ -2859,7 +2846,7 @@ var MyWallet = new function() {
 
     this.decryptWallet = function(data, password, success, error) {
         try {
-            MyWallet.setLoadingText('Decrypting Wallet');
+            console.log("setLoadingText: " + 'Decrypting Wallet');
 
             MyWallet.sendEvent('on_wallet_decrypt_start')
 
@@ -2903,22 +2890,8 @@ var MyWallet = new function() {
                     throw 'Wallet version ' + obj.version + ' not supported';
 
                 if (obj.pbkdf2_iterations > 0) {
-                    var modal = $('#decrypting-progress-modal');
-
-                    var timeout = setTimeout(function() {
-                        modal.modal({
-                            keyboard: false,
-                            backdrop: "static",
-                            show: true
-                        });
-
-                        modal.center();
-                    }, 500);
 
                     MyWallet.decryptWebWorker(obj.payload, password, obj.pbkdf2_iterations, function(decrypted) {
-                        clearTimeout(timeout);
-
-                        modal.modal('hide');
 
                         try {
                             var root = $.parseJSON(decrypted);
@@ -2928,9 +2901,6 @@ var MyWallet = new function() {
                             decryptNormal();
                         }
                     }, function(e) {
-                        clearTimeout(timeout);
-
-                        modal.modal('hide');
 
                         decryptNormal();
                     });
@@ -3110,13 +3080,7 @@ var MyWallet = new function() {
             throw 'Cannot Set GUID Once Initialized';
         }
 
-        MyWallet.setLoadingText('Downloading Wallet');
-
-        $('#initial_error,#initial_success').remove();
-
-        var open_wallet_btn = $('#restore-wallet-continue');
-
-        open_wallet_btn.prop('disabled', true);
+        console.log("setLoadingText: " + 'Downloading Wallet');
 
         var clientTime=(new Date()).getTime();
         var data = {format : 'json', resend_code : resend_code, ct : clientTime};
@@ -3138,14 +3102,10 @@ var MyWallet = new function() {
             success: function(obj) {
                 MyWallet.handleNTPResponse(obj, clientTime);
 
-                open_wallet_btn.prop('disabled', false);
-
                 if (!obj.guid) {
-                    MyWallet.makeNotice('error', 'misc-error', 'Server returned null guid.');
+                    console.log("makeNotice: error: misc-error: " + 'Server returned null guid.');
                     return;
                 }
-
-                $('.auth-'+auth_type).hide();
 
                 extra_seed = obj.extra_seed;
                 guid = obj.guid;
@@ -3165,16 +3125,12 @@ var MyWallet = new function() {
 
                 setBTCSymbol(obj.symbol_btc);
 
-                $('#restore-guid').val(guid);
-
-                $('.auth-'+auth_type).show();
-
                 if (obj.initial_error) {
-                    MyWallet.makeNotice('error', 'misc-error', obj.initial_error);
+                    console.log("makeNotice: error: misc-error: " + obj.initial_error);
                 }
 
                 if (obj.initial_success) {
-                    MyWallet.makeNotice('success', 'misc-success', obj.initial_success);
+                    console.log("makeNotice: success: misc-success: " + obj.initial_success);
                 }
 
                 MyStore.get('guid', function(local_guid) {
@@ -3195,24 +3151,19 @@ var MyWallet = new function() {
                 }
             },
             error : function(e) {
-                open_wallet_btn.prop('disabled', false);
 
                 MyStore.get('guid', function(local_guid) {
                     MyStore.get('payload', function(local_payload) {
                         //Error downloading wallet from server
                         //But we can use the local cache
-                                
+
                         if (local_guid == guid_or_alias && local_payload) {
                             MyWallet.setEncryptedWalletData(local_payload);
-                                
+
                             //Generate a new Checksum
                             guid = local_guid;
                             payload_checksum = generatePayloadChecksum();
                             auth_type = 0;
-
-                            $('#restore-guid').val(guid);
-
-                            $('.auth-'+auth_type).show();
 
                             MyWallet.sendEvent('did_set_guid');
                         }  else {
@@ -3228,16 +3179,16 @@ var MyWallet = new function() {
                                 }
 
                                 if (obj.initial_error) {
-                                    MyWallet.makeNotice('error', 'misc-error', obj.initial_error);
+                                    console.log("makeNotice: error: misc-error: " + obj.initial_error);
                                 }
 
                                 return;
                             } catch (ex) {}
 
                             if (e.responseText)
-                                MyWallet.makeNotice('error', 'misc-error', e.responseText);
+                                console.log("makeNotice: error: misc-error: " + e.responseText);
                             else
-                                MyWallet.makeNotice('error', 'misc-error', 'Error changing wallet identifier');
+                                console.log("makeNotice: error: misc-error: " + 'Error changing wallet identifier');
                         }
                     });
                 });
@@ -3470,7 +3421,7 @@ var MyWallet = new function() {
 
     function walletIsFull() {
         if (nKeys(addresses) >= maxAddr) {
-            MyWallet.makeNotice('error', 'misc-error', 'We currently support a maximum of '+maxAddr+' private keys, please remove some unused ones.');
+            console.log("makeNotice: error: misc-error: " + 'We currently support a maximum of '+maxAddr+' private keys, please remove some unused ones.');
             return true;
         }
 
@@ -4535,7 +4486,14 @@ var MyWallet = new function() {
                 sharedKey = null;
                 MyWallet.setGUID(tguid, false);
             } else {
-                restoreWallet();
+                var input_field = $("#restore-password");
+
+                var pw = input_field.val();
+
+                //Clear the password field now we are done with it
+                input_field.val('');
+
+                MyWallet.restoreWallet(pw, null);
             }
         });
 

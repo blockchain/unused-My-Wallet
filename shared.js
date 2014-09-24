@@ -24,7 +24,6 @@ function setLocalSymbol(new_symbol) {
     if (symbol === symbol_local) {
         symbol_local = new_symbol;
         symbol = symbol_local;
-        calcMoney();
     } else {
         symbol_local = new_symbol;
     }
@@ -36,7 +35,6 @@ function setBTCSymbol(new_symbol) {
     if (symbol === symbol_btc) {
         symbol_btc = new_symbol;
         symbol = symbol_btc;
-        calcMoney();
     } else {
         symbol_btc = new_symbol;
     }

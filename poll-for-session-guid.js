@@ -8,7 +8,7 @@ function pollForSessionGUID() {
 
     console.log('pollForSessionGUID()');
 
-    MyWallet.setLoadingText('Waiting For Authorization');
+    console.log("setLoadingText: " + "Waiting For Authorization");
 
     $.ajax({
         dataType: 'json',
@@ -19,7 +19,7 @@ function pollForSessionGUID() {
             if (obj.guid) {
                 isPolling = false;
 
-                MyWallet.makeNotice('success', 'misc-success', 'Authorization Successful');
+                console.log("makeNotice: success: misc-success: " + 'Authorization Successful');
 
                 MyWallet.setGUID(obj.guid, false);
             } else {
@@ -38,7 +38,3 @@ function pollForSessionGUID() {
         }
     });
 };
-
-$(document).ready(function() {
-    pollForSessionGUID();
-});
