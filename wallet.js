@@ -1155,15 +1155,6 @@ var MyWallet = new function() {
 
             parseMultiAddressJSON(data, false);
 
-            if (transactions.length == 0 && tx_page > 0) {
-                //We have set a higher page number than transactions we actually have to display
-                //So rewind the page number to 0
-                MyWallet.setPage(0);
-            } else {
-                //Rebuild the my-addresses list with the new updated balances (Only if visible)
-                buildVisibleView();
-            }
-
             if (success) success();
 
         }, function() {
@@ -2113,7 +2104,7 @@ var MyWallet = new function() {
         }
 
         if (obj.disable_mixer) {
-            $('#shared-addresses,#send-shared').hide();
+            //$('#shared-addresses,#send-shared').hide();
         }
 
         sharedcoin_endpoint = obj.sharedcoin_endpoint;
@@ -2140,7 +2131,6 @@ var MyWallet = new function() {
                 addresses[obj.addresses[i].address].balance = obj.addresses[i].final_balance;
         }
 
-
         for (var i = 0; i < obj.txs.length; ++i) {
             var tx = TransactionFromJSON(obj.txs[i]);
 
@@ -2153,10 +2143,6 @@ var MyWallet = new function() {
         if (!cached) {
             if (obj.info.latest_block)
                 setLatestBlock(obj.info.latest_block);
-        }
-
-        if (obj.partners) {
-            handlePartners(obj.partners);
         }
 
         MyWallet.sendEvent('did_multiaddr');
@@ -2201,31 +2187,9 @@ var MyWallet = new function() {
             MyStore.get('multiaddr', function(multiaddrjson) {
                 if (multiaddrjson != null) {
                     parseMultiAddressJSON($.parseJSON(multiaddrjson), true);
-
-                    buildVisibleView();
                 }
             });
         });
-
-        $('#initial_error,#initial_success').remove();
-
-        var hash = decodeURIComponent(window.location.hash.replace("#", ""));
-        if (hash.indexOf('bitcoin:') == 0) {
-
-            var send_container = $("#send-coins");
-
-            changeView(send_container);
-
-            //Find the first recipient container
-            var recipient = send_container.find('.tab-pane.active').find('.recipient').first();
-
-            MyWallet.handleURI(hash, recipient);
-        } else {
-            changeView($("#home-intro"));
-        }
-
-        //We have dealt the the hash values, don't need them anymore
-        window.location.hash = '';
     }
 
     function checkWalletChecksum(payload_checksum, success, error) {
@@ -2248,7 +2212,7 @@ var MyWallet = new function() {
         if (payload_checksum && payload_checksum.length > 0)
             data.checksum = payload_checksum;
 
-        MyWallet.setLoadingText("Checking For Wallet Updates");
+        console.log("setLoadingText: " + "Checking For Wallet Updates");
 
         MyWallet.securePost("wallet", data, function(obj) {
             if (!obj.payload || obj.payload == 'Not modified') {
@@ -2260,8 +2224,6 @@ var MyWallet = new function() {
 
             internalRestoreWallet(function() {
                 MyWallet.get_history();
-
-                buildVisibleView();
 
                 if (success) success();
             }, function() {
@@ -2618,7 +2580,7 @@ var MyWallet = new function() {
                             internalRestoreWallet(function() {
                                 isRestoringWallet = false;
 
-                                //didDecryptWallet();
+                                didDecryptWallet();
                             }, error);
                         } catch (e) {
                             error(e);
@@ -2632,7 +2594,7 @@ var MyWallet = new function() {
                 internalRestoreWallet(function() {
                     isRestoringWallet = false;
 
-                    //didDecryptWallet();
+                    didDecryptWallet();
                 }, error);
             }
         } catch (e) {

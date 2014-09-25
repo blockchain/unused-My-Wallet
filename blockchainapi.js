@@ -44,7 +44,7 @@ var BlockchainAPI = new function() {
     }(jQuery));
 
     this.get_history = function(success, error, tx_filter, offset, n) {
-        MyWallet.setLoadingText('Loading transactions');
+        console.log("setLoadingText: " + 'Loading transactions');
 
         var clientTime=(new Date()).getTime();
 
@@ -73,7 +73,7 @@ var BlockchainAPI = new function() {
             timeout: AjaxTimeout,
             success: function(obj) {
                 if (obj.error != null) {
-                    MyWallet.makeNotice('error', 'misc-error', obj.error);
+                    console.log("makeNotice: error: misc-error: " + obj.error);
                 }
 
                 MyWallet.handleNTPResponse(obj, clientTime);
@@ -86,7 +86,7 @@ var BlockchainAPI = new function() {
 
                     success(obj);
                 } catch (e) {
-                    MyWallet.makeNotice('error', 'misc-error', e);
+                    console.log("makeNotice: error: misc-error: " + e);
 
                     error();
                 }
@@ -94,9 +94,9 @@ var BlockchainAPI = new function() {
             error : function(data) {
 
                 if (data.responseText)
-                    MyWallet.makeNotice('error', 'misc-error', data.responseText);
+                    console.log("makeNotice: error: misc-error: " + data.responseText);
                 else
-                    MyWallet.makeNotice('error', 'misc-error', 'Error Downloading Wallet Balance');
+                    console.log("makeNotice: error: misc-error: " + 'Error Downloading Wallet Balance');
 
                 error();
             }
