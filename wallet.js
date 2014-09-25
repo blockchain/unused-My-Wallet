@@ -1150,6 +1150,10 @@ var MyWallet = new function() {
         return out;
     }
 
+    this.get_ticker = function(successCallback, errorCallback) {
+        BlockchainAPI.get_ticker(successCallback, errorCallback);
+    }
+
     this.get_history = function(success, error) {
         BlockchainAPI.get_history(function(data) {
 

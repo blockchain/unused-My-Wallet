@@ -142,8 +142,8 @@ var BlockchainAPI = new function() {
         }, error);
     }
 
-    this.get_ticker = function() {
-        MyWallet.setLoadingText('Getting Ticker Data');
+    this.get_ticker = function(successCallback, errorCallback) {
+        console.log("setLoadingText: " + 'Getting Ticker Data');
 
         $.ajax({
             type: "GET",
@@ -152,14 +152,11 @@ var BlockchainAPI = new function() {
             data: {format : 'json'},
             timeout: AjaxTimeout,
             success: function(data) {
-                var container = $('#send-ticker ul').empty();
-
-                for (var code in data) {
-                    container.append('<li><div style="width:35px;padding-left:10px;font-weight:bold;display:inline-block">'+code+'</div>  <i class="icon-user" style="background-image:url('+ resource + ((data[code]['15m'] >= data[code]['24h']) ? 'up_green.png' : 'down_red.png') + ');width:14px;background-position:0px"></i>' + data[code]['15m'] +'</li>');
-                }
+                successCallback(data);
             },
             error : function(e) {
                 console.log(e);
+                errorCallback(e);
             }
         });
     }
