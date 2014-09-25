@@ -278,6 +278,10 @@ var MyWallet = new function() {
     this.getTransactions = function() {
         return transactions;
     }
+    
+    this.parseTransaction = function(transaction) {
+        return parseTransaction(transaction);
+    }
 
     this.addressExists = function(address) {
         return addresses[address] != null;
@@ -1614,6 +1618,82 @@ var MyWallet = new function() {
         })(el, content, tx_hash);
     }
 
+
+    /* For a given transaction, figure out if it was coins moved between 
+    addresses inside the wallet, or coming from someone in the users address
+    book, etc.. Based on getCompactHTML. */
+    function parseTransaction(tx) {
+      var result = {balance: tx.balance, result: tx.result, hash: tx.hash, confirmations: tx.confirmations, doubleSpend: tx.double_spend, coinbase: null, sender: null, receipient: null, intraWallet: null, note: null, txTime: null}
+            
+      var all_from_self = true;
+      if (tx.result >= 0) {
+          for (var i = 0; i < tx.inputs.length; ++i) {
+              var out = tx.inputs[i].prev_out;
+
+              if (!out || !out.addr) {
+                  all_from_self = false;
+                  result.coinbase = true
+              } else {
+                  var my_addr = addresses[out.addr];
+
+                  result.sender = parseOutput(out)
+
+                  if (my_addr)
+                      continue;
+
+                  all_from_self = false;
+                  
+              }
+          }
+      } else if (tx.result < 0) {
+          for (var i = 0; i < tx.out.length; ++i) {
+              var out = tx.out[i];
+
+              var my_addr = addresses[out.addr];
+
+              result.receipient = parseOutput(out)
+
+              if (my_addr && out.type == 0)
+                  continue;
+
+              all_from_self = false;
+
+          }
+      }
+
+      if (all_from_self)
+          result.intraWallet = true;
+
+      result.note = tx.note ? tx.note : tx_notes[tx.hash];
+
+      if (tx.time > 0) {
+        result.txTime = new Date(tx.time * 1000);
+      }
+      
+      return result;
+    }
+    
+    /* Given a transaction output returns information about the sender.
+    */
+    
+    function parseOutput(output) {
+        result = {address: output.addr, label: null}
+      
+        var myAddr = null;
+        if (addresses != null)
+            myAddr = addresses[output.addr];
+
+        if (myAddr != null) {
+            if (myAddr.label != null)
+                result.label = myAddr.label;
+        } else {
+            if (address_book && address_book[output.addr])
+              result.label = address_book[output.addr]
+        }
+        
+        return result;
+    }
+    
 
     function getCompactHTML(tx, myAddresses, addresses_book) {
         var result = tx.result;
