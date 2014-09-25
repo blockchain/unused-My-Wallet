@@ -831,7 +831,7 @@ var MyWallet = new function() {
                     if (last_on_change != new_checksum && old_checksum != new_checksum) {
                         last_on_change = new_checksum;
 
-                        getWallet();
+                        MyWallet.getWallet();
                     }
 
                 } else if (obj.op == 'utx') {
@@ -2180,7 +2180,7 @@ var MyWallet = new function() {
     function didDecryptWallet() {
 
         //We need to check if the wallet has changed
-        getWallet();
+        MyWallet.getWallet();
 
         logout_timeout = setTimeout(MyWallet.logout, MyWallet.getLogoutTime());
 
@@ -2210,7 +2210,7 @@ var MyWallet = new function() {
 
     //Fetch a new wallet from the server
     //success(modified true/false)
-    function getWallet(success, error) {
+    this.getWallet = function(success, error) {
         var data = {method : 'wallet.aes.json', format : 'json'};
 
         if (payload_checksum && payload_checksum.length > 0)
@@ -2685,7 +2685,7 @@ var MyWallet = new function() {
             MyWallet.makeNotice('error', 'misc-error', 'Error Saving Wallet: ' + e, 10000);
 
             //Fetch the wallet agin from server
-            getWallet();
+            MyWallet.getWallet();
 
             buildVisibleView();
 
@@ -4090,7 +4090,7 @@ var MyWallet = new function() {
         $('#logout').click(MyWallet.logout);
 
         $('#refresh').click(function () {
-            getWallet(function() {
+            MyWallet.getWallet(function() {
                 MyWallet.get_history();
             });
         });
@@ -4126,7 +4126,7 @@ var MyWallet = new function() {
         });
 
         $("#new-addr").click(function() {
-            getWallet(function() {
+            MyWallet.getWallet(function() {
                 MyWallet.getSecondPassword(function() {
                     var key = MyWallet.generateNewKey();
 
