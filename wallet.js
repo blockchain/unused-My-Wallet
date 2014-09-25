@@ -2636,15 +2636,17 @@ var MyWallet = new function() {
 
                     obj.from_addresses = MyWallet.getActiveAddresses();
 
-                    obj.to_addresses.push({address: new Bitcoin.Address(to), value :  parseValueBitcoin(value)});
+                    obj.to_addresses.push({address: Bitcoin.Address.fromBase58Check(to), value :  parseValueBitcoin(value)});
 
                     obj.addListener(listener);
 
                     obj.start();
                 } catch (e){
+                    console.log("quickSendNoUI error: " + e);
                     listener.on_error(e);
                 }
             }, function(e) {
+                console.log("getSecondPassword error: " + e);
                 listener.on_error(e);
             });
         });
