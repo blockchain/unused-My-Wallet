@@ -2682,12 +2682,10 @@ var MyWallet = new function() {
         var _errorcallback = function(e) {
             MyWallet.sendEvent('on_backup_wallet_error')
 
-            MyWallet.makeNotice('error', 'misc-error', 'Error Saving Wallet: ' + e, 10000);
+            console.log("makeNotice: error: misc-error: " + 'Error Saving Wallet: ' + e);
 
             //Fetch the wallet agin from server
             MyWallet.getWallet();
-
-            buildVisibleView();
 
             if (errorcallback != null)
                 errorcallback(e);
@@ -2745,9 +2743,8 @@ var MyWallet = new function() {
                                 }
                             }
 
-                            MyWallet.makeNotice('success', 'misc-success', data);
+                            console.log("makeNotice: success: misc-success: " + data);
 
-                            buildVisibleView();
 
                             if (successcallback != null)
                                 successcallback();
