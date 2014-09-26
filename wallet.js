@@ -846,15 +846,6 @@ var MyWallet = new function() {
 
                     var result = calcTxResult(tx, true);
 
-                    if (MyWallet.getHTML5Notifications()) {
-                        //Send HTML 5 Notification
-                        MyWallet.showNotification({
-                            title : result > 0 ? 'Payment Received' : 'Payment Sent',
-                            body : 'Transaction Value ' + formatBTC(result),
-                            iconUrl : resource + 'cube48.png'
-                        });
-                    }
-
                     tx.result = result;
 
                     final_balance += result;
@@ -865,47 +856,7 @@ var MyWallet = new function() {
 
                     playSound('beep');
 
-                    if (tx_filter == 0 && tx_page == 0) {
-                        transactions.unshift(tx);
-
-                        var did_pop = false;
-                        if (transactions.length > MyWallet.getNTransactionsPerPage()) {
-                            transactions.pop();
-                            did_pop = true;
-                        }
-                    }
-
                     MyWallet.sendEvent('on_tx');
-
-                    var id = buildVisibleViewPre();
-                    if ("my-transactions" == id) {
-                        if (tx_filter == 0 && tx_page == 0) {
-                            $('#no-transactions').hide();
-
-                            if (wallet_options.tx_display == 0) {
-                                var txcontainer = $('#transactions-compact').show();
-
-                                bindTx($(getCompactHTML(tx, addresses, address_book)), tx).prependTo(txcontainer.find('tbody')).find('div').hide().slideDown('slow');
-
-                                if (did_pop) {
-                                    txcontainer.find('tbody tr:last-child').remove();
-                                }
-
-                            } else {
-                                var txcontainer = $('#transactions-detailed').show();
-
-                                txcontainer.prepend(tx.getHTML(addresses, address_book));
-
-                                if (did_pop) {
-                                    txcontainer.find('div:last-child').remove();
-                                }
-
-                                setupSymbolToggle();
-                            }
-                        }
-                    } else {
-                        buildVisibleView();
-                    }
 
                 }  else if (obj.op == 'block') {
                     //Check any transactions included in this block, if the match one our ours then set the block index
@@ -923,9 +874,6 @@ var MyWallet = new function() {
                     setLatestBlock(BlockFromJSON(obj.x));
 
                     MyWallet.sendEvent('on_block');
-
-                    //Need to update latest block
-                    buildTransactionsView();
                 }
 
             } catch(e) {
@@ -937,8 +885,6 @@ var MyWallet = new function() {
 
         ws.onopen = function() {
             MyWallet.sendEvent('ws_on_open');
-
-            setLogoutImageStatus('ok');
 
             var msg = '{"op":"blocks_sub"}';
 
@@ -960,7 +906,6 @@ var MyWallet = new function() {
         ws.onclose = function() {
             MyWallet.sendEvent('ws_on_close');
 
-            setLogoutImageStatus('error');
         };
     }
 
@@ -2311,6 +2256,8 @@ var MyWallet = new function() {
                 if (payload_checksum == null || payload_checksum.length == 0) {
                     payload_checksum = generatePayloadChecksum();
                 }
+
+                setIsInitialized();
 
                 success();
             } catch (e) {
