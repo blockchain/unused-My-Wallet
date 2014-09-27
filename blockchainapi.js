@@ -44,7 +44,7 @@ var BlockchainAPI = new function() {
     }(jQuery));
 
     this.get_history = function(success, error, tx_filter, offset, n) {
-        console.log("setLoadingText: " + 'Loading transactions');
+        MyWallet.sendMonitorEvent({type: "info", message: 'Loading transactions', code: 0});
 
         var clientTime=(new Date()).getTime();
 
@@ -73,7 +73,7 @@ var BlockchainAPI = new function() {
             timeout: AjaxTimeout,
             success: function(obj) {
                 if (obj.error != null) {
-                    console.log("makeNotice: error: misc-error: " + obj.error);
+                    MyWallet.sendMonitorEvent({type: "error", message: obj.error, code: 0});
                 }
 
                 MyWallet.handleNTPResponse(obj, clientTime);
@@ -86,7 +86,7 @@ var BlockchainAPI = new function() {
 
                     success(obj);
                 } catch (e) {
-                    console.log("makeNotice: error: misc-error: " + e);
+                    MyWallet.sendMonitorEvent({type: "error", message: e, code: 0});
 
                     error();
                 }
@@ -94,9 +94,9 @@ var BlockchainAPI = new function() {
             error : function(data) {
 
                 if (data.responseText)
-                    console.log("makeNotice: error: misc-error: " + data.responseText);
+                    MyWallet.sendMonitorEvent({type: "error", message: data.responseText, code: 0});
                 else
-                    console.log("makeNotice: error: misc-error: " + 'Error Downloading Wallet Balance');
+                    MyWallet.sendMonitorEvent({type: "error", message: 'Error Downloading Wallet Balance', code: 0});
 
                 error();
             }
@@ -143,7 +143,7 @@ var BlockchainAPI = new function() {
     }
 
     this.get_ticker = function(successCallback, errorCallback) {
-        console.log("setLoadingText: " + 'Getting Ticker Data');
+        MyWallet.sendMonitorEvent({type: "info", message: 'Getting Ticker Data', code: 0});
 
         $.ajax({
             type: "GET",

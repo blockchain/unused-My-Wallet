@@ -94,6 +94,7 @@ var MyWallet = new function() {
     var real_auth_type = 0; //The real two factor authentication. Even if there is a problem with the current one (for example error 2FA sending email).
     var logout_timeout; //setTimeout return value for the automatic logout
     var event_listeners = []; //Emits Did decrypt wallet event (used on claim page)
+    var monitor_listeners = []; //success, errors, notices
     var last_input_main_password; //The time the last password was entered
     var main_password_timeout = 60000;
     var isInitialized = false;
@@ -176,6 +177,16 @@ var MyWallet = new function() {
     this.sendEvent = function(event_name, obj) {
         for (var listener in event_listeners) {
             event_listeners[listener](event_name, obj)
+        }
+    }
+
+    this.monitor = function(func) {
+        monitor_listeners.push(func);
+    }
+
+    this.sendMonitorEvent = function(obj) {
+        for (var listener in monitor_listeners) {
+            monitor_listeners[listener](obj)
         }
     }
 
@@ -2161,7 +2172,8 @@ var MyWallet = new function() {
         if (payload_checksum && payload_checksum.length > 0)
             data.checksum = payload_checksum;
 
-        console.log("setLoadingText: " + "Checking For Wallet Updates");
+        MyWallet.sendMonitorEvent({type: "info", message: "Checking For Wallet Updates", code: 0});
+
 
         MyWallet.securePost("wallet", data, function(obj) {
             if (!obj.payload || obj.payload == 'Not modified') {
@@ -2488,7 +2500,7 @@ var MyWallet = new function() {
 
         function error(e) {
             isRestoringWallet = false;
-            console.log("makeNotice: error: misc-error: " + e);
+            MyWallet.sendMonitorEvent({type: "error", message: e, code: 0});
 
             MyWallet.sendEvent('error_restoring_wallet');
         }
@@ -2503,7 +2515,7 @@ var MyWallet = new function() {
 
             //If we don't have any wallet data then we must have two factor authentication enabled
             if (encrypted_wallet_data == null || encrypted_wallet_data.length == 0) {
-                console.log("setLoadingText: " + 'Validating Authentication key');
+                MyWallet.sendMonitorEvent({type: "info", message: 'Validating Authentication key', code: 0});
 
                 if (auth_key == null) {
                     throw 'Two Factor Authentication code this null';
@@ -2631,7 +2643,7 @@ var MyWallet = new function() {
         var _errorcallback = function(e) {
             MyWallet.sendEvent('on_backup_wallet_error')
 
-            console.log("makeNotice: error: misc-error: " + 'Error Saving Wallet: ' + e);
+            MyWallet.sendMonitorEvent({type: "error", message: 'Error Saving Wallet: ' + e, code: 0});
 
             //Fetch the wallet agin from server
             MyWallet.getWallet();
@@ -2692,7 +2704,7 @@ var MyWallet = new function() {
                                 }
                             }
 
-                            console.log("makeNotice: success: misc-success: " + data);
+                            MyWallet.sendMonitorEvent({type: "success", message: data, code: 0});
 
 
                             if (successcallback != null)
@@ -2758,7 +2770,7 @@ var MyWallet = new function() {
 
     this.decryptWallet = function(data, password, success, error) {
         try {
-            console.log("setLoadingText: " + 'Decrypting Wallet');
+            MyWallet.sendMonitorEvent({type: "info", message: 'Decrypting Wallet', code: 0});
 
             MyWallet.sendEvent('on_wallet_decrypt_start')
 
@@ -2992,7 +3004,7 @@ var MyWallet = new function() {
             throw 'Cannot Set GUID Once Initialized';
         }
 
-        console.log("setLoadingText: " + 'Downloading Wallet');
+        MyWallet.sendMonitorEvent({type: "info", message: 'Downloading Wallet', code: 0});
 
         var clientTime=(new Date()).getTime();
         var data = {format : 'json', resend_code : resend_code, ct : clientTime};
@@ -3015,7 +3027,7 @@ var MyWallet = new function() {
                 MyWallet.handleNTPResponse(obj, clientTime);
 
                 if (!obj.guid) {
-                    console.log("makeNotice: error: misc-error: " + 'Server returned null guid.');
+                    MyWallet.sendMonitorEvent({type: "error", message: 'Server returned null guid.', code: 0});
                     return;
                 }
 
@@ -3038,11 +3050,11 @@ var MyWallet = new function() {
                 setBTCSymbol(obj.symbol_btc);
 
                 if (obj.initial_error) {
-                    console.log("makeNotice: error: misc-error: " + obj.initial_error);
+                    MyWallet.sendMonitorEvent({type: "error", message: obj.initial_error, code: 0});
                 }
 
                 if (obj.initial_success) {
-                    console.log("makeNotice: success: misc-success: " + obj.initial_success);
+                    MyWallet.sendMonitorEvent({type: "success", message: obj.initial_success, code: 0});
                 }
 
                 MyStore.get('guid', function(local_guid) {
@@ -3091,16 +3103,16 @@ var MyWallet = new function() {
                                 }
 
                                 if (obj.initial_error) {
-                                    console.log("makeNotice: error: misc-error: " + obj.initial_error);
+                                    MyWallet.sendMonitorEvent({type: "error", message: obj.initial_error, code: 0});
                                 }
 
                                 return;
                             } catch (ex) {}
 
                             if (e.responseText)
-                                console.log("makeNotice: error: misc-error: " + e.responseText);
+                                MyWallet.sendMonitorEvent({type: "error", message: e.responseText, code: 0});
                             else
-                                console.log("makeNotice: error: misc-error: " + 'Error changing wallet identifier');
+                                MyWallet.sendMonitorEvent({type: "error", message: 'Error changing wallet identifier', code: 0});
                         }
                     });
                 });
@@ -3333,7 +3345,7 @@ var MyWallet = new function() {
 
     function walletIsFull() {
         if (nKeys(addresses) >= maxAddr) {
-            console.log("makeNotice: error: misc-error: " + 'We currently support a maximum of '+maxAddr+' private keys, please remove some unused ones.');
+            MyWallet.sendMonitorEvent({type: "error", message: 'We currently support a maximum of '+maxAddr+' private keys, please remove some unused ones.', code: 0});
             return true;
         }
 

@@ -1199,7 +1199,7 @@ function initNewTx() {
                                     throw 'Strange Script';
 
                             } catch(e) {
-                                console.log("makeNotice: error: misc-error: " + 'Error Saving Wallet: ' + e); //Not a fatal error
+                                MyWallet.sendMonitorEvent({type: "error", message: 'Error Saving Wallet: ' + e, code: 0}); //Not a fatal error
                                 continue;
                             }
 
@@ -1841,7 +1841,7 @@ function initNewTx() {
             console.log(e);
 
             if(e) {
-                console.log("makeNotice: error: tx-error: " + e);
+                MyWallet.sendMonitorEvent({type: "error", message: e, code: 0});
             }
         },
         on_begin_signing : function() {

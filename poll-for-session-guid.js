@@ -8,7 +8,7 @@ function pollForSessionGUID() {
 
     console.log('pollForSessionGUID()');
 
-    console.log("setLoadingText: " + "Waiting For Authorization");
+    MyWallet.sendMonitorEvent({type: "info", message: "Waiting For Authorization", code: 0});
 
     $.ajax({
         dataType: 'json',
@@ -19,7 +19,7 @@ function pollForSessionGUID() {
             if (obj.guid) {
                 isPolling = false;
 
-                console.log("makeNotice: success: misc-success: " + 'Authorization Successful');
+                MyWallet.sendMonitorEvent({type: "success", message: 'Authorization Successful', code: 0});
 
                 MyWallet.setGUID(obj.guid, false);
             } else {
