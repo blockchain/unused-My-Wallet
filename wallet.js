@@ -2996,9 +2996,9 @@ var MyWallet = new function() {
 
 
     //Fetch information on a new wallet identfier
-    this.setGUID = function(guid_or_alias, resend_code) {
+    this.setGUID = function(user_guid, resend_code) {
 
-//        console.log('Set GUID ' + guid_or_alias);
+//        console.log('Set GUID ' + user_guid);
 
         if (isInitialized) {
             throw 'Cannot Set GUID Once Initialized';
@@ -3020,7 +3020,7 @@ var MyWallet = new function() {
         $.ajax({
             type: "GET",
             dataType: 'json',
-            url: root + 'wallet/'+guid_or_alias,
+            url: root + 'wallet/'+user_guid,
             data : data,
             timeout: 60000,
             success: function(obj) {
@@ -3081,7 +3081,7 @@ var MyWallet = new function() {
                         //Error downloading wallet from server
                         //But we can use the local cache
 
-                        if (local_guid == guid_or_alias && local_payload) {
+                        if (local_guid == user_guid && local_payload) {
                             MyWallet.setEncryptedWalletData(local_payload);
 
                             //Generate a new Checksum
