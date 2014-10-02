@@ -868,6 +868,8 @@ var MyWallet = new function() {
                     n_tx++;
 
                     tx.setConfirmations(0);
+                    
+                    transactions.push(tx);
 
                     playSound('beep');
 
