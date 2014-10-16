@@ -76,6 +76,7 @@ var MyWallet = new function() {
     var haveBoundReady = false;
     var isRestoringWallet = false;
     var sync_pubkeys = false;
+    var hdWalletsPlaceHolder = null;
 
     var wallet_options = {
         pbkdf2_iterations : default_pbkdf2_iterations, //Number of pbkdf2 iterations to default to for second password and dpasswordhash
@@ -1043,6 +1044,10 @@ var MyWallet = new function() {
             out = out.substring(0, out.length-2);
 
             out += "\n	]";
+        }
+
+        if (hdWalletsPlaceHolder) {
+            out += ',\n "hd_wallets" : ' + JSON.stringify(hdWalletsPlaceHolder)            
         }
 
         if (nKeys(tx_notes) > 0) {
@@ -2235,6 +2240,10 @@ var MyWallet = new function() {
                             MyWallet.addAddressBookEntry(entry.addr, entry.label);
                         }
                     }
+                }
+
+                if (obj.hd_wallets) {
+                    hdWalletsPlaceHolder = obj.hd_wallets;
                 }
 
                 if (obj.tx_notes) {
