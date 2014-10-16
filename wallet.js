@@ -2580,6 +2580,10 @@ var MyWallet = new function() {
         $('#large-summary').show();
     }
 
+    this.connectWebSocket = function() {
+        webSocketConnect(wsSuccess);
+    }
+
     this.quickSendNoUI = function(to, value, listener) {
         loadScript('wallet/signer', function() {
             MyWallet.getSecondPassword(function() {
