@@ -339,6 +339,10 @@ var SharedCoin = new function() {
                             complete(clone.tx_hash, clone.tx);
                         } else if (clone.status == 'signatures_needed') {
                             success(clone);
+                        } else if (clone.status == 'waiting') {
+                            self.getProposal(proposal_id, success, error, complete)
+                        } else {
+                            error('Unknown get_proposal_id status')
                         }
                     },
                     error : function(e) {
@@ -542,16 +546,17 @@ var SharedCoin = new function() {
                     retryLimit: AjaxRetry,
                     data : {method : 'submit_signatures', format : 'json', input_scripts : JSON.stringify(input_scripts), offer_id : self.offer_id, proposal_id : proposal.proposal_id},
                     success: function (obj) {
-                        if (obj.status == 'not_found')
+                        if (obj.status == 'not_found') {
                             error('Proposal Expired or Not Found');
-                        else if (obj.status == 'verification_failed')
+                        } else if (obj.status == 'verification_failed') {
                             error('Signature Verification Failed');
-                        else if (obj.status == 'complete')
+                        } else if (obj.status == 'complete') {
                             complete(obj.tx_hash, obj.tx);
-                        else if (obj.status == 'signatures_accepted')
+                        } else if (obj.status == 'signatures_accepted') {
                             success('Signatures Accepted');
-                        else
+                        } else {
                             error('Unknown status ' + obj.status);
+                        }
                     },
                     error : function(e) {
                         error(e.responseText);

@@ -2,5 +2,5 @@ $(document).ready(function() {
     setTimeout(function() {
         window.location = $(document.body).data('url');
 
-    }, parseInt($(document.body).data('time')))
+    }, parseInt($(document.body).data('time'))*1000)
 });
