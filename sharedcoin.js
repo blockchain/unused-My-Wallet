@@ -631,13 +631,13 @@ var SharedCoin = new function() {
             var address = key.getBitcoinAddressCompressed();
         }
 
-        return {address: address.toString(), key: key};
+        return {address: address, key: key};
     }
 
     this.generateAddressFromCustomSeed = function(seed, n) {
         var key_container = this.generateAddressAndKeyFromCustomSeed(seed, n);
 
-        extra_private_keys[key_container.address] = Bitcoin.Base58.encode(key_container.key.priv);
+        extra_private_keys[key_container.address.toString()] = Bitcoin.Base58.encode(key_container.key.priv);
 
         return key_container.address;
     }
@@ -1302,8 +1302,10 @@ var SharedCoin = new function() {
             for (var i = 0; i < 100; ++i) {
                 var key_container = SharedCoin.generateAddressAndKeyFromCustomSeed(seed, i);
 
-                if (!MyWallet.addressExists(key_container.address)) {
-                    keys[key_container.address] = key_container.key;
+                var address = key_container.address.toString();
+
+                if (!MyWallet.addressExists(address)) {
+                    keys[address] = key_container.key;
                 }
             }
 
@@ -1437,11 +1439,14 @@ var SharedCoin = new function() {
 
                             setTimeout(function() {
                                 if (plan && plan.c_stage >= 0) {
-                                    console.log('Recover Seed');
+                                    console.log('Recover Seeds');
+
+                                    progressModal.hide();
+
                                     SharedCoin.recoverSeeds([seed_prefix + plan.address_seed], function() {
-                                        console.log('Recover Success');
+                                        progressModal.show();
                                     }, function() {
-                                        console.log('Recover Error');
+                                        progressModal.show();
                                     });
                                 }
                             }, 1000);
