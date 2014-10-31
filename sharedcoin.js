@@ -620,7 +620,7 @@ var SharedCoin = new function() {
         };
     };
 
-    this.generateAddressFromCustomSeed = function(seed, n) {
+    this.generateAddressAndKeyFromCustomSeed = function(seed, n) {
         var hash = Crypto.SHA256(seed + n, {asBytes: true});
 
         var key = new Bitcoin.ECKey(hash);
@@ -631,9 +631,15 @@ var SharedCoin = new function() {
             var address = key.getBitcoinAddressCompressed();
         }
 
-        extra_private_keys[address.toString()] = Bitcoin.Base58.encode(key.priv);
+        return {address: address.toString(), key: key};
+    }
 
-        return address;
+    this.generateAddressFromCustomSeed = function(seed, n) {
+        var key_container = this.generateAddressAndKeyFromCustomSeed(seed, n);
+
+        extra_private_keys[key_container.address] = Bitcoin.Base58.encode(key_container.key.priv);
+
+        return key_container.address;
     }
 
     this.newPlan = function() {
@@ -705,7 +711,7 @@ var SharedCoin = new function() {
                                 offer.signInputs(proposal, tx, function(signatures) {
                                     console.log('Inputs Signed');
 
-                                   offer.submitInputScripts(proposal, signatures, function (obj) {
+                                    offer.submitInputScripts(proposal, signatures, function (obj) {
                                         console.log('Submitted Input Scripts');
 
                                         proposal.pollForCompleted(complete, error);
@@ -1241,69 +1247,109 @@ var SharedCoin = new function() {
         }
     }
 
-    this.recoverSeeds = function(shared_coin_seeds, success, error) {
-        var key = 0;
-        var addresses = [];
-        function doNext() {
-            var seed = shared_coin_seeds[key];
+    this.recoverSeeds = function(shared_coin_seeds, _success, _error) {
 
-            ++key;
+        var modal = $('#sharedcoin-recover-progress-modal');
+
+        var progress = modal.find('.bar');
+
+        modal.modal('show');
+
+        progress.width('0%');
+
+        var error = function(e) {
+            modal.modal('hide');
+
+            _error(e);
+        }
+
+        var success = function(m) {
+            modal.modal('hide');
+
+            _success(m);
+        }
+
+        var index = 0;
+
+        var final_balance_recovered = 0;
+
+        function doNext() {
+
+            if (!modal.is(':visible')) {
+                return;
+            }
+
+            if (index >= shared_coin_seeds.length) {
+                if (final_balance_recovered > 0) {
+                    MyWallet.get_history();
+
+                    MyWallet.makeNotice('success', 'misc-success', formatBTC(final_balance_recovered) + ' recovered from intermediate addresses');
+                }
+
+                success();
+
+                return;
+            }
+
+            progress.width((index / shared_coin_seeds.length) * 100);
+
+            var seed = shared_coin_seeds[index];
+
+            ++index;
+
+            var keys = {};
 
             for (var i = 0; i < 100; ++i) {
-                var address = SharedCoin.generateAddressFromCustomSeed(seed, i).toString();
-                addresses.push(address);
-            }
+                var key_container = SharedCoin.generateAddressAndKeyFromCustomSeed(seed, i);
 
-            if (key == shared_coin_seeds.length) {
-                while(addresses.length > 0) {
-                    (function(addresses) {
-                        BlockchainAPI.get_balances(addresses, function(results) {
-                            try {
-                                var total_balance = 0;
-                                for (var key in results) {
-                                    var address = key;
-                                    var balance = results[address].final_balance;
-                                    if (balance > 0) {
-                                        console.log('Balance ' + address + ' = ' + balance);
-
-                                        var ecKey = new Bitcoin.ECKey(Bitcoin.Base58.decode(extra_private_keys[address]));
-
-                                        var uncompressed_address = ecKey.getBitcoinAddress().toString();
-
-                                        try {
-                                            if (MyWallet.addPrivateKey(ecKey, {
-                                                compressed : address != uncompressed_address,
-                                                app_name : IMPORTED_APP_NAME,
-                                                app_version : IMPORTED_APP_VERSION
-                                            })) {
-                                                console.log('Imported ' + address);
-                                            }
-                                        } catch (e) {
-                                            console.log('Error importing ' + address);
-                                        }
-                                    }
-                                    total_balance += balance;
-                                }
-
-                                MyWallet.makeNotice('success', 'misc-success', formatBTC(total_balance) + ' recovered from intermediate addresses');
-
-                                if (total_balance > 0) {
-                                    MyWallet.backupWalletDelayed('update', function() {
-                                        MyWallet.get_history();
-                                    });
-                                }
-
-                                success();
-                            } catch (e) {
-                                error(e);
-                            }
-                        }, error);
-                    })(addresses.splice(0, 1000));
+                if (!MyWallet.addressExists(key_container.address)) {
+                    keys[key_container.address] = key_container.key;
                 }
-            } else {
-                setTimeout(doNext, 100);
             }
+
+            BlockchainAPI.get_balances(Object.keys(keys), function(results) {
+                try {
+                    var total_balance = 0;
+                    for (var address in results) {
+                        var balance = results[address].final_balance;
+                        if (balance > 0) {
+                            console.log('Balance ' + address + ' = ' + balance);
+
+                            var ecKey = keys[address];
+
+                            var uncompressed_address = ecKey.getBitcoinAddress().toString();
+
+                            try {
+                                if (MyWallet.addPrivateKey(ecKey, {
+                                    compressed : address != uncompressed_address,
+                                    app_name : IMPORTED_APP_NAME,
+                                    app_version : IMPORTED_APP_VERSION
+                                })) {
+                                    console.log('Imported ' + address);
+                                }
+                            } catch (e) {
+                                console.log('Error importing ' + address);
+                            }
+                        }
+
+                        total_balance += balance;
+                    }
+
+                    if (total_balance > 0) {
+                        final_balance_recovered += total_balance;
+
+                        MyWallet.backupWalletDelayed('update', function() {
+                            setTimeout(doNext, 500);
+                        });
+                    } else {
+                        setTimeout(doNext, 500);
+                    }
+                } catch (e) {
+                    error(e);
+                }
+            }, error);
         }
+
         setTimeout(doNext, 100);
     }
 
@@ -1398,7 +1444,7 @@ var SharedCoin = new function() {
                                         console.log('Recover Error');
                                     });
                                 }
-                            }, 2000)
+                            }, 1000);
 
                             progressModal.enableCancel();
                         };
