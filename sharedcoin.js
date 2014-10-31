@@ -1291,7 +1291,7 @@ var SharedCoin = new function() {
                 return;
             }
 
-            progress.width((index / shared_coin_seeds.length) * 100);
+            progress.width(((index / shared_coin_seeds.length) * 100) + '%');
 
             var seed = shared_coin_seeds[index];
 
