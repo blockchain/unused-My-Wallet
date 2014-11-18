@@ -1176,6 +1176,7 @@ function initNewTx() {
         is_cancelled : false,
         base_fee : BigInteger.valueOf(10000),
         min_free_output_size : BigInteger.valueOf(1000000),
+        min_non_standard_output_size : BigInteger.valueOf(5460),
         allow_adjust : true,
         ready_to_send_header : 'Transaction Ready to Send.',
         min_input_confirmations : 0,
@@ -1425,8 +1426,11 @@ function initNewTx() {
 
                 //Now deal with the change
                 var	changeValue = availableValue.subtract(txValue);
-                if (changeValue.compareTo(BigInteger.ZERO) > 0) {
-                    if (self.change_address != null) //If change address speicified return to that
+
+                //Consume the change if it would create a very small none standard output
+                //Perhaps this behaviour should be user specified
+                if (changeValue.compareTo(self.min_non_standard_output_size) > 0) {
+                    if (self.change_address != null) //If change address specified return to that
                         sendTx.addOutput(self.change_address, changeValue);
                     else if (addresses_used.length > 0) { //Else return to a random from address if specified
                         sendTx.addOutput(new Bitcoin.Address(addresses_used[Math.floor(Math.random() * addresses_used.length)]), changeValue);
