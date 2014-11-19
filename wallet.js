@@ -1647,6 +1647,9 @@ var MyWallet = new function() {
     }
 
     function buildHomeIntroView(reset) {
+
+        $('.wallet-nav').show();
+
         $('#summary-n-tx').html(n_tx);
 
         $('#summary-received').html(formatMoney(total_received, true));
@@ -4395,11 +4398,11 @@ var MyWallet = new function() {
         });
 
         $('#reset-two-factor-btn').click(function() {
-            MyWallet.openWindow(root + 'wallet/reset-two-factor' + (guid ? '?guid=' + guid : ''));
+            MyWallet.openWindow(com_root + 'wallet/reset-two-factor' + (guid ? '?guid=' + guid : ''));
         });
 
         $('.recover-wallet-btn').click(function() {
-            MyWallet.openWindow(root + 'wallet/forgot-password'+ (guid ? '?guid=' + guid : ''));
+            MyWallet.openWindow(com_root + 'wallet/forgot-password'+ (guid ? '?guid=' + guid : ''));
         });
 
         $('.download-backup-btn').toggle(encrypted_wallet_data != null).click(function() {
