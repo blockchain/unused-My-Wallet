@@ -2020,8 +2020,12 @@ var MyWallet = new function() {
 
                 if (obj.info.symbol_btc)
                     setBTCSymbol(obj.info.symbol_btc);
+
+                if (obj.info.notice)
+                    MyWallet.makeNotice('error', 'misc-error', obj.info.notice);
             }
         }
+
 
         if (obj.disable_mixer) {
             $('#shared-addresses,#send-shared').hide();
