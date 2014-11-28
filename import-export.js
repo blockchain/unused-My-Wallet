@@ -254,7 +254,7 @@ function _ImportExport() {
                             //If there is a private key we first need to decrypt it, detect the format then re-insert
                             if (priv != null) {
 
-                                var tmp_pbkdf2_iterations = MyWallet.getDefaultPbkdf2Iterations();
+                                var tmp_pbkdf2_iterations = 10;
                                 if (obj.options && obj.options.pbkdf2_iterations)
                                     tmp_pbkdf2_iterations = obj.options.pbkdf2_iterations;
 

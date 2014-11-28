@@ -55,7 +55,8 @@ var MyWallet = new function() {
     var archTimer; //Delayed Backup wallet timer
     var mixer_fee = 0.5; //Default mixer fee 1.5%
     var recommend_include_fee = true; //Number of unconfirmed transactions in blockchain.info's memory pool
-    var default_pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
+    var legacy_default_pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
+    var default_pbkdf2_iterations = 5000; //Not ideal, but limitations of using javascript
     var main_pbkdf2_iterations = default_pbkdf2_iterations; //The number of pbkdf2 iterations used for the main password
     var tx_notes = {}; //A map of transaction notes, hash -> note
     var auth_type; //The two factor authentication type used. 0 for none.
@@ -153,10 +154,6 @@ var MyWallet = new function() {
 
     this.getMainPasswordPbkdf2Iterations = function() {
         return main_pbkdf2_iterations;
-    }
-
-    this.getDefaultPbkdf2Iterations = function() {
-        return default_pbkdf2_iterations;
     }
 
     this.getSharedKey = function() {
@@ -2419,7 +2416,7 @@ var MyWallet = new function() {
                 try {
                     if (version == 1) {
                         MyWallet.securePost("wallet", { method : 'pairing-encryption-password' }, function(encryption_phrase) {
-                            success($('<div></div>').qrcode({width: 300, height: 300, text: '1|'+ guid + '|' + MyWallet.encrypt(sharedKey + '|' + Crypto.util.bytesToHex(UTF8.stringToBytes(password)), encryption_phrase, MyWallet.getDefaultPbkdf2Iterations())}));
+                            success($('<div></div>').qrcode({width: 300, height: 300, text: '1|'+ guid + '|' + MyWallet.encrypt(sharedKey + '|' + Crypto.util.bytesToHex(UTF8.stringToBytes(password)), encryption_phrase, 10)}));
                         }, function(e) {
                             MyWallet.makeNotice('error', 'misc-error', e);
                         });
@@ -2768,17 +2765,11 @@ var MyWallet = new function() {
 
     //Changed padding to CBC iso10126 9th March 2012 & iterations to pbkdf2_iterations
     this.encryptWallet = function(data, password) {
-        if (encryption_version_used == 2.0) {
-            return JSON.stringify({
-                pbkdf2_iterations : MyWallet.getMainPasswordPbkdf2Iterations(),
-                version : encryption_version_used,
-                payload : MyWallet.encrypt(data, password, MyWallet.getMainPasswordPbkdf2Iterations())
-            });
-        } else if (encryption_version_used == 0.0) {
-            return MyWallet.encrypt(data, password, MyWallet.getDefaultPbkdf2Iterations());
-        } else {
-            throw 'Unknown encryption version ' + encryption_version_used;
-        }
+        return JSON.stringify({
+            pbkdf2_iterations : MyWallet.getMainPasswordPbkdf2Iterations(),
+            version : 2.0,
+            payload : MyWallet.encrypt(data, password, MyWallet.getMainPasswordPbkdf2Iterations())
+        });
     }
 
     this.decryptWallet = function(data, password, success, error) {
@@ -2862,7 +2853,7 @@ var MyWallet = new function() {
                     decryptNormal();
                 }
             } else {
-                MyWallet.decrypt(data, password, MyWallet.getDefaultPbkdf2Iterations(), function(decrypted) {
+                MyWallet.decrypt(data, password, 10, function(decrypted) {
                     try {
                         var root = $.parseJSON(decrypted);
 
