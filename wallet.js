@@ -55,8 +55,7 @@ var MyWallet = new function() {
     var archTimer; //Delayed Backup wallet timer
     var mixer_fee = 0.5; //Default mixer fee 1.5%
     var recommend_include_fee = true; //Number of unconfirmed transactions in blockchain.info's memory pool
-    var legacy_default_pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
-    var default_pbkdf2_iterations = 5000; //Not ideal, but limitations of using javascript
+    var default_pbkdf2_iterations = 5000; 
     var main_pbkdf2_iterations = default_pbkdf2_iterations; //The number of pbkdf2 iterations used for the main password
     var tx_notes = {}; //A map of transaction notes, hash -> note
     var auth_type; //The two factor authentication type used. 0 for none.
