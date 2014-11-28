@@ -221,6 +221,17 @@ var MyWalletSignup = new function() {
                 }
             });
 
+        var options = {
+            onLoad: function () {
+                $('#messages').text('Start typing password');
+            },
+            onKeyUp: function (evt) {
+                $(evt.target).pwstrength("outputErrorList");
+            }
+        };
+
+        $('#password').pwstrength(options);
+
         //Disable auotcomplete in firefox
         $("input, button").attr("autocomplete","off");
 
