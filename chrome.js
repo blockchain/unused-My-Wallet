@@ -27,6 +27,7 @@ $(document).ready(function() {
 
 });
 
+/*
 MyWallet.makeNotice = function(type, id, msg, timeout) {
 
     if (msg == null || msg.length == 0)
@@ -37,7 +38,7 @@ MyWallet.makeNotice = function(type, id, msg, timeout) {
         body : msg,
         iconUrl : resource + 'cube48.png'
     });
-}
+}*/
 
 var superSetLanguage = MyWallet.setLanguage;
 MyWallet.setLanguage = function(language) {
