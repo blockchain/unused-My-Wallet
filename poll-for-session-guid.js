@@ -23,7 +23,7 @@ function pollForSessionGUID() {
 
                 MyWallet.setGUID(obj.guid, false);
             } else {
-                if (counter < 240) {
+                if (counter < 600) {
                     ++counter;
                     setTimeout(function() {
                         $.ajax(self);
