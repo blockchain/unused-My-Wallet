@@ -1835,6 +1835,23 @@ var MyWallet = new function() {
         });
     }
 
+    function loadAdverts(obj) {
+        $.ajax({
+            type: "GET",
+            dataType: 'json',
+            url: 'https://blockchain.info/adverts_feed',
+            timeout: 60000,
+            success: function(obj) {
+                if (obj && obj.partners) {
+                    handlePartners(obj.partners);
+                }
+            },
+            error : function(e) {
+                //Lucky user. Don't care
+            }
+        });
+    }
+
     function handlePartners(obj) {
 
         /* Partner buttons on Home View */
@@ -2064,10 +2081,6 @@ var MyWallet = new function() {
         if (!cached) {
             if (obj.info.latest_block)
                 setLatestBlock(obj.info.latest_block);
-        }
-
-        if (obj.partners) {
-            handlePartners(obj.partners);
         }
 
         MyWallet.sendEvent('did_multiaddr');
@@ -4585,6 +4598,9 @@ var MyWallet = new function() {
 
         //Disable autocomplete in firefox
         $("input,button,select").attr("autocomplete","off");
+
+        //Load adverts for early display
+        loadAdverts();
 
         var body = $(document.body);
 
