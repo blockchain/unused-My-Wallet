@@ -252,6 +252,7 @@ var AccountSettings = new function() {
 
             $('#ip-lock-on').prop("checked", data.ip_lock_on == 1 ? true : false);
             $('#block-tor-ips').prop("checked", data.block_tor_ips == 1 ? true : false);
+            $('#api-access-enabled').prop("checked", data.is_api_access_enabled == 1 ? true : false);
 
             $('input[name="fee-policy"]').each(function() {
                 if (parseInt($(this).val()) == MyWallet.getFeePolicy()) {
@@ -850,6 +851,12 @@ var AccountSettings = new function() {
             updateKV('Updating Logging Level', 'update-logging-level', $(this).val(), function() {
                 $('#account-logging').trigger('show');
             });
+        });
+
+
+
+        $('#api-access-enabled').unbind().change(function(e) {
+            updateKV('Updating Api Access', 'update-api-access-enabled', $(this).is(':checked') ? 1 : 0);
         });
 
         $('#block-tor-ips').unbind().change(function(e) {
