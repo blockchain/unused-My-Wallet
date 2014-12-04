@@ -238,40 +238,54 @@ var MyWalletSignup = new function() {
         $('#password-strength').fadeIn(200);
 
         $("#new-wallet-continue").click(function() {
-            var self = $(this);
+            try {
+                var self = $(this);
 
-            self.prop("disabled", true);
-            
-            var tpassword = $("#password").val();
-            var tpassword2 = $("#password2").val();
-            
-            if (tpassword != tpassword2) {
-                self.removeAttr("disabled");
-                makeNotice('error', 'misc-error', 'Passwords do not match.');
-                return;
-            }
-                                        
-            var email = $.trim($('#email').val());
-                        
-            MyWalletSignup.generateNewWallet(tpassword, email, function(guid, sharedKey, password) {
-                MyStore.remove('guid');
-                MyStore.remove('multiaddr');
-                MyStore.remove('payload');
+                self.prop("disabled", true);
 
-                MyStore.put('guid', guid);
+                var tpassword = $("#password").val();
+                var tpassword2 = $("#password2").val();
 
-                showMnemonicModal(password, guid, function() {
-                    //Redirect to the claim page when we have a private key embedded in the URL
-                    if (window.location.hash && window.location.hash.length > 0)
-                        window.location = root + 'wallet/claim' + window.location.hash;
-                    else
-                        window.location = root + 'wallet/' + guid + window.location.hash;
+                if (!tpassword || !tpassword2 || tpassword.length == 0)
+                    return;
+
+                if (tpassword != tpassword2) {
+                    throw 'Passwords do not match.';
+                }
+
+                if (tpassword.match(/^[0-9]+$/)) {
+                    throw 'Passwords cannot be only numbers.'
+                }
+
+                if (tpassword.match(/(.)\1{5,}/)) {
+                    throw 'Password contains too many repeating characters.'
+                }
+
+                var email = $.trim($('#email').val());
+
+                MyWalletSignup.generateNewWallet(tpassword, email, function(guid, sharedKey, password) {
+                    MyStore.remove('guid');
+                    MyStore.remove('multiaddr');
+                    MyStore.remove('payload');
+
+                    MyStore.put('guid', guid);
+
+                    showMnemonicModal(password, guid, function() {
+                        //Redirect to the claim page when we have a private key embedded in the URL
+                        if (window.location.hash && window.location.hash.length > 0)
+                            window.location = root + 'wallet/claim' + window.location.hash;
+                        else
+                            window.location = root + 'wallet/' + guid + window.location.hash;
+                    });
+                }, function (e) {
+                    self.removeAttr("disabled");
+
+                    makeNotice('error', 'misc-error', e, 5000);
                 });
-            }, function (e) {
-                self.removeAttr("disabled");
-
-                makeNotice('error', 'misc-error', e, 5000);
-            });
+            } catch (e) {
+              self.removeAttr("disabled");
+              makeNotice('error', 'misc-error', e);
+            }
         });
 
         $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
@@ -294,15 +308,8 @@ var MyWalletSignup = new function() {
                 $('#password-result').fadeIn(200);
 
                 if (time.period === 'seconds') {
-                    if (time.time < 0.000001) {
-                        result.innerHTML = 'Your password would be hacked <span>Instantly</span>';
-                    } else if (time.time < 1) {
-                        result.innerHTML = 'It would take a GPU Cracking array <span>' + time.time+' '+time.period+ '</span> to bruteforce your password';
-                    } else {
-                        result.innerHTML = 'It would take a GPU Cracking array <span>About ' + time.time+' '+time.period+ '</span> to bruteforce your password';
-                    }
+                    result.innerHTML = 'Your password would be hacked <span>Instantly</span>';
                 } else {
-
                     result.innerHTML = 'It would take a GPU Cracking array <span>About ' + time.time+' '+time.period+ '</span> to bruteforce your password';
                 }
 
