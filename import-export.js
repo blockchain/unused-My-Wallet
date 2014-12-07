@@ -12,6 +12,7 @@ function _ImportExport() {
         $.ajax({
             type: "GET",
             url: root + 'wallet/import-export-template',
+            timeout: 60000,
             data : {format : 'plain', language : MyWallet.getLanguage()},
             success: function(html) {
                 try {
@@ -253,7 +254,7 @@ function _ImportExport() {
                             //If there is a private key we first need to decrypt it, detect the format then re-insert
                             if (priv != null) {
 
-                                var tmp_pbkdf2_iterations = MyWallet.getDefaultPbkdf2Iterations();
+                                var tmp_pbkdf2_iterations = 10;
                                 if (obj.options && obj.options.pbkdf2_iterations)
                                     tmp_pbkdf2_iterations = obj.options.pbkdf2_iterations;
 
@@ -842,7 +843,7 @@ function _ImportExport() {
                 };
                 return worker;
             };
-            var workers = [makeWorker(), makeWorker()];
+            var workers = [makeWorker()];
             workers[0].postMessage([N, r, p, B, i++]);
             if (p > 1) {
                 workers[1].postMessage([N, r, p, B, i++]);

@@ -39,24 +39,11 @@ var AccountSettings = new function() {
     function updateKV(txt, method, value, success, error, extra) {
         value = $.trim(value);
 
-        if ( value.length == 0) {
-            MyWallet.makeNotice('error', 'misc-error', txt + ': Invalid value');
-            return;
-        }
-
-        if (value.length == 0) {
-            MyWallet.makeNotice('error', method + '-error', data.responseText);
-
-            if (error) error();
-
-            return;
-        }
-
         MyWallet.setLoadingText(txt);
 
-        if (!extra)
+        if (!extra) {
             extra = '';
-
+        }
 
         MyWallet.securePost("wallet"+extra, { length : (value+'').length, payload : value+'', method : method }, function(data) {
             MyWallet.makeNotice('success', method + '-success', data);
@@ -247,8 +234,6 @@ var AccountSettings = new function() {
             language_select.val(data.language);
 
             $('#auto-email-backup').prop("checked", data.auto_email_backup == 1 ? true : false);
-
-            $('#never-save-auth-type').prop("checked", data.never_save_auth_type == 1 ? true : false);
 
             $('#wallet-http-url').val(data.http_url);
             $('#wallet-skype').val(data.skype_username);
@@ -523,10 +508,6 @@ var AccountSettings = new function() {
 
         $('#pairing_code').unbind().on('show', function() {
             MyWallet.makePairingQRCode(function(device_qr) {
-                $('#pairing-code-v0').html(device_qr);
-            }, 0);
-
-            MyWallet.makePairingQRCode(function(device_qr) {
                 $('#pairing-code-v1').html(device_qr);
             }, 1);
 
@@ -535,7 +516,6 @@ var AccountSettings = new function() {
             }, 30000);
         }).on('hide', function() {
                 $('#pairing-code-v1').empty();
-                $('#pairing-code-v0').empty();
             });
 
         $('#update-password-btn').unbind().click(function() {
@@ -564,10 +544,6 @@ var AccountSettings = new function() {
 
         $('#auto-email-backup').unbind().change(function() {
             updateKV('Updating Auto Backup Settings', 'update-auto-email-backup', $(this).is(':checked'));
-        });
-
-        $('#never-save-auth-type').unbind().change(function() {
-            updateKV('Updating Auth Saving Settings', 'update-never-save-auth-type', $(this).is(':checked'));
         });
 
         $('#wallet-google-qr-code').unbind().change(function() {

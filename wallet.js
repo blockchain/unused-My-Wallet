@@ -55,7 +55,7 @@ var MyWallet = new function() {
     var archTimer; //Delayed Backup wallet timer
     var mixer_fee = 0.5; //Default mixer fee 1.5%
     var recommend_include_fee = true; //Number of unconfirmed transactions in blockchain.info's memory pool
-    var default_pbkdf2_iterations = 10; //Not ideal, but limitations of using javascript
+    var default_pbkdf2_iterations = 5000;
     var main_pbkdf2_iterations = default_pbkdf2_iterations; //The number of pbkdf2 iterations used for the main password
     var tx_notes = {}; //A map of transaction notes, hash -> note
     var auth_type; //The two factor authentication type used. 0 for none.
@@ -66,7 +66,6 @@ var MyWallet = new function() {
     var main_password_timeout = 60000;
     var isInitialized = false;
     var extra_seed; //Help for browsers that don't support window.crypto
-    var show_unsynced = false;
     var language = 'en'; //Current language
     var supported_encryption_version = 2.0;  //The maxmimum supported encryption version
     var encryption_version_used = 0.0; //The encryption version of the current wallet. Set by decryptWallet()
@@ -77,6 +76,7 @@ var MyWallet = new function() {
     var haveBoundReady = false;
     var isRestoringWallet = false;
     var sync_pubkeys = false;
+    var hdWalletsPlaceHolder = null;
 
     var wallet_options = {
         pbkdf2_iterations : default_pbkdf2_iterations, //Number of pbkdf2 iterations to default to for second password and dpasswordhash
@@ -137,9 +137,9 @@ var MyWallet = new function() {
         event_listeners.push(func);
     }
 
-    this.sendEvent = function(event_name) {
+    this.sendEvent = function(event_name, obj) {
         for (var listener in event_listeners) {
-            event_listeners[listener](event_name)
+            event_listeners[listener](event_name, obj)
         }
     }
 
@@ -155,8 +155,8 @@ var MyWallet = new function() {
         return main_pbkdf2_iterations;
     }
 
-    this.getDefaultPbkdf2Iterations = function() {
-        return default_pbkdf2_iterations;
+    this.getSharedKey = function() {
+        return sharedKey;
     }
 
     this.getSharedcoinEndpoint = function() {
@@ -231,6 +231,10 @@ var MyWallet = new function() {
         wallet_options.html5_notifications = val;
     }
 
+    this.getNTransactions = function() {
+        return n_tx;
+    }
+
     this.getTransactions = function() {
         return transactions;
     }
@@ -252,7 +256,10 @@ var MyWallet = new function() {
     }
 
     this.getAddressLabel = function(address) {
-        return addresses[address].label;
+        if (addresses[address])
+            return addresses[address].label;
+        else
+            return null;
     }
 
     this.setAddressLabel = function(address, label) {
@@ -342,6 +349,7 @@ var MyWallet = new function() {
         $.ajax({
             dataType: dataType,
             type: "POST",
+            timeout: 60000,
             url: root + url,
             data : clone,
             success: success,
@@ -588,7 +596,7 @@ var MyWallet = new function() {
                 ws.send('{"op":"addr_sub", "addr":"'+addr+'"}');
             } catch (e) { }
         } else {
-            throw 'Unable to add generated bitcoin address.';
+            throw 'Unable to add generated private key.';
         }
 
         return addr;
@@ -834,6 +842,8 @@ var MyWallet = new function() {
         };
 
         ws.onopen = function() {
+            MyWallet.sendEvent('ws_on_open');
+
             setLogoutImageStatus('ok');
 
             var msg = '{"op":"blocks_sub"}';
@@ -854,6 +864,8 @@ var MyWallet = new function() {
         };
 
         ws.onclose = function() {
+            MyWallet.sendEvent('ws_on_close');
+
             setLogoutImageStatus('error');
         };
     }
@@ -878,6 +890,7 @@ var MyWallet = new function() {
     this.showNotification = function(options, timeout) {
         try {
             var notification;
+
             if (window.webkitNotifications && webkitNotifications.checkPermission() == 0) {
                 notification = webkitNotifications.createNotification(options.iconUrl, options.title, options.body);
 
@@ -886,9 +899,11 @@ var MyWallet = new function() {
                 notification = new window.Notification(options.title, options).show();
             }
 
-            setTimeout(function() {
-                notification.cancel();
-            }, timeout ? timeout : 5000);
+            if (notification) {
+                setTimeout(function() {
+                    notification.cancel();
+                }, timeout ? timeout : 5000);
+            }
         } catch (e) { }
     };
 
@@ -1025,6 +1040,10 @@ var MyWallet = new function() {
             out = out.substring(0, out.length-2);
 
             out += "\n	]";
+        }
+
+        if (hdWalletsPlaceHolder) {
+            out += ',\n "hd_wallets" : ' + JSON.stringify(hdWalletsPlaceHolder)            
         }
 
         if (nKeys(tx_notes) > 0) {
@@ -1333,6 +1352,10 @@ var MyWallet = new function() {
         return array;
     }
 
+    this.getLatestBlock = function() {
+        return latest_block;
+    }
+
     function setLatestBlock(block) {
 
         if (block != null) {
@@ -1352,6 +1375,8 @@ var MyWallet = new function() {
                     tx.setConfirmations(0);
                 }
             }
+
+            MyWallet.sendEvent('did_set_latest_block');
         }
     }
 
@@ -1813,9 +1838,192 @@ var MyWallet = new function() {
         });
     }
 
+    function loadAdverts(obj) {
+        $.ajax({
+            type: "GET",
+            dataType: 'json',
+            url: 'https://blockchain.info/adverts_feed',
+            timeout: 60000,
+            success: function(obj) {
+                if (obj && obj.partners) {
+                    handlePartners(obj.partners);
+                }
+            },
+            error : function(e) {
+                //Lucky user. Don't care
+            }
+        });
+    }
+
+    function handlePartners(obj) {
+
+        /* Partner buttons on Home View */
+        var home_buttons= $('#partner-home-buttons');
+        if (obj.home_buttons && obj.home_buttons.length > 0) {
+            home_buttons.show();
+            home_buttons.find('p').empty();
+
+            for (var key in obj.home_buttons) {
+                var button =  obj.home_buttons[key];
+
+                var a = $('<a class="btn" style="margin-left:3px;margin-bottom:3px;" href="" target="blank"><img src=""></a>');
+
+                if (button.button_class)
+                    a.addClass(button.button_class);
+
+                a.attr('href', button.link);
+                a.text(' ' + button.title);
+
+                if (button.image) {
+                    a.prepend('<img>').find('img').attr('src', button.image.replace('{0}', resource));
+                }
+
+                home_buttons.find('p').append(a);
+            }
+        } else {
+            home_buttons.hide();
+        }
+
+        /* Send Coins Partner buttons */
+        var send_coins_nav = $('#send-coins-nav');
+        send_coins_nav.find('li.send_partner').remove();
+        var send_coins_divider = $('#partners-send-divider');
+        if (obj.send_buttons && obj.send_buttons.length > 0) {
+            send_coins_divider.show().next().show();
+
+            for (var key in obj.send_buttons) {
+                var button =  obj.send_buttons[key];
+                var el = $('<li class="send_partner"><a target="blank"></a></li>');
+
+                var a = el.find('a');
+
+                a.attr('href', button.link);
+                a.text(' ' + button.title);
+                if (button.image) {
+                    a.prepend('<i class="icon-dice" style="background-position:0px;width:16px;height:16px;"></i>').find('i').css('background-image', 'url(' + button.image.replace('{0}', resource) + ')');
+                }
+
+                send_coins_divider.next().after(el);
+            }
+        } else {
+            send_coins_divider.hide().next().hide();
+        }
+
+
+        /* Deposit Buttons */
+        var home_deposit_container = $('#home-deposit-container').empty();
+
+        if (obj.deposit_buttons.length > 0) {
+            home_deposit_container.show();
+
+            var ul = $('<ul id="myTab" class="nav nav-tabs">');
+
+            var country_codes = {
+                US : [],
+                GB : [],
+                EU : []
+            };
+
+            var all = [];
+            for (var key in obj.deposit_buttons) {
+                var button =  obj.deposit_buttons[key];
+
+                if (button.country_code == null || button.country_code.length == 0) {
+                    all.push(button);
+                    continue;
+                }
+
+                var array = country_codes[button.country_code];
+
+                if (array == null) {
+                    array = [];
+                    country_codes[button.country_code] = array;
+                }
+
+                array.push(button);
+            }
+
+            var ii = 0;
+            for (var cc in country_codes) {
+                var array =  country_codes[cc];
+
+                if (array.length == 0 && all.length == 0)
+                    continue;
+
+                var li = $('<li><a></a></li>');
+
+                if (ii == 0)
+                    li.addClass('active');
+
+                var a = li.find('a');
+
+                a.attr('href', '#deposit-' + cc.toLowerCase());
+
+                a.text(' ' + cc.toUpperCase())
+
+                a.prepend('<img>').find('img').attr('src', resource + 'flags/' + cc.toLowerCase() + '.png');
+
+                ++ii;
+
+                ul.append(li);
+
+            }
+
+            ul.find('a').click(function() {
+                $(this).tab('show');
+            });
+
+            home_deposit_container.append(ul);
+
+            var content = $('<div class="tab-content page-header">');
+
+            var ii = 0;
+            for (var cc in country_codes) {
+                var array =  country_codes[cc];
+
+                var pane = $('<div class="tab-pane" style="text-align:right">');
+
+                if (ii == 0)
+                    pane.addClass('active');
+
+                pane.attr('id', 'deposit-' + cc.toLowerCase());
+
+                array = array.concat(all);
+
+                if (array.length == 0)
+                    continue;
+
+                for (var i in array) {
+                    var button = array[i];
+
+                    var a = $('<a style="margin-left:3px;" class="btn" target="blank"></a>');
+
+                    if (button.button_class)
+                        a.addClass(button.button_class);
+
+                    a.attr('href', button.link);
+                    a.text(' ' + button.title);
+                    if (button.image) {
+                        a.prepend('<img>').find('img').attr('src', button.image.replace('{0}', resource));
+                    }
+
+                    pane.append(a);
+                }
+
+                ++ii;
+
+                content.append(pane);
+            }
+
+            home_deposit_container.append(content);
+
+        } else {
+            home_deposit_container.hide();
+        }
+    }
+
     function parseMultiAddressJSON(obj, cached) {
         if (!cached) {
-
             if (obj.mixer_fee) {
                 mixer_fee = obj.mixer_fee;
             }
@@ -1828,8 +2036,12 @@ var MyWallet = new function() {
 
                 if (obj.info.symbol_btc)
                     setBTCSymbol(obj.info.symbol_btc);
+
+                if (obj.info.notice)
+                    MyWallet.makeNotice('error', 'misc-error', obj.info.notice);
             }
         }
+
 
         if (obj.disable_mixer) {
             $('#shared-addresses,#send-shared').hide();
@@ -1911,16 +2123,16 @@ var MyWallet = new function() {
 
         MyWallet.sendEvent('did_decrypt');
 
-        MyStore.get('multiaddr', function(multiaddrjson) {
-            if (multiaddrjson != null) {
-                parseMultiAddressJSON($.parseJSON(multiaddrjson), true);
-
-                buildVisibleView();
-            }
-        });
-
         ///Get the list of transactions from the http API
-        MyWallet.get_history();
+        MyWallet.get_history(null, function() {
+            MyStore.get('multiaddr', function(multiaddrjson) {
+                if (multiaddrjson != null) {
+                    parseMultiAddressJSON($.parseJSON(multiaddrjson), true);
+
+                    buildVisibleView();
+                }
+            });
+        });
 
         $('#initial_error,#initial_success').remove();
 
@@ -1958,28 +2170,18 @@ var MyWallet = new function() {
     //Fetch a new wallet from the server
     //success(modified true/false)
     function getWallet(success, error) {
-        for (var key in addresses) {
-            var addr = addresses[key];
-            if (addr.tag == 1) { //Don't fetch a new wallet if we have any keys which are marked un-synced
-                alert('Warning! wallet data may have changed but cannot sync as you have un-saved keys');
-                return;
-            }
-        }
-
-        console.log('Get wallet with checksum ' + payload_checksum);
-
         var data = {method : 'wallet.aes.json', format : 'json'};
 
         if (payload_checksum && payload_checksum.length > 0)
             data.checksum = payload_checksum;
+
+        MyWallet.setLoadingText("Checking For Wallet Updates");
 
         MyWallet.securePost("wallet", data, function(obj) {
             if (!obj.payload || obj.payload == 'Not modified') {
                 if (success) success();
                 return;
             }
-
-            console.log('Wallet data modified');
 
             MyWallet.setEncryptedWalletData(obj.payload);
 
@@ -2056,6 +2258,10 @@ var MyWallet = new function() {
                     }
                 }
 
+                if (obj.hd_wallets) {
+                    hdWalletsPlaceHolder = obj.hd_wallets;
+                }
+
                 if (obj.tx_notes) {
                     for (var tx_hash in obj.tx_notes) {
                         var note = obj.tx_notes[tx_hash];
@@ -2071,7 +2277,7 @@ var MyWallet = new function() {
                     payload_checksum = generatePayloadChecksum();
                 }
 
-                setIsIntialized();
+                setIsInitialized();
 
                 success();
             } catch (e) {
@@ -2225,7 +2431,7 @@ var MyWallet = new function() {
                 try {
                     if (version == 1) {
                         MyWallet.securePost("wallet", { method : 'pairing-encryption-password' }, function(encryption_phrase) {
-                            success($('<div></div>').qrcode({width: 300, height: 300, text: '1|'+ guid + '|' + MyWallet.encrypt(sharedKey + '|' + Crypto.util.bytesToHex(UTF8.stringToBytes(password)), encryption_phrase, MyWallet.getDefaultPbkdf2Iterations())}));
+                            success($('<div></div>').qrcode({width: 300, height: 300, text: '1|'+ guid + '|' + MyWallet.encrypt(sharedKey + '|' + Crypto.util.bytesToHex(UTF8.stringToBytes(password)), encryption_phrase, 10)}));
                         }, function(e) {
                             MyWallet.makeNotice('error', 'misc-error', e);
                         });
@@ -2275,7 +2481,7 @@ var MyWallet = new function() {
 
         MyWallet.getPassword($('#second-password-modal'), function(_password) {
             try {
-                if (vaidateDPassword(_password)) {
+                if (MyWallet.validateSecondPassword(_password)) {
                     if (success) {
                         try { success(_password); } catch (e) { console.log(e); MyWallet.makeNotice('error', 'misc-error', e); }
                     }
@@ -2331,6 +2537,7 @@ var MyWallet = new function() {
                 }
 
                 $.ajax({
+                    timeout: 60000,
                     type: "POST",
                     url: root + "wallet",
                     data :  { guid: guid, payload: auth_key, length : auth_key.length,  method : 'get-wallet', format : 'plain' },
@@ -2378,18 +2585,11 @@ var MyWallet = new function() {
         }
     }
 
-    function showNotSyncedModal() {
-        $('#not-synced-warning-modal').modal('show').find('.btn.btn-danger').unbind().click(function() {
-            $(this).modal('hide');
-
-            show_unsynced = true;
-
-            buildVisibleView();
-        });;
-
+    this.getIsInitialized = function() {
+        return isInitialized;
     }
 
-    function setIsIntialized() {
+    function setIsInitialized() {
         if (isInitialized) return;
 
         setLogoutImageStatus('error');
@@ -2405,11 +2605,17 @@ var MyWallet = new function() {
         $('#large-summary').show();
     }
 
+    this.connectWebSocket = function() {
+        webSocketConnect(wsSuccess);
+    }
+
     this.quickSendNoUI = function(to, value, listener) {
         loadScript('wallet/signer', function() {
             MyWallet.getSecondPassword(function() {
                 try {
                     var obj = initNewTx();
+
+                    obj.webworker_resource_prefix = '';
 
                     obj.from_addresses = MyWallet.getActiveAddresses();
 
@@ -2457,13 +2663,17 @@ var MyWallet = new function() {
         }
 
         var _errorcallback = function(e) {
+            MyWallet.sendEvent('on_backup_wallet_error')
+
             MyWallet.makeNotice('error', 'misc-error', 'Error Saving Wallet: ' + e, 10000);
+
+            //Fetch the wallet agin from server
+            getWallet();
 
             buildVisibleView();
 
             if (errorcallback != null)
                 errorcallback(e);
-            else throw e;
         };
 
         try {
@@ -2524,18 +2734,12 @@ var MyWallet = new function() {
 
                             if (successcallback != null)
                                 successcallback();
+
+                            MyWallet.sendEvent('on_backup_wallet_success')
                         }, function() {
                             _errorcallback('Checksum Did Not Match Expected Value')
                         });
                     }, function(e) {
-                        for (var key in addresses) {
-                            var addr = addresses[key];
-                            if (addr.tag == 1) {
-                                showNotSyncedModal();
-                                break;
-                            }
-                        }
-
                         _errorcallback(e.responseText);
                     });
                 } catch (e) {
@@ -2576,30 +2780,41 @@ var MyWallet = new function() {
 
     //Changed padding to CBC iso10126 9th March 2012 & iterations to pbkdf2_iterations
     this.encryptWallet = function(data, password) {
-        if (encryption_version_used == 2.0) {
-            return JSON.stringify({
-                pbkdf2_iterations : MyWallet.getMainPasswordPbkdf2Iterations(),
-                version : encryption_version_used,
-                payload : MyWallet.encrypt(data, password, MyWallet.getMainPasswordPbkdf2Iterations())
-            });
-        } else if (encryption_version_used == 0.0) {
-            return MyWallet.encrypt(data, password, MyWallet.getDefaultPbkdf2Iterations());
-        } else {
-            throw 'Unknown encryption version ' + encryption_version_used;
-        }
+        return JSON.stringify({
+            pbkdf2_iterations : MyWallet.getMainPasswordPbkdf2Iterations(),
+            version : 2.0,
+            payload : MyWallet.encrypt(data, password, MyWallet.getMainPasswordPbkdf2Iterations())
+        });
     }
 
     this.decryptWallet = function(data, password, success, error) {
-
         try {
+            MyWallet.setLoadingText('Decrypting Wallet');
+
+            MyWallet.sendEvent('on_wallet_decrypt_start')
+
+            var _success = function (root, obj) {
+                MyWallet.sendEvent('on_wallet_decrypt_finish')
+
+                if (success != null) {
+                    success(root, obj);
+                }
+            }
+
+            var _error = function (e) {
+                MyWallet.sendEvent('on_wallet_decrypt_finish')
+
+                if (error != null) {
+                    error(e);
+                }
+            }
+
             //Test if the payload is valid json
             //If it is json then check the payload and pbkdf2_iterations keys are available
             var obj = null;
             try {
                 var obj = $.parseJSON(data);
-            } catch (e) {
-                console.log(e);
-            }
+            } catch (e) {}
 
             var decryptNormal = function() {
                 try {
@@ -2607,9 +2822,9 @@ var MyWallet = new function() {
 
                     var root = $.parseJSON(decrypted);
 
-                    success(root, obj);
+                    _success(root, obj);
                 } catch (e) {
-                    error('Error Decrypting Wallet. Please check your password is correct.');
+                    _error('Error Decrypting Wallet. Please check your password is correct.');
                 }
             };
 
@@ -2617,7 +2832,7 @@ var MyWallet = new function() {
                 if (obj.version != supported_encryption_version)
                     throw 'Wallet version ' + obj.version + ' not supported';
 
-                if (obj.pbkdf2_iterations > 100) {
+                if (obj.pbkdf2_iterations > 0) {
                     var modal = $('#decrypting-progress-modal');
 
                     var timeout = setTimeout(function() {
@@ -2638,11 +2853,11 @@ var MyWallet = new function() {
                         try {
                             var root = $.parseJSON(decrypted);
 
-                            success(root, obj);
+                            _success(root, obj);
                         } catch (e) {
                             decryptNormal();
                         }
-                    }, function() {
+                    }, function(e) {
                         clearTimeout(timeout);
 
                         modal.modal('hide');
@@ -2653,27 +2868,30 @@ var MyWallet = new function() {
                     decryptNormal();
                 }
             } else {
-                MyWallet.decrypt(data, password, MyWallet.getDefaultPbkdf2Iterations(), function(decrypted) {
+                MyWallet.decrypt(data, password, 10, function(decrypted) {
                     try {
                         var root = $.parseJSON(decrypted);
 
                         try {
-                            success(root);
+                            _success(root);
                         }  catch (e) {
                             console.log(e);
                         }
-
                         return true;
                     } catch (e) {
                         return false;
                     }
                 }, function() {
-                    error('Error Decrypting Wallet. Please check your password is correct.');
+                    _error('Error Decrypting Wallet. Please check your password is correct.');
                 });
             }
         } catch (e) {
-            if (error) error(e);
+            _error(e);
         }
+    }
+
+    this.getWebWorkerLoadPrefix = function() {
+        return resource + 'wallet/';
     }
 
     this.decryptWebWorker = function(data, password, pbkdf2_iterations, success, _error) {
@@ -2683,7 +2901,7 @@ var MyWallet = new function() {
         }
 
         try {
-            var worker =  new Worker(resource + 'wallet/signer' + (min ? '.min.js' : '.js'));
+            var worker = new Worker(MyWallet.getWebWorkerLoadPrefix() + 'signer' + (min ? '.min.js' : '.js'));
 
             worker.addEventListener('message', function(e) {
                 var data = e.data;
@@ -2708,7 +2926,7 @@ var MyWallet = new function() {
                 error(e);
             });
 
-            worker.postMessage({cmd : 'load_resource' , path : resource + 'wallet/bitcoinjs' + (min ? '.min.js' : '.js')});
+            worker.postMessage({cmd : 'load_resource' , path : MyWallet.getWebWorkerLoadPrefix() + 'bitcoinjs' + (min ? '.min.js' : '.js')});
 
             worker.postMessage({cmd : 'decrypt', data : data, password : password, pbkdf2_iterations : pbkdf2_iterations});
         } catch (e) {
@@ -2791,7 +3009,6 @@ var MyWallet = new function() {
         return null;
     }
 
-
     this.handleNTPResponse = function(obj, clientTime) {
         //Calculate serverTimeOffset using NTP alog
         var nowTime = (new Date()).getTime();
@@ -2817,13 +3034,13 @@ var MyWallet = new function() {
     //Fetch information on a new wallet identfier
     this.setGUID = function(guid_or_alias, resend_code) {
 
-        console.log('Set GUID ' + guid_or_alias);
+//        console.log('Set GUID ' + guid_or_alias);
 
         if (isInitialized) {
             throw 'Cannot Set GUID Once Initialized';
         }
 
-        MyWallet.setLoadingText('Changing Wallet Identifier');
+        MyWallet.setLoadingText('Downloading Wallet');
 
         $('#initial_error,#initial_success').remove();
 
@@ -2847,7 +3064,7 @@ var MyWallet = new function() {
             dataType: 'json',
             url: root + 'wallet/'+guid_or_alias,
             data : data,
-            timeout: 30000,
+            timeout: 60000,
             success: function(obj) {
                 MyWallet.handleNTPResponse(obj, clientTime);
 
@@ -2911,43 +3128,48 @@ var MyWallet = new function() {
                 open_wallet_btn.prop('disabled', false);
 
                 MyStore.get('guid', function(local_guid) {
-                    if (local_guid == guid_or_alias && encrypted_wallet_data) {
-                        MyWallet.makeNotice('error', 'misc-error', 'Error Contacting Server. Using Local Wallet Cache.');
+                    MyStore.get('payload', function(local_payload) {
+                        //Error downloading wallet from server
+                        //But we can use the local cache
+                                
+                        if (local_guid == guid_or_alias && local_payload) {
+                            MyWallet.setEncryptedWalletData(local_payload);
+                                
+                            //Generate a new Checksum
+                            guid = local_guid;
+                            payload_checksum = generatePayloadChecksum();
+                            auth_type = 0;
 
-                        //Generate a new Checksum
-                        guid = local_guid;
-                        payload_checksum = generatePayloadChecksum();
-                        auth_type = 0;
+                            $('#restore-guid').val(guid);
 
-                        $('#restore-guid').val(guid);
+                            $('.auth-'+auth_type).show();
 
-                        $('.auth-'+auth_type).show();
+                            MyWallet.sendEvent('did_set_guid');
+                        }  else {
+                            MyWallet.sendEvent('did_fail_set_guid');
 
-                        MyWallet.sendEvent('did_set_guid');
+                            try {
+                                var obj = $.parseJSON(e.responseText);
 
-                        return;
-                    }
+                                if (obj.authorization_required) {
+                                    loadScript('wallet/poll-for-session-guid', function() {
+                                        pollForSessionGUID();
+                                    });
+                                }
 
-                    try {
-                        var obj = $.parseJSON(e.responseText);
+                                if (obj.initial_error) {
+                                    MyWallet.makeNotice('error', 'misc-error', obj.initial_error);
+                                }
 
-                        if (obj.authorization_required) {
-                            loadScript('wallet/poll-for-session-guid', function() {
-                                pollForSessionGUID();
-                            });
+                                return;
+                            } catch (ex) {}
+
+                            if (e.responseText)
+                                MyWallet.makeNotice('error', 'misc-error', e.responseText);
+                            else
+                                MyWallet.makeNotice('error', 'misc-error', 'Error changing wallet identifier');
                         }
-
-                        if (obj.initial_error) {
-                            MyWallet.makeNotice('error', 'misc-error', obj.initial_error);
-                        }
-
-                        return;
-                    } catch (ex) {}
-
-                    if (e.responseText)
-                        MyWallet.makeNotice('error', 'misc-error', e.responseText);
-                    else
-                        MyWallet.makeNotice('error', 'misc-error', 'Error changing wallet identifier');
+                    });
                 });
             }
         });
@@ -2995,7 +3217,7 @@ var MyWallet = new function() {
         return Bitcoin.Message.signMessage(key, message, addr.addr);
     }
 
-    function vaidateDPassword(input) {
+    this.validateSecondPassword = function(input) {
         var thash = Crypto.SHA256(sharedKey + input, {asBytes: true});
 
         var password_hash = hashPassword(thash, MyWallet.getSecondPasswordPbkdf2Iterations()-1);  //-1 because we have hashed once in the previous line
@@ -3264,6 +3486,7 @@ var MyWallet = new function() {
         } else {
             $.ajax({
                 type: "GET",
+                timeout: 60000,
                 url: root + 'wallet/logout',
                 data : {format : 'plain'},
                 success: function(data) {
@@ -3515,9 +3738,9 @@ var MyWallet = new function() {
             return result;
         }
 
-        window.open(url, null, "scroll=1,status=1,location=1,toolbar=1");
+        var openedWindow = window.open(url, null, "scroll=1,status=1,location=1,toolbar=1");
 
-        if (_hasPopupBlocker(window)) {
+        if (_hasPopupBlocker(openedWindow)) {
             MyWallet.makeNotice('error', 'misc-error', "Popup Blocked. Try and click again.");
             return false;
         } else {
@@ -3641,7 +3864,7 @@ var MyWallet = new function() {
                 var addr = addresses[key];
 
                 //Hide Archived or un-synced
-                if (addr.tag == 2 || (addr.tag == 1 && !show_unsynced))
+                if (addr.tag == 2 || addr.tag == 1)
                     continue;
 
                 var noPrivateKey = '';
@@ -3750,7 +3973,7 @@ var MyWallet = new function() {
                     var addr = addresses[archived[key]];
 
                     //Hide none archived and unsynced
-                    if (addr.tag != 2 || (addr.tag == 1 && !show_unsynced))
+                    if (addr.tag != 2 || addr.tag == 1)
                         continue;
 
                     var noPrivateKey = '';
@@ -3872,9 +4095,9 @@ var MyWallet = new function() {
         $('#logout').click(MyWallet.logout);
 
         $('#refresh').click(function () {
-            getWallet();
-
-            MyWallet.get_history();
+            getWallet(function() {
+                MyWallet.get_history();
+            });
         });
 
         $('#summary-n-tx-chart').click(function() {
@@ -3908,29 +4131,25 @@ var MyWallet = new function() {
         });
 
         $("#new-addr").click(function() {
-            try {
-                getWallet(function() {
-                    MyWallet.getSecondPassword(function() {
-                        var key = MyWallet.generateNewKey();
+            getWallet(function() {
+                MyWallet.getSecondPassword(function() {
+                    var key = MyWallet.generateNewKey();
 
-                        if (!key) return;
+                    var address = key.getBitcoinAddress().toString();
 
-                        var address = key.getBitcoinAddress().toString();
+                    MyWallet.backupWallet('update', function() {
+                        MyWallet.makeNotice('info', 'new-address', 'Generated new Bitcoin Address ' + address);
 
-                        MyWallet.backupWallet('update', function() {
-                            MyWallet.makeNotice('info', 'new-address', 'Generated new Bitcoin Address ' + address);
-
-                            loadScript('wallet/address_modal', function() {
-                                showLabelAddressModal(address);
-                            });
-
-                            MyWallet.get_history();
+                        loadScript('wallet/address_modal', function() {
+                            showLabelAddressModal(address);
                         });
+
+                        MyWallet.get_history();
                     });
+                }, function() {
+                    MyWallet.logout();
                 });
-            } catch (e) {
-                MyWallet.makeNotice('error', 'misc-error', e);
-            }
+            });
         });
 
         $('.tx_filter a').click(function(){
@@ -4118,6 +4337,7 @@ var MyWallet = new function() {
 
             $.ajax({
                 type: "GET",
+                timeout: 60000,
                 url: resource + 'wallet/country_codes.html',
                 success: function(data) {
                     self.find('select[name="sms-country-code"]').html(data);
@@ -4382,6 +4602,9 @@ var MyWallet = new function() {
         //Disable autocomplete in firefox
         $("input,button,select").attr("autocomplete","off");
 
+        //Load adverts for early display
+        loadAdverts();
+
         var body = $(document.body);
 
         function tSetGUID() {
@@ -4471,8 +4694,6 @@ var MyWallet = new function() {
                     if (addr != null) {
                         if (addr.priv == null) {
                             $('#watch-only-copy-warning-modal').modal('show');
-                        } else if (addr.tag == 1) {
-                            showNotSyncedModal();
                         }
                     }
                 }

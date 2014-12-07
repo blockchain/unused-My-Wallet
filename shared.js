@@ -66,15 +66,9 @@ var ws;
 var reconnectInterval;
 function webSocketConnect(success) {
     try {
-        var ii = 0;
         function reallyConnect() {
             try {
-                if (ii % 2 == 0)
-                    var url = "wss://ws.blockchain.info/inv";
-                else
-                    var url = "ws://ws.blockchain.info/inv";
-
-                ++ii;
+                var url = "wss://ws.blockchain.info/inv";
 
                 console.log('Connect ' + url);
 
@@ -444,6 +438,7 @@ function setupSymbolToggle() {
 
             if (!self.data('tooltip')) {
                 $.ajax({
+                    timeout: 60000,
                     type: "GET",
                     dataType: 'text',
                     url: root + 'frombtc',
@@ -554,6 +549,27 @@ $(document).ready(function() {
     show_adv = getCookie('show_adv');
 
     try {
+        var language_links = $('#languages_select').find('a');
+        language_links.click(function(e) {
+            e.preventDefault();
+
+            var new_code = $(this).data('code');
+
+            SetCookie('clang', new_code);
+
+            var path = window.location.pathname;
+
+            language_links.each(function() {
+                var code = $(this).data('code');
+                if (path.indexOf('/'+code) == 0) {
+                    path = path.replace('/'+code, '/'+new_code);
+                    return false;
+                }
+            });
+
+            window.location.href = path;
+        });
+
         $('#currencies').change(function() {
             var val = $(this).val();
 
@@ -577,20 +593,28 @@ $(document).ready(function() {
 });
 
 function loadScript(src, success, error) {
-    src = resource + src + (min ? '.min.js' : '.js') + '?'+war_checksum;
+    var found = false;
 
-    console.log('Load ' + src);
+    $('script').each(function() {
+        var attr_src = $(this).attr('src');
+        if (attr_src && attr_src.replace(/^.*[\\\/]/, '').indexOf(src) == 0) {
+            success();
+            found = true;
+            return false;
+        }
+    });
 
-    if ($('script[src="'+src+'"]').length > 0) {
-        success();
+    if (found) {
         return;
     }
+
+    console.log('Load ' + src);
 
     var error_fired = false;
     var s = document.createElement('script');
     s.type = "text/javascript";
     s.async = true;
-    s.src = src;
+    s.src = resource + src + (min ? '.min.js' : '.js') + '?'+war_checksum;
     try {
         s.addEventListener('error', function(e){ error_fired = true;  if (error) error('Error Loading Script. Are You Offline?'); }, false);
         s.addEventListener('load', function (e) { if (!error_fired) success(); }, false);
@@ -598,7 +622,7 @@ function loadScript(src, success, error) {
         //IE 7 & 8 Will throw an exception here
         setTimeout(function() {
             if (!error_fired) success();
-        }, 2000);
+        }, 10000);
     }
 
     var head = document.getElementsByTagName('head')[0];

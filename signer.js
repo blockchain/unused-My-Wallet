@@ -78,6 +78,8 @@ try {
 //Init WebWorker
 //Window is not defined in WebWorker
     if (typeof window == "undefined" || !window) {
+        var window = {};
+
         self.addEventListener('message', function(e) {
             var data = e.data;
             try {
@@ -444,6 +446,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                     MyWallet.setLoadingText('Checking Connectivity');
 
                     $.ajax({
+                        timeout: 60000,
                         type: "GET",
                         url: root + 'ping',
                         data : {format : 'plain', date : new Date().getTime()},
@@ -1173,6 +1176,7 @@ function initNewTx() {
         is_cancelled : false,
         base_fee : BigInteger.valueOf(10000),
         min_free_output_size : BigInteger.valueOf(1000000),
+        min_non_standard_output_size : BigInteger.valueOf(5460),
         allow_adjust : true,
         ready_to_send_header : 'Transaction Ready to Send.',
         min_input_confirmations : 0,
@@ -1422,8 +1426,11 @@ function initNewTx() {
 
                 //Now deal with the change
                 var	changeValue = availableValue.subtract(txValue);
-                if (changeValue.compareTo(BigInteger.ZERO) > 0) {
-                    if (self.change_address != null) //If change address speicified return to that
+
+                //Consume the change if it would create a very small none standard output
+                //Perhaps this behaviour should be user specified
+                if (changeValue.compareTo(self.min_non_standard_output_size) > 0) {
+                    if (self.change_address != null) //If change address specified return to that
                         sendTx.addOutput(self.change_address, changeValue);
                     else if (addresses_used.length > 0) { //Else return to a random from address if specified
                         sendTx.addOutput(new Bitcoin.Address(addresses_used[Math.floor(Math.random() * addresses_used.length)]), changeValue);
@@ -1630,7 +1637,7 @@ function initNewTx() {
 
                 self.worker = [];
                 for (var i = 0; i < nWorkers; ++i)  {
-                    self.worker[i] =  new Worker(resource + 'wallet/signer' + (min ? '.min.js' : '.js'));
+                    self.worker[i] =  new Worker(MyWallet.getWebWorkerLoadPrefix() + 'signer' + (min ? '.min.js' : '.js'));
 
                     self.worker[i].addEventListener('message', function(e) {
                         var data = e.data;
@@ -1668,7 +1675,7 @@ function initNewTx() {
                         error(e);
                     });
 
-                    self.worker[i].postMessage({cmd : 'load_resource' , path : resource + 'wallet/bitcoinjs' + (min ? '.min.js' : '.js')});
+                    self.worker[i].postMessage({cmd : 'load_resource' , path : MyWallet.getWebWorkerLoadPrefix() + 'bitcoinjs' + (min ? '.min.js' : '.js')});
 
                     //Generate and pass seed to the webworker
                     var seed = new Array(32);
@@ -1859,7 +1866,7 @@ function initNewTx() {
             this.start = new Date().getTime();
         },
         on_finish_signing : function() {
-            console.log('Took ' + (new Date().getTime() - this.start) + 'ms');
+            console.log('Signing Took ' + (new Date().getTime() - this.start) + 'ms');
         }
     });
 

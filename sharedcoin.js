@@ -1,5 +1,6 @@
 var SharedCoin = new function() {
     var SharedCoin = this;
+    var DonationPercent = 0.5;
     var AjaxTimeout = 120000;
     var AjaxRetry = 3;
     var LastSignatureSubmitTime = 0;
@@ -230,6 +231,7 @@ var SharedCoin = new function() {
             offered_outpoints : [], //The outpoints we want to offer
             request_outputs : [], //The outputs we want in return
             offer_id : 0, //A unique ID for this offer (set by server)
+            fee_percent : BigInteger.ZERO, //The Offer fee percentage
             submit : function(success, error, complete) {
                 var self = this;
 
@@ -241,7 +243,7 @@ var SharedCoin = new function() {
                     url: URL,
                     timeout: AjaxTimeout,
                     retryLimit: AjaxRetry,
-                    data : {method : 'submit_offer', format : 'json', token : SharedCoin.getToken(), offer : JSON.stringify(self)},
+                    data : {method : 'submit_offer', fee_percent : self.fee_percent.toString(), format : 'json', token : SharedCoin.getToken(), offer : JSON.stringify(self)},
                     success: function (obj) {
                         if (obj.status == 'complete') {
                             complete(obj.tx_hash, obj.tx);
@@ -337,6 +339,10 @@ var SharedCoin = new function() {
                             complete(clone.tx_hash, clone.tx);
                         } else if (clone.status == 'signatures_needed') {
                             success(clone);
+                        } else if (clone.status == 'waiting') {
+                            self.getProposal(proposal_id, success, error, complete)
+                        } else {
+                            error('Unknown get_proposal_id status')
                         }
                     },
                     error : function(e) {
@@ -540,16 +546,17 @@ var SharedCoin = new function() {
                     retryLimit: AjaxRetry,
                     data : {method : 'submit_signatures', format : 'json', input_scripts : JSON.stringify(input_scripts), offer_id : self.offer_id, proposal_id : proposal.proposal_id},
                     success: function (obj) {
-                        if (obj.status == 'not_found')
+                        if (obj.status == 'not_found') {
                             error('Proposal Expired or Not Found');
-                        else if (obj.status == 'verification_failed')
+                        } else if (obj.status == 'verification_failed') {
                             error('Signature Verification Failed');
-                        else if (obj.status == 'complete')
+                        } else if (obj.status == 'complete') {
                             complete(obj.tx_hash, obj.tx);
-                        else if (obj.status == 'signatures_accepted')
+                        } else if (obj.status == 'signatures_accepted') {
                             success('Signatures Accepted');
-                        else
+                        } else {
                             error('Unknown status ' + obj.status);
+                        }
                     },
                     error : function(e) {
                         error(e.responseText);
@@ -613,7 +620,7 @@ var SharedCoin = new function() {
         };
     };
 
-    this.generateAddressFromCustomSeed = function(seed, n) {
+    this.generateAddressAndKeyFromCustomSeed = function(seed, n) {
         var hash = Crypto.SHA256(seed + n, {asBytes: true});
 
         var key = new Bitcoin.ECKey(hash);
@@ -624,9 +631,15 @@ var SharedCoin = new function() {
             var address = key.getBitcoinAddressCompressed();
         }
 
-        extra_private_keys[address.toString()] = Bitcoin.Base58.encode(key.priv);
+        return {address: address, key: key};
+    }
 
-        return address;
+    this.generateAddressFromCustomSeed = function(seed, n) {
+        var key_container = this.generateAddressAndKeyFromCustomSeed(seed, n);
+
+        extra_private_keys[key_container.address.toString()] = Bitcoin.Base58.encode(key_container.key.priv);
+
+        return key_container.address;
     }
 
     this.newPlan = function() {
@@ -637,6 +650,8 @@ var SharedCoin = new function() {
             address_seed  : null,
             address_seen_n : 0,
             generated_addresses : [],
+            fee_percent_each_repetition : [],
+            fee_each_repetition : [],
             generateAddressFromSeed : function() {
 
                 if (this.address_seed == null) {
@@ -762,7 +777,7 @@ var SharedCoin = new function() {
                     }
                 }, error);
             },
-            constructRepetitions : function(initial_offer, fee_each_repetition, success, error) {
+            constructRepetitions : function(initial_offer, success, error) {
                 try {
                     var self = this;
 
@@ -799,7 +814,9 @@ var SharedCoin = new function() {
                             initial_offer.offered_outpoints = [];
                         }
 
-                        totalValueLeftToConsume = totalValueLeftToConsume.subtract(fee_each_repetition[ii]);
+                        offer.fee_percent = self.fee_percent_each_repetition[ii];
+
+                        totalValueLeftToConsume = totalValueLeftToConsume.subtract(self.fee_each_repetition[ii]);
 
                         var splitValues = [10,5,1,0.5,0.3,0.1];
                         var maxSplits = 8;
@@ -1017,6 +1034,11 @@ var SharedCoin = new function() {
 
             var repetitionsSelect = el.find('select[name="repetitions"]');
 
+            var donate = el.find('input[name="shared-coin-donate"]').is(':checked');
+
+
+            console.log('donate ' + donate);
+
             var repetitions = parseInt(repetitionsSelect.val());
 
             if (repetitions <= 0) {
@@ -1077,7 +1099,13 @@ var SharedCoin = new function() {
                         throw 'You must enter a bitcoin address for each recipient';
                     }
 
-                    newTx.to_addresses.push({address: new Bitcoin.Address(address), value : value});
+                    var addressObject = new Bitcoin.Address(address);
+
+                    if (addressObject.version != 0) {
+                        throw 'Sharedcoin only supports sending payments to regular bitcoin addresses';
+                    }
+
+                    newTx.to_addresses.push({address: addressObject, value : value});
                 } catch (e) {
                     _error(e);
                 }
@@ -1090,13 +1118,24 @@ var SharedCoin = new function() {
 
             var to_values_before_fees = [];
             var fee_each_repetition = [];
+            var fee_percent_each_repetition = [];
+
             for (var i in newTx.to_addresses) {
                 var to_address = newTx.to_addresses[i];
 
                 to_values_before_fees.push(to_address.value);
 
                 for (var ii = repetitions-1; ii >= 0; --ii) {
-                    var feeThisOutput = SharedCoin.calculateFeeForValue(to_address.value);
+
+                    var feePercent = SharedCoin.getFee();
+
+                    if (ii == 0 && donate) {
+                        feePercent += DonationPercent;
+                    }
+
+                    fee_percent_each_repetition[ii] = feePercent;
+
+                    var feeThisOutput = SharedCoin.calculateFeeForValue(feePercent, to_address.value);
 
                     to_address.value = to_address.value.add(feeThisOutput);
 
@@ -1118,7 +1157,7 @@ var SharedCoin = new function() {
             newTx.base_fee = BigInteger.ZERO;
             newTx.min_input_size = BigInteger.valueOf(SharedCoin.getMinimumInputValue());
             newTx.min_free_output_size = BigInteger.valueOf(satoshi);
-            newTx.fee = BigInteger.ZERO
+            newTx.fee = BigInteger.ZERO;
             newTx.ask_for_fee = function(yes, no) {
                 no();
             };
@@ -1178,8 +1217,10 @@ var SharedCoin = new function() {
 
                     plan.n_stages = repetitions;
                     plan.c_stage = 0;
+                    plan.fee_each_repetition = fee_each_repetition;
+                    plan.fee_percent_each_repetition = fee_percent_each_repetition;
 
-                    plan.constructRepetitions(offer, fee_each_repetition, success, function(e) {
+                    plan.constructRepetitions(offer, success, function(e) {
                         _error(e);
                     });
 
@@ -1194,11 +1235,11 @@ var SharedCoin = new function() {
         }
     }
 
-    this.calculateFeeForValue = function(input_value) {
+    this.calculateFeeForValue = function(fee_percent, input_value) {
         var minFee = BigInteger.valueOf(SharedCoin.getMinimumFee());
 
-        if (input_value.compareTo(BigInteger.ZERO) > 0 && SharedCoin.getFee() > 0) {
-            var mod = Math.ceil(100 / SharedCoin.getFee());
+        if (input_value.compareTo(BigInteger.ZERO) > 0 && fee_percent > 0) {
+            var mod = Math.ceil(100 / fee_percent);
 
             var fee = input_value.divide(BigInteger.valueOf(mod));
 
@@ -1212,69 +1253,111 @@ var SharedCoin = new function() {
         }
     }
 
-    this.recoverSeeds = function(shared_coin_seeds, success, error) {
-        var key = 0;
-        var addresses = [];
-        function doNext() {
-            var seed = shared_coin_seeds[key];
+    this.recoverSeeds = function(shared_coin_seeds, _success, _error) {
 
-            ++key;
+        var modal = $('#sharedcoin-recover-progress-modal');
+
+        var progress = modal.find('.bar');
+
+        modal.modal('show');
+
+        progress.width('0%');
+
+        var error = function(e) {
+            modal.modal('hide');
+
+            _error(e);
+        }
+
+        var success = function(m) {
+            modal.modal('hide');
+
+            _success(m);
+        }
+
+        var index = 0;
+
+        var final_balance_recovered = 0;
+
+        function doNext() {
+
+            if (!modal.is(':visible')) {
+                return;
+            }
+
+            if (index >= shared_coin_seeds.length) {
+                if (final_balance_recovered > 0) {
+                    MyWallet.get_history();
+
+                    MyWallet.makeNotice('success', 'misc-success', formatBTC(final_balance_recovered) + ' recovered from intermediate addresses');
+                }
+
+                success();
+
+                return;
+            }
+
+            progress.width(((index / shared_coin_seeds.length) * 100) + '%');
+
+            var seed = shared_coin_seeds[index];
+
+            ++index;
+
+            var keys = {};
 
             for (var i = 0; i < 100; ++i) {
-                var address = SharedCoin.generateAddressFromCustomSeed(seed, i).toString();
-                addresses.push(address);
-            }
+                var key_container = SharedCoin.generateAddressAndKeyFromCustomSeed(seed, i);
 
-            if (key == shared_coin_seeds.length) {
-                while(addresses.length > 0) {
-                    (function(addresses) {
-                        BlockchainAPI.get_balances(addresses, function(results) {
-                            try {
-                                var total_balance = 0;
-                                for (var key in results) {
-                                    var address = key;
-                                    var balance = results[address].final_balance;
-                                    if (balance > 0) {
-                                        console.log('Balance ' + address + ' = ' + balance);
+                var address = key_container.address.toString();
 
-                                        var ecKey = new Bitcoin.ECKey(Bitcoin.Base58.decode(extra_private_keys[address]));
-
-                                        var uncompressed_address = ecKey.getBitcoinAddress().toString();
-
-                                        try {
-                                            if (MyWallet.addPrivateKey(ecKey, {
-                                                compressed : address != uncompressed_address,
-                                                app_name : IMPORTED_APP_NAME,
-                                                app_version : IMPORTED_APP_VERSION
-                                            })) {
-                                                console.log('Imported ' + address);
-                                            }
-                                        } catch (e) {
-                                            console.log('Error importing ' + address);
-                                        }
-                                    }
-                                    total_balance += balance;
-                                }
-
-                                MyWallet.makeNotice('success', 'misc-success', formatBTC(total_balance) + ' recovered from intermediate addresses');
-
-                                if (total_balance > 0) {
-                                    MyWallet.backupWalletDelayed('update', function() {
-                                        MyWallet.get_history();
-                                    });
-                                }
-
-                                success();
-                            } catch (e) {
-                                error(e);
-                            }
-                        }, error);
-                    })(addresses.splice(0, 1000));
+                if (!MyWallet.addressExists(address)) {
+                    keys[address] = key_container.key;
                 }
-            } else {
-                setTimeout(doNext, 100);
             }
+
+            BlockchainAPI.get_balances(Object.keys(keys), function(results) {
+                try {
+                    var total_balance = 0;
+                    for (var address in results) {
+                        var balance = results[address].final_balance;
+                        if (balance > 0) {
+                            console.log('Balance ' + address + ' = ' + balance);
+
+                            var ecKey = keys[address];
+
+                            var uncompressed_address = ecKey.getBitcoinAddress().toString();
+
+                            try {
+                                if (MyWallet.addPrivateKey(ecKey, {
+                                    compressed : address != uncompressed_address,
+                                    app_name : IMPORTED_APP_NAME,
+                                    app_version : IMPORTED_APP_VERSION
+                                })) {
+                                    console.log('Imported ' + address);
+                                }
+                            } catch (e) {
+                                console.log('Error importing ' + address);
+                            }
+                        }
+
+                        total_balance += balance;
+                    }
+
+                    if (total_balance > 0) {
+                        final_balance_recovered += total_balance;
+
+                        MyWallet.backupWalletDelayed('update', function() {
+                            setTimeout(doNext, 500);
+                        });
+                    } else {
+                        setTimeout(doNext, 500);
+                    }
+                } catch (e) {
+                    error(e);
+                }
+            }, error);
         }
+
         setTimeout(doNext, 100);
     }
 
@@ -1362,14 +1445,17 @@ var SharedCoin = new function() {
 
                             setTimeout(function() {
                                 if (plan && plan.c_stage >= 0) {
-                                    console.log('Recover Seed');
+                                    console.log('Recover Seeds');
+
+                                    progressModal.hide();
+
                                     SharedCoin.recoverSeeds([seed_prefix + plan.address_seed], function() {
-                                        console.log('Recover Success');
+                                        progressModal.show();
                                     }, function() {
-                                        console.log('Recover Error');
+                                        progressModal.show();
                                     });
                                 }
-                            }, 2000)
+                            }, 1000);
 
                             progressModal.enableCancel();
                         };

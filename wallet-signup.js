@@ -1,10 +1,7 @@
-(function() {
-
+var MyWalletSignup = new function() {
     //Save the javascript wallet to the remote server
     function insertWallet(guid, sharedKey, password, extra, successcallback, errorcallback) {
         var _errorcallback = function(e) {
-            MyWallet.makeNotice('error', 'misc-error', 'Error Saving Wallet: ' + e, 10000);
-
             if (errorcallback != null)
                 errorcallback(e);
 
@@ -33,11 +30,23 @@
                         extra = '';
                     }
 
-                    MyWallet.securePost('wallet' + extra, { length: crypted.length, payload: crypted, checksum: new_checksum, method : 'insert', format : 'plain', sharedKey : sharedKey, guid : guid, active : MyWallet.getActiveAddresses().join('|') }, function(data) {
-                        MyWallet.makeNotice('success', 'misc-success', data);
-
+                    var post_data = {
+                        length: crypted.length,
+                        payload: crypted,
+                        checksum: new_checksum,
+                        method : 'insert',
+                        format : 'plain',
+                        sharedKey : sharedKey,
+                        guid : guid,
+                        active : MyWallet.getActiveAddresses().join('|')
+                    };
+                                   
+                    $.extend(post_data, extra);
+                                   
+                    MyWallet.securePost('wallet', post_data,
+                    function(data) {
                         if (successcallback != null)
-                            successcallback();
+                            successcallback(data);
                     }, function(e) {
                         _errorcallback(e.responseText);
                     });
@@ -50,12 +59,73 @@
         }
     }
 
-    var guid;
-    var sharedKey;
-    var password;
+    function generateUUIDs(n, success, error) {
+        MyWallet.setLoadingText('Generating Wallet Identifier');
 
+        $.ajax({
+            type: "GET",
+            timeout: 60000,
+            url: root + 'uuid-generator',
+            data: { format : 'json', n : n },
+            success: function(data) {
+
+                if (data.uuids && data.uuids.length == n)
+                    success(data.uuids);
+                else
+                    error('Unknown Error');
+            },
+            error : function(data) {
+                error(data.responseText);
+            }
+        });
+    }
+
+    this.generateNewWallet = function(password, email, success, error) {
+        generateUUIDs(2, function(uuids) {
+            try {
+                var guid = uuids[0];
+                var sharedKey = uuids[1];
+
+                rng_seed_time();
+
+                if (password.length < 10) {
+                    throw 'Passwords must be at least 10 characters long';
+                }
+
+                if (password.length > 255) {
+                    throw 'Passwords must be at shorter than 256 characters';
+                }
+
+                if (MyWallet.getAllAddresses().length == 0)
+                    MyWallet.generateNewKey(password);
+
+                //User reported this browser generated an invalid private key
+                if(navigator.userAgent.match(/MeeGo/i)) {
+                    throw 'MeeGo browser currently not supported.';
+                }
+
+                if (guid.length != 36 || sharedKey.length != 36) {
+                    throw 'Error generating wallet identifier';
+                }
+
+                insertWallet(guid, sharedKey, password, {email : email}, function(message){
+                    success(guid, sharedKey, password);
+                }, function(e) {
+                    $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
+
+                    $('#captcha-value').val('');
+
+                    error(e);
+                });
+            } catch (e) {
+                error(e);
+            }
+        }, error);
+    }
+};
+
+(function() {
     function makeNotice(type, id, msg, timeout) {
-
         if (msg == null || msg.length == 0)
             return;
 
@@ -86,80 +156,6 @@
                 }, timeout);
             })();
         }
-    }
-
-    function generateUUIDs(n, success, error) {
-        $.ajax({
-            type: "GET",
-            url: root + 'uuid-generator',
-            data: { format : 'json', n : n },
-            success: function(data) {
-
-                if (data.uuids && data.uuids.length == n)
-                    success(data.uuids);
-                else
-                    error('Unknown Error');
-            },
-            error : function(data) {
-                error(data.responseText);
-            }
-        });
-
-    }
-
-    function generateNewWallet(success, error) {
-        generateUUIDs(2, function(uuids) {
-            try {
-                guid = uuids[0];
-                sharedKey = uuids[1];
-
-                rng_seed_time();
-
-                var tpassword = $("#password").val();
-                var tpassword2 = $("#password2").val();
-
-                if (tpassword != tpassword2) {
-                    throw 'Passwords do not match.';
-                }
-
-                if (tpassword.length < 10) {
-                    throw 'Passwords must be at least 10 characters long';
-                }
-
-                if (tpassword.length > 255) {
-                    throw 'Passwords must be at shorter than 256 characters';
-                }
-
-                password = tpassword;
-
-                if (MyWallet.getAllAddresses().length == 0)
-                    MyWallet.generateNewKey(password);
-
-                if(navigator.userAgent.match(/MeeGo/i)) {
-                    throw 'MeeGo browser currently not supported.';
-                }
-
-                if (guid.length != 36 || sharedKey.length != 36) {
-                    throw 'Error generating wallet identifier';
-                }
-
-                var email = encodeURIComponent($.trim($('#email').val()));
-
-                var captcha_code = $.trim($('#captcha-value').val());
-
-                insertWallet(guid, sharedKey, tpassword, '?kaptcha='+encodeURIComponent(captcha_code)+'&email='+email, function(){
-                    success(guid, sharedKey, tpassword);
-                }, function(e) {
-                    $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
-
-                    $('#captcha-value').val('');
-
-                    error(e);
-                });
-            } catch (e) {
-                error(e);
-            }
-        }, error);
     }
 
     function showMnemonicModal(password, guid, success) {
@@ -225,6 +221,17 @@
                 }
             });
 
+        var options = {
+            onLoad: function () {
+                $('#messages').text('Start typing password');
+            },
+            onKeyUp: function (evt) {
+                $(evt.target).pwstrength("outputErrorList");
+            }
+        };
+
+        $('#password').pwstrength(options);
+
         //Disable auotcomplete in firefox
         $("input, button").attr("autocomplete","off");
 
@@ -234,9 +241,22 @@
             var self = $(this);
 
             self.prop("disabled", true);
-
-            generateNewWallet(function(guid, sharedKey, password) {
-                MyStore.clear();
+            
+            var tpassword = $("#password").val();
+            var tpassword2 = $("#password2").val();
+            
+            if (tpassword != tpassword2) {
+                self.removeAttr("disabled");
+                makeNotice('error', 'misc-error', 'Passwords do not match.');
+                return;
+            }
+                                        
+            var email = $.trim($('#email').val());
+                        
+            MyWalletSignup.generateNewWallet(tpassword, email, function(guid, sharedKey, password) {
+                MyStore.remove('guid');
+                MyStore.remove('multiaddr');
+                MyStore.remove('payload');
 
                 MyStore.put('guid', guid);
 
@@ -263,7 +283,7 @@
             var result = document.getElementById('password-result');
             var password = $(this).val();
 
-            var cps = HSIMP.convertToNumber('250000000'),
+            var cps = HSIMP.convertToNumber('100000000000000'),
                 time, i, checks;
 
             warnings.innerHTML = '';
@@ -277,13 +297,13 @@
                     if (time.time < 0.000001) {
                         result.innerHTML = 'Your password would be hacked <span>Instantly</span>';
                     } else if (time.time < 1) {
-                        result.innerHTML = 'It would take a desktop PC <span>' + time.time+' '+time.period+ '</span> to hack your password';
+                        result.innerHTML = 'It would take a GPU Cracking array <span>' + time.time+' '+time.period+ '</span> to bruteforce your password';
                     } else {
-                        result.innerHTML = 'It would take a desktop PC <span>About ' + time.time+' '+time.period+ '</span> to hack your password';
+                        result.innerHTML = 'It would take a GPU Cracking array <span>About ' + time.time+' '+time.period+ '</span> to bruteforce your password';
                     }
                 } else {
 
-                    result.innerHTML = 'It would take a desktop PC <span>About ' + time.time+' '+time.period+ '</span> to hack your password';
+                    result.innerHTML = 'It would take a GPU Cracking array <span>About ' + time.time+' '+time.period+ '</span> to bruteforce your password';
                 }
 
                 checks = HSIMP.check(password);
@@ -300,4 +320,4 @@
             }
         });
     });
-})();
+}());
