@@ -77,6 +77,7 @@ var MyWallet = new function() {
     var isRestoringWallet = false;
     var sync_pubkeys = false;
     var hdWalletsPlaceHolder = null;
+    var storage_token = null;
 
     var wallet_options = {
         pbkdf2_iterations : default_pbkdf2_iterations, //Number of pbkdf2 iterations to default to for second password and dpasswordhash
@@ -100,16 +101,6 @@ var MyWallet = new function() {
 
         //Generate a new Checksum
         payload_checksum = generatePayloadChecksum();
-
-        try {
-            //Save Payload when two factor authentication is disabled
-            if (real_auth_type == 0 || wallet_options.always_keep_local_backup)
-                MyStore.put('payload', encrypted_wallet_data);
-            else
-                MyStore.remove('payload');
-        } catch (e) {
-            console.log(e);
-        }
     }
 
     this.setRealAuthType = function(val) {
@@ -552,10 +543,10 @@ var MyWallet = new function() {
             MyWallet.makeNotice('error', 'add-error', 'Cannot Archive This Address');
         }
     }
+
     this.addWatchOnlyAddress = function(address) {
         return internalAddKey(address);
     }
-
 
     //opts = {compressed, app_name, app_version, created_time}
     this.addPrivateKey = function(key, opts) {
@@ -584,7 +575,7 @@ var MyWallet = new function() {
 
         if (internalAddKey(addr, encoded)) {
             addresses[addr].tag = 1; //Mark as unsynced
-            addresses[addr].created_time = opts.created_time ? opts.created_time : 0; //Stamp With Creation time
+            addresses[addr].created_time = opts.created_time ? opts.created_time : new Date().getTime(); //Stamp With Creation time
             addresses[addr].created_device_name = opts.app_name ? opts.app_name : APP_NAME; //Created Device
             addresses[addr].created_device_version = opts.app_version ? opts.app_version : APP_VERSION; //Created App Version
 
@@ -2175,6 +2166,12 @@ var MyWallet = new function() {
         MyWallet.setLoadingText("Checking For Wallet Updates");
 
         MyWallet.securePost("wallet", data, function(obj) {
+
+            if (obj.storage_token) {
+                if (storage_token == null || storage_token.indexOf(obj.storage_token) == -1)
+                    MyStore.put('storage_token', (storage_token ? storage_token +'|' : '') + obj.storage_token);
+            }
+
             if (!obj.payload || obj.payload == 'Not modified') {
                 if (success) success();
                 return;
@@ -2533,11 +2530,23 @@ var MyWallet = new function() {
                     throw 'You must enter a Two Factor Authentication code';
                 }
 
+                var data = {
+                    guid: guid,
+                    payload: auth_key,
+                    length : auth_key.length,
+                    method : 'get-wallet',
+                    format : 'plain'
+                };
+
+                if (storage_token) {
+                   data.storageToken = storage_token;
+                }
+
                 $.ajax({
                     timeout: 60000,
                     type: "POST",
                     url: root + "wallet",
-                    data :  { guid: guid, payload: auth_key, length : auth_key.length,  method : 'get-wallet', format : 'plain' },
+                    data : data,
                     success: function(data) {
                         try {
                             if (data == null || data.length == 0) {
@@ -3056,6 +3065,10 @@ var MyWallet = new function() {
             data.sharedKey = sharedKey;
         }
 
+        if (storage_token) {
+            data.storageToken = storage_token;
+        }
+
         $.ajax({
             type: "GET",
             dataType: 'json',
@@ -3125,48 +3138,28 @@ var MyWallet = new function() {
                 open_wallet_btn.prop('disabled', false);
 
                 MyStore.get('guid', function(local_guid) {
-                    MyStore.get('payload', function(local_payload) {
-                        //Error downloading wallet from server
-                        //But we can use the local cache
-                                
-                        if (local_guid == guid_or_alias && local_payload) {
-                            MyWallet.setEncryptedWalletData(local_payload);
-                                
-                            //Generate a new Checksum
-                            guid = local_guid;
-                            payload_checksum = generatePayloadChecksum();
-                            auth_type = 0;
+                    MyWallet.sendEvent('did_fail_set_guid');
 
-                            $('#restore-guid').val(guid);
+                    try {
+                        var obj = $.parseJSON(e.responseText);
 
-                            $('.auth-'+auth_type).show();
-
-                            MyWallet.sendEvent('did_set_guid');
-                        }  else {
-                            MyWallet.sendEvent('did_fail_set_guid');
-
-                            try {
-                                var obj = $.parseJSON(e.responseText);
-
-                                if (obj.authorization_required) {
-                                    loadScript('wallet/poll-for-session-guid', function() {
-                                        pollForSessionGUID();
-                                    });
-                                }
-
-                                if (obj.initial_error) {
-                                    MyWallet.makeNotice('error', 'misc-error', obj.initial_error);
-                                }
-
-                                return;
-                            } catch (ex) {}
-
-                            if (e.responseText)
-                                MyWallet.makeNotice('error', 'misc-error', e.responseText);
-                            else
-                                MyWallet.makeNotice('error', 'misc-error', 'Error changing wallet identifier');
+                        if (obj.authorization_required) {
+                            loadScript('wallet/poll-for-session-guid', function() {
+                                pollForSessionGUID();
+                            });
                         }
-                    });
+
+                        if (obj.initial_error) {
+                            MyWallet.makeNotice('error', 'misc-error', obj.initial_error);
+                        }
+
+                        return;
+                    } catch (ex) {}
+
+                    if (e.responseText)
+                        MyWallet.makeNotice('error', 'misc-error', e.responseText);
+                    else
+                        MyWallet.makeNotice('error', 'misc-error', 'Error changing wallet identifier');
                 });
             }
         });
@@ -4447,8 +4440,9 @@ var MyWallet = new function() {
 
             var tguid = $.trim($('#restore-guid').val());
 
-            if (tguid.length == 0)
+            if (tguid.length == 0) {
                 return;
+            }
 
             if (guid != tguid) {
                 sharedKey = null;
@@ -4604,16 +4598,6 @@ var MyWallet = new function() {
 
         var body = $(document.body);
 
-        function tSetGUID() {
-            if (guid && guid.length == 36) {
-                setTimeout(function(){
-                    MyWallet.setGUID(guid, false);
-                }, 10);
-            } else {
-                $('#signup-btn').show();
-            }
-        }
-
         //Load data attributes from html
         guid = body.data('guid');
         sharedKey = body.data('sharedkey');
@@ -4623,6 +4607,10 @@ var MyWallet = new function() {
         if (MyWallet.skip_init)
             return;
 
+        MyStore.get('storage_token', function (value) {
+            storage_token = value;
+        });
+
         MyStore.get('server_time_offset', function (_serverTimeOffset) {
             serverTimeOffset = parseInt(_serverTimeOffset);
 
@@ -4630,18 +4618,23 @@ var MyWallet = new function() {
                 serverTimeOffset = 0;
         });
 
-        if ((!guid || guid.length == 0) && (isExtension || window.location.href.indexOf('/login') > 0)) {
+        bindInitial();
+
+        var restore_guid = $('#restore-guid').val();
+        if (guid && guid.length == 36) {
+             MyWallet.setGUID(guid, false);
+        } else if (restore_guid && restore_guid.length > 0) {
+            $('#restore-wallet-continue').click();
+        } else if (isExtension || window.location.href.indexOf('/login') > 0) {
             MyStore.get('guid', function(result) {
-                guid = result;
-
-                tSetGUID();
-
-                bindInitial();
+                if (result && result.length == 36) {
+                    MyWallet.setGUID(result, false);
+                } else {
+                   $('#signup-btn').show();
+                }
             });
         } else {
-            tSetGUID();
-
-            bindInitial();
+            $('#signup-btn').show();
         }
 
         //Frame break
@@ -4665,7 +4658,7 @@ var MyWallet = new function() {
                 rng_seed_time();
             }).mousemove(function(event) {
                 if (event) {
-                    rng_seed_int(event.clientX * event.clientY);
+                    rng_seed_int(event.clientX * event.clientY, 16);
                 }
             });
 
