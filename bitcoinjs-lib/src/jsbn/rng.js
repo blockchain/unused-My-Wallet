@@ -8,14 +8,15 @@ var rng_state;
 var rng_pool;
 var rng_pptr;
 
-// Mix in a 32-bit integer into the pool
-function rng_seed_int(x) {
-    rng_pool[rng_pptr++] ^= x & 255;
-    rng_pool[rng_pptr++] ^= (x >> 8) & 255;
-    rng_pool[rng_pptr++] ^= (x >> 16) & 255;
-    rng_pool[rng_pptr++] ^= (x >> 24) & 255;
-    if(rng_pptr >= rng_psize) rng_pptr -= rng_psize;
+// Mix in integer of n bits into the pool
+function rng_seed_int(x, n) {
+    if (!n) n = 32;
+    for (var i = 0; i <= n-8; i += 8) {
+        if (x >> i) rng_pool[rng_pptr++] ^= (x >> i) & 255;
+        if (rng_pptr >= rng_psize) rng_pptr -= rng_psize;
+    }
 }
+
 
 // Mix in the current time (w/milliseconds) into the pool
 function rng_seed_time() {
@@ -26,36 +27,33 @@ function rng_seed_time() {
 if(rng_pool == null) {
     rng_pool = new Array();
     rng_pptr = 0;
-    var t;
 
-    var crypto = _window.crypto || window.msCrypto;
+    var mCrypto = _window.crypto || _window.msCrypto;
 
-    if(crypto && crypto.getRandomValues && typeof Int32Array != 'undefined') {
+    if (mCrypto && mCrypto.getRandomValues && typeof Int32Array != 'undefined') {
+         var word_array = new Int32Array(rng_psize/4);
 
-        console.log('Real Rand ');
+         mCrypto.getRandomValues(word_array);
 
-        var word_array = new Int32Array(32);
+         for(var i = 0; i < word_array.length; ++i) {
+             rng_seed_int(word_array[i]);
+         }
+     }
 
-        _window.crypto.getRandomValues(word_array);
-
-        for(t = 0; t < word_array.length; ++t)
-            rng_seed_int(word_array[t]);
-    } else {
-        while(rng_pptr < rng_psize) {  // extract some randomness from Math.random()
-            t = Math.floor(65536 * Math.random());
-            rng_pool[rng_pptr++] = t >>> 8;
-            rng_pool[rng_pptr++] = t & 255;
-        }
-    }
-
-    rng_pptr = 0;
-    rng_seed_time();
-//rng_seed_int(window.screenX);
-//rng_seed_int(window.screenY);
+     for (var ii = 0; ii < rng_psize/2; ++ii) {  // extract some randomness from Math.random()
+         rng_seed_int(65536 * Math.random(), 16);
+     }
 }
 
 function rng_get_byte() {
     if(rng_state == null) {
+        if (rng_pool.length != rng_psize)
+            throw 'RNG Pool length does not match pool size';
+
+        if (rng_pool.filter(function(v) { return Math.abs(v) == 0; }).length > 12) {
+            throw 'RNG Pool contains a large number of zero elements'
+        }
+
         rng_seed_time();
         rng_state = prng_newstate();
         rng_state.init(rng_pool);
