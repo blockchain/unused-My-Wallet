@@ -22,7 +22,7 @@
                 password_no_capital: "The Password contains only lower case letters",
                 same_as_username: "Your password cannot be the same as your username"
             },
-            scores: [17, 40, 60, 70],
+            scores: [30, 45, 55, 65],
             verdicts: ["Weak", "Normal", "Medium", "Strong", "Very Strong"],
             showVerdicts: true,
             raisePower: 1.3,
