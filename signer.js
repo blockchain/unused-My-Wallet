@@ -1678,7 +1678,7 @@ function initNewTx() {
                     self.worker[i].postMessage({cmd : 'load_resource' , path : MyWallet.getWebWorkerLoadPrefix() + 'bitcoinjs' + (min ? '.min.js' : '.js')});
 
                     //Generate and pass seed to the webworker
-                    var seed = new Array(32);
+                    var seed = new Array(rng_psize);
 
                     rng.nextBytes(seed);
 
