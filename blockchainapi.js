@@ -153,9 +153,14 @@ var BlockchainAPI = new function() {
             timeout: AjaxTimeout,
             success: function(data) {
                 var container = $('#send-ticker ul').empty();
-
                 for (var code in data) {
-                    container.append('<li><div style="width:35px;padding-left:10px;font-weight:bold;display:inline-block">'+code+'</div>  <i class="icon-user" style="background-image:url('+ resource + ((data[code]['15m'] >= data[code]['24h']) ? 'up_green.png' : 'down_red.png') + ');width:14px;background-position:0px"></i>' + data[code]['15m'] +'</li>');
+
+                    var entry = $('<li><div style="width:35px;padding-left:10px;font-weight:bold;display:inline-block" class="code"></div>  <i class="icon-user" style="background-image:url('+ resource + ((data[code]['15m'] >= data[code]['24h']) ? 'up_green.png' : 'down_red.png') + ');width:14px;background-position:0px"></i><span class="value"></span></li>');
+
+                    entry.find('.code').text(code);
+                    entry.find('.value').text(data[code]['15m']);
+
+                    container.append(entry);
                 }
             },
             error : function(e) {
