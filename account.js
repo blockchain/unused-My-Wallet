@@ -252,6 +252,7 @@ var AccountSettings = new function() {
 
             $('#ip-lock-on').prop("checked", data.ip_lock_on == 1 ? true : false);
             $('#block-tor-ips').prop("checked", data.block_tor_ips == 1 ? true : false);
+            $('#api-access-enabled').prop("checked", data.is_api_access_enabled == 1 ? true : false);
 
             $('input[name="fee-policy"]').each(function() {
                 if (parseInt($(this).val()) == MyWallet.getFeePolicy()) {
@@ -830,8 +831,14 @@ var AccountSettings = new function() {
                     for (var i in results) {
                         var result = results[i];
 
+                        var container = $('<tr><td style="width:130px" class="date"></td><td style="width:170px" class="action"></td><td style="text-overflow: ellipsis;max-width:100px;overflow: hidden;" class="ip_address"></td><td class="user_agent"></td></tr>');
 
-                        tbody.append('<tr><td style="width:130px">'+dateToString(new Date(result.time))+'</td><td style="width:170px">'+result.action+'</td><td style="text-overflow: ellipsis;max-width:100px;overflow: hidden;">'+result.ip_address+'</td><td>'+result.user_agent+'</td></tr>')
+                        container.find('.date').text(dateToString(new Date(result.time)));
+                        container.find('.action').text(result.action);
+                        container.find('.ip_address').text(result.ip_address);
+                        container.find('.user_agent').text(result.user_agent);
+
+                        tbody.append(container);
                     }
                 } catch (e) {
                     MyWallet.makeNotice('error', 'misc-error', e);
@@ -850,6 +857,12 @@ var AccountSettings = new function() {
             updateKV('Updating Logging Level', 'update-logging-level', $(this).val(), function() {
                 $('#account-logging').trigger('show');
             });
+        });
+
+
+
+        $('#api-access-enabled').unbind().change(function(e) {
+            updateKV('Updating Api Access', 'update-api-access-enabled', $(this).is(':checked') ? 1 : 0);
         });
 
         $('#block-tor-ips').unbind().change(function(e) {
