@@ -213,8 +213,7 @@ var BlockchainAPI = new function() {
 
     this.push_tx = function(tx, note, success, error) {
         try {
-            
-            var _success = function() {
+            var _success = function(m) {
                 //Clear the Check Interval
                 if (checkTxExistsInterval) {
                     clearInterval(checkTxExistsInterval);
@@ -222,7 +221,7 @@ var BlockchainAPI = new function() {
                 }
                 
                 if (success) {
-                    success(); //Call success to enable send button again
+                    success(m); //Call success to enable send button again
                     success = null;
                 }
             }
@@ -235,7 +234,7 @@ var BlockchainAPI = new function() {
                 }
                 
                 if (error) {
-                    error();
+                    error(e);
                     error = null;
                 }
             }
