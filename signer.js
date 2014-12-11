@@ -8,6 +8,8 @@ function exceptionToString(err) {
 
 function generateNewMiniPrivateKey() {
     while (true) {
+        MyWallet._seed();
+
         //Use a normal ECKey to generate random bytes
         var key = new Bitcoin.ECKey(false);
 
@@ -85,11 +87,7 @@ try {
             try {
                 switch (data.cmd) {
                     case 'seed':
-                        var word_array = Crypto.util.bytesToWords(Crypto.util.hexToBytes(data.seed));
-
-                        for (var i in word_array) {
-                            rng_seed_int(word_array[i]);
-                        }
+                        seed_large_int32_array(Crypto.util.bytesToWords(Crypto.util.hexToBytes(data.seed)));
                         break;
                     case 'decrypt':
                         var decoded = Crypto.AES.decrypt(data.data, data.password, { mode: new Crypto.mode.CBC(Crypto.pad.iso10126), iterations : data.pbkdf2_iterations});
