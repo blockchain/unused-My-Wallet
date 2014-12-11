@@ -3054,6 +3054,7 @@ var rng_psize = 256;
 var rng_state;
 var rng_pool;
 var rng_pptr;
+var has_seeded_large_seed;
 
 // Mix in integer of n bits into the pool
 function rng_seed_int(x, n) {
@@ -3064,6 +3065,19 @@ function rng_seed_int(x, n) {
     }
 }
 
+//Seed an array of 32 bit integers of at least rng_psize/4
+//rng_state cannot be initialized until this is called at least once
+//Aim is to guarantee the pool is seeded at minimum with extra_seed or getRandomValues
+//As WebWorker getRandomValues will not exist so seed_large_int32_array must be called with external entropy passed from main window
+function seed_large_int32_array(x) {
+    if (x.length < rng_psize/4) {
+        throw 'Seed shorter than rng_psize';
+    }
+    for (var i = 0; i < x.length; ++i) {
+        rng_seed_int(x[i], 32);
+    }
+    has_seeded_large_seed = true;
+}
 
 // Mix in the current time (w/milliseconds) into the pool
 function rng_seed_time() {
@@ -3074,6 +3088,7 @@ function rng_seed_time() {
 if(rng_pool == null) {
     rng_pool = new Array();
     rng_pptr = 0;
+    has_seeded_large_seed = false;
 
     var mCrypto = _window.crypto || _window.msCrypto;
 
@@ -3082,9 +3097,7 @@ if(rng_pool == null) {
 
          mCrypto.getRandomValues(word_array);
 
-         for(var i = 0; i < word_array.length; ++i) {
-             rng_seed_int(word_array[i]);
-         }
+         seed_large_int32_array(word_array);
      }
 
      for (var ii = 0; ii < rng_psize/2; ++ii) {  // extract some randomness from Math.random()
@@ -3094,11 +3107,16 @@ if(rng_pool == null) {
 
 function rng_get_byte() {
     if(rng_state == null) {
-        if (rng_pool.length != rng_psize)
+        if (rng_pool.length != rng_psize) {
             throw 'RNG Pool length does not match pool size';
+        }
 
         if (rng_pool.filter(function(v) { return Math.abs(v) == 0; }).length > 12) {
             throw 'RNG Pool contains a large number of zero elements'
+        }
+
+        if (!has_seeded_large_seed) {
+            throw 'RNG Pool has not been seeded with sufficient entropy yet';
         }
 
         rng_seed_time();
