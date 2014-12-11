@@ -1826,7 +1826,7 @@ var MyWallet = new function() {
         });
     }
 
-    function loadAdverts(obj) {
+    this.loadAdverts= function(obj) {
         $.ajax({
             type: "GET",
             dataType: 'json',
@@ -4594,7 +4594,7 @@ var MyWallet = new function() {
         $("input,button,select").attr("autocomplete","off");
 
         //Load adverts for early display
-        loadAdverts();
+        MyWallet.loadAdverts();
 
         var body = $(document.body);
 
