@@ -1826,7 +1826,7 @@ var MyWallet = new function() {
         });
     }
 
-    function loadAdverts(obj) {
+    this.loadAdverts= function(obj) {
         $.ajax({
             type: "GET",
             dataType: 'json',
