@@ -594,30 +594,42 @@ var MyWallet = new function() {
     }
 
     this._seed = function(_password) {
-        rng_seed_time();
+        //Start entropy string with current time
+        var seed_str = ''+new Date().getTime();
 
-        //rng pool is seeded on key press and mouse movements
-        //Add extra entropy from the user's password
-        if (password || _password) {
-            var word_array = Crypto.util.bytesToWords(Crypto.SHA256(password ? password : _password, {asBytes: true}));
-
-            for (var i in word_array) {
-                rng_seed_int(word_array[i]);
-            }
+        //Add current wallet password to entropy string
+        if (password && password.length > 0) {
+            seed_str += password;
         }
 
-        if (!extra_seed) {
-            extra_seed = $('body').data('extra-seed');
+        //Add custom password to entropy string (used on signup)
+        if (_password && _password.length > 0) {
+            seed_str += _password;
         }
 
-        //Extra entropy from a random number provided by server
-        if (extra_seed) {
-            var word_array = Crypto.util.bytesToWords(Crypto.util.hexToBytes(extra_seed));
-
-            for (var i in word_array) {
-                rng_seed_int(word_array[i]);
-            }
+        //Extra seed set dynamically from API calls
+        if (extra_seed && extra_seed.length > 0) {
+            seed_str += extra_seed;
         }
+
+        //Extra seed cached within the body of the document
+        var extraSeedBody = $('body').data('extra-seed');
+        if (extraSeedBody && extraSeedBody.length > 0) {
+            seed_str += extraSeedBody;
+        }
+
+        //Hash the entropy string into a byte array of at least the size of the entropy pool array
+        var entropy_bytes = [];
+        var ii = 0;
+        while (entropy_bytes.length < rng_psize) {
+            entropy_bytes = entropy_bytes.concat(Crypto.SHA256(seed_str + ii, {asBytes: true}));
+            ++ii;
+        }
+
+        var word_array = Crypto.util.bytesToWords(entropy_bytes);
+
+        //Seed the entropy bytes
+        seed_large_int32_array(word_array);
     }
 
     this.generateNewKey = function(_password) {
