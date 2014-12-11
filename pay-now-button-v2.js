@@ -55,7 +55,7 @@ $(document).ready(function() {
                         }
 
                         try {
-                            ws = new WebSocket('ws://ws.blockchain.info/inv');
+                            ws = new WebSocket('wss://ws.blockchain.info/inv');
 
                             if (!ws) return;
 
