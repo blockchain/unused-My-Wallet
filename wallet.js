@@ -1393,7 +1393,7 @@ var MyWallet = new function() {
 
 
     function isAlphaNumericSpace(input) {
-        return /^[\w\-,._  ]+$/.test(input);
+        return /^[\w\-,._  @\+]+$/.test(input);
     }
 
     function addNotePopover(el, tx_hash) {
