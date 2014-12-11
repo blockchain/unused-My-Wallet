@@ -1391,7 +1391,6 @@ var MyWallet = new function() {
         MyWallet.backupWalletDelayed();
     }
 
-
     function isAlphaNumericSpace(input) {
         return /^[\w\-,._  @\+]+$/.test(input);
     }
