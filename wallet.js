@@ -4594,7 +4594,7 @@ var MyWallet = new function() {
         $("input,button,select").attr("autocomplete","off");
 
         //Load adverts for early display
-        loadAdverts();
+        MyWallet.loadAdverts();
 
         var body = $(document.body);
 
