@@ -655,9 +655,9 @@ var SharedCoin = new function() {
             generateAddressFromSeed : function() {
 
                 if (this.address_seed == null) {
-                    var array = [];
+                    MyWallet._seed();
 
-                    array.length = 18;
+                    var array = new Array(18);
 
                     new SecureRandom().nextBytes(array);
 
