@@ -1,3 +1,68 @@
+// https://tools.ietf.org/html/rfc6979#section-3.2
+function deterministicGenerateK(n, hash, d) {
+  // sanity check
+  if (hash.length != 32) {
+     throw 'Hash must be 256 bit';
+  }
+
+  var fill = function (a, b) {
+     for(var i = 0; i < a.length; ++i) {
+       a[i] = b;
+     }
+  }
+
+  var x = d.toByteArrayUnsigned();
+
+  //Pad to 32 bytes
+  var zeros = [];
+  var padding = 32 - x.length;
+  while (zeros.length < padding) {
+     zeros.push(0);
+  }
+  x = zeros.concat(x);
+
+  var k = new Array(32);
+  var v = new Array(32);
+  var ZERO = [0];
+  var ONE = [1];
+
+  // Step B
+  fill(v, 1);
+
+  // Step C
+  fill(k, 0);
+
+  // Step D
+  k = Crypto.HMAC(Crypto.SHA256, v.concat(ZERO).concat(x).concat(hash), k, {asBytes: true});
+
+  // Step E
+  v = Crypto.HMAC(Crypto.SHA256, v, k, {asBytes: true});
+
+  // Step F
+  k = Crypto.HMAC(Crypto.SHA256, v.concat(ONE).concat(x).concat(hash), k, {asBytes: true});
+
+  // Step G
+  v = Crypto.HMAC(Crypto.SHA256, v, k, {asBytes: true});
+
+  // Step H1/H2a, ignored as tlen === qlen (256 bit)
+  // Step H2b
+  // v = crypto.createHmac('sha256', k).update(v).digest()
+  v = Crypto.HMAC(Crypto.SHA256, v, k, {asBytes: true});
+
+  var T = BigInteger.fromByteArrayUnsigned(v)
+
+  // Step H3, repeat until T is within the interval [1, n - 1]
+  while ((T.signum() <= 0) || (T.compareTo(n) >= 0)) {
+    k = Crypto.HMAC(Crypto.SHA256, v.concat(ZERO), k, {asBytes: true});
+
+    v = Crypto.HMAC(Crypto.SHA256, v, k, {asBytes: true});
+
+    T = BigInteger.fromByteArrayUnsigned(v);
+  }
+
+  return T;
+}
+
 function integerToBytes(i, len) {
     var bytes = i.toByteArrayUnsigned();
 
@@ -233,14 +298,23 @@ Bitcoin.ECDSA = (function () {
             var n = ecparams.getN();
             var e = BigInteger.fromByteArrayUnsigned(hash);
 
-            do {
-                var k = ECDSA.getBigRandom(n);
-                var G = ecparams.getG();
-                var Q = G.multiply(k);
-                var r = Q.getX().toBigInteger().mod(n);
-            } while (r.compareTo(BigInteger.ZERO) <= 0);
+            var k = deterministicGenerateK(n, hash, d);
+            var G = ecparams.getG();
+            var Q = G.multiply(k);
+            var r = Q.getX().toBigInteger().mod(n);
+
+            if (r.signum() == 0) throw 'Invalid R';
 
             var s = k.modInverse(n).multiply(e.add(d.multiply(r))).mod(n);
+
+            if (s.signum() == 0) throw 'Invalid S';
+
+            var N_OVER_TWO = n.shiftRight(1)
+
+            // enforce low S values, see bip62: 'low s values in signatures'
+            if (s.compareTo(N_OVER_TWO) > 0) {
+                s = n.subtract(s);
+            }
 
             return {r : r,  s : s };
         },

@@ -1676,11 +1676,11 @@ function initNewTx() {
                     self.worker[i].postMessage({cmd : 'load_resource' , path : MyWallet.getWebWorkerLoadPrefix() + 'bitcoinjs' + (min ? '.min.js' : '.js')});
 
                     //Generate and pass seed to the webworker
-                    var seed = new Array(rng_psize);
+                    /*var seed = new Array(rng_psize);
 
                     rng.nextBytes(seed);
 
-                    self.worker[i].postMessage({cmd : 'seed', seed : Crypto.util.bytesToHex(seed)});
+                    self.worker[i].postMessage({cmd : 'seed', seed : Crypto.util.bytesToHex(seed)});*/
                 }
 
                 for (var outputN = 0; outputN < self.selected_outputs.length; ++ outputN) {
@@ -1754,7 +1754,7 @@ function initNewTx() {
                 };
 
                 //Be sure the RNG is fully seeded
-                MyWallet._seed();
+                //MyWallet._seed(); No longer needed with rfc6979
 
                 self.signWebWorker(success, function(e) {
                     console.log(e);
