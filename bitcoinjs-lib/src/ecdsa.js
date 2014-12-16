@@ -33,13 +33,13 @@ function deterministicGenerateK(n, hash, d) {
   fill(k, 0);
 
   // Step D
-  k = Crypto.HMAC(Crypto.SHA256, v.concat(ZERO).concat(x).concat(hash), k, {asBytes: true});
+  k = Crypto.HMAC(Crypto.SHA256, v.concat(ZERO, x, hash), k, {asBytes: true});
 
   // Step E
   v = Crypto.HMAC(Crypto.SHA256, v, k, {asBytes: true});
 
   // Step F
-  k = Crypto.HMAC(Crypto.SHA256, v.concat(ONE).concat(x).concat(hash), k, {asBytes: true});
+  k = Crypto.HMAC(Crypto.SHA256, v.concat(ONE, x, hash), k, {asBytes: true});
 
   // Step G
   v = Crypto.HMAC(Crypto.SHA256, v, k, {asBytes: true});
