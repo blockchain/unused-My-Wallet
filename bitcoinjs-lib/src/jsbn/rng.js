@@ -12,8 +12,8 @@ var has_seeded_large_seed;
 // Mix in integer of n bits into the pool
 function rng_seed_int(x, n) {
     if (!n) n = 32;
-    for (var i = 0; i <= n-8; i += 8) {
-        if (x >> i) rng_pool[rng_pptr++] ^= (x >> i) & 255;
+    for (var i = 0; i < n-8; i += 8) {
+        if (x >>> i) rng_pool[rng_pptr++] ^= (x >>> i) & 255;
         if (rng_pptr >= rng_psize) rng_pptr -= rng_psize;
     }
 }
