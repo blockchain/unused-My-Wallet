@@ -637,8 +637,10 @@ var MyWallet = new function() {
 
         var key = new Bitcoin.ECKey(false);
 
-        if (MyWallet.addPrivateKey(key)) {
-            return key;
+        var addr = MyWallet.addPrivateKey(key, {compressed : true});
+
+        if (addr) {
+            return {key : key, addr : addr};
         }
     }
 
@@ -4134,9 +4136,12 @@ var MyWallet = new function() {
         $("#new-addr").click(function() {
             getWallet(function() {
                 MyWallet.getSecondPassword(function() {
-                    var key = MyWallet.generateNewKey();
+                    var obj = MyWallet.generateNewKey();
 
-                    var address = key.getBitcoinAddress().toString();
+                    if (!obj || !obj.addr)
+                        throw 'Error Generating New Address';
+
+                    var address = obj.addr;
 
                     MyWallet.backupWallet('update', function() {
                         MyWallet.makeNotice('info', 'new-address', 'Generated new Bitcoin Address ' + address);
@@ -4418,7 +4423,6 @@ var MyWallet = new function() {
                 MyWallet.makeNotice('error', 'error', 'No Wallet Data to Download');
                 return;
             }
-
 
             try { var isFileSaverSupported = !!new Blob(); } catch(e) {}
 

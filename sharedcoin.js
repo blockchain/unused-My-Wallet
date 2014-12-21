@@ -673,11 +673,12 @@ var SharedCoin = new function() {
                 return address;
             },
             generateChangeAddress : function() {
-                var key = MyWallet.generateNewKey();
+                var obj = MyWallet.generateNewKey();
 
-                var change_address = key.getBitcoinAddress();
+                if (!obj || !obj.addr)
+                    throw 'Error Generating Change Address';
 
-                this.generated_addresses.push(change_address.toString());
+                this.generated_addresses.push(obj.addr);
 
                 return change_address;
             },

@@ -719,7 +719,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                 if (changeAddressVal.length > 0) {
                     if (changeAddressVal == 'new') {
-                        var key = MyWallet.generateNewKey();
+                        var key = MyWallet.getBitcoinAddressCompressed(null, {compressed : true});
 
                         var bitcoin_address = key.getBitcoinAddress();
 
@@ -908,10 +908,13 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                             if (validateEmail(send_to_email)) {
                                 //Send to email address
-                                var key = MyWallet.generateNewKey();
+                                var obj = MyWallet.generateNewKey();
+
+                                if (!obj || !obj.addr)
+                                    throw 'Error Generating New Address';
 
                                 //Fetch the newly generated address
-                                var address = key.getBitcoinAddress().toString();
+                                var address = obj.addr;
 
                                 //Archive the address
                                 MyWallet.setAddressTag(address, 2);
