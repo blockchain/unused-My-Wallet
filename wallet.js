@@ -4616,6 +4616,14 @@ var MyWallet = new function() {
             return;
         }
 
+        //Listener to reload the page on App Cache update
+        window.applicationCache.addEventListener('updateready', function () {
+            if(window.applicationCache.status === window.applicationCache.UPDATEREADY) {
+                window.applicationCache.swapCache();
+                location.reload();
+            }
+        });
+
         //Disable autocomplete in firefox
         $("input,button,select").attr("autocomplete","off");
 
