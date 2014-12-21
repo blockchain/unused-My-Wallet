@@ -693,265 +693,270 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
             };
         }
 
-        MyWallet.getSecondPassword(function() {
-            try {
-                //Get the from address, if any
-                var from_select = el.find('select[name="from"]');
-                var fromval = from_select.val();
-                if (fromval == null || fromval == 'any') {
-                    pending_transaction.from_addresses = MyWallet.getActiveAddresses();
-                } else if (from_select.attr('multiple') == 'multiple') {
-                    pending_transaction.from_addresses = fromval;
-                } else {
-                    pending_transaction.from_addresses = [fromval];
-                }
+        (function(pending_transaction) {
+            MyWallet.getSecondPassword(function() {
+                try {
+                    //Get the from address, if any
+                    var from_select = el.find('select[name="from"]');
+                    var fromval = from_select.val();
+                    if (fromval == null || fromval == 'any') {
+                        pending_transaction.from_addresses = MyWallet.getActiveAddresses();
+                    } else if (from_select.attr('multiple') == 'multiple') {
+                        pending_transaction.from_addresses = fromval;
+                    } else {
+                        pending_transaction.from_addresses = [fromval];
+                    }
 
-                var note = el.find('textarea[name="public-note"]').val();
-                if (note != null && note.length > 0) {
+                    var note = el.find('textarea[name="public-note"]').val();
+                    if (note != null && note.length > 0) {
 
-                    if (note.length > 255)
-                        throw 'Notes are restricted to 255 characters in length';
+                        if (note.length > 255)
+                            throw 'Notes are restricted to 255 characters in length';
 
-                    pending_transaction.note = note;
-                }
+                        pending_transaction.note = note;
+                    }
 
-                var changeAddressVal = $.trim(el.find('select[name="change"]').val());
+                    var changeAddressVal = $.trim(el.find('select[name="change"]').val());
 
-                if (changeAddressVal.length > 0) {
-                    if (changeAddressVal == 'new') {
-                        var key = MyWallet.getBitcoinAddressCompressed(null, {compressed : true});
+                    if (changeAddressVal.length > 0) {
+                        if (changeAddressVal == 'new') {
+                            var obj = MyWallet.generateNewKey();
 
-                        var bitcoin_address = key.getBitcoinAddress();
+                            if (!obj || !obj.addr)
+                               throw 'Error Generating New Address';
 
-                        pending_transaction.change_address = bitcoin_address;
+                            var bitcoin_address = obj.addr;
 
-                        pending_transaction.generated_addresses.push(bitcoin_address.toString());
+                            pending_transaction.change_address = new Bitcoin.Address(bitcoin_address);
 
-                    } else if (changeAddressVal != 'any') {
+                            pending_transaction.generated_addresses.push(bitcoin_address);
+
+                        } else if (changeAddressVal != 'any') {
+                            try {
+                                pending_transaction.change_address = new Bitcoin.Address(changeAddressVal);
+                            } catch (e) {
+                                throw 'Invalid change address: ' + e;
+                            };
+                        }
+                    }
+
+                    var input_fee_string = el.find('input[name="fees"]').val();
+                    if (input_fee_string != null && input_fee_string.length > 0) {
+                        var input_fee = precisionToSatoshiBN(input_fee_string);
+                        if (input_fee.compareTo(BigInteger.ZERO) >= 0) {
+                            pending_transaction.fee = input_fee;
+                            pending_transaction.did_specify_fee_manually = true;
+                        }
+                    }
+
+                    var recipients = el.find(".recipient");
+
+                    if (recipients.length == 0) {
+                        throw 'A transaction must have at least one recipient';
+                    }
+
+                    var n_recipients = recipients.length;
+
+                    var try_continue = function() {
+                        if (n_recipients == 0)  {
+                            pending_transaction.error('Nothing to send.');
+                            return;
+                        }
+
+                        //Check that we have resolved all to addresses
+                        if (pending_transaction.to_addresses.length < n_recipients)
+                            return;
+
+                        //Check that we have resolved all to addresses
+                        if (pending_transaction.to_addresses.length > n_recipients) {
+                            pending_transaction.error('We seem to have more recipients than required. Unknown error');
+                            return;
+                        }
+
+                        //If we do have the correct number of recipients start the transaction
+                        pending_transaction.start();
+                    }
+
+                    //Constuct the recepient address array
+                    recipients.each(function() {
                         try {
-                            pending_transaction.change_address = new Bitcoin.Address(changeAddressVal);
-                        } catch (e) {
-                            throw 'Invalid change address: ' + e;
-                        };
-                    }
-                }
+                            var child = $(this);
 
-                var input_fee_string = el.find('input[name="fees"]').val();
-                if (input_fee_string != null && input_fee_string.length > 0) {
-                    var input_fee = precisionToSatoshiBN(input_fee_string);
-                    if (input_fee.compareTo(BigInteger.ZERO) >= 0) {
-                        pending_transaction.fee = input_fee;
-                        pending_transaction.did_specify_fee_manually = true;
-                    }
-                }
+                            /* Parse The Value */
+                            var value_input = child.find('input[name="send-value"]');
+                            var send_to_input = child.find('input[name="send-to-address"]');
+                            var send_to_email_input = child.find('input[name="send-to-email"]');
+                            var send_to_sms_input = child.find('input[name="send-to-sms"]');
 
-                var recipients = el.find(".recipient");
+                            var value = 0;
+                            try {
+                                value = precisionToSatoshiBN(value_input.val());
 
-                if (recipients.length == 0) {
-                    throw 'A transaction must have at least one recipient';
-                }
+                                if (value == null || value.compareTo(BigInteger.ZERO) <= 0)
+                                    throw 'You must enter a value greater than zero';
+                            } catch (e) {
+                                console.log(e);
 
-                var n_recipients = recipients.length;
-
-                var try_continue = function() {
-                    if (n_recipients == 0)  {
-                        pending_transaction.error('Nothing to send.');
-                        return;
-                    }
-
-                    //Check that we have resolved all to addresses
-                    if (pending_transaction.to_addresses.length < n_recipients)
-                        return;
-
-                    //Check that we have resolved all to addresses
-                    if (pending_transaction.to_addresses.length > n_recipients) {
-                        pending_transaction.error('We seem to have more recipients than required. Unknown error');
-                        return;
-                    }
-
-                    //If we do have the correct number of recipients start the transaction
-                    pending_transaction.start();
-                }
-
-                //Constuct the recepient address array
-                recipients.each(function() {
-                    try {
-                        var child = $(this);
-
-                        /* Parse The Value */
-                        var value_input = child.find('input[name="send-value"]');
-                        var send_to_input = child.find('input[name="send-to-address"]');
-                        var send_to_email_input = child.find('input[name="send-to-email"]');
-                        var send_to_sms_input = child.find('input[name="send-to-sms"]');
-
-                        var value = 0;
-                        try {
-                            value = precisionToSatoshiBN(value_input.val());
-
-                            if (value == null || value.compareTo(BigInteger.ZERO) <= 0)
-                                throw 'You must enter a value greater than zero';
-                        } catch (e) {
-                            console.log(e);
-
-                            if (value_input.data('optional') == true) {
-                                --n_recipients;
-                                return true;
-                            } else {
-                                throw 'Invalid send amount';
-                            }
-                        };
-
-                        if (send_to_input.length > 0) {
-                            //Trim and remove non-printable characters
-                            var send_to_address = $.trim(send_to_input.val()).replace(/[\u200B-\u200D\uFEFF]/g, '');
-
-                            if (send_to_address == null || send_to_address.length == 0) {
-                                throw 'You must enter a bitcoin address for each recipient';
-                            }  else {
-
-                                var address = resolveAddress(send_to_address);
-
-                                if (type == 'shared') {
-                                    if (!address) {
-                                        throw 'Invalid Bitcoin Address';
-                                    }
-
-                                    MyWallet.setLoadingText('Creating Forwarding Address');
-
-                                    MyWallet.securePost("forwarder", { action : "create-mix", address : address, shared : true, format : 'json'}, function(obj) {
-                                        try {
-                                            if (obj.destination != address) {
-                                                throw 'Mismatch between requested and returned destination address';
-                                            }
-
-                                            if (obj.fee_percent != MyWallet.getMixerFee()) {
-                                                MyWallet.get_history();
-
-                                                throw 'The mixer fee may have changed';
-                                            }
-
-                                            pending_transaction.to_addresses.push({address: new Bitcoin.Address(obj.input_address), value : value});
-
-                                            //Call again now we have got the forwarding address
-                                            try_continue();
-                                        } catch (e) {
-                                            pending_transaction.error(e);
-                                        }
-                                    }, function(data) {
-                                        pending_transaction.error(data ? data.responseText : null);
-                                    });
+                                if (value_input.data('optional') == true) {
+                                    --n_recipients;
+                                    return true;
                                 } else {
-                                    if (address) {
-                                        pending_transaction.to_addresses.push({address: new Bitcoin.Address(address), value : value});
-                                    } else if (send_to_address.length < 10) {
-                                        //Try and Resolve firstbits
-                                        BlockchainAPI.resolve_firstbits(send_to_address, function(data) {
-                                            try {
-                                                pending_transaction.to_addresses.push({address: new Bitcoin.Address(data), value : value});
+                                    throw 'Invalid send amount';
+                                }
+                            };
 
-                                                //Call again now we have resolved the address
+                            if (send_to_input.length > 0) {
+                                //Trim and remove non-printable characters
+                                var send_to_address = $.trim(send_to_input.val()).replace(/[\u200B-\u200D\uFEFF]/g, '');
+
+                                if (send_to_address == null || send_to_address.length == 0) {
+                                    throw 'You must enter a bitcoin address for each recipient';
+                                }  else {
+
+                                    var address = resolveAddress(send_to_address);
+
+                                    if (type == 'shared') {
+                                        if (!address) {
+                                            throw 'Invalid Bitcoin Address';
+                                        }
+
+                                        MyWallet.setLoadingText('Creating Forwarding Address');
+
+                                        MyWallet.securePost("forwarder", { action : "create-mix", address : address, shared : true, format : 'json'}, function(obj) {
+                                            try {
+                                                if (obj.destination != address) {
+                                                    throw 'Mismatch between requested and returned destination address';
+                                                }
+
+                                                if (obj.fee_percent != MyWallet.getMixerFee()) {
+                                                    MyWallet.get_history();
+
+                                                    throw 'The mixer fee may have changed';
+                                                }
+
+                                                pending_transaction.to_addresses.push({address: new Bitcoin.Address(obj.input_address), value : value});
+
+                                                //Call again now we have got the forwarding address
                                                 try_continue();
                                             } catch (e) {
                                                 pending_transaction.error(e);
                                             }
-                                        }, function() {
-                                            pending_transaction.error('Invalid to address: ' + send_to_address);
+                                        }, function(data) {
+                                            pending_transaction.error(data ? data.responseText : null);
                                         });
-
-                                        return false;
                                     } else {
-                                        pending_transaction.error('Invalid to address: ' + send_to_address);
+                                        if (address) {
+                                            pending_transaction.to_addresses.push({address: new Bitcoin.Address(address), value : value});
+                                        } else if (send_to_address.length < 10) {
+                                            //Try and Resolve firstbits
+                                            BlockchainAPI.resolve_firstbits(send_to_address, function(data) {
+                                                try {
+                                                    pending_transaction.to_addresses.push({address: new Bitcoin.Address(data), value : value});
+
+                                                    //Call again now we have resolved the address
+                                                    try_continue();
+                                                } catch (e) {
+                                                    pending_transaction.error(e);
+                                                }
+                                            }, function() {
+                                                pending_transaction.error('Invalid to address: ' + send_to_address);
+                                            });
+
+                                            return false;
+                                        } else {
+                                            pending_transaction.error('Invalid to address: ' + send_to_address);
+                                        }
                                     }
                                 }
-                            }
-                        } else if (send_to_sms_input.length > 0) {
-                            var mobile_number = $.trim(send_to_sms_input.val());
+                            } else if (send_to_sms_input.length > 0) {
+                                var mobile_number = $.trim(send_to_sms_input.val());
 
-                            if (mobile_number.charAt(0) == '0')
-                                mobile_number = mobile_number.substring(1);
+                                if (mobile_number.charAt(0) == '0')
+                                    mobile_number = mobile_number.substring(1);
 
-                            if (mobile_number.charAt(0) != '+')
-                                mobile_number = '+' + child.find('select[name="sms-country-code"]').val() + mobile_number;
+                                if (mobile_number.charAt(0) != '+')
+                                    mobile_number = '+' + child.find('select[name="sms-country-code"]').val() + mobile_number;
 
-                            //Send to email address
-                            var miniKeyAddrobj = generateNewMiniPrivateKey();
-
-                            //Fetch the newly generated address
-                            var address = miniKeyAddrobj.key.getBitcoinAddress().toString();
-
-                            //Archive the address
-                            MyWallet.setAddressTag(address, 2);
-
-                            MyWallet.setAddressLabel(address, mobile_number + ' Sent Via SMS');
-
-                            pending_transaction.generated_addresses.push(address);
-
-                            pending_transaction.to_addresses.push({address: new Bitcoin.Address(address), value : value});
-
-                            if (pending_transaction.sms_data)
-                                throw 'Cannot send to more than one SMS recipient at a time';
-
-                            pending_transaction.sms_data = {
-                                number : mobile_number,
-                                miniKey:  miniKeyAddrobj.miniKey
-                            };
-                        } else if (send_to_email_input.length > 0) {
-                            //Send to email address
-
-                            var send_to_email = $.trim(send_to_email_input.val());
-
-                            function validateEmail(str) {
-                                var lastAtPos = str.lastIndexOf('@');
-                                var lastDotPos = str.lastIndexOf('.');
-                                return (lastAtPos < lastDotPos && lastAtPos > 0 && str.indexOf('@@') == -1 && lastDotPos > 2 && (str.length - lastDotPos) > 2);
-                            }
-
-                            if (validateEmail(send_to_email)) {
                                 //Send to email address
-                                var obj = MyWallet.generateNewKey();
-
-                                if (!obj || !obj.addr)
-                                    throw 'Error Generating New Address';
+                                var miniKeyAddrobj = generateNewMiniPrivateKey();
 
                                 //Fetch the newly generated address
-                                var address = obj.addr;
+                                var address = miniKeyAddrobj.key.getBitcoinAddress().toString();
 
                                 //Archive the address
                                 MyWallet.setAddressTag(address, 2);
 
-                                MyWallet.setAddressLabel(address, send_to_email + ' Sent Via Email');
+                                MyWallet.setAddressLabel(address, mobile_number + ' Sent Via SMS');
 
                                 pending_transaction.generated_addresses.push(address);
 
                                 pending_transaction.to_addresses.push({address: new Bitcoin.Address(address), value : value});
 
-                                if (pending_transaction.email_data)
-                                    throw 'Cannot send to more than one email recipient at a time';
+                                if (pending_transaction.sms_data)
+                                    throw 'Cannot send to more than one SMS recipient at a time';
 
-                                pending_transaction.email_data = {
-                                    email : send_to_email,
-                                    priv : B58.encode(key.priv),
-                                    amount : value
+                                pending_transaction.sms_data = {
+                                    number : mobile_number,
+                                    miniKey:  miniKeyAddrobj.miniKey
+                                };
+                            } else if (send_to_email_input.length > 0) {
+                                //Send to email address
+
+                                var send_to_email = $.trim(send_to_email_input.val());
+
+                                function validateEmail(str) {
+                                    var lastAtPos = str.lastIndexOf('@');
+                                    var lastDotPos = str.lastIndexOf('.');
+                                    return (lastAtPos < lastDotPos && lastAtPos > 0 && str.indexOf('@@') == -1 && lastDotPos > 2 && (str.length - lastDotPos) > 2);
                                 }
-                            } else {
-                                throw 'Invalid Email Address';
+
+                                if (validateEmail(send_to_email)) {
+                                    //Send to email address
+                                    var obj = MyWallet.generateNewKey();
+
+                                    if (!obj || !obj.addr)
+                                        throw 'Error Generating New Address';
+
+                                    //Fetch the newly generated address
+                                    var address = obj.addr;
+
+                                    //Archive the address
+                                    MyWallet.setAddressTag(address, 2);
+
+                                    MyWallet.setAddressLabel(address, send_to_email + ' Sent Via Email');
+
+                                    pending_transaction.generated_addresses.push(address);
+
+                                    pending_transaction.to_addresses.push({address: new Bitcoin.Address(address), value : value});
+
+                                    if (pending_transaction.email_data)
+                                        throw 'Cannot send to more than one email recipient at a time';
+
+                                    pending_transaction.email_data = {
+                                        email : send_to_email,
+                                        priv : B58.encode(key.priv),
+                                        amount : value
+                                    }
+                                } else {
+                                    throw 'Invalid Email Address';
+                                }
                             }
+                        } catch (e) {
+                            console.log(e);
+
+                            pending_transaction.error(e);
                         }
-                    } catch (e) {
-                        console.log(e);
+                    });
 
-                        pending_transaction.error(e);
-                    }
-                });
+                    try_continue();
 
-                try_continue();
-
-            } catch (e) {
-                pending_transaction.error(e);
-            }
-        }, function() {
-            pending_transaction.error();
-        });
+                } catch (e) {
+                    pending_transaction.error(e);
+                }
+            }, function() {
+                pending_transaction.error();
+            });
+        })(pending_transaction);
     } catch (e) {
         pending_transaction.error(e);
     }

@@ -9,7 +9,8 @@ var SharedCoin = new function() {
     var version = 3;
     var URL = MyWallet.getSharedcoinEndpoint() + '?version=' + version;
     var extra_private_keys = {};
-    var seed_prefix = 'sharedcoin-seed:';
+    var seed_prefix = 'sharedcoin-seed-v2:';
+    var seed_prefix_v1 = 'sharedcoin-seed:';
 
     /*globals jQuery, window */
     (function($) {
@@ -39,8 +40,11 @@ var SharedCoin = new function() {
                             delete this.suppressErrors;
                         }
 
-                        //try again
-                        $.ajax(this);
+                        //try again after delay
+                        setTimeout(function() {
+                            $.ajax(this);
+                        }, 5000);
+
                         return true;
                     }
                     return true;
@@ -625,10 +629,16 @@ var SharedCoin = new function() {
 
         var key = new Bitcoin.ECKey(hash);
 
-        if (hash[0] % 2 == 0) {
-            var address = key.getBitcoinAddress();
-        } else {
+        if (seed.indexOf(seed_prefix) == 0) {
+            //current seed version
             var address = key.getBitcoinAddressCompressed();
+        } else {
+            //Assume seed v1
+            if (hash[0] % 2 == 0) {
+                var address = key.getBitcoinAddress();
+            } else {
+                var address = key.getBitcoinAddressCompressed();
+            }
         }
 
         return {address: address, key: key};
@@ -678,9 +688,11 @@ var SharedCoin = new function() {
                 if (!obj || !obj.addr)
                     throw 'Error Generating Change Address';
 
-                this.generated_addresses.push(obj.addr);
+                var change_address = obj.addr;
 
-                return change_address;
+                this.generated_addresses.push(change_address);
+
+                return new Bitcoin.Address(change_address);
             },
             executeOffer : function(offer, success, error) {
 
@@ -1379,10 +1391,13 @@ var SharedCoin = new function() {
                 for (var key in additional_seeds) {
                     var seed = additional_seeds[key];
 
-                    if (seed.indexOf(seed_prefix) == 0) {
+                    if (seed.indexOf(seed_prefix) == 0 || seed.indexOf(seed_prefix_v1) == 0) {
                         shared_coin_seeds.push(seed);
                     }
                 }
+
+                //Reverse to scan newest first
+                shared_coin_seeds.reverse();
 
                 SharedCoin.recoverSeeds(shared_coin_seeds, function() {
                     self.prop('disabled', false);
