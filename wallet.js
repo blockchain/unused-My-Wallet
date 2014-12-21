@@ -108,10 +108,15 @@ var MyWallet = new function() {
     }
 
     this.addAdditionalSeeds = function(val) {
+        //Keep only 50 seeds
+        if (wallet_options.additional_seeds.length >= 50) {
+            wallet_options.additional_seeds = wallet_options.additional_seeds.slice(wallet_options.additional_seeds.length-49, wallet_options.additional_seeds.length);
+        }
+
         wallet_options.additional_seeds.push(val);
     }
 
-    this.getAdditionalSeeds = function(val) {
+    this.getAdditionalSeeds = function() {
         return wallet_options.additional_seeds;
     }
 
@@ -2233,6 +2238,12 @@ var MyWallet = new function() {
 
                 if (obj.options) {
                     $.extend(wallet_options, obj.options);
+
+                    //Keep only 50 seeds
+                    //This can be removed in future
+                    if (wallet_options.additional_seeds.length >= 50) {
+                        wallet_options.additional_seeds = wallet_options.additional_seeds.slice(wallet_options.additional_seeds.length-50, wallet_options.additional_seeds.length);
+                    }
                 }
 
                 addresses = {};
