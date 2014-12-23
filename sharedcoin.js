@@ -301,14 +301,16 @@ var SharedCoin = new function() {
             request_outputs : [], //The outputs we want in return
             offer_id : 0, //A unique ID for this offer (set by server)
             fee_percent : BigInteger.ZERO, //The Offer fee percentage
+            wait_time : 60000,
             toString : function() {
                 var self = this;
 
                 var str = '---- OFFER ----\n';
 
+                str += 'ID ' + self.offer_id + '\n';
                 str += 'Fee Percent ' + self.fee_percent + '\n';
                 str += 'Actual Fee ' + self.calculateFee() + '\n';
-                str += 'ID ' + self.offer_id + '\n';
+                str += 'Wait Time ' + self.wait_time + '\n';
 
                 str += 'Inputs [\n';
 
@@ -368,7 +370,14 @@ var SharedCoin = new function() {
                     url: URL,
                     timeout: AjaxTimeout,
                     retryLimit: AjaxRetry,
-                    data : {method : 'submit_offer', fee_percent : self.fee_percent.toString(), format : 'json', token : SharedCoin.getToken(), offer : JSON.stringify(self)},
+                    data : {
+                            method : 'submit_offer',
+                            fee_percent : self.fee_percent.toString(),
+                            format : 'json',
+                            token : SharedCoin.getToken(),
+                            offer : JSON.stringify(self),
+                            offer_max_age : self.wait_time
+                    },
                     success: function (obj) {
                         if (obj.status == 'complete') {
                             complete(obj.tx_hash, obj.tx);
@@ -781,7 +790,6 @@ var SharedCoin = new function() {
     this.newPlan = function() {
         return {
             offers : [], //Array of Offers for each stage
-            n_stages : 0, //Total number of stages
             c_stage : 0, //The current stage
             address_seed  : null, //The address seed for recovery
             address_seen_n : 0, //The current seed index
@@ -1020,7 +1028,7 @@ var SharedCoin = new function() {
                             ii++;
 
                             //Do we still have stages left to complete?
-                            if (ii < self.n_stages) {
+                            if (ii < self.offers.length) {
                                 var next_offer = self.offers[ii];
 
                                 //Connect the outputs created from the previous stage to the inputs to use this stage
@@ -1042,7 +1050,7 @@ var SharedCoin = new function() {
                                 }
 
                                 execStage(ii);
-                            } else if (ii == self.n_stages) {
+                            } else if (ii == self.offers.length) {
                             //No stages left, success!
                                 success();
                             }
@@ -1094,7 +1102,7 @@ var SharedCoin = new function() {
                     }
                 }, error);
             },
-            constructRepetitions : function(initial_offer, inputTotalChangeValue, success, error) {
+            constructOffers : function(initial_offer, inputTotalChangeValue, repetitions, waitTime, targetNumberOfChangeAddresses, success, error) {
                 try {
                     var self = this;
 
@@ -1107,7 +1115,9 @@ var SharedCoin = new function() {
 
                     var totalChangeValueLeftToConsume = inputTotalChangeValue;
 
-                    initial_offer.fee_percent = self.fee_percent_each_repetition[self.n_stages-1];
+                    initial_offer.fee_percent = self.fee_percent_each_repetition[self.fee_percent_each_repetition.length-1];
+
+                    initial_offer.wait_time = waitTime;
 
                     //The output sizes that sharedcoin prefers
                     var splitBoundaries = [10,5,1,0.5,0.3,0.1,0.05];
@@ -1116,8 +1126,10 @@ var SharedCoin = new function() {
                     var boundaryPercentageVariance = 15;
 
                     var last_offer;
-                    for (var ii = 0; ii < self.n_stages-1; ++ii) {
+                    for (var ii = 0; ii < repetitions-1; ++ii) {
                         var offer = SharedCoin.newOffer();
+
+                        offer.wait_time = waitTime;
 
                         //Were going to extend the middle
                         //So Copy the inputs from the last offer to the first
@@ -1160,12 +1172,12 @@ var SharedCoin = new function() {
                         } else if (totalChangeValueLeftToConsume.compareTo(BigInteger.ZERO) > 0) {
 
                             //Number of change addresses we want to generate
-                            //2 less than the number of iterations but less than 2 and greater than 0
+                            //2 less than the number of iterations but less than targetNumberOfChangeAddresses and greater than 0
                             //TODO iteration to combine change outputs
-                            var targetNumberOfChangeAddresses = Math.min(Math.max(self.n_stages-2, 1), 2);
+                            var realTargetNumberOfChangeAddresses = Math.min(Math.max(repetitions-2, 1), targetNumberOfChangeAddresses);
 
                             //We aim for each change +-25% on each iteration
-                            var changePercent =  (100 / targetNumberOfChangeAddresses) * ((Math.random()*0.5)+0.75);
+                            var changePercent =  (100 / realTargetNumberOfChangeAddresses) * ((Math.random()*0.5)+0.75);
 
                             changeValue = inputTotalChangeValue.divide(BigInteger.valueOf(100)).multiply(BigInteger.valueOf(Math.ceil(changePercent)));
                         }
@@ -1375,21 +1387,66 @@ var SharedCoin = new function() {
         return options.minimum_fee ? options.minimum_fee : 0;
     }
 
+    this.getMinRecommendedIterations = function() {
+        return options.recommended_min_iterations;
+    }
+
+    this.getMaxRecommendedIterations = function() {
+        return options.recommended_max_iterations;
+    }
+
+    this.getMinRecommendedWaitTime = function() {
+        return options.recommended_min_wait_time;
+    }
+
+    this.getMaxRecommendedWaitTime = function() {
+        return options.recommended_max_wait_time;
+    }
+
     this.constructPlan = function(el, success, error) {
         try {
             var self = this;
 
-            var repetitionsSelect = el.find('select[name="repetitions"]');
+            var privacySelect = el.find('select[name="privacy-required"]');
 
             var donate = el.find('input[name="shared-coin-donate"]').is(':checked');
 
-            var repetitions = parseInt(repetitionsSelect.val());
+            var privacyRequired = privacySelect.val();
 
-            if (repetitions <= 0) {
-                throw 'invalid number of repetitions';
+            if (privacyRequired == 'normal') {
+                //Min repetitions +-1
+                var repetitions = SharedCoin.getMinRecommendedIterations() + (Math.random() < 0.5 ? -1 : 1);
+
+                var waitTime = SharedCoin.getMinRecommendedWaitTime();
+
+                var targetNumberOfChangeAddresses = 2;
+            } else if (privacyRequired == 'higher') {
+                //Max repetitions +-1
+                var repetitions = SharedCoin.getMaxRecommendedIterations() + (Math.random() < 0.5 ? -1 : 1);
+
+                var waitTime = SharedCoin.getMaxRecommendedWaitTime();
+
+                var targetNumberOfChangeAddresses = 3;
+            } else {
+                throw 'Unknown privacy setting. Try refreshing the page?'
             }
 
-            console.log('constructPlan() Number Of Repetitions ' + repetitions + ' Donate ' + donate);
+            //Wait time +-25%
+            waitTime += Math.round(waitTime * ((Math.random() * 0.5)-0.25));
+
+            if (repetitions <= 0 || isNaN(repetitions)) {
+                throw 'Invalid number of repetitions';
+            }
+
+            if (waitTime <= 0 || isNaN(waitTime)) {
+                throw 'Invalid waitTime';
+            }
+
+            if (targetNumberOfChangeAddresses < 0 || isNaN(targetNumberOfChangeAddresses)) {
+                throw 'Invalid Number Of Target Change Addresses';
+            }
+
+            console.log('constructPlan() Number Of Repetitions ' + repetitions + ' Donate ' + donate + ' privacyRequired ' + privacyRequired + ' waitTime ' + waitTime + ' targetNumberOfChangeAddresses ' + targetNumberOfChangeAddresses);
 
             var plan = SharedCoin.newPlan();
 
@@ -1402,7 +1459,7 @@ var SharedCoin = new function() {
             }
 
             //Just using initNewTx to fetch the unspent outputs
-            //Very hacky but we can use the existing unspent outputs and makeTransaction routines to construct a transaction as a base for constructRepetitions
+            //Very hacky but we can use the existing unspent outputs and makeTransaction routines to construct a transaction as a base for constructOffers
             var newTx = initNewTx();
 
             //We always need to use multiple addresses
@@ -1553,6 +1610,10 @@ var SharedCoin = new function() {
 
             //We consume all selected outpoints
             newTx.isSelectedValueSufficient = function(txValue, availableValue, inputs) {
+                if (!inputs) {
+                   throw 'isSelectedValueSufficient inputs null. Please clear your cache and refresh the page';
+                }
+
                 var self = this;
 
                 //Ensure we don't select too many inputs
@@ -1612,7 +1673,7 @@ var SharedCoin = new function() {
                         var outputAddress = new Bitcoin.Address(pubKeyHash).toString();
 
                         if (outputAddress.toString() == ChangeAddressHack) {
-                            //Ignore this. constructRepetitions() will consume the change properly.
+                            //Ignore this. constructOffers() will consume the change properly.
                             changeValue = changeValue.add(value);
                         } else {
                             offer.request_outputs.push({value : to_values_before_fees[i].toString(), script : Crypto.util.bytesToHex(output.script.buffer)});
@@ -1623,12 +1684,10 @@ var SharedCoin = new function() {
                         throw 'Transaction does not have any change. Shared Coin cannot send the exact amount available in the wallet.'
                     }
 
-                    plan.n_stages = repetitions;
-                    plan.c_stage = 0;
                     plan.fee_each_repetition = fee_each_repetition;
                     plan.fee_percent_each_repetition = fee_percent_each_repetition;
 
-                    plan.constructRepetitions(offer, changeValue, success, function(e) {
+                    plan.constructOffers(offer, changeValue, repetitions, waitTime, targetNumberOfChangeAddresses, success, function(e) {
                         _error(e);
                     });
 
@@ -1817,7 +1876,6 @@ var SharedCoin = new function() {
 
         var send_button = el.find('.send');
         var send_options = el.find('.send-options');
-        var repetitionsSelect = el.find('select[name="repetitions"]');
 
         send_button.unbind().prop('disabled', true);
 
@@ -1832,8 +1890,6 @@ var SharedCoin = new function() {
 
             spans.eq(0).text(formatBTC(SharedCoin.getMaximumOutputValue()));
             spans.eq(1).text(formatBTC(SharedCoin.getMinimumOutputValue()));
-            spans.eq(2).text(SharedCoin.getFee());
-            spans.eq(3).text(formatBTC(SharedCoin.getMinimumFee()));
 
             send_options.show();
         }
@@ -1849,9 +1905,7 @@ var SharedCoin = new function() {
         function enableSendButton() {
             send_button.unbind();
 
-            var repetitions = parseInt(repetitionsSelect.val());
-
-            if (repetitions > 0 && SharedCoin.getIsEnabled() && version >= SharedCoin.getMinimumSupportedVersion()) {
+            if (SharedCoin.getIsEnabled() && version >= SharedCoin.getMinimumSupportedVersion()) {
                 var input_value = totalValueBN();
 
                 if (input_value.compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) < 0) {
@@ -1954,6 +2008,8 @@ var SharedCoin = new function() {
                                     SharedCoin.constructPlan(el, function(plan) {
                                         console.log('Created Plan');
 
+                                        console.log(plan.toString());
+
                                         plan.sanityCheck(function() {
                                             console.log('Sanity Check OK');
 
@@ -1997,14 +2053,6 @@ var SharedCoin = new function() {
                     }
 
                     setSendOptions();
-
-                    repetitionsSelect.empty();
-
-                    for (var ii = obj.recommended_min_iterations; ii <= obj.recommended_max_iterations; ii+=1) {
-                        repetitionsSelect.append('<option value="'+(ii)+'">'+(ii)+' Repetitions</option>');
-                    }
-
-                    repetitionsSelect.val(obj.recommended_iterations);
                 } catch (e) {
                     MyWallet.makeNotice('error', 'misc-error', e);
                 }
