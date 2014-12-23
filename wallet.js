@@ -1238,25 +1238,32 @@ var MyWallet = new function() {
             el.find('.remove-recipient').show(200);
         });
 
-        el.find('select[name="from"]').unbind().change(function() {
-            var total_selected = 0;
+        var fromSelect = el.find('select[name="from"]');
 
-            var values = $(this).val();
-            for (var i in values) {
-                if (values[i] == 'any') {
-                    $(this).val('any');
+        //Default to final balance
+        if (fromSelect.length == 0) {
+            el.find('.amount-available').text(formatBTC(final_balance));
+        } else {
+            fromSelect.unbind().change(function() {
+                var total_selected = 0;
 
-                    total_selected = final_balance;
-                    break;
-                } else {
-                    var addr = addresses[values[i]];
-                    if (addr && addr.balance)
-                        total_selected += addr.balance;
+                var values = $(this).val();
+                for (var i in values) {
+                    if (values[i] == 'any') {
+                        $(this).val('any');
+
+                        total_selected = final_balance;
+                        break;
+                    } else {
+                        var addr = addresses[values[i]];
+                        if (addr && addr.balance)
+                            total_selected += addr.balance;
+                    }
                 }
-            }
 
-            el.find('.amount-available').text(formatBTC(total_selected));
-        }).trigger('change');
+                el.find('.amount-available').text(formatBTC(total_selected));
+            }).trigger('change');
+        }
     }
 
     this.getAllAddresses = function() {
