@@ -7,11 +7,12 @@ var SharedCoin = new function() {
     var LastSignatureSubmitTime = 0;
     var MinTimeBetweenSubmits = 120000;
     var options = {};
-    var version = 4;
+    var version = 5;
     var URL = MyWallet.getSharedcoinEndpoint() + '?version=' + version;
     var extra_private_keys = {};
     var seed_prefix = 'sharedcoin-seed-v2:';
     var seed_prefix_v1 = 'sharedcoin-seed:';
+    var ProgressCallbacksPerOffer = 7;
 
     //Count the number of keys in an object
     function nKeys(obj) {
@@ -181,6 +182,48 @@ var SharedCoin = new function() {
             self.modal.find('.btn.btn-secondary').unbind().click(function() {
                 self.hide();
             });
+        },
+        setProgressError : function() {
+            if (this.modal) {
+                var progress = this.modal.find('.progress');
+
+                progress.addClass('progress-danger');
+                progress.removeClass('progress-success');
+                progress.removeClass('progress-info');
+            }
+        },
+        setProgressSuccess : function() {
+            if (this.modal) {
+                var progress = this.modal.find('.progress');
+
+                progress.addClass('progress-success');
+                progress.removeClass('progress-danger');
+                progress.removeClass('progress-info');
+            }
+        },
+        setProgressInfo : function() {
+            if (this.modal) {
+                var progress = this.modal.find('.progress');
+
+                progress.addClass('progress-info');
+                progress.removeClass('progress-success');
+                progress.removeClass('progress-danger');
+            }
+        },
+        setProgress : function(stage, max_stage) {
+            if (this.modal) {
+                var width = (stage / max_stage) * 100;
+
+                var progress = this.modal.find('.progress');
+
+                if (stage >= max_stage) {
+                    progress.removeClass('active');
+                } else {
+                    progress.addClass('active');
+                }
+
+                progress.children().css('width', width + '%');
+            }
         },
         setAddressAndAmount : function(address, amount) {
             if (this.modal) {
@@ -910,7 +953,7 @@ var SharedCoin = new function() {
 
                 return new Bitcoin.Address(change_address);
             },
-            executeOffer : function(offer, success, error) {
+            executeOffer : function(offer, success, error, progress) {
 
                 function complete(tx_hash, tx) {
                     console.log('executeOffer.complete');
@@ -920,23 +963,39 @@ var SharedCoin = new function() {
                     }, error);
                 }
 
+                var cProg = 0;
+
+                progress(++cProg, ProgressCallbacksPerOffer);
+
                 offer.submit(function() {
                     console.log('Successfully Submitted Offer');
+
+                    progress(++cProg, ProgressCallbacksPerOffer);
 
                     offer.pollForProposalID(function(proposal_id) {
                         console.log('Proposal ID ' + proposal_id);
 
+                        progress(++cProg, ProgressCallbacksPerOffer);
+
                         offer.getProposal(proposal_id, function(proposal) {
                             console.log('Got Proposal');
+
+                            progress(++cProg, ProgressCallbacksPerOffer);
 
                             offer.checkProposal(proposal, function(tx) {
                                 console.log('Proposal Looks Good');
 
+                                progress(++cProg, ProgressCallbacksPerOffer);
+
                                 offer.signInputs(proposal, tx, function(signatures) {
                                     console.log('Inputs Signed');
 
+                                    progress(++cProg, ProgressCallbacksPerOffer);
+
                                     offer.submitInputScripts(proposal, signatures, function (obj) {
                                         console.log('Submitted Input Scripts');
+
+                                        progress(++cProg, ProgressCallbacksPerOffer);
 
                                         proposal.pollForCompleted(complete, error);
                                     }, error, complete);
@@ -946,7 +1005,7 @@ var SharedCoin = new function() {
                     }, error);
                 }, error, complete);
             },
-            execute : function(success, error) {
+            execute : function(success, error, progress) {
                 var self = this;
 
                 var execStage = function(ii) {
@@ -998,13 +1057,18 @@ var SharedCoin = new function() {
                             throw 'Failed to connect input ' + ii;
                     }
 
+                    var _progress = function(stage) {
+                       progress(stage + (ProgressCallbacksPerOffer*self.c_stage), ProgressCallbacksPerOffer*self.offers.length);
+                    }
+
                     self.executeOffer(offerForThisStage, _success, function(e) {
+                        //Retry the offer if it fails
                         console.log('executeOffer failed ' + e);
 
                         setTimeout(function() {
-                            self.executeOffer(offerForThisStage, _success, error);
+                            self.executeOffer(offerForThisStage, _success, error, _progress);
                         }, 5000);
-                    });
+                    }, _progress);
                 };
 
                 MyWallet.backupWallet('update', function() {
@@ -1798,10 +1862,15 @@ var SharedCoin = new function() {
                     send_button.prop('disabled', false);
 
                     send_button.unbind().click(function() {
+
+                        progressModal.setProgressInfo();
+
                         MyWallet.disableLogout(true);
 
                         var error = function(e, plan) {
                             console.log('Fatal Error');
+
+                            progressModal.setProgressError();
 
                             el.find('input,select,button').prop('disabled', false);
 
@@ -1829,6 +1898,8 @@ var SharedCoin = new function() {
                         };
 
                         var success = function(){
+                            progressModal.setProgressSuccess();
+
                             el.find('input,select,button').prop('disabled', false);
 
                             MyWallet.makeNotice('success', 'misc-success', 'Shared Coin Transaction Successfully Completed');
@@ -1873,8 +1944,9 @@ var SharedCoin = new function() {
 
                                 var interval = Math.max(0, MinTimeBetweenSubmits - timeSinceLastSubmit);
 
-                                if (interval > 0 )
+                                if (interval > 0 ) {
                                     $('.loading-indicator').fadeIn(200);
+                                }
 
                                 setTimeout(function() {
                                     $('.loading-indicator').hide();
@@ -1882,13 +1954,14 @@ var SharedCoin = new function() {
                                     SharedCoin.constructPlan(el, function(plan) {
                                         console.log('Created Plan');
 
-                                        console.log(plan.toString());
-
                                         plan.sanityCheck(function() {
                                             console.log('Sanity Check OK');
 
                                             plan.execute(success, function(e) {
                                                 error(e, plan);
+                                            }, function(stage, max_stage) {
+                                                //Progress listener
+                                                progressModal.setProgress(stage, max_stage+1);
                                             });
                                         }, error);
                                     }, error);
