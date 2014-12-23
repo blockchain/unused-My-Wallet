@@ -934,7 +934,7 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
 
                                     pending_transaction.email_data = {
                                         email : send_to_email,
-                                        priv : B58.encode(key.priv),
+                                        priv : B58.encode(obj.key.priv),
                                         amount : value
                                     }
                                 } else {
