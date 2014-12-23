@@ -1549,32 +1549,43 @@ var SharedCoin = new function() {
                 donationSplits.push(DonationPercent - split);
             }
 
+            for (var i = repetitions-1; i >= 0; --i) {
+                var feePercent = SharedCoin.getFee();
+
+                //At the donation reduction at the the end of the iterations
+                if (donationSplits.length > 0) {
+                    feePercent += donationSplits.pop();
+                }
+
+                fee_percent_each_repetition[i] = feePercent;
+                fee_each_repetition[i] = BigInteger.ZERO;
+            }
+
+            var totalFee = BigInteger.ZERO;
             for (var i in newTx.to_addresses) {
                 var to_address = newTx.to_addresses[i];
 
                 to_values_before_fees.push(to_address.value);
 
                 for (var ii = repetitions-1; ii >= 0; --ii) {
-                    var feePercent = SharedCoin.getFee();
+                    var feeThisOutput = SharedCoin.calculateFeeForValue(fee_percent_each_repetition[ii], to_address.value);
 
-                    //At the donation reduction at the the end of the iterations
-                    if (donationSplits.length > 0) {
-                        feePercent += donationSplits.pop();
-                    }
+                    totalFee = totalFee.add(feeThisOutput);
 
-                    fee_percent_each_repetition[ii] = feePercent;
-
-                    var feeThisOutput = SharedCoin.calculateFeeForValue(feePercent, to_address.value);
-
-                    to_address.value = to_address.value.add(feeThisOutput);
-
-                    var existing = fee_each_repetition[ii];
-                    if (existing) {
-                        fee_each_repetition[ii] = existing.add(feeThisOutput);
-                    } else {
-                        fee_each_repetition[ii] = feeThisOutput;
-                    }
+                    fee_each_repetition[ii] = fee_each_repetition[ii].add(feeThisOutput);
                 }
+            }
+
+            var networkFee = BigInteger.valueOf(SharedCoin.getMinimumFee());
+
+            //Add the network fee for each repetition
+            totalFee = totalFee.add(networkFee.multiply(BigInteger.valueOf(repetitions)));
+
+            newTx.to_addresses[0].value = newTx.to_addresses[0].value.add(totalFee);
+
+            //Add the network fee
+            for (var i in fee_each_repetition) {
+                 fee_each_repetition[i] = fee_each_repetition[i].add(networkFee);
             }
 
             var ChangeAddressHack = '1BitcoinEaterAddressDontSendf59kuE';  //Fixed address so we can identify the change output. Obviously this isn't used
@@ -1703,16 +1714,14 @@ var SharedCoin = new function() {
     }
 
     this.calculateFeeForValue = function(fee_percent, input_value) {
-        var minFee = BigInteger.valueOf(SharedCoin.getMinimumFee());
-
         if (input_value.compareTo(BigInteger.ZERO) > 0 && fee_percent > 0) {
             var mod = Math.ceil(100 / fee_percent);
 
             var fee = input_value.divide(BigInteger.valueOf(mod));
 
-            return minFee.add(fee);
+            return fee;
         } else {
-            return minFee;
+            return BigInteger.ZERO;
         }
     }
 
@@ -1917,8 +1926,6 @@ var SharedCoin = new function() {
 
                     send_button.unbind().click(function() {
 
-                        progressModal.setProgressInfo();
-
                         MyWallet.disableLogout(true);
 
                         var error = function(e, plan) {
@@ -1978,7 +1985,11 @@ var SharedCoin = new function() {
 
                                 progressModal.show();
 
+                                progressModal.setProgressInfo();
+
                                 progressModal.disableCancel();
+
+                                progressModal.setProgress(0, 1);
 
                                 var displayValue = totalValueBN();
 
@@ -2008,7 +2019,7 @@ var SharedCoin = new function() {
                                     SharedCoin.constructPlan(el, function(plan) {
                                         console.log('Created Plan');
 
-                                        console.log(plan.toString());
+                                        //console.log(plan.toString());
 
                                         plan.sanityCheck(function() {
                                             console.log('Sanity Check OK');
@@ -2017,7 +2028,7 @@ var SharedCoin = new function() {
                                                 error(e, plan);
                                             }, function(stage, max_stage) {
                                                 //Progress listener
-                                                progressModal.setProgress(stage, max_stage+1);
+                                                progressModal.setProgress(stage, max_stage);
                                             });
                                         }, error);
                                     }, error);
