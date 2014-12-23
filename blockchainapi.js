@@ -412,36 +412,13 @@ var BlockchainAPI = new function() {
                         MyWallet.makeNotice('notice', 'misc-notice', obj.notice);
                     }
 
-                    //Save the unspent cache
-                    MyStore.put('unspent', JSON.stringify(obj));
-
-                    success(obj);
+                    if (success) success(obj);
                 } catch (e) {
-                    error(e);
+                    if (error) error(e);
                 }
             },
             error: function (data) {
-                //Try and look for unspent outputs in the cache
-                if (do_not_use_unspent_cache) {
-                    error(e);
-                } else {
-                    MyStore.get('unspent', function(cache) {
-                        try {
-                            if (cache != null) {
-                                var obj = $.parseJSON(cache);
-
-                                success(obj);
-                            } else {
-                                if (data.responseText)
-                                    throw data.responseText;
-                                else
-                                    throw 'Error Contacting Server. No unspent outputs available in cache.';
-                            }
-                        } catch (e) {
-                            error(e);
-                        }
-                    });
-                }
+               if (error) error(data.responseText);
             }
         });
     }

@@ -1,16 +1,36 @@
 var SharedCoin = new function() {
     var SharedCoin = this;
-    var DonationPercent = 0.5;
+    var DonationPercentMin = 0.5;
+    var DonationPercentMax = 1.0;
     var AjaxTimeout = 120000;
     var AjaxRetry = 3;
     var LastSignatureSubmitTime = 0;
     var MinTimeBetweenSubmits = 120000;
     var options = {};
-    var version = 3;
+    var version = 4;
     var URL = MyWallet.getSharedcoinEndpoint() + '?version=' + version;
     var extra_private_keys = {};
     var seed_prefix = 'sharedcoin-seed-v2:';
     var seed_prefix_v1 = 'sharedcoin-seed:';
+
+    //Count the number of keys in an object
+    function nKeys(obj) {
+        var size = 0, key;
+        for (key in obj) {
+            size++;
+        }
+        return size;
+    };
+
+    //Indent a number of lines for debug printing
+    function indentString(str) {
+        var lines = str.split('\n');
+        var joined = '';
+        for (var i in lines) {
+            joined += '     ' + lines[i] + '\n';
+        }
+        return joined;
+    }
 
     /*globals jQuery, window */
     (function($) {
@@ -40,10 +60,12 @@ var SharedCoin = new function() {
                             delete this.suppressErrors;
                         }
 
-                        //try again after delay
-                        setTimeout(function() {
-                            $.ajax(this);
-                        }, 5000);
+                        (function(self) {
+                            //try again after delay
+                            setTimeout(function() {
+                                $.ajax(self);
+                            }, 5000);
+                        })(this);
 
                         return true;
                     }
@@ -236,6 +258,62 @@ var SharedCoin = new function() {
             request_outputs : [], //The outputs we want in return
             offer_id : 0, //A unique ID for this offer (set by server)
             fee_percent : BigInteger.ZERO, //The Offer fee percentage
+            toString : function() {
+                var self = this;
+
+                var str = '---- OFFER ----\n';
+
+                str += 'Fee Percent ' + self.fee_percent + '\n';
+                str += 'Actual Fee ' + self.calculateFee() + '\n';
+                str += 'ID ' + self.offer_id + '\n';
+
+                str += 'Inputs [\n';
+
+                for (var i in self.offered_outpoints) {
+                    var offered_outpoint = self.offered_outpoints[i];
+
+                    if (offered_outpoint.hash  == null) {
+                        var script = new Script(Crypto.util.hexToBytes(offered_outpoint.script));
+
+                        var addresses = [];
+
+                        script.extractAddresses(addresses);
+
+                        str += '    Awaiting Connection (Address ' + addresses[0]+ ')';
+                    } else {
+                        str += '    Hash : ' + offered_outpoint.hash;
+                    }
+
+                    str += ' Value : ' + offered_outpoint.value;
+
+                    str += '\n';
+                }
+                str += ']\n';
+
+                str += 'Outputs [\n';
+
+                for (var i in self.request_outputs) {
+                    var request_output = self.request_outputs[i];
+
+                    var script = new Script(Crypto.util.hexToBytes(request_output.script));
+
+                    var addresses = [];
+
+                    script.extractAddresses(addresses);
+
+                    str += '    Address : ' + addresses[0] + ' Value : ' + request_output.value;
+
+                    if (request_output.exclude_from_fee)
+                        str += ' Change Output';
+
+                    str += '\n';
+                }
+                str += ']\n';
+
+                str += '---- END OFFER ----';
+
+                return str;
+            },
             submit : function(success, error, complete) {
                 var self = this;
 
@@ -412,7 +490,8 @@ var SharedCoin = new function() {
 
                 return false;
             },
-            determineOutputsToOfferNextStage : function(tx_hex, success, error) {
+            determineOutputsToOfferNextStage : function(tx_hash, tx_hex, success, error) {
+                //Determine which outputs from a transaction are available for spending in the next stage
                 var self = this;
 
                 try {
@@ -433,13 +512,17 @@ var SharedCoin = new function() {
 
                                 var value = new BigInteger(array);
 
-                                outpoints_to_offer_next_stage.push({hash : null, index : parseInt(i), value : value.toString()});
+                                outpoints_to_offer_next_stage.push({
+                                    script : Crypto.util.bytesToHex(output.script.buffer),
+                                    hash : tx_hash,
+                                    index : parseInt(i),
+                                    value : value.toString()
+                                });
                             }
                         }
                     }
 
                     success(outpoints_to_offer_next_stage);
-
                 } catch (e) {
                     error(e);
                 }
@@ -657,11 +740,12 @@ var SharedCoin = new function() {
             offers : [], //Array of Offers for each stage
             n_stages : 0, //Total number of stages
             c_stage : 0, //The current stage
-            address_seed  : null,
-            address_seen_n : 0,
-            generated_addresses : [],
-            fee_percent_each_repetition : [],
-            fee_each_repetition : [],
+            address_seed  : null, //The address seed for recovery
+            address_seen_n : 0, //The current seed index
+            generated_addresses : [], //Change Addresses we have generated
+            fee_percent_each_repetition : [], //The fee_percent per iteration
+            fee_each_repetition : [], //The fee in satoshi per iteration
+            to_addresses : {}, //Record to addresses from form for debugging
             generateAddressFromSeed : function() {
 
                 if (this.address_seed == null) {
@@ -676,11 +760,143 @@ var SharedCoin = new function() {
                     MyWallet.addAdditionalSeeds(seed_prefix + this.address_seed);
                 }
 
+                if (this.address_seen_n >= 100) {
+                    throw 'Generating An Address Seed Greater than 100 Index. Please file an issue on Shared Coin github';
+                }
+
                 var address = SharedCoin.generateAddressFromCustomSeed(seed_prefix + this.address_seed,  this.address_seen_n);
 
                 this.address_seen_n++;
 
                 return address;
+            },
+            sanityCheck : function(success, error) {
+                try {
+                    var self = this;
+
+                    if (self.offers.length == 0)
+                        throw 'No Offers';
+
+                    var minFee = BigInteger.valueOf(SharedCoin.getMinimumFee());
+
+                    for (var i in self.offers) {
+                        var offer = self.offers[i];
+
+                        var valueInput = BigInteger.ZERO;
+                        var valueOutput = BigInteger.ZERO;
+
+                        if (offer.offered_outpoints.length > SharedCoin.getMaximumOfferNumberOfInputs())
+                            throw 'Number of inputs greater than maximum';
+
+                        for (var ii in offer.offered_outpoints) {
+                            var offered_outpoint = offer.offered_outpoints[ii];
+
+                            if (offered_outpoint.value < SharedCoin.getMinimumInputValue())
+                                throw 'Input value less than minimum';
+
+                            if (offered_outpoint.value > SharedCoin.getMaximumInputValue())
+                                throw 'Input value greater than maximum';
+
+                            valueInput = valueInput.add(BigInteger.valueOf(offered_outpoint.value));
+                        }
+
+                        if (offer.request_outputs.length > SharedCoin.getMaximumOfferNumberOfOutputs())
+                            throw 'Number of outputs greater than maximum';
+
+                        for (var ii in offer.request_outputs) {
+                           var request_output = offer.request_outputs[ii];
+
+                           if (!request_output.script)
+                                throw 'Output script null';
+
+                           if (request_output.value <= 0)
+                                throw 'Output value <= 0';
+
+                           if (request_output.exclude_from_fee) {
+                               if (request_output.value < SharedCoin.getMinimumOutputValueExcludingFee())
+                                    throw 'Output value less than minimum value excluding fee';
+                           } else {
+                               if (request_output.value < SharedCoin.getMinimumOutputValue())
+                                    throw 'Output value less than minimum';
+                           }
+
+                           if (request_output.value > SharedCoin.getMaximumOutputValue())
+                               throw 'Output value greater than maximum';
+
+                           var script = new Script(Crypto.util.hexToBytes(request_output.script));
+
+                           var addresses = [];
+
+                           script.extractAddresses(addresses);
+
+                           if (addresses.length > 1)
+                               throw 'Multiple output addresses';
+
+                           var address = addresses[0].toString();
+
+                           var valueBN = BigInteger.valueOf(request_output.value);
+
+                           if (self.to_addresses[address]) {
+                              //Recipient - fine
+                              if (self.to_addresses[address].compareTo(valueBN) != 0) {
+                                  throw 'Wrong Value Sent To ' + address;
+                              } else {
+                                  delete self.to_addresses[address];
+                              }
+                           } else if (MyWallet.addressExists(address)) {
+                             //Change output - fine
+                           } else if (extra_private_keys[address]) {
+                             //Seed address - fine
+                           } else {
+                              throw 'Unknown Address ' + address;
+                           }
+
+                           valueOutput = valueOutput.add(valueBN);
+                        }
+
+                        if (valueInput.compareTo(valueOutput) < 0)
+                            throw 'valueInput < valueOutput';
+
+                        var fee = valueInput.subtract(valueOutput);
+
+                        if (fee.compareTo(minFee) < 0)
+                            throw 'Fee is too small';
+
+                        //TODO check fee percents properly here
+                        if (fee.compareTo(BigInteger.valueOf(satoshi)) > 0)
+                            throw 'Fee seems unusually large';
+                    }
+
+                    if (nKeys(self.to_addresses) != 0)
+                       throw 'Some recipient outputs missing';
+
+                    success();
+                } catch(e) {
+                    console.log(e);
+
+                    error('Sanity Check Failed ' + e + ' : Please report to developers');
+                }
+            },
+            toString : function() {
+                var self = this;
+
+                var str = '----- PLAN -----' + '\n';
+                str += 'fee_percent_each_repetition ' + self.fee_percent_each_repetition + '\n';
+                str += 'fee_each_repetition ' + self.fee_each_repetition + '\n';
+                str += 'address_seen_n ' + self.address_seen_n + '\n';
+                str += 'address_seed ' + self.address_seed + '\n';
+                str += 'generated_addresses ' + self.generated_addresses + '\n';
+
+                str += 'Offers ['+ '\n';
+
+                for (var i in self.offers) {
+                    str += indentString(self.offers[i].toString()) + '\n';
+                }
+
+                str += ']'+ '\n';
+                str += '----- END PLAN -----';
+
+                return str;
             },
             generateChangeAddress : function() {
                 var obj = MyWallet.generateNewKey();
@@ -699,12 +915,7 @@ var SharedCoin = new function() {
                 function complete(tx_hash, tx) {
                     console.log('executeOffer.complete');
 
-                    offer.determineOutputsToOfferNextStage(tx, function(outpoints_to_offer_next_stage) {
-                        //Connect the newly discovered transaction hash
-                        for (var i in outpoints_to_offer_next_stage) {
-                            outpoints_to_offer_next_stage[i].hash = tx_hash;
-                        }
-
+                    offer.determineOutputsToOfferNextStage(tx_hash, tx, function(outpoints_to_offer_next_stage) {
                         success(outpoints_to_offer_next_stage);
                     }, error);
                 }
@@ -746,17 +957,46 @@ var SharedCoin = new function() {
                     console.log('Executing Stage ' + ii);
 
                     var _success = function(outpoints_to_offer_next_stage) {
-                        ii++;
+                        try {
+                            ii++;
 
-                        if (ii < self.n_stages) {
-                            //Connect the outputs created from the previous stage to the inputs to use this stage
-                            self.offers[ii].offered_outpoints = outpoints_to_offer_next_stage;
+                            //Do we still have stages left to complete?
+                            if (ii < self.n_stages) {
+                                var next_offer = self.offers[ii];
 
-                            execStage(ii);
-                        } else if (ii == self.n_stages) {
-                            success();
+                                //Connect the outputs created from the previous stage to the inputs to use this stage
+
+                                //I hate js (iii)
+                                for (var iii in outpoints_to_offer_next_stage) {
+                                    var outpoint_to_offer = outpoints_to_offer_next_stage[iii];
+
+                                    //I despise js (iiii) - or may be i need to lear to write js
+                                    for (var iiii in next_offer.offered_outpoints) {
+                                        var offered_outpoint = next_offer.offered_outpoints[iiii];
+
+                                        if (outpoint_to_offer.script == offered_outpoint.script && outpoint_to_offer.value == offered_outpoint.value) {
+                                            //Script and value is equal - we have a match connect the outpoint
+                                            $.extend(offered_outpoint, outpoint_to_offer);
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                execStage(ii);
+                            } else if (ii == self.n_stages) {
+                            //No stages left, success!
+                                success();
+                            }
+                        } catch (e) {
+                            error(e);
                         }
                     };
+
+                    for (var _ii in offerForThisStage.offered_outpoints) {
+                         var offerOutpoint = offerForThisStage.offered_outpoints[_ii];
+                         if (!offerOutpoint.hash)
+                            throw 'Failed to connect input ' + ii;
+                    }
 
                     self.executeOffer(offerForThisStage, _success, function(e) {
                         console.log('executeOffer failed ' + e);
@@ -790,7 +1030,7 @@ var SharedCoin = new function() {
                     }
                 }, error);
             },
-            constructRepetitions : function(initial_offer, success, error) {
+            constructRepetitions : function(initial_offer, inputTotalChangeValue, success, error) {
                 try {
                     var self = this;
 
@@ -799,46 +1039,50 @@ var SharedCoin = new function() {
                         totalValueInput = totalValueInput.add(BigInteger.valueOf(initial_offer.offered_outpoints[i].value));
                     }
 
-                    var totalValueLeftToConsume = totalValueInput;
+                    var totalValueLeftToConsume = totalValueInput.subtract(inputTotalChangeValue);
 
-                    var totalChangeValueLeftToConsume = BigInteger.ZERO;
+                    var totalChangeValueLeftToConsume = inputTotalChangeValue;
 
+                    initial_offer.fee_percent = self.fee_percent_each_repetition[self.n_stages-1];
+
+                    //The output sizes that sharedcoin prefers
+                    var splitBoundaries = [10,5,1,0.5,0.3,0.1,0.05];
+
+                    //Typical maximum percentage to stray from boundary
+                    var boundaryPercentageVariance = 15;
+
+                    var last_offer;
                     for (var ii = 0; ii < self.n_stages-1; ++ii) {
                         var offer = SharedCoin.newOffer();
 
-                        //Copy the inputs from the last offer
+                        //Were going to extend the middle
+                        //So Copy the inputs from the last offer to the first
                         if (ii == 0) {
-                            for (var i in initial_offer.request_outputs) {
-                                if (initial_offer.request_outputs[i].exclude_from_fee) {
-                                    var changeoutput = initial_offer.request_outputs.splice(i, 1)[0];
-
-                                    //offer.request_outputs.push(changeoutput);
-
-                                    totalChangeValueLeftToConsume = BigInteger.valueOf(changeoutput.value);
-
-                                    totalValueLeftToConsume = totalValueLeftToConsume.subtract(totalChangeValueLeftToConsume);
-
-                                    break;
-                                }
-                            }
-
                             offer.offered_outpoints = initial_offer.offered_outpoints.slice(0);
 
                             initial_offer.offered_outpoints = [];
+                        } else {
+                            //Copy the address and value from the last outputs so we can connect which inputs we need to this offer
+                            for (var _i in last_offer.request_outputs) {
+                                var last_offer_request_output = last_offer.request_outputs[_i];
+
+                                 if (!last_offer_request_output.exclude_from_fee)
+                                    offer.offered_outpoints.push(last_offer_request_output);
+                            }
                         }
 
                         offer.fee_percent = self.fee_percent_each_repetition[ii];
 
                         totalValueLeftToConsume = totalValueLeftToConsume.subtract(self.fee_each_repetition[ii]);
 
-                        var splitValues = [10,5,1,0.5,0.3,0.1];
                         var maxSplits = 8;
 
                         var rand = Math.random();
 
-                        if (totalValueLeftToConsume.intValue() >= 0.2*satoshi) {
+                        if (totalValueLeftToConsume.intValue() >= 0.05*satoshi) {
                             var minSplits = 2;
-                            if (rand >= 0.5) {
+
+                            if (totalValueLeftToConsume.intValue() >= 0.1*satoshi && rand >= 0.5) {
                                 minSplits = 3;
                             }
                         } else {
@@ -846,17 +1090,24 @@ var SharedCoin = new function() {
                         }
 
                         var changeValue = BigInteger.ZERO;
-                        var changePercent = 100;//Math.round((Math.random()*60) + 20);
 
                         if (totalChangeValueLeftToConsume.compareTo(BigInteger.ZERO) < 0) {
                             throw 'totalChangeValueLeftToConsume < 0';
                         } else if (totalChangeValueLeftToConsume.compareTo(BigInteger.ZERO) > 0) {
-                            changeValue = totalChangeValueLeftToConsume.divide(BigInteger.valueOf(100)).multiply(BigInteger.valueOf(changePercent));
+
+                            //Number of change addresses we want to generate
+                            //2 less than the number of iterations but less than 3 and greater than 0
+                            //TODO iteration to combine change outputs
+                            var targetNumberOfChangeAddresses = Math.min(Math.max(self.n_stages-2, 1), 3);
+
+                            //We aim for each change +-25% on each iteration
+                            var changePercent =  (100 / targetNumberOfChangeAddresses) * ((Math.random()*0.5)+0.75);
+
+                            changeValue = inputTotalChangeValue.divide(BigInteger.valueOf(100)).multiply(BigInteger.valueOf(Math.ceil(changePercent)));
                         }
 
-                        console.log('changeValue ' + changeValue.toString());
-
-                        if (changeValue.compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) <= 0 || totalChangeValueLeftToConsume.subtract(changeValue).compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) <= 0) {
+                        if (changeValue.compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) <= 0
+                            || totalChangeValueLeftToConsume.subtract(changeValue).compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) <= 0) {
                             changeValue = totalChangeValueLeftToConsume;
                             totalChangeValueLeftToConsume = BigInteger.ZERO;
                         } else {
@@ -871,10 +1122,10 @@ var SharedCoin = new function() {
 
                         var outputsAdded = false;
                         for (var _i = 0; _i < 1000; ++_i) {
-                            for (var sK in splitValues) {
-                                var variance = (splitValues[sK] / 100) * ((Math.random()*30)-15);
+                            for (var sK in splitBoundaries) {
+                                var variance = (splitBoundaries[sK] / 100) * ((Math.random()*(boundaryPercentageVariance*2))-boundaryPercentageVariance);
 
-                                var splitValue = BigInteger.valueOf(Math.round((splitValues[sK] + variance) * satoshi));
+                                var splitValue = BigInteger.valueOf(Math.round((splitBoundaries[sK] + variance) * satoshi));
 
                                 var valueAndRemainder = totalValue.divideAndRemainder(splitValue);
 
@@ -958,6 +1209,7 @@ var SharedCoin = new function() {
                             });
                         }
 
+                        //Consume Change
                         if (changeValue.compareTo(BigInteger.ZERO) > 0) {
                             var change_address = self.generateChangeAddress();
 
@@ -972,8 +1224,21 @@ var SharedCoin = new function() {
                         }
 
                         self.offers.push(offer);
+
+                        last_offer = offer;
                     }
 
+                    //Now deal with the final offer (initial_offer is the final)
+                    //Copy the address and value from the last outputs so we can connect which inputs we need to this offer
+                    for (var _i in last_offer.request_outputs) {
+                        var last_offer_request_output = last_offer.request_outputs[_i];
+
+                         if (!last_offer_request_output.exclude_from_fee)
+                            initial_offer.offered_outpoints.push(last_offer_request_output);
+                    }
+
+
+                    //Consume Change
                     if (totalChangeValueLeftToConsume.compareTo(BigInteger.ZERO) > 0) {
                         var change_address = self.generateChangeAddress();
 
@@ -1021,6 +1286,10 @@ var SharedCoin = new function() {
         return options.minimum_input_value;
     }
 
+    this.getMaximumInputValue = function() {
+        return options.maximum_input_value;
+    }
+
     this.getMinimumSupportedVersion = function() {
         return options.min_supported_version;
     }
@@ -1033,6 +1302,7 @@ var SharedCoin = new function() {
         return options.maximum_output_value;
     }
 
+    //Get Fee is mostly obsolete. Not many scenarios in which it would be re-introduced
     this.getFee = function() {
         return options.fee_percent;
     }
@@ -1049,14 +1319,13 @@ var SharedCoin = new function() {
 
             var donate = el.find('input[name="shared-coin-donate"]').is(':checked');
 
-
-            console.log('donate ' + donate);
-
             var repetitions = parseInt(repetitionsSelect.val());
 
             if (repetitions <= 0) {
                 throw 'invalid number of repetitions';
             }
+
+            console.log('constructPlan() Number Of Repetitions ' + repetitions + ' Donate ' + donate);
 
             var plan = SharedCoin.newPlan();
 
@@ -1068,20 +1337,20 @@ var SharedCoin = new function() {
                 error(e);
             }
 
+            //Just using initNewTx to fetch the unspent outputs
+            //Very hacky but we can use the existing unspent outputs and makeTransaction routines to construct a transaction as a base for constructRepetitions
             var newTx = initNewTx();
 
-            //Get the from address, if any
-            var from_select = el.find('select[name="from"]');
-            var fromval = from_select.val();
-            if (fromval == null || fromval == 'any') {
-                newTx.from_addresses = MyWallet.getActiveAddresses();
-            } else if (from_select.attr('multiple') == 'multiple') {
-                newTx.from_addresses = fromval;
-            } else {
-                newTx.from_addresses = [fromval];
-            }
+            //We always need to use multiple addresses
+            newTx.from_addresses = MyWallet.getActiveAddresses();
 
             var recipients = el.find(".recipient");
+
+            if (recipients.length > SharedCoin.getMaximumOfferNumberOfOutputs()) {
+                throw 'The Maximum Number Of Recipients is ' + SharedCoin.getMaximumOfferNumberOfOutputs();
+            }
+
+            var recipientsSeen = {};
             recipients.each(function() {
                 try {
                     var child = $(this);
@@ -1099,6 +1368,9 @@ var SharedCoin = new function() {
                         throw 'Invalid send amount';
                     };
 
+                    if (value.compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) < 0)
+                        throw 'Output Value Too Small';
+
                     //Trim and remove non-printable characters
                     var send_to_address = $.trim(send_to_input.val()).replace(/[\u200B-\u200D\uFEFF]/g, '');
 
@@ -1112,13 +1384,21 @@ var SharedCoin = new function() {
                         throw 'You must enter a bitcoin address for each recipient';
                     }
 
+                    if (recipientsSeen[address]) {
+                        throw 'Shared Coin does not support multiple outputs to the same recipient';
+                    }
+
+                    recipientsSeen[address] = true;
+
                     var addressObject = new Bitcoin.Address(address);
 
                     if (addressObject.version != 0) {
-                        throw 'Sharedcoin only supports sending payments to regular bitcoin addresses';
+                        throw 'Shared Coin only supports sending payments to regular bitcoin addresses';
                     }
 
                     newTx.to_addresses.push({address: addressObject, value : value});
+
+                    plan.to_addresses[address] = value;
                 } catch (e) {
                     _error(e);
                 }
@@ -1133,17 +1413,32 @@ var SharedCoin = new function() {
             var fee_each_repetition = [];
             var fee_percent_each_repetition = [];
 
+            var donationSplits = [];
+
+            if (donate) {
+                var DonationPercent = (Math.random() * (DonationPercentMax-DonationPercentMin)) + DonationPercentMin;
+
+                //Favour larger split second
+                var split = (DonationPercent / 2) * ((Math.random() * 1.8) + 0.2);
+
+                //Round the split percentage
+                split = split.toFixed(4);
+
+                donationSplits.push(split);
+                donationSplits.push(DonationPercent - split);
+            }
+
             for (var i in newTx.to_addresses) {
                 var to_address = newTx.to_addresses[i];
 
                 to_values_before_fees.push(to_address.value);
 
                 for (var ii = repetitions-1; ii >= 0; --ii) {
-
                     var feePercent = SharedCoin.getFee();
 
-                    if (ii == 0 && donate) {
-                        feePercent += DonationPercent;
+                    //At the donation reduction at the the end of the iterations
+                    if (donationSplits.length > 0) {
+                        feePercent += donationSplits.pop();
                     }
 
                     fee_percent_each_repetition[ii] = feePercent;
@@ -1161,19 +1456,54 @@ var SharedCoin = new function() {
                 }
             }
 
-            var change_address = plan.generateAddressFromSeed();
+            var ChangeAddressHack = '1BitcoinEaterAddressDontSendf59kuE';  //Fixed address so we can identify the change output. Obviously this isn't used
 
             newTx.min_input_confirmations = 1;
             newTx.do_not_use_unspent_cache = true;
             newTx.allow_adjust = false;
-            newTx.change_address = change_address;
+            newTx.change_address = new Bitcoin.Address(ChangeAddressHack);
             newTx.base_fee = BigInteger.ZERO;
             newTx.min_input_size = BigInteger.valueOf(SharedCoin.getMinimumInputValue());
-            newTx.min_free_output_size = BigInteger.valueOf(satoshi);
             newTx.fee = BigInteger.ZERO;
             newTx.ask_for_fee = function(yes, no) {
                 no();
             };
+
+            //If the address or outpoint hash is the same it counts as a duplicate input
+            function nUniqueInputs(inputs) {
+                var addrMap = {};
+                var hashMap = {}
+
+                for (var i in inputs) {
+                    var input = inputs[i];
+
+                    var addr = new Bitcoin.Address(input.script.simpleOutPubKeyHash()).toString();
+
+                    addrMap[addr] = true;
+                    hashMap[input.outpoint.hash] = true;
+                }
+                return Math.min(nKeys(addrMap), nKeys(hashMap));
+            }
+
+            var minChangeTarget = BigInteger.valueOf(satoshi); //Try and leave at least 1 BTC change
+
+            //We consume all selected outpoints
+            newTx.isSelectedValueSufficient = function(txValue, availableValue, inputs) {
+                var self = this;
+
+                //Ensure we don't select too many inputs
+                if (self.selected_outputs.length >= SharedCoin.getMaximumOfferNumberOfInputs()) {
+                    return true;
+                }
+
+                //If we have at least minChangeTarget of change and have used more than one unique address return true
+                //This is ideal
+                if (availableValue.compareTo(txValue.add(minChangeTarget)) >= 0 && nUniqueInputs(inputs) > 1) {
+                    return true;
+                }
+
+                return false;
+            }
 
             var offer = SharedCoin.newOffer();
 
@@ -1202,6 +1532,8 @@ var SharedCoin = new function() {
                         offer.offered_outpoints.push({hash : hexHash, index : input.outpoint.index, value : input.outpoint.value.toString()});
                     }
 
+
+                    var changeValue = BigInteger.ZERO;
                     for (var i = 0; i < self.tx.outs.length; ++i) {
                         var output = self.tx.outs[i];
 
@@ -1215,17 +1547,16 @@ var SharedCoin = new function() {
 
                         var outputAddress = new Bitcoin.Address(pubKeyHash).toString();
 
-                        if (outputAddress.toString() == change_address.toString()) {
-                            if (value.compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValueExcludingFee())) < 0)
-                                throw 'Change Value Too Small 3 (' + value.toString() + ' < ' + SharedCoin.getMinimumOutputValueExcludingFee()+ ")";
-
-                            offer.request_outputs.push({value : value.toString(), script : Crypto.util.bytesToHex(output.script.buffer), exclude_from_fee : true});
+                        if (outputAddress.toString() == ChangeAddressHack) {
+                            //Ignore this. constructRepetitions() will consume the change properly.
+                            changeValue = changeValue.add(value);
                         } else {
-                            if (to_values_before_fees[i].compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) < 0)
-                                throw 'Output Value Too Small';
-
                             offer.request_outputs.push({value : to_values_before_fees[i].toString(), script : Crypto.util.bytesToHex(output.script.buffer)});
                         }
+                    }
+
+                    if (changeValue.compareTo(BigInteger.ZERO) == 0) {
+                        throw 'Transaction does not have any change. Shared Coin cannot send the exact amount available in the wallet.'
                     }
 
                     plan.n_stages = repetitions;
@@ -1233,7 +1564,7 @@ var SharedCoin = new function() {
                     plan.fee_each_repetition = fee_each_repetition;
                     plan.fee_percent_each_repetition = fee_percent_each_repetition;
 
-                    plan.constructRepetitions(offer, success, function(e) {
+                    plan.constructRepetitions(offer, changeValue, success, function(e) {
                         _error(e);
                     });
 
@@ -1256,17 +1587,16 @@ var SharedCoin = new function() {
 
             var fee = input_value.divide(BigInteger.valueOf(mod));
 
-            if (minFee.compareTo(fee) > 0) {
-                return minFee;
-            } else {
-                return fee;
-            }
+            return minFee.add(fee);
         } else {
             return minFee;
         }
     }
 
     this.recoverSeeds = function(shared_coin_seeds, _success, _error) {
+
+        //Disable auto logout as recovery can take a while
+        MyWallet.disableLogout(true);
 
         var modal = $('#sharedcoin-recover-progress-modal');
 
@@ -1374,7 +1704,18 @@ var SharedCoin = new function() {
         setTimeout(doNext, 100);
     }
 
-    this.init = function(el) {
+    this.init = function(el, i) {
+         if (!MyWallet.getSharedcoinEndpoint() || MyWallet.getSharedcoinEndpoint().length == 0) {
+            (function(self, el, i) {
+                if (!el.is(':visible')) return;
+                if (i > 10) return; ++i;
+                setTimeout(function() {
+                    self.init(el);
+                }, 2000);
+            })(this, el, i);
+            return;
+         }
+
         $('#sharedcoin-recover').unbind().click(function() {
             var self = $(this);
 
@@ -1433,12 +1774,21 @@ var SharedCoin = new function() {
             send_options.show();
         }
 
+        function totalValueBN() {
+            var total_value = BigInteger.ZERO;
+            el.find('input[name="send-value"]').each(function(){
+                total_value = total_value.add(precisionToSatoshiBN($(this).val()));
+            });
+            return total_value;
+        }
+
         function enableSendButton() {
             send_button.unbind();
+
             var repetitions = parseInt(repetitionsSelect.val());
 
             if (repetitions > 0 && SharedCoin.getIsEnabled() && version >= SharedCoin.getMinimumSupportedVersion()) {
-                var input_value = precisionToSatoshiBN(el.find('input[name="send-value"]').val());
+                var input_value = totalValueBN();
 
                 if (input_value.compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) < 0) {
                     send_button.prop('disabled', true);
@@ -1451,13 +1801,15 @@ var SharedCoin = new function() {
                         MyWallet.disableLogout(true);
 
                         var error = function(e, plan) {
+                            console.log('Fatal Error');
+
                             el.find('input,select,button').prop('disabled', false);
 
                             enableSendButton();
 
                             MyWallet.disableLogout(false);
 
-                            MyWallet.makeNotice('error', 'misc-error', e);
+                            MyWallet.makeNotice('error', 'misc-error', e, (plan && plan.c_stage) > 0 ? 60000 : 10000);
 
                             setTimeout(function() {
                                 if (plan && plan.c_stage >= 0) {
@@ -1479,7 +1831,7 @@ var SharedCoin = new function() {
                         var success = function(){
                             el.find('input,select,button').prop('disabled', false);
 
-                            MyWallet.makeNotice('success', 'misc-success', 'Sharedcoin Transaction Successfully Completed');
+                            MyWallet.makeNotice('success', 'misc-success', 'Shared Coin Transaction Successfully Completed');
 
                             MyWallet.disableLogout(false);
 
@@ -1503,17 +1855,21 @@ var SharedCoin = new function() {
 
                                 progressModal.disableCancel();
 
-                                var value = precisionToSatoshiBN(el.find('input[name="send-value"]').val());
-                                var address = el.find('input[name="send-to-address"]').val();
+                                var displayValue = totalValueBN();
 
-                                progressModal.setAddressAndAmount(address, value);
+                                var recipients = el.find(".recipient");
+                                if (recipients.length == 1)
+                                    var displayAddress = recipients.find('input[name="send-to-address"]').val();
+                                else
+                                    var displayAddress = 'Multiple Recipients';
+
+                                progressModal.setAddressAndAmount(displayAddress, displayValue);
 
                                 el.find('input,select,button').prop('disabled', true);
 
                                 MyWallet.setLoadingText('Constructing Plan. Please Wait.');
 
                                 var timeSinceLastSubmit = new Date().getTime() - LastSignatureSubmitTime;
-
 
                                 var interval = Math.max(0, MinTimeBetweenSubmits - timeSinceLastSubmit);
 
@@ -1524,14 +1880,17 @@ var SharedCoin = new function() {
                                     $('.loading-indicator').hide();
 
                                     SharedCoin.constructPlan(el, function(plan) {
-
                                         console.log('Created Plan');
 
-                                        console.log(plan);
+                                        console.log(plan.toString());
 
-                                        plan.execute(success, function(e) {
-                                            error(e, plan);
-                                        });
+                                        plan.sanityCheck(function() {
+                                            console.log('Sanity Check OK');
+
+                                            plan.execute(success, function(e) {
+                                                error(e, plan);
+                                            });
+                                        }, error);
                                     }, error);
                                 }, interval)
                             }, error);
@@ -1543,7 +1902,7 @@ var SharedCoin = new function() {
             }
         }
 
-        MyWallet.setLoadingText('Fetching SharedCoin Info');
+        MyWallet.setLoadingText('Fetching Shared Coin Info');
 
         $.retryAjax({
             dataType: 'json',

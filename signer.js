@@ -1287,15 +1287,11 @@ function initNewTx() {
                 //If we don't have enough funds ask for the watch only private key
                 var unspent_copy = self.unspent.slice(0);
                 function parseOut(out) {
-                    var addr = new Bitcoin.Address(out.script.simpleOutPubKeyHash()).toString();
-
-                    if (addr == null) {
-                        throw 'Unable to decode output address from transaction hash ' + out.tx_hash;
-                    }
-
-                    if (out.script == null) {
+                    if (!out.script) {
                         throw 'Output script is null (' + out.tx_hash + ':' + out.tx_output_n + ')';
                     }
+
+                    var addr = new Bitcoin.Address(out.script.simpleOutPubKeyHash()).toString();
 
                     var b64hash = Crypto.util.bytesToBase64(Crypto.util.hexToBytes(out.tx_hash));
 
@@ -1332,7 +1328,7 @@ function initNewTx() {
                             //So discard the previous selected outs
                             //out.value.compareTo(self.min_free_output_size) >= 0 because we want to prefer a change output of greater than 0.01 BTC
                             //Unless we have the extact tx value
-                            if (out.value.compareTo(txValue) == 0 || self.isSelectedValueSufficient(txValue, out.value)) {
+                            if (self.isSelectedValueSufficient(txValue, out.value, [addr_input_obj.input])) {
                                 self.selected_outputs = [addr_input_obj.input];
 
                                 unspent_copy[i] = null; //Mark it null so we know it is used
@@ -1356,7 +1352,7 @@ function initNewTx() {
 
                                 availableValue = availableValue.add(out.value);
 
-                                if (self.isSelectedValueSufficient(txValue, availableValue))
+                                if (self.isSelectedValueSufficient(txValue, availableValue, self.selected_outputs))
                                     break;
                             }
                         } catch (e) {
@@ -1365,7 +1361,7 @@ function initNewTx() {
                         }
                     }
 
-                    if (self.isSelectedValueSufficient(txValue, availableValue))
+                    if (self.isSelectedValueSufficient(txValue, availableValue, self.selected_outputs))
                         break;
 
                     if (includeWatchOnly)
