@@ -1160,9 +1160,9 @@ var SharedCoin = new function() {
                         } else if (totalChangeValueLeftToConsume.compareTo(BigInteger.ZERO) > 0) {
 
                             //Number of change addresses we want to generate
-                            //2 less than the number of iterations but less than 3 and greater than 0
+                            //2 less than the number of iterations but less than 2 and greater than 0
                             //TODO iteration to combine change outputs
-                            var targetNumberOfChangeAddresses = Math.min(Math.max(self.n_stages-2, 1), 3);
+                            var targetNumberOfChangeAddresses = Math.min(Math.max(self.n_stages-2, 1), 2);
 
                             //We aim for each change +-25% on each iteration
                             var changePercent =  (100 / targetNumberOfChangeAddresses) * ((Math.random()*0.5)+0.75);
