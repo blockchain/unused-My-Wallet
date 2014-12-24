@@ -1550,38 +1550,66 @@ var MyWallet = new function() {
 
         var all_from_self = true;
         if (result >= 0) {
-            for (var i = 0; i < tx.inputs.length; ++i) {
-                var out = tx.inputs[i].prev_out;
+            if (tx.inputs.length > 5) {
+                all_from_self = false;
+                html += '<span class="label">Many Inputs</span>';
+            } else {
+                for (var i = 0; i < tx.inputs.length; ++i) {
+                    var out = tx.inputs[i].prev_out;
 
-                if (!out || !out.addr) {
-                    all_from_self = false;
+                    if (!out) {
+                        all_from_self = false;
 
-                    html += '<span class="label">Newly Generated Coins</span>';
-                } else {
-                    var my_addr = myAddresses[out.addr];
+                        if (tx.inputs.length == 1) {
+                            html += '<span class="label">Newly Generated Coins</span>';
+                            break;
+                        } else {
+                            html += '<span class="label">Missing Outpoint</span>';
+                        }
+                    } else {
+                        if (!out.addr) {
+                            all_from_self = false;
 
-                    //Don't Show sent from self
-                    if (my_addr)
-                        continue;
+                            html += '<span class="label">Unknown Address</span>';
+                        } else {
+                            var my_addr = myAddresses[out.addr];
 
-                    all_from_self = false;
+                            //Don't Show sent from self
+                            if (my_addr) {
+                                continue;
+                            }
 
-                    html += formatOutput(out, myAddresses, addresses_book);
+                            all_from_self = false;
+
+                            html += formatOutput(out, myAddresses, addresses_book);
+                        }
+                    }
                 }
             }
         } else if (result < 0) {
-            for (var i = 0; i < tx.out.length; ++i) {
-                var out = tx.out[i];
-
-                var my_addr = myAddresses[out.addr];
-
-                //Don't Show sent to self
-                if (my_addr && out.type == 0)
-                    continue;
-
+             if (tx.out.length > 5) {
                 all_from_self = false;
+                html += '<span class="label">Many Outputs</span>';
+            } else {
+                for (var i = 0; i < tx.out.length; ++i) {
+                    var out = tx.out[i];
 
-                html += formatOutput(out, myAddresses, addresses_book);
+                    if (!out.addr) {
+                        all_from_self = false;
+
+                        html += '<span class="label">Unknown Address</span>';
+                    } else {
+                        var my_addr = myAddresses[out.addr];
+
+                        //Don't Show sent to self
+                        if (my_addr && out.type == 0)
+                            continue;
+
+                        all_from_self = false;
+
+                        html += formatOutput(out, myAddresses, addresses_book);
+                    }
+                }
             }
         }
 
