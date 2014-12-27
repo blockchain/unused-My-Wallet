@@ -7,8 +7,8 @@ var SharedCoin = new function() {
     var LastSignatureSubmitTime = 0;
     var MinTimeBetweenSubmits = 120000;
     var options = {};
-    var version = 5;
-    var URL = MyWallet.getSharedcoinEndpoint() + '?version=' + version;
+    var version = 6;
+    var URL;
     var extra_private_keys = {};
     var seed_prefix = 'sharedcoin-seed-v2:';
     var seed_prefix_v1 = 'sharedcoin-seed:';
@@ -31,6 +31,78 @@ var SharedCoin = new function() {
             joined += '     ' + lines[i] + '\n';
         }
         return joined;
+    }
+
+    //Divide a big integer into n random parts
+    function splitBigInt(value, n) {
+        if (n == 0)  throw 'Invalid N';
+
+        var values = [];
+        var total = BigInteger.ZERO;
+        for (var i = 0; i < n; ++i) {
+            values[i] = value.multiply(BigInteger.valueOf(Math.round(Math.random()*100)));
+            total = total.add(values[i]);
+        }
+
+        var mod = total.divide(value);
+        total = BigInteger.ZERO;
+        for (var i = 0; i < n; ++i) {
+            values[i] = values[i].divide(mod);
+            total = total.add(values[i]);
+        }
+
+        var randIndex = Math.ceil(Math.random()*values.length)-1;
+
+        //Add any remainder to a random index
+        values[randIndex] = values[randIndex].add(value.subtract(total));
+
+        return values;
+    }
+
+    //Count the number of digits in a big int
+    function getDigitCount(number) {
+        var factor = Math.log(2) / Math.log(10);
+        var digitCount = Math.ceil((factor * number.bitLength() + 1));
+        if (BigInteger.valueOf(10).pow(BigInteger.valueOf(digitCount - 1)).compareTo(number) > 0) {
+            return digitCount - 1;
+        }
+        return digitCount;
+    }
+
+    //Return random value between x & y
+    function randomLong(x, y) {
+        return Math.round(x + (Math.random() * (y - x)));
+    }
+
+    //Round one big integer and add the remainder to the second returning an array
+    function randomRound(val1, val2, minSignificant) {
+        var total = val1.add(val2);
+
+        var digitCount = getDigitCount(val1);
+
+        minSignificant = Math.min(digitCount-1, minSignificant);
+
+        var modifier = BigInteger.valueOf(Math.pow(10, randomLong(1, digitCount - 1)));
+
+        var val1Rounded = val1.divide(modifier).multiply(modifier);
+
+        var roundedRemainder = total.subtract(val1Rounded);
+
+        return [val1Rounded, roundedRemainder];
+    }
+
+    //Duration in milliseconds to minutes and hours (used for estimation time)
+    function timeToMinutesSeconds(millis) {
+       var oneHour = 3600 * 1000;
+       var oneMinute = 60 * 1000;
+       var hours   = Math.floor(millis / oneHour);
+       var minutes = Math.floor((millis - (hours * oneHour)) / oneMinute);
+       var seconds = Math.round((millis - (hours * oneHour) - (minutes * oneMinute)) / 1000);
+
+       var str = '';
+       if (minutes > 0) str += minutes + ' minutes';
+       if (seconds > 0) str += (str.length > 0 ? ' ' : '') + seconds + ' seconds';
+       return str;
     }
 
     /*globals jQuery, window */
@@ -167,6 +239,63 @@ var SharedCoin = new function() {
         return nums;
     }
 
+    var reviewModal = {
+        show : function (plan, success, error) {
+            var self = this;
+
+            self.modal = $('#sharedcoin-review-modal');
+
+            self.success = success;
+
+            self.error = error;
+
+            self.modal.modal({
+                keyboard: false,
+                backdrop: "static",
+                show: true
+            });
+
+            self.modal.find('.btn.btn-primary').unbind().click(function() {
+                self.success();
+
+                self.hide();
+            });
+
+            self.modal.find('.btn.btn-secondary').unbind().click(function() {
+                self.error();
+
+                self.hide();
+            });
+
+            self.setPlan(plan);
+        },
+        hide : function() {
+            if (this.modal) {
+                this.modal.modal('hide');
+
+                this.success = null;
+                this.error = null;
+            }
+        },
+        setPlan : function(plan) {
+            if (this.modal) {
+                this.modal.find('.estimated-time').text(timeToMinutesSeconds(plan.getEstimatedTimeLeft()));
+                this.modal.find('.n-repetitions').text(plan.offers.length);
+                this.modal.find('.network-fees').text(formatBTC(plan.offers.length * SharedCoin.getMinimumFee()));
+                this.modal.find('.total-fee').text(formatBTC(plan.calculateTotalFee().toString()));
+
+                var to = this.modal.find('.to');
+
+                to.empty();
+                for (var address in plan.to_addresses) {
+                    var value = plan.to_addresses[address];
+
+                    to.append(address + ' ('+ formatBTC(value.toString()) +')<br/>');
+                }
+            }
+        }
+    };
+
     var progressModal = {
         show : function () {
             var self = this;
@@ -182,6 +311,21 @@ var SharedCoin = new function() {
             self.modal.find('.btn.btn-secondary').unbind().click(function() {
                 self.hide();
             });
+        },
+        setEstimatedTime : function(estimatedTime) {
+            if (this.modal) {
+                var span = this.modal.find('.estimated-time');
+                var subHeader = this.modal.find('h3').find('small');
+
+                if (estimatedTime <= 0) {
+                    span.hide();
+                    subHeader.hide();
+                } else {
+                    subHeader.show();
+                    span.show();
+                    span.text(timeToMinutesSeconds(estimatedTime));
+                }
+            }
         },
         setProgressError : function() {
             if (this.modal) {
@@ -250,7 +394,8 @@ var SharedCoin = new function() {
                 this.modal.find('.btn.btn-secondary').prop('disabled', false);
             }
         }
-    }
+    };
+
     this.newProposal = function() {
         return {
             _pollForCompleted : function(success, error) {
@@ -300,8 +445,9 @@ var SharedCoin = new function() {
             offered_outpoints : [], //The outpoints we want to offer
             request_outputs : [], //The outputs we want in return
             offer_id : 0, //A unique ID for this offer (set by server)
-            fee_percent : BigInteger.ZERO, //The Offer fee percentage
+            fee_percent : 0, //The Offer fee percentage
             wait_time : 60000,
+            time_submitted : 0,
             toString : function() {
                 var self = this;
 
@@ -362,6 +508,8 @@ var SharedCoin = new function() {
             submit : function(success, error, complete) {
                 var self = this;
 
+                self.time_submitted = new Date().getTime();
+
                 MyWallet.setLoadingText('Submitting Offer');
 
                 $.retryAjax({
@@ -372,7 +520,7 @@ var SharedCoin = new function() {
                     retryLimit: AjaxRetry,
                     data : {
                             method : 'submit_offer',
-                            fee_percent : self.fee_percent.toString(),
+                            fee_percent : self.fee_percent,
                             format : 'json',
                             token : SharedCoin.getToken(),
                             offer : JSON.stringify(self),
@@ -398,7 +546,7 @@ var SharedCoin = new function() {
 
                 console.log('Offer._pollForProposalID()');
 
-                MyWallet.setLoadingText('Waiting For Other Participants');
+                MyWallet.setLoadingText('Waiting For Our Outputs Be Joined');
 
                 $.retryAjax({
                     dataType: 'json',
@@ -828,7 +976,9 @@ var SharedCoin = new function() {
                     if (self.offers.length == 0)
                         throw 'No Offers';
 
-                    var minFee = BigInteger.valueOf(SharedCoin.getMinimumFee());
+                    var networkFee = BigInteger.valueOf(SharedCoin.getMinimumFee());
+
+                    var to_addresses_copy = $.extend({}, self.to_addresses);
 
                     for (var i in self.offers) {
                         var offer = self.offers[i];
@@ -854,6 +1004,7 @@ var SharedCoin = new function() {
                         if (offer.request_outputs.length > SharedCoin.getMaximumOfferNumberOfOutputs())
                             throw 'Number of outputs greater than maximum';
 
+                        var feePayingOutputValue = BigInteger.ZERO;
                         for (var ii in offer.request_outputs) {
                            var request_output = offer.request_outputs[ii];
 
@@ -887,12 +1038,12 @@ var SharedCoin = new function() {
 
                            var valueBN = BigInteger.valueOf(request_output.value);
 
-                           if (self.to_addresses[address]) {
+                           if (to_addresses_copy[address]) {
                               //Recipient - fine
-                              if (self.to_addresses[address].compareTo(valueBN) != 0) {
+                              if (to_addresses_copy[address].compareTo(valueBN) != 0) {
                                   throw 'Wrong Value Sent To ' + address;
                               } else {
-                                  delete self.to_addresses[address];
+                                  delete to_addresses_copy[address];
                               }
                            } else if (MyWallet.addressExists(address)) {
                              //Change output - fine
@@ -903,6 +1054,9 @@ var SharedCoin = new function() {
                            }
 
                            valueOutput = valueOutput.add(valueBN);
+
+                           if (!request_output.exclude_from_fee)
+                               feePayingOutputValue = feePayingOutputValue.add(valueBN);
                         }
 
                         if (valueInput.compareTo(valueOutput) < 0)
@@ -910,15 +1064,23 @@ var SharedCoin = new function() {
 
                         var fee = valueInput.subtract(valueOutput);
 
-                        if (fee.compareTo(minFee) < 0)
+                        if (fee.compareTo(networkFee) < 0)
                             throw 'Fee is too small';
 
-                        //TODO check fee percents properly here
                         if (fee.compareTo(BigInteger.valueOf(satoshi)) > 0)
                             throw 'Fee seems unusually large';
+
+                        var feeThisOutput = SharedCoin.calculateFeeForValue(offer.fee_percent, feePayingOutputValue);
+
+                        //We cant enforce an error on fee too low because change added to the next iteration isn't allocated for (increasing the total output value)
+                        if (fee.compareTo(feeThisOutput.add(networkFee)) > 0)
+                            throw 'Fee greater than expected';
+
+                        if (feePayingOutputValue.compareTo(BigInteger.valueOf(SharedCoin.getMaxTotalFeePayingOutputValue())) > 0)
+                            throw 'Fee paying output value greater than maximum';
                     }
 
-                    if (nKeys(self.to_addresses) != 0)
+                    if (nKeys(to_addresses_copy) != 0)
                        throw 'Some recipient outputs missing';
 
                     success();
@@ -949,6 +1111,16 @@ var SharedCoin = new function() {
 
                 return str;
             },
+            calculateTotalFee : function() {
+                var self = this;
+
+                var totalFee = BigInteger.ZERO;
+                for (var i in self.offers) {
+                    totalFee = totalFee.add(self.offers[i].calculateFee());
+                }
+
+                return totalFee;
+            },
             generateChangeAddress : function() {
                 var obj = MyWallet.generateNewKey();
 
@@ -960,6 +1132,27 @@ var SharedCoin = new function() {
                 this.generated_addresses.push(change_address);
 
                 return new Bitcoin.Address(change_address);
+            },
+            getEstimatedTimeLeft : function() { //Estimate the time left for this plan to execute
+                var self = this;
+
+                var totalTime = 0;
+                for (var i = self.c_stage; i < self.offers.length; ++i) {
+                    var offer = self.offers[i];
+
+                    //Estimate 10 seconds overhead per offer for other participants to sign
+                    totalTime += 10000;
+
+                    if (i == self.c_stage && offer.time_submitted > 0) {
+                        //If this the offer we are executing now subtract the time past from the wait time
+                        totalTime += Math.max(offer.wait_time - (new Date().getTime() - offer.time_submitted), 0);
+                    } else {
+                        //Else just total the wait time
+                        totalTime += offer.wait_time;
+                    }
+                }
+
+                return totalTime;
             },
             executeOffer : function(offer, success, error, progress) {
 
@@ -1037,7 +1230,7 @@ var SharedCoin = new function() {
                                 for (var iii in outpoints_to_offer_next_stage) {
                                     var outpoint_to_offer = outpoints_to_offer_next_stage[iii];
 
-                                    //I despise js (iiii) - or may be i need to lear to write js
+                                    //I despise js (iiii)
                                     for (var iiii in next_offer.offered_outpoints) {
                                         var offered_outpoint = next_offer.offered_outpoints[iiii];
 
@@ -1119,12 +1312,6 @@ var SharedCoin = new function() {
 
                     initial_offer.wait_time = waitTime;
 
-                    //The output sizes that sharedcoin prefers
-                    var splitBoundaries = [10,5,1,0.5,0.3,0.1,0.05];
-
-                    //Typical maximum percentage to stray from boundary
-                    var boundaryPercentageVariance = 15;
-
                     var last_offer;
                     for (var ii = 0; ii < repetitions-1; ++ii) {
                         var offer = SharedCoin.newOffer();
@@ -1151,20 +1338,7 @@ var SharedCoin = new function() {
 
                         totalValueLeftToConsume = totalValueLeftToConsume.subtract(self.fee_each_repetition[ii]);
 
-                        var maxSplits = 8;
-
-                        var rand = Math.random();
-
-                        if (totalValueLeftToConsume.intValue() >= 0.05*satoshi) {
-                            var minSplits = 2;
-
-                            if (totalValueLeftToConsume.intValue() >= 0.1*satoshi && rand >= 0.5) {
-                                minSplits = 3;
-                            }
-                        } else {
-                            var minSplits = 1;
-                        }
-
+                        //Determine the change value for this iteration
                         var changeValue = BigInteger.ZERO;
 
                         if (totalChangeValueLeftToConsume.compareTo(BigInteger.ZERO) < 0) {
@@ -1182,11 +1356,12 @@ var SharedCoin = new function() {
                             changeValue = inputTotalChangeValue.divide(BigInteger.valueOf(100)).multiply(BigInteger.valueOf(Math.ceil(changePercent)));
                         }
 
-                        if (changeValue.compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) <= 0
-                            || totalChangeValueLeftToConsume.subtract(changeValue).compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) <= 0) {
+                        //If the change value is less then getMinimumOutputValue() then ignore it and consume the entire change left
+                        if (changeValue.compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) <= 0 || totalChangeValueLeftToConsume.subtract(changeValue).compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) <= 0) {
                             changeValue = totalChangeValueLeftToConsume;
                             totalChangeValueLeftToConsume = BigInteger.ZERO;
                         } else {
+                        //Else subtract the changeValue from the change left
                             totalChangeValueLeftToConsume = totalChangeValueLeftToConsume.subtract(changeValue);
                         }
 
@@ -1194,93 +1369,78 @@ var SharedCoin = new function() {
                             throw 'totalChangeValueLeftToConsume < 0';
                         }
 
+                        //Add the change left to consume to the current outputs to pass it through to the next iteration
                         var totalValue = totalValueLeftToConsume.add(totalChangeValueLeftToConsume);
 
-                        var outputsAdded = false;
-                        for (var _i = 0; _i < 1000; ++_i) {
-                            for (var sK in splitBoundaries) {
-                                var variance = (splitBoundaries[sK] / 100) * ((Math.random()*(boundaryPercentageVariance*2))-boundaryPercentageVariance);
+                        //Check that the total value of our non change outputs doesnt exceed SharedCoin.getMaxTotalFeePayingOutputValue()
+                        var valueExceedingMaximum = totalValue.subtract(BigInteger.valueOf(SharedCoin.getMaxTotalFeePayingOutputValue()));
+                        if (valueExceedingMaximum.compareTo(BigInteger.ZERO) > 0) {
+                            //Subtract the amount we are exceeding from the total
+                            totalValue = totalValue.subtract(valueExceedingMaximum);
 
-                                var splitValue = BigInteger.valueOf(Math.round((splitBoundaries[sK] + variance) * satoshi));
+                            //Add the exceed amount as change
+                            changeValue = changeValue.add(valueExceedingMaximum);
 
-                                var valueAndRemainder = totalValue.divideAndRemainder(splitValue);
+                            //Subtract the newly added change from the change amount remaining
+                            totalChangeValueLeftToConsume = totalChangeValueLeftToConsume.subtract(valueExceedingMaximum);
+                        }
 
-                                var quotient = valueAndRemainder[0].intValue();
+                        //Maximum and minimum number of outputs to aim for
+                        var maxSplits = SharedCoin.getMaxOutputSplits();
+                        var minSplits = SharedCoin.getMinOutputSplits();
 
-                                if (quotient > SharedCoin.getMaximumOfferNumberOfOutputs()) {
-                                    continue;
-                                }
+                        //Only make split mandatory if the value is high enough
+                        if (totalValue.compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue() * (SharedCoin.getMinOutputSplits() + 1))) < 0) {
+                            minSplits = 1;
+                        }
 
-                                if (quotient >= minSplits && quotient <= maxSplits) {
-                                    if (valueAndRemainder[1].compareTo(BigInteger.ZERO) == 0 || valueAndRemainder[1].compareTo(BigInteger.valueOf(SharedCoin.getMinimumOutputValue())) >= 0) {
-                                        var remainderDivides = [];
-                                        if (valueAndRemainder[1].compareTo(BigInteger.ZERO) > 0) {
-                                            if (quotient <= 1) {
-                                                if (valueAndRemainder[1].compareTo(SharedCoin.getMinimumInputValue()) < 0 ||
-                                                    valueAndRemainder[1].compareTo(SharedCoin.getMaximumOutputValue()) > 0) {
-                                                    continue;
-                                                }
+                        //Generate random output values
+                        var finalSplits = [];
+                        while(true) {
+                            var nSplits = Math.round((Math.random()*(maxSplits-minSplits))+minSplits);
 
-                                                var new_address = self.generateAddressFromSeed();
+                            var proposedSplits = splitBigInt(totalValue, nSplits);
 
-                                                offer.request_outputs.push({
-                                                    value : valueAndRemainder[1].toString(),
-                                                    script : Crypto.util.bytesToHex(Script.createOutputScript(new_address).buffer)
-                                                });
-                                            } else {
-                                                remainderDivides = divideUniformlyRandomly(valueAndRemainder[1].intValue(), quotient);
-                                            }
-                                        }
+                            if (proposedSplits.length > 1) {
+                                //Round at least one output
+                                var rounded = randomRound(proposedSplits[0], proposedSplits[1], SharedCoin.getRandomRoundMinSignificant());
 
-                                        var withinRange = true;
-                                        for (var iii  = 0; iii < quotient; ++iii) {
+                                proposedSplits[0] = rounded[0];
+                                proposedSplits[1] = rounded[1];
 
-                                            var value = splitValue;
-                                            if (remainderDivides[iii] && remainderDivides[iii] > 0) {
-                                                value = value.add(BigInteger.valueOf(remainderDivides[iii]));
-                                            }
+                                //Round a second output more rarely
+                                if (proposedSplits.length > 2) {
+                                    rounded = randomRound(proposedSplits[1], proposedSplits[2], SharedCoin.getRandomRoundMinSignificant());
 
-                                            if (value.compareTo(SharedCoin.getMinimumInputValue()) < 0 ||
-                                                value.compareTo(SharedCoin.getMaximumOutputValue()) > 0) {
-                                                withinRange = false;
-                                                break;
-                                            }
-                                        }
-
-                                        if (!withinRange) {
-                                            continue;
-                                        }
-
-                                        for (var iii  = 0; iii < quotient; ++iii) {
-                                            var new_address = self.generateAddressFromSeed();
-
-                                            var value = splitValue;
-                                            if (remainderDivides[iii] && remainderDivides[iii] > 0) {
-                                                value = value.add(BigInteger.valueOf(remainderDivides[iii]));
-                                            }
-
-                                            offer.request_outputs.push({
-                                                value : value.toString(),
-                                                script : Crypto.util.bytesToHex(Script.createOutputScript(new_address).buffer)
-                                            });
-                                        }
-
-                                        outputsAdded = true;
-
-                                        break;
-                                    }
+                                    proposedSplits[1] = rounded[0];
+                                    proposedSplits[2] = rounded[1];
                                 }
                             }
 
-                            if (outputsAdded)
+                            var allWithinRange = true;
+                            for (var _i in proposedSplits) {
+                                var proposedSplit = proposedSplits[_i];
+                                if (proposedSplit.compareTo(BigInteger.valueOf(SharedCoin.getMinimumInputValue())) < 0 ||
+                                    proposedSplit.compareTo(BigInteger.valueOf(SharedCoin.getMaximumOutputValue())) > 0) {
+                                    allWithinRange = false;
+                                    break;
+                                }
+                            }
+
+                            if (allWithinRange) {
+                                finalSplits = proposedSplits;
                                 break;
+                            }
                         }
 
-                        if (!outputsAdded) {
+                        //Add the Outputs
+                        for (var _i in finalSplits) {
+                            var splitValue = finalSplits[_i];
+
                             var new_address = self.generateAddressFromSeed();
 
                             offer.request_outputs.push({
-                                value : totalValue.toString(),
+                                value : splitValue.toString(),
                                 script : Crypto.util.bytesToHex(Script.createOutputScript(new_address).buffer)
                             });
                         }
@@ -1313,7 +1473,6 @@ var SharedCoin = new function() {
                             initial_offer.offered_outpoints.push(last_offer_request_output);
                     }
 
-
                     //Consume Change
                     if (totalChangeValueLeftToConsume.compareTo(BigInteger.ZERO) > 0) {
                         var change_address = self.generateChangeAddress();
@@ -1337,6 +1496,22 @@ var SharedCoin = new function() {
             }
         };
     };
+
+    this.getRandomRoundMinSignificant = function() {
+        return options.random_round_min_significant;
+    }
+
+    this.getMaxOutputSplits = function() {
+        return options.max_output_splits;
+    }
+
+    this.getMinOutputSplits = function() {
+        return options.min_output_splits;
+    }
+
+    this.getMaxTotalFeePayingOutputValue = function() {
+        return options.max_total_fee_paying_output_value;
+    }
 
     this.getMaximumOfferNumberOfInputs = function() {
         return options.maximum_offer_number_of_inputs;
@@ -1542,11 +1717,8 @@ var SharedCoin = new function() {
                 //Favour larger split second
                 var split = (DonationPercent / 2) * ((Math.random() * 1.8) + 0.2);
 
-                //Round the split percentage
-                split = split.toFixed(4);
-
-                donationSplits.push(split);
-                donationSplits.push(DonationPercent - split);
+                donationSplits.push((split).toFixed(2));
+                donationSplits.push((DonationPercent - split).toFixed(2));
             }
 
             for (var i = repetitions-1; i >= 0; --i) {
@@ -1618,6 +1790,15 @@ var SharedCoin = new function() {
             }
 
             var minChangeTarget = BigInteger.valueOf(satoshi); //Try and leave at least 1 BTC change
+
+            //Sort by value highest
+            newTx.sortOutputs = function(outputs) {
+                outputs = outputs.sort(function(a, b){
+                  return b.value.compareTo(a.value);
+                });
+
+                return outputs;
+            };
 
             //We consume all selected outpoints
             newTx.isSelectedValueSufficient = function(txValue, availableValue, inputs) {
@@ -1848,6 +2029,8 @@ var SharedCoin = new function() {
             return;
          }
 
+         URL = MyWallet.getSharedcoinEndpoint() + '?version=' + version;
+
         $('#sharedcoin-recover').unbind().click(function() {
             var self = $(this);
 
@@ -1924,7 +2107,13 @@ var SharedCoin = new function() {
                 } else {
                     send_button.prop('disabled', false);
 
+
                     send_button.unbind().click(function() {
+                        var timerInterval;
+                        if (timerInterval) {
+                            clearInterval(timerInterval);
+                            timerInterval = null;
+                        }
 
                         MyWallet.disableLogout(true);
 
@@ -1932,6 +2121,13 @@ var SharedCoin = new function() {
                             console.log('Fatal Error');
 
                             progressModal.setProgressError();
+
+                            progressModal.setEstimatedTime(0);
+
+                            if (timerInterval) {
+                                clearInterval(timerInterval);
+                                timerInterval = null;
+                            }
 
                             el.find('input,select,button').prop('disabled', false);
 
@@ -1960,6 +2156,13 @@ var SharedCoin = new function() {
 
                         var success = function(){
                             progressModal.setProgressSuccess();
+
+                            progressModal.setEstimatedTime(0);
+
+                            if (timerInterval) {
+                                clearInterval(timerInterval);
+                                timerInterval = null;
+                            }
 
                             el.find('input,select,button').prop('disabled', false);
 
@@ -1991,6 +2194,8 @@ var SharedCoin = new function() {
 
                                 progressModal.setProgress(0, 1);
 
+                                progressModal.setEstimatedTime(0);
+
                                 var displayValue = totalValueBN();
 
                                 var recipients = el.find(".recipient");
@@ -2021,14 +2226,27 @@ var SharedCoin = new function() {
 
                                         //console.log(plan.toString());
 
+                                        timerInterval = setInterval(function() {
+                                            progressModal.setEstimatedTime(plan.getEstimatedTimeLeft());
+                                        }, 500);
+
                                         plan.sanityCheck(function() {
                                             console.log('Sanity Check OK');
 
-                                            plan.execute(success, function(e) {
-                                                error(e, plan);
-                                            }, function(stage, max_stage) {
-                                                //Progress listener
-                                                progressModal.setProgress(stage, max_stage);
+                                            progressModal.hide();
+
+                                            reviewModal.show(plan, function() {
+                                                progressModal.show();
+
+                                                plan.execute(success, function(e) {
+                                                    error(e, plan);
+                                                }, function(stage, max_stage) {
+                                                    //Progress listener
+                                                    progressModal.setProgress(stage, max_stage);
+                                                });
+                                            }, function () {
+                                                progressModal.show();
+                                                error();
                                             });
                                         }, error);
                                     }, error);
