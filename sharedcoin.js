@@ -546,7 +546,7 @@ var SharedCoin = new function() {
 
                 console.log('Offer._pollForProposalID()');
 
-                MyWallet.setLoadingText('Waiting For Our Outputs Be Joined');
+                MyWallet.setLoadingText('Waiting For Outputs To Be Joined');
 
                 $.retryAjax({
                     dataType: 'json',
