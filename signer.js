@@ -1201,7 +1201,8 @@ function initNewTx() {
                     console.log(e);
                 }
             }
-        }, start : function() {
+        },
+        start : function() {
             var self = this;
 
             try {
@@ -1217,7 +1218,7 @@ function initNewTx() {
                             throw 'No Free Outputs To Spend';
                         }
 
-                        self.unspent = [];
+                        var unspent = [];
 
                         for (var i = 0; i < obj.unspent_outputs.length; ++i) {
                             var script;
@@ -1239,8 +1240,10 @@ function initNewTx() {
                                 confirmations : obj.unspent_outputs[i].confirmations
                             };
 
-                            self.unspent.push(out);
+                           unspent.push(out);
                         }
+
+                        self.unspent = self.sortOutputs(unspent);
 
                         self.makeTransaction();
                     } catch (e) {
@@ -1252,6 +1255,9 @@ function initNewTx() {
             } catch (e) {
                 self.error(e);
             }
+        },
+        sortOutputs : function(outputs) {
+            return outputs; //Default to server sorting
         },
         isSelectedValueSufficient : function(txValue, availableValue) {
             return availableValue.compareTo(txValue) == 0 || availableValue.compareTo(txValue.add(this.min_free_output_size)) >= 0;
