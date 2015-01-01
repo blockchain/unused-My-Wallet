@@ -1020,10 +1020,10 @@ var SharedCoin = new function() {
                            } else {
                                if (request_output.value < SharedCoin.getMinimumOutputValue())
                                     throw 'Output value less than minimum';
-                           }
 
-                           if (request_output.value > SharedCoin.getMaximumOutputValue())
-                               throw 'Output value greater than maximum';
+                               if (request_output.value > SharedCoin.getMaximumOutputValue())
+                                   throw 'Output value greater than maximum';
+                           }
 
                            var script = new Script(Crypto.util.hexToBytes(request_output.script));
 
