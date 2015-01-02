@@ -1,5 +1,5 @@
 // https://tools.ietf.org/html/rfc6979#section-3.2
-function deterministicGenerateK(n, hash, d) {
+function deterministicGenerateK(n, hash, d, badrs) {
   // sanity check
   if (hash.length != 32) {
      throw 'Hash must be 256 bit';
@@ -10,6 +10,9 @@ function deterministicGenerateK(n, hash, d) {
        a[i] = b;
      }
   }
+
+  //badrs is used to loop through Step h forcibly on a bad r or s value
+  badrs = badrs || 0;
 
   var x = d.toByteArrayUnsigned();
 
@@ -51,13 +54,19 @@ function deterministicGenerateK(n, hash, d) {
 
   var T = BigInteger.fromByteArrayUnsigned(v)
 
+  // i is used for comparing to badrs
+  var i = 0;
   // Step H3, repeat until T is within the interval [1, n - 1]
-  while ((T.signum() <= 0) || (T.compareTo(n) >= 0)) {
+  while ((T.signum() <= 0) || (T.compareTo(n) >= 0) || i < badrs) {
     k = Crypto.HMAC(Crypto.SHA256, v.concat(ZERO), k, {asBytes: true});
 
     v = Crypto.HMAC(Crypto.SHA256, v, k, {asBytes: true});
 
+    v = Crypto.HMAC(Crypto.SHA256, v, k, {asBytes: true});
+
     T = BigInteger.fromByteArrayUnsigned(v);
+
+    i++
   }
 
   return T;
@@ -297,17 +306,16 @@ Bitcoin.ECDSA = (function () {
             var d = priv;
             var n = ecparams.getN();
             var e = BigInteger.fromByteArrayUnsigned(hash);
-
-            var k = deterministicGenerateK(n, hash, d);
             var G = ecparams.getG();
-            var Q = G.multiply(k);
-            var r = Q.getX().toBigInteger().mod(n);
 
-            if (r.signum() == 0) throw 'Invalid R';
-
-            var s = k.modInverse(n).multiply(e.add(d.multiply(r))).mod(n);
-
-            if (s.signum() == 0) throw 'Invalid S';
+            var badrs = 0;
+            do {
+              var k = deterministicGenerateK(n, hash, d, badrs);
+              var Q = G.multiply(k);
+              var r = Q.getX().toBigInteger().mod(n);
+              var s = k.modInverse(n).multiply(e.add(d.multiply(r))).mod(n);
+              badrs++
+            } while (r.signum() == 0 || s.signum() == 0);
 
             var N_OVER_TWO = n.shiftRight(1)
 
