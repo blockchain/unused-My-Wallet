@@ -62,7 +62,7 @@ webSocketConnect(function(ws) {
             else
                 var n_tx = 0;
 
-            $('<tr id="bi:'+block.blockIndex+'"><td><div><a href="'+root+'block-index/'+block.blockIndex+'/'+block.hash+'">'+block.height+'</a></div></td><td data-time="'+block.time+'"><div>< 1 minute</div></td><td class="hidden-phone"><div>'+block.txIndex.length+'</div></td><td class="hidden-phone"><div>'+formatMoney(block.totalBTCSent, true)+'</div></td><td><div>'+foundByTxt+'</div></td><td class="hidden-phone"><div>'+parseInt(block.size / 1024)+'</div></td></tr>').insertAfter($('#blocks tr:first')).find('div').hide().slideDown('slow');
+            $('<tr id="bi:'+block.blockIndex+'"><td><div><a href="'+root+'block/'+block.hash+'">'+block.height+'</a></div></td><td data-time="'+block.time+'"><div>< 1 minute</div></td><td class="hidden-phone"><div>'+block.txIndex.length+'</div></td><td class="hidden-phone"><div>'+formatMoney(block.totalBTCSent, true)+'</div></td><td><div>'+foundByTxt+'</div></td><td class="hidden-phone"><div>'+parseInt(block.size / 1024)+'</div></td></tr>').insertAfter($('#blocks tr:first')).find('div').hide().slideDown('slow');
 
             $('#blocks tr:last-child').remove();
         }
