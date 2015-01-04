@@ -14,6 +14,7 @@ function pollForSessionGUID() {
         dataType: 'json',
         type: "GET",
         url: root + 'wallet/poll-for-session-guid',
+        data : {format : 'plain'},
         success: function (obj) {
             var self = this;
             if (obj.guid) {
