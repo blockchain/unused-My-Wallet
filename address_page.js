@@ -90,30 +90,39 @@ $(document).ready(function() {
 
                     /* Calculate the result */
                     var result = 0;
+                    var total_sent = 0;
+                    var total_received = 0;
 
                     for (var i = 0; i < tx.inputs.length; i++) {
                         var input = tx.inputs[i];
 
-                        console.log(input.prev_out.addr);
+                        if (!input.prev_out)
+                            continue;
+
+                        var value = parseInt(input.prev_out.value);
 
                         //If it is our address then subtract the value
                         if (input.prev_out.addr == address) {
-                            result -= parseInt(input.prev_out.value);
+                            result -= value;
+                            total_sent += value;
                         }
                     }
 
-                    var total_received = 0;
                     for (var i = 0; i < tx.out.length; i++) {
                         var output = tx.out[i];
 
+                        var value = parseInt(output.value);
+
                         if (output.addr == address) {
-                            total_received += parseInt(output.value);
+                            result += value;
+                            total_received += value;
                         }
                     }
 
-                    $('#total_received span').data('c', parseInt($('#total_received span').data('c')) + total_received);
+                    //Don't include change
+                    var no_change = Math.max(0, total_received-total_sent);
 
-                    result += total_received;
+                    $('#total_received span').data('c', parseInt($('#total_received span').data('c')) + no_change);
 
                     $('#final_balance span').data('c', parseInt($('#final_balance span').data('c')) + result);
 
