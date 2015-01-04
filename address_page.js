@@ -87,9 +87,6 @@ $(document).ready(function() {
 
                     /* Calculate the result */
                     var result = 0;
-                    var total_sent = 0;
-                    var total_received = 0;
-
                     for (var i = 0; i < tx.inputs.length; i++) {
                         var input = tx.inputs[i];
 
@@ -101,7 +98,6 @@ $(document).ready(function() {
                         //If it is our address then subtract the value
                         if (input.prev_out.addr == address) {
                             result -= value;
-                            total_sent += value;
                         }
                     }
 
@@ -112,14 +108,10 @@ $(document).ready(function() {
 
                         if (output.addr == address) {
                             result += value;
-                            total_received += value;
                         }
                     }
 
-                    //Don't include change
-                    var no_change = Math.max(0, total_received-total_sent);
-
-                    $('#total_received span').data('c', parseInt($('#total_received span').data('c')) + no_change);
+                    $('#total_received span').data('c', parseInt($('#total_received span').data('c')) + Math.max(result, 0));
 
                     $('#final_balance span').data('c', parseInt($('#final_balance span').data('c')) + result);
 
