@@ -1,6 +1,3 @@
-var address;
-var filter;
-
 function insertParam(key, value) {
     key = escape(key); value = escape(value);
 
@@ -28,9 +25,9 @@ function insertParam(key, value) {
 }
 
 $(document).ready(function() {
-
-    filter = parseInt($(document.body).data('filter'));
-    address = $(document.body).data('address');
+    var filter = parseInt($(document.body).data('filter'));
+    var offset = parseInt($(document.body).data('offet'));
+    var address = $(document.body).data('address');
 
     $('#payment-request').click(function() {
         loadScript('wallet/frame-modal', function() {
@@ -71,7 +68,7 @@ $(document).ready(function() {
         insertParam('filter', $(this).data('value'));
     });
 
-    if (filter == 0) {
+    if (filter == 0 && offset == 0) {
         webSocketConnect(function(ws) {
             ws.onmessage = function(e) {
                 var obj = $.parseJSON(e.data);
