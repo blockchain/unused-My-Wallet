@@ -88,4 +88,9 @@ $(document).ready(function() {
     });
 
     setInterval(updateTimes, 1000);
+
+    //Move the search box for small screens
+    if($('#home-container').width() < 748) {
+          $("#home-search-container").remove().prependTo($("#home-container"));
+      }
 });
