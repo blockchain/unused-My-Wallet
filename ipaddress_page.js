@@ -16,7 +16,7 @@ $(document).ready(function() {
 
                 var tx = TransactionFromJSON(op);
 
-                var tx_html = $(tx.getHTML());
+                var tx_html = tx.getHTML();
 
                 var container = $('#tx_container');
 

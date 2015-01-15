@@ -55,7 +55,7 @@ function ws_connect() {
 
                 var tx = TransactionFromJSON(op);
 
-                var tx_html = $(tx.getHTML());
+                var tx_html = tx.getHTML();
 
                 $('#tx_container').prepend(tx_html);
 
@@ -72,7 +72,6 @@ function ws_connect() {
                 for (var i = 0; i < obj.x.txIndexes.length; ++i) {
                     if ($('#tx-' + obj.x.txIndexes[i]).length > 0) {
                         count--;
-
                         $('#tx-' + obj.x.txIndexes[i]).fadeOut( function() { $(this).remove(); });
                     }
                 }

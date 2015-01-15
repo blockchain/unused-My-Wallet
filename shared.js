@@ -135,43 +135,85 @@ function TransactionFromJSON(json) {
         getHTML : function(myAddresses, addresses_book) {
             var result = this.result;
 
-            var html = '<div id="tx-'+this.txIndex+'" class="txdiv" style="padding-top:10px;">';
+            var container = $('<div class="txdiv" style="padding-top:10px;"></div>');
+
+            container.attr('id', 'tx-'+ this.txIndex);
 
             if (this.note) {
-                html += '<div class="alert note">'+this.note+'</div>';
+                var note = $('<div class="alert note"></div>');
+
+                note.text(this.note);
+
+                container.append(note);
             }
 
-            html += '<table class="table table-striped" cellpadding="0" cellspacing="0" style="padding:0px;float:left;margin:0px;"><tr><th colspan="4" align="left"><div class="hash-link"><a target="new" href="'+root+'tx/'+this.hash+'">'+this.hash+'</a></div> <span style="float:right"><span class="can-hide"><b>';
+            var table = $('<table class="table table-striped" cellpadding="0" cellspacing="0" style="padding:0px;float:left;margin:0px;"></table>');
+
+            container.append(table);
+
+            var tr = $('<tr></tr>');
+
+            table.append(tr);
+
+            var th = $('<th colspan="4" align="left"></th>');
+
+            tr.append(th);
+
+            var a = $('<a target="new" style="font-weight:normal"></a>')
+
+            th.append(a);
+
+            a.attr('href', root+'tx/'+this.hash);
+
+            a.text(this.hash);
+
+            var span_right = $('<span style="float:right"></span>');
+
+            var can_hide = $('<span class="can-hide" style="font-weight:bold"></span>');
+
+            span_right.append(can_hide);
 
             if (this.time > 0) {
                 var date = new Date(this.time * 1000);
 
-                html += dateToString(date);
+                can_hide.text(dateToString(date));
             }
 
-            var tclass;
-            if (result < 0)
-                tclass = 'class="txtd hidden-phone"';
-            else
-                tclass = 'class="txtd"';
+            th.append(span_right);
 
-            html += '</b></span></th></tr><tr><td width="500px" '+ tclass +'>';
+            var tr = $('<tr></tr>');
+
+            table.append(tr);
+
+            var td = $('<td width="500px"></td>');
+
+            td.addClass('txtd');
+
+            if (result < 0) {
+                td.addClass('hidden-phone');
+            }
+
+            tr.append(td);
 
             if (this.inputs.length > 0) {
                 for (var i = 0; i < this.inputs.length; i++) {
                     input = this.inputs[i];
 
                     if (input.prev_out == null || input.prev_out.addr == null) {
-                        html += 'No Input (Newly Generated Coins)<br />';
+                        td.text('No Input (Newly Generated Coins)');
+                        td.append($('<br />'))
                     } else {
-                        html += formatOutput(input.prev_out, myAddresses, addresses_book);
+                        td.append(formatOutput(input.prev_out, myAddresses, addresses_book));
                     }
                 }
             } else {
-                html += 'No inputs, transaction probably sent from self.<br />';
+                td.text('Inputs Error');
+                td.append($('<br />'));
             }
 
-            html += '</td><td width="48px" class="hidden-phone" style="padding:4px;text-align:center;vertical-align:middle;">';
+            var td = $('<td width="48px" class="hidden-phone" style="padding:4px;text-align:center;vertical-align:middle;"></td>');
+
+            tr.append(td);
 
             if (result == null) {
                 result = 0;
@@ -180,24 +222,23 @@ function TransactionFromJSON(json) {
                 }
             }
 
-            var button_class;
-            if (result == null || result > 0) {
-                button_class = 'btn btn-success cb';
-                html += '<img src="'+resource+'arrow_right_green.png" />';
+            if (result > 0) {
+                td.append($('<img src="'+resource+'arrow_right_green.png" />'));
             } else if (result < 0) {
-                button_class = 'btn btn-danger cb';
-                html += '<img src="'+resource+'arrow_right_red.png" />';
+                td.append($('<img src="'+resource+'arrow_right_red.png" />'));
             } else  {
-                button_class = 'btn cb';
-                html += '&nbsp;';
+                td.text(' ');
             }
 
-            if (result >= 0)
-                tclass = 'class="txtd hidden-phone"';
-            else
-                tclass = 'class="txtd"';
+            var td = $('<td></td>');
 
-            html += '</td><td '+tclass+'>';
+            tr.append(td);
+
+            td.addClass('txtd');
+
+            if (result >= 0) {
+               td.addClass('hidden-phone')
+            }
 
             var escrow_n = null;
             var escrow_addr = null;
@@ -218,35 +259,49 @@ function TransactionFromJSON(json) {
                     }
                 }
 
-                html += formatOutput(out, myAddresses, addresses_book);
+                td.append(formatOutput(out, myAddresses, addresses_book));
             }
 
-            html += '</td><td width="140px" style="text-align:right" class="txtd">';
+            var td = $('<td width="140px" style="text-align:right" class="txtd"></td>');
+
+            tr.append(td);
 
             for (var i = 0; i < this.out.length; i++) {
                 output = this.out[i];
-                html += '<span class="hidden-phone">' + formatMoney(output.value, true) +'</span><br />';
+                td.append('<span class="hidden-phone">' + formatMoney(output.value, true) +'</span><br />');
             }
 
-            html += '</td></tr></table><span style="float:right;padding-bottom:30px;clear:both;">';
+            var span = $('<span style="float:right;padding-bottom:30px;clear:both;"></span>');
+
+            container.append(span);
 
             if (this.confirmations == null) {
-                html += '<button style="display:none"></button> ';
+                span.append('<button style="display:none"></button> ');
             } else if (this.confirmations == 0) {
-                html += '<button class="btn btn-danger">Unconfirmed Transaction!</button> ';
+                span.append('<button class="btn btn-danger">Unconfirmed Transaction!</button> ');
             } else if (this.confirmations > 0) {
-                html += '<button class="btn btn-primary">' + this.confirmations + ' Confirmations</button> ';
+                span.append('<button class="btn btn-primary"></button> ');
+
+                span.text(this.confirmations + ' Confirmations');
             }
 
-            html += '<button class="'+button_class+'">' + formatMoney(result, true) + '</button>';
+            var button = $('<button>' + formatMoney(result, true) + '</button> ');
+
+            span.append(button);
+
+            if (result > 0) {
+                button.addClass('btn btn-success cb');
+            } else if (result < 0) {
+                button.addClass('btn btn-danger cb');
+            } else  {
+                button.addClass('btn cb');
+            }
 
             if (this.double_spend == true) {
-                html += '<button class="btn btn-danger">Double Spend</button> ';
+                span.append('<button class="btn btn-danger">Double Spend</button> ');
             }
 
-            html += '</span></div>';
-
-            return html;
+            return container;
         }
     };
 }
@@ -354,46 +409,74 @@ function formatOutput(output, myAddresses, addresses_book) {
             else
                 return addr;
         } else {
-            if (addresses_book && addresses_book[addr])
-                return '<a target="new" href="'+root+'address/'+addr+'">'+addresses_book[addr]+'</a>';
-            else if (out.addr_tag) {
-                var link = '';
-                if (out.addr_tag_link)
-                    link = ' <a class="external" rel="nofollow" href="'+root + 'r?url='+out.addr_tag_link+'" target="new"></a>';
+            var a = $('<a target="new"></a>');
 
-                return '<a target="new" href="'+root+'address/'+addr+'" class="tag-address">'+addr+'</a> <span class="tag">('+out.addr_tag+link+')</span>';
+            a.attr('href', root + 'address/' + addr);
+
+            if (addresses_book && addresses_book[addr]) {
+                a.text(addresses_book[addr]);
+            } else if (out.addr_tag) {
+                var container = $('<span></span>');
+
+                a.addClass('tag-address');
+
+                a.text(addr);
+
+                var span = $('<span class="tag"></span>');
+
+                span.text('('+out.addr_tag+') ');
+
+                if (out.addr_tag_link) {
+                    var a_tag = $('<a class="external" rel="nofollow" target="new"></a>');
+
+                    a_tag.attr('href', root + 'r?url='+out.addr_tag_link);
+
+                    span.append(a_tag);
+                }
+
+                container.append(a);
+
+                container.append(span);
+
+                return container;
             } else {
-                return '<a target="new" href="'+root+'address/'+addr+'">'+addr+'</a>';
+                a.text(addr);
             }
+
+            return a;
         }
     }
 
     //total_fees -= output.value;
-    var str = '';
-
+    var span = $('<span></span>');
     if (output.type == 0) {
     } else if (output.type == 1 || output.type == 2 || output.type == 3) {
-        str = '(<font color="red">Escrow</font> ' + output.type + ' of ';
+        span.html('(<font color="red">Escrow</font> ' + output.type + ' of ');
     } else {
-        str = '<font color="red">Strange</font> ';
+        span.html('<font color="red">Strange</font> ');
     }
 
-    if (output.addr != null)
-        str += formatOut(output.addr, output);
+    if (output.addr != null) {
+        span.append(formatOut(output.addr, output));
+    }
 
-    if (output.addr2 != null)
-        str += ', ' + formatOut(output.addr2, output);
+    if (output.addr2 != null) {
+        span.append(', ');
+        span.append(formatOut(output.addr2, output));
+    }
 
-    if (output.addr3 != null)
-        str += ', ' + formatOut(output.addr3, output);
+    if (output.addr3 != null) {
+        span.append(', ');
+        span.append(formatOut(output.addr3, output));
+    }
 
     if (output.type == 1 || output.type == 2 || output.type == 3) {
-        str += ')';
+        span.append(')');
     }
 
-    str += '<br />';
+    span.append('<br />');
 
-    return str;
+    return span;
 }
 
 function toggleAdv() {

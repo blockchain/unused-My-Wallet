@@ -119,7 +119,7 @@ $(document).ready(function() {
 
                     $('#no_tx').hide();
 
-                    var tx_html = $(tx.getHTML());
+                    var tx_html = tx.getHTML();
 
                     var container = $('#tx_container');
 
