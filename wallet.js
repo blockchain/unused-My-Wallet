@@ -801,7 +801,7 @@ var MyWallet = new function() {
                             if (wallet_options.tx_display == 0) {
                                 var txcontainer = $('#transactions-compact').show();
 
-                                bindTx($(getCompactHTML(tx, addresses, address_book)), tx).prependTo(txcontainer.find('tbody')).find('div').hide().slideDown('slow');
+                                bindTx(getCompactHTML(tx, addresses, address_book), tx).prependTo(txcontainer.find('tbody')).find('div').hide().slideDown('slow');
 
                                 if (did_pop) {
                                     txcontainer.find('tbody tr:last-child').remove();
@@ -1546,13 +1546,23 @@ var MyWallet = new function() {
     function getCompactHTML(tx, myAddresses, addresses_book) {
         var result = tx.result;
 
-        var html = '<tr class="pointer" id="tx-' + tx.txIndex + '"><td class="hidden-phone" style="width:365px"><div><ul style="margin-left:0px;" class="short-addr">';
+        var tr = $('<tr class="pointer"></tr>');
+
+        tr.attr('id', 'tx-' + tx.txIndex);
+
+        var td = $('<td class="hidden-phone" style="width:365px"></td>');
+
+        tr.append(td);
+
+        var div = $('<div style="margin-left:0px;margin-bottom:9px;" class="short-addr"></div>');
+
+        td.append(div);
 
         var all_from_self = true;
         if (result >= 0) {
             if (tx.inputs.length > 5) {
                 all_from_self = false;
-                html += '<span class="label">Many Inputs</span>';
+                 div.append('<span class="label">Many Inputs</span>');
             } else {
                 for (var i = 0; i < tx.inputs.length; ++i) {
                     var out = tx.inputs[i].prev_out;
@@ -1561,16 +1571,15 @@ var MyWallet = new function() {
                         all_from_self = false;
 
                         if (tx.inputs.length == 1) {
-                            html += '<span class="label">Newly Generated Coins</span>';
+                            div.append('<span class="label">Newly Generated Coins</span>');
                             break;
                         } else {
-                            html += '<span class="label">Missing Outpoint</span>';
+                            div.append('<span class="label">Missing Outpoint</span>');
                         }
                     } else {
                         if (!out.addr) {
                             all_from_self = false;
-
-                            html += '<span class="label">Unknown Address</span>';
+                            div.append('<span class="label">Unknown Address</span>');
                         } else {
                             var my_addr = myAddresses[out.addr];
 
@@ -1581,7 +1590,7 @@ var MyWallet = new function() {
 
                             all_from_self = false;
 
-                            html += formatOutput(out, myAddresses, addresses_book);
+                            div.append(formatOutput(out, myAddresses, addresses_book));
                         }
                     }
                 }
@@ -1589,7 +1598,7 @@ var MyWallet = new function() {
         } else if (result < 0) {
              if (tx.out.length > 5) {
                 all_from_self = false;
-                html += '<span class="label">Many Outputs</span>';
+                div.append('<span class="label">Many Outputs</span>');
             } else {
                 for (var i = 0; i < tx.out.length; ++i) {
                     var out = tx.out[i];
@@ -1597,62 +1606,73 @@ var MyWallet = new function() {
                     if (!out.addr) {
                         all_from_self = false;
 
-                        html += '<span class="label">Unknown Address</span>';
+                        div.append('<span class="label">Unknown Address</span>');
                     } else {
                         var my_addr = myAddresses[out.addr];
 
                         //Don't Show sent to self
-                        if (my_addr && out.type == 0)
+                        if (my_addr && out.type == 0) {
                             continue;
+                        }
 
                         all_from_self = false;
 
-                        html += formatOutput(out, myAddresses, addresses_book);
+                        div.append(formatOutput(out, myAddresses, addresses_book));
                     }
                 }
             }
         }
 
-        if (all_from_self)
-            html += '<span class="label">Moved Between Wallet</info>';
+        if (all_from_self) {
+            div.append('<span class="label">Moved Between Wallet</info>');
+        }
 
-        html += '</ul></div></td><td><div>';
+        var td = $('<td></td>');
+
+        tr.append(td);
+
+        var div = $('<div></div>');
+
+        td.append(div);
 
         var note = tx.note ? tx.note : tx_notes[tx.hash];
 
         if (note) {
-            html += '<img src="'+resource+'note.png" class="show-note"> ';
+           div.append('<img src="'+resource+'note.png" class="show-note"> ');
         } else {
-            html += '<img src="'+resource+'note_grey.png" class="add-note"> ';
+           div.append('<img src="'+resource+'note_grey.png" class="add-note"> ');
         }
 
         if (tx.time > 0) {
-            html += dateToString(new Date(tx.time * 1000));
+           div.append(dateToString(new Date(tx.time * 1000)));
         }
 
         if (tx.confirmations == 0) {
-            html += ' <span class="label label-important hidden-phone">Unconfirmed Transaction!</span> ';
+            div.append(' <span class="label label-important hidden-phone">Unconfirmed Transaction!</span> ');
         } else if (tx.confirmations > 0) {
-            html += ' <span class="label label-info hidden-phone">' + tx.confirmations + ' Confirmations</span> ';
+            div.append(' <span class="label label-info hidden-phone">' + tx.confirmations + ' Confirmations</span> ');
         }
 
-        html += '</div></td>';
+        var td = $('<td>'+formatMoney(result, true)+'</td>');
 
-        if (result > 0)
-            html += '<td style="color:green"><div>' + formatMoney(result, true) + '</div></td>';
-        else if (result < 0)
-            html += '<td style="color:red"><div>' + formatMoney(result, true) + '</div></td>';
-        else
-            html += '<td><div>' + formatMoney(result, true) + '</div></td>';
+        tr.append(td);
 
-        if (tx.balance == null)
-            html += '<td></td></tr>';
-        else
-            html += '<td class="hidden-phone"><div>' + formatMoney(tx.balance) + '</div></td></tr>';
+        if (result > 0) {
+            td.css({ color: 'green' });
+        } else if (result < 0) {
+            td.css({ color: 'red' });
+        }
 
-        return html;
+        var td = $('<td class="hidden-phone"></td>');
+
+        tr.append(td);
+
+        if (tx.balance != null) {
+            td.append('<div>' + formatMoney(tx.balance) + '</div>');
+        }
+
+        return tr;
     };
-
 
     //Reset is true when called manually with changeview
     function buildVisibleViewPre() {
@@ -1786,7 +1806,7 @@ var MyWallet = new function() {
                 var tx = transactions[i];
 
                 if (wallet_options.tx_display == 0) {
-                    txcontainer.append(bindTx($(getCompactHTML(tx, addresses, address_book)), tx));
+                    txcontainer.append(bindTx(getCompactHTML(tx, addresses, address_book), tx));
                 } else {
                     txcontainer.append(tx.getHTML(addresses, address_book));
                 }
