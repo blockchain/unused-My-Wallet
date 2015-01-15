@@ -1907,7 +1907,6 @@ var SharedCoin = new function() {
     }
 
     this.recoverSeeds = function(shared_coin_seeds, _success, _error) {
-
         //Disable auto logout as recovery can take a while
         MyWallet.disableLogout(true);
 
