@@ -1644,13 +1644,21 @@ var MyWallet = new function() {
         }
 
         if (tx.time > 0) {
-           div.append(dateToString(new Date(tx.time * 1000)));
+           div.append(dateToString(new Date(tx.time * 1000)) + ' ');
         }
 
-        if (tx.confirmations == 0) {
-            div.append(' <span class="label label-important hidden-phone">Unconfirmed Transaction!</span> ');
-        } else if (tx.confirmations > 0) {
-            div.append(' <span class="label label-info hidden-phone">' + tx.confirmations + ' Confirmations</span> ');
+        if (tx.confirmations == 0 || tx.confirmations > 0) {
+            var span = $('<span class="label hidden-phone"></span>');
+
+            if (tx.confirmations == 0) {
+                span.addClass('label-important');
+                span.text('Unconfirmed Transaction!');
+            } else if (tx.confirmations > 0) {
+                span.addClass('label-info');
+                span.text(tx.confirmations + ' Confirmations');
+            }
+
+            div.append(span);
         }
 
         var td = $('<td>'+formatMoney(result, true)+'</td>');
@@ -2101,11 +2109,6 @@ var MyWallet = new function() {
                 if (obj.info.notice)
                     MyWallet.makeNotice('error', 'misc-error', obj.info.notice);
             }
-        }
-
-
-        if (obj.disable_mixer) {
-            $('#shared-addresses,#send-shared').hide();
         }
 
         sharedcoin_endpoint = obj.sharedcoin_endpoint;
@@ -3915,13 +3918,6 @@ var MyWallet = new function() {
             });
         });
 
-        $('#shared-addresses').on('show', function() {
-            var self = $(this);
-            loadScript('wallet/shared-addresses', function() {
-                buildSharedTable(self);
-            });
-        });
-
         $('#active-addresses').on('show', function() {
             var table = $(this).find('table:first');
 
@@ -4287,57 +4283,6 @@ var MyWallet = new function() {
             });
         });
 
-        $('#send-shared').on('show', function(e, reset) {
-            var self = $(this);
-
-            buildSendForm(self, reset);
-
-            self.find('.mixer_fee').text(mixer_fee);
-
-            self.find('.fees,.free,.bonus').show();
-            if (mixer_fee < 0) {
-                self.find('.fees,.free').hide();
-            } else if (mixer_fee == 0) {
-                self.find('.fees,.bonus').hide();
-            } else {
-                self.find('.free,.bonus').hide();
-            }
-
-            self.find('.send').unbind().click(function() {
-                loadScript('wallet/signer', function() {
-                    startTxUI(self, 'shared', initNewTx());
-                });
-            });
-
-            self.find('.shared-fees').text('0.00');
-            self.find('input[name="send-before-fees"]').unbind().bind('keyup change', function() {
-                var input_value = parseFloat($(this).val());
-
-                var real_tx_value = 0;
-
-                if (input_value > 0) {
-                    if (mixer_fee > 0) {
-                        real_tx_value = parseFloat(input_value + ((input_value / 100) *  mixer_fee));
-                    } else {
-                        real_tx_value = parseFloat(input_value);
-
-                        self.find('.bonus-value').text(formatPrecision((Math.min(input_value, precisionFromBTC(200)) / 100) * mixer_fee));
-                    }
-                }
-
-                if (precisionToBTC(input_value) < 0.1 || precisionToBTC(input_value) > 250) {
-                    self.find('.shared-fees').text('0.00');
-
-                    self.find('.send').prop('disabled', true);
-                } else {
-                    self.find('.shared-fees').text(formatBTC(real_tx_value*symbol_btc.conversion));
-
-                    self.find('.send').prop('disabled', false);
-                }
-
-                self.find('.send-value').val(real_tx_value).trigger('keyup');
-            })
-        });
 
         $('#send-custom').on('show',  function(e, reset) {
             var self = $(this);
