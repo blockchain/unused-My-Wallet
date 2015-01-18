@@ -404,10 +404,15 @@ function formatOutput(output, myAddresses, addresses_book) {
             myAddr = myAddresses[addr];
 
         if (myAddr != null) {
-            if (myAddr.label != null)
-                return myAddr.label;
-            else
-                return addr;
+            var lspan = $('<span></span>');
+
+            if (myAddr.label != null) {
+                lspan.text(myAddr.label);
+            } else {
+                lspan.text(addr);
+            }
+
+            return lspan;
         } else {
             var a = $('<a target="new"></a>');
 
