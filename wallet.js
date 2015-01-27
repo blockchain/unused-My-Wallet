@@ -3121,11 +3121,12 @@ var MyWallet = new function() {
 
     //Fetch information on a new wallet identfier
     this.setGUID = function(guid_or_alias, resend_code) {
-
-//        console.log('Set GUID ' + guid_or_alias);
-
         if (isInitialized) {
             throw 'Cannot Set GUID Once Initialized';
+        }
+
+        if (!guid_or_alias || guid_or_alias.length == 0) {
+            throw 'Invalid GUID';
         }
 
         MyWallet.setLoadingText('Downloading Wallet');
@@ -3154,7 +3155,7 @@ var MyWallet = new function() {
         $.ajax({
             type: "GET",
             dataType: 'json',
-            url: root + 'wallet/'+guid_or_alias,
+            url: root + 'wallet/' + encodeURIComponent(guid_or_alias),
             data : data,
             timeout: 60000,
             success: function(obj) {
