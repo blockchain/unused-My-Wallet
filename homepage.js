@@ -82,15 +82,15 @@ $(document).ready(function() {
         top.location = self.location.href
     }
 
-    $('#search_button').click(function() {
-        document.location = root + 'search/' + document.getElementById('search_input2').value;
-        return false;
-    });
-
     setInterval(updateTimes, 1000);
 
     //Move the search box for small screens
     if($('#home-container').width() < 748) {
-          $("#home-search-container").remove().prependTo($("#home-container"));
-      }
+        $("#home-search-container").remove().prependTo($("#home-container"));
+    }
+
+    $('#search_button').click(function() {
+        document.location = root + 'search/' + document.getElementById('search_input2').value;
+        return false;
+    });
 });
