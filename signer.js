@@ -463,6 +463,14 @@ function startTxUI(el, type, pending_transaction, dont_ask_for_anon) {
                             });
                         },
                         error : function() {
+                            if (self.generated_addresses.length > 0) {
+                                if (self.modal)
+                                    self.modal.modal('hide');
+
+                                self.error('Cannot Send Offline Transaction With New Change Address');
+                                return;
+                            }
+
                             self.modal.find('.modal-header h3').html('Created Offline Transaction.');
 
                             btn.removeAttr('disabled');
