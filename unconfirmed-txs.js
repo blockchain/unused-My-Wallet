@@ -6,6 +6,7 @@ var total_size;
 var _header;
 var _connected;
 var _disconnected;
+var _txIndexes;
 var sound_on = true;
 var lasttx = null;
 
@@ -34,17 +35,13 @@ function SetStatus() {
 function ws_connect() {
     webSocketConnect(function(ws) {
         ws.onmessage = function(e) {
-
             console.log(e);
 
             var obj = $.parseJSON(e.data);
 
             if (obj.op == 'status') {
-
                 $('#status').html(obj.msg);
-
             } else if (obj.op == 'utx') {
-
                 op = obj.x;
 
                 if (sound_on) {
@@ -54,6 +51,8 @@ function ws_connect() {
                 count++;
 
                 var tx = TransactionFromJSON(op);
+
+                _txIndexes.push(tx.txIndex);
 
                 var tx_html = tx.getHTML();
 
@@ -66,13 +65,19 @@ function ws_connect() {
                 SetStatus();
 
                 lasttx = tx;
-
             } else if (obj.op == 'block') {
-
                 for (var i = 0; i < obj.x.txIndexes.length; ++i) {
-                    if ($('#tx-' + obj.x.txIndexes[i]).length > 0) {
+                    var txIndex = obj.x.txIndexes[i];
+
+                    var el = $('#tx-' + txIndex);
+                    if (el.length > 0) {
+                        el.remove();
+                    }
+
+                    var index = _txIndexes.indexOf(txIndex);
+                    if (index > -1) {
+                        _txIndexes.splice(index, 1);
                         count--;
-                        $('#tx-' + obj.x.txIndexes[i]).fadeOut( function() { $(this).remove(); });
                     }
                 }
 
@@ -81,7 +86,6 @@ function ws_connect() {
                 if (sound_on) {
                     playSound('ding');
                 }
-
             } else if (obj.op == 'marker') {
                 marker = new google.maps.Marker({
                     map:map,
@@ -131,9 +135,11 @@ $(document).ready(function() {
     _header = data_obj.header;
     _connected = data_obj.connected;
     _disconnected = data_obj.disconnected;
+    _txIndexes = data_obj.txIndexes;
 
-    if (data_obj.enable_websocket)
+    if (data_obj.enable_websocket) {
         ws_connect();
+    }
 
     map = new google.maps.Map(document.getElementById("map_canvas"), mapOptions);
 
