@@ -62,6 +62,8 @@ function ws_connect() {
 
                 tx_html.hide().slideDown('slow');
 
+                $('#tx_container .txdiv:last-child').remove();
+
                 SetStatus();
 
                 lasttx = tx;
