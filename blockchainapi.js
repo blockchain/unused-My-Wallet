@@ -48,7 +48,7 @@ var BlockchainAPI = new function() {
 
         var clientTime=(new Date()).getTime();
 
-        if (!tx_filter) tx_filter = 0;
+        if (!tx_filter) tx_filter = 6;
         if (!offset) offset = 0;
         if (!n) n = 0;
 
