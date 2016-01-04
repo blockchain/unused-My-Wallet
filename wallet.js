@@ -4188,27 +4188,38 @@ var MyWallet = new function() {
         });
 
         $("#new-addr").click(function() {
+            // Do not let the user click this twice:
+            $("#new-addr").prop('disabled', true);
+
             getWallet(function() {
                 MyWallet.getSecondPassword(function() {
                     var obj = MyWallet.generateNewKey();
 
-                    if (!obj || !obj.addr)
-                        throw 'Error Generating New Address';
+                    if (!obj || !obj.addr) {
+                      $("#new-addr").removeAttr("disabled");
+                      throw 'Error Generating New Address';
+                    }
 
                     var address = obj.addr;
 
                     MyWallet.backupWallet('update', function() {
                         MyWallet.makeNotice('info', 'new-address', 'Generated new Bitcoin Address ' + address);
 
+                        $("#new-addr").removeAttr("disabled");
+
                         loadScript('wallet/address_modal', function() {
                             showLabelAddressModal(address);
                         });
 
                         MyWallet.get_history();
+                    },function() {
+                      $("#new-addr").removeAttr("disabled");
                     });
                 }, function() {
                     MyWallet.logout();
                 });
+            }, function() {
+              $("#new-addr").removeAttr("disabled");
             });
         });
 
