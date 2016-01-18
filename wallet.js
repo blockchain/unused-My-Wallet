@@ -2244,6 +2244,18 @@ var MyWallet = new function() {
                 return;
             }
 
+            // Abort if version >= 3
+            var rootContainer;
+            try {
+                rootContainer = $.parseJSON(obj.payload);
+            } catch (e) {}
+
+            if (rootContainer && rootContainer.version && rootContainer.version >= 3) {
+              MyWallet.disableLogout(false);
+              MyWallet.logout();
+              return;
+            }
+
             MyWallet.setEncryptedWalletData(obj.payload);
 
             internalRestoreWallet(function() {
