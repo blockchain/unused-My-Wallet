@@ -2251,9 +2251,12 @@ var MyWallet = new function() {
             } catch (e) {}
 
             if (rootContainer && rootContainer.version && rootContainer.version >= 3) {
-              MyWallet.disableLogout(false);
-              MyWallet.logout();
-              return;
+                var guid = MyWallet.getGuid();
+                if (guid === undefined || guid === null) {
+                  guid = "";
+                }
+                window.location = root + "wallet-beta/#/login/" + guid;
+                return;
             }
 
             MyWallet.setEncryptedWalletData(obj.payload);
@@ -2920,8 +2923,13 @@ var MyWallet = new function() {
             };
 
             if (obj && obj.payload && obj.pbkdf2_iterations) {
-                if (obj.version != supported_encryption_version)
-                    throw 'Wallet version ' + obj.version + ' not supported';
+                if (obj.version != supported_encryption_version) {
+                    var guid = MyWallet.getGuid();
+                    if (guid === undefined || guid === null) {
+                      guid = "";
+                    }
+                    window.location = root + "wallet-beta/#/login/" + guid;
+                }
 
                 if (obj.pbkdf2_iterations > 0) {
                     var modal = $('#decrypting-progress-modal');
