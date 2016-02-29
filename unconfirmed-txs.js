@@ -29,7 +29,7 @@ function SetStatus() {
 
     $('#total_fees').html(formatMoney(total_fees));
 
-    $('#total_size').html(total_size / 1024 + ' (KB)');
+    $('#total_size').html(total_size / 1000 + ' (KB)');
 }
 
 function ws_connect() {
