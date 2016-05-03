@@ -30,7 +30,7 @@ $(document).ready(function() {
     var address = $(document.body).data('address');
 
     $('#payment-request').click(function() {
-        loadScript('wallet/frame-modal', function() {
+        loadScript('wallet-legacy/frame-modal', function() {
             showFrameModal({
                 title : 'Create Payment Request',
                 description : 'Request Payment into address <b>'+address+'</b>',
@@ -40,7 +40,7 @@ $(document).ready(function() {
     });
 
     $('#create-donation-button').click(function() {
-        loadScript('wallet/frame-modal', function() {
+        loadScript('wallet-legacy/frame-modal', function() {
             showFrameModal({
                 title : 'Create Donation Button',
                 description : 'Create Donation Button To Address <b>'+address+'</b>',
@@ -53,7 +53,7 @@ $(document).ready(function() {
     $('.tx_filter a').click(function(){
         var value = $(this).data('value');
         if (value == 'export') {
-            loadScript('wallet/frame-modal', function() {
+            loadScript('wallet-legacy/frame-modal', function() {
                 showFrameModal({
                     title : 'Export History',
                     description : '',

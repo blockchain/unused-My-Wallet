@@ -113,7 +113,7 @@ var QRCodeReader = {
             if(navigator.mimeTypes ["application/x-shockwave-flash"] != undefined) hasFlash = true;
         }
 
-        loadScript('wallet/llqrcode', function() {
+        loadScript('wallet-legacy/llqrcode', function() {
 
             // Standard and prefixed methods for hooking into stream
             navigator.getUserMedia = navigator.getUserMedia ||
@@ -229,7 +229,7 @@ var QRCodeReader = {
                     return $('<canvas style="z-index:-1;width:800px;height:600px; display:none;" id="qr-canvas" width="800" height="600"></canvas>');
                 }
 
-                QRCodeReader.reader_container.html(makeFlash(resource + 'wallet/').width(320).height(240));
+                QRCodeReader.reader_container.html(makeFlash(resource + 'wallet-legacy/').width(320).height(240));
 
                 QRCodeReader.reader_container.append(makeCanvas());
 

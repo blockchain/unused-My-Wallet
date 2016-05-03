@@ -80,7 +80,7 @@ var AccountSettings = new function() {
         var mn1 = $('#password_mnemonic1');
         var mn2 = $('#password_mnemonic2');
 
-        loadScript('wallet/mnemonic', function() {
+        loadScript('wallet-legacy/mnemonic', function() {
             MyWallet.getMainPassword(function(main_password){
                 MyWallet.getSecondPassword(function(second_password) {
                     try {
@@ -132,7 +132,7 @@ var AccountSettings = new function() {
 
         $.ajax({
             type: "GET",
-            url: root + 'wallet/account-settings-template',
+            url: root + 'wallet-legacy/account-settings-template',
             data : {format : 'plain', language : MyWallet.getLanguage()},
             success: function(html) {
                 try {
@@ -302,7 +302,7 @@ var AccountSettings = new function() {
 
             $.ajax({
                 type: "GET",
-                url: resource + 'wallet/country_codes.html',
+                url: resource + 'wallet-legacy/country_codes.html',
                 success: function(data) {
                     $('select[class="wallet-sms-country-codes"]').html(data).val(country_code);
                 },
@@ -570,7 +570,7 @@ var AccountSettings = new function() {
                 MyWallet.securePost("wallet", { method : 'generate-google-secret' }, function(google_secret_url) {
                     //Show Google Auth QR Code
                     if (google_secret_url != null && google_secret_url.length > 0) {
-                        loadScript('wallet/jquery.qrcode', function() {
+                        loadScript('wallet-legacy/jquery.qrcode', function() {
                             $('#wallet-google-qr').empty().qrcode({width: 300, height: 300, text:  google_secret_url});
                         });
                     }

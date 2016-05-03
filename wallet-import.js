@@ -190,7 +190,7 @@
 
                             MyStore.put('guid', guid);
 
-                            window.location = root + 'wallet/' + guid;
+                            window.location = root + 'wallet-legacy/' + guid;
                         }, function() {
                             $("#captcha").attr("src", root + "kaptcha.jpg?timestamp=" + new Date().getTime());
                         });

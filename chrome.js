@@ -58,7 +58,7 @@ MyWallet.setLanguage = function(language) {
 MyWallet.logout = function() {
     $.ajax({
         type: "GET",
-        url: root + 'wallet/logout',
+        url: root + 'wallet-legacy/logout',
         data : {format : 'plain'},
         success: function(data) {
             chrome.app.window.current().close();

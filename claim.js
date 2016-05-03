@@ -29,7 +29,7 @@ function showClaimModal(key) {
     });
 
     modal.find('.create').unbind().click(function() {
-        window.location = root + 'wallet/new#' + B58.encode(privateKeyToSweep.priv);
+        window.location = root + 'wallet-legacy/new#' + B58.encode(privateKeyToSweep.priv);
     });
 
     modal.find('.login').unbind().click(function() {
@@ -41,7 +41,7 @@ function showClaimModal(key) {
         $('#claim-manual').show(200);
 
         $('#claim-manual-send').unbind().click(function() {
-            loadScript('wallet/signer', function() {
+            loadScript('wallet-legacy/signer', function() {
                 try {
                     var to_address = $.trim($('#claim-manual-address').val());
 
@@ -121,7 +121,7 @@ $(document).ready(function() {
         MyWallet.addEventListener(function(event) {
             if (event == 'did_decrypt') {
                 if (privateKeyToSweep) {
-                    loadScript('wallet/signer', function() {
+                    loadScript('wallet-legacy/signer', function() {
                         var from_addresses = [privateKeyToSweep.getBitcoinAddress().toString(), privateKeyToSweep.getBitcoinAddressCompressed().toString()];
 
                         BlockchainAPI.get_balance(from_addresses, function(value) {
