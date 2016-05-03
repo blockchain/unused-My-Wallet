@@ -19,7 +19,7 @@ $(document).ready(function() {
 
             if (obj.guid) {
                 container.find('.guid-result-container').show();
-                container.find('.guid-result').html('<a href="https://blockchain.info/wallet/'+obj.guid+'" target="new">https://blockchain.info/wallet/'+obj.guid+'</a>');
+                container.find('.guid-result').html('<a href="https://blockchain.info/wallet-legacy/'+obj.guid+'" target="new">https://blockchain.info/wallet-legacy/'+obj.guid+'</a>');
             } else {
                 container.find('.guid-result-container').hide();
             }

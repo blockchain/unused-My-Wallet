@@ -1,4 +1,4 @@
-//Included in wallet pages when visiting a /wallet/claim link
+//Included in wallet pages when visiting a /wallet-legacy/claim link
 
 var privateKeyToSweep;
 
