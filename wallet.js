@@ -1048,7 +1048,7 @@ var MyWallet = new function() {
         }
 
         if (hdWalletsPlaceHolder) {
-            out += ',\n "hd_wallets" : ' + JSON.stringify(hdWalletsPlaceHolder)            
+            out += ',\n "hd_wallets" : ' + JSON.stringify(hdWalletsPlaceHolder)
         }
 
         if (nKeys(tx_notes) > 0) {
@@ -2255,7 +2255,7 @@ var MyWallet = new function() {
                 if (guid === undefined || guid === null) {
                   guid = "";
                 }
-                window.location = root + "wallet-beta/#/login/" + guid;
+                window.location = root + "wallet/#/login/" + guid;
                 return;
             }
 
@@ -2928,7 +2928,7 @@ var MyWallet = new function() {
                     if (guid === undefined || guid === null) {
                       guid = "";
                     }
-                    window.location = root + "wallet-beta/#/login/" + guid;
+                    window.location = root + "wallet/#/login/" + guid;
                 }
 
                 if (obj.pbkdf2_iterations > 0) {

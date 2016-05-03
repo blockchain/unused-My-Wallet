@@ -202,7 +202,7 @@ var AccountSettings = new function() {
 
             if (data.alias != null && data.alias.length > 0) {
                 $('#wallet-alias').val(data.alias);
-                $('.alias').text('https://blockchain.info/wallet/'+data.alias);
+                $('.alias').text('https://blockchain.info/wallet-legacy/'+data.alias);
                 $('.alias').show(200);
             }
 
@@ -753,7 +753,7 @@ var AccountSettings = new function() {
         $('#register-uri-handler').unbind().click(function() {
             if (navigator && navigator.registerProtocolHandler) {
                 try {
-                    navigator.registerProtocolHandler("bitcoin", window.location.protocol + '//' + window.location.hostname + "/wallet/login#%s", "Blockchain.info");
+                    navigator.registerProtocolHandler("bitcoin", window.location.protocol + '//' + window.location.hostname + "/wallet-legacy/login#%s", "Blockchain.info");
                 } catch(e) {
                     MyWallet.makeNotice('error', 'misc-error', e);
                 }
@@ -907,7 +907,7 @@ var AccountSettings = new function() {
 
             if (new_value.length > 0) {
                 $('.alias').fadeIn(200);
-                $('.alias').text('https://blockchain.info/wallet/'+new_value);
+                $('.alias').text('https://blockchain.info/wallet-legacy/'+new_value);
             }
 
             updateKV('Updating Alias', 'update-alias', new_value, null, function(){

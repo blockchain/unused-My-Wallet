@@ -67,7 +67,7 @@ var PaperWallet = new function() {
         y += 8;
 
         doc.setFontSize(7);
-        doc.text(x+2, y, "Login Link: https://blockchain.info/wallet/" + self.guid);
+f        doc.text(x+2, y, "Login Link: https://blockchain.info/wallet-legacy/" + self.guid);
 
         if (mnemonic1) {
             y +=4;
