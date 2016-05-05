@@ -1318,7 +1318,7 @@ var MyWallet = new function() {
         });
 
         //WebCam
-        loadScript('wallet/qr.code.reader', function() {
+        loadScript('wallet-legacy/qr.code.reader', function() {
             QRCodeReader.init(modal, function(data) {
                 QRCodeReader.stop();
 
@@ -1395,7 +1395,7 @@ var MyWallet = new function() {
 
 
     function openTransactionSummaryModal(txIndex, result) {
-        loadScript('wallet/frame-modal', function() {
+        loadScript('wallet-legacy/frame-modal', function() {
             showFrameModal({
                 title : 'Transaction Summary',
                 description : '',
@@ -1719,7 +1719,7 @@ var MyWallet = new function() {
         $('#summary-balance').html(formatMoney(final_balance, symbol));
 
         $('.paper-wallet-btn').unbind().click(function() {
-            loadScript('wallet/paper-wallet', function() {
+            loadScript('wallet-legacy/paper-wallet', function() {
                 PaperWallet.showModal();
             });
         });
@@ -1738,7 +1738,7 @@ var MyWallet = new function() {
             if (primary_address.text() != preferred) {
                 primary_address.text(preferred);
 
-                loadScript('wallet/jquery.qrcode', function() {
+                loadScript('wallet-legacy/jquery.qrcode', function() {
                     $('#my-primary-addres-qr-code').empty().qrcode({width: 125, height: 125, text: preferred})
                 });
             }
@@ -1760,7 +1760,7 @@ var MyWallet = new function() {
             MyWallet.getMainPassword(function() {
                 warning.hide();
 
-                loadScript('wallet/import-export', function() {
+                loadScript('wallet-legacy/import-export', function() {
                     ImportExport.init(content, function() {
                         content.show();
                     }, function() {
@@ -1893,7 +1893,7 @@ var MyWallet = new function() {
     }
 
     function exportHistory() {
-        loadScript('wallet/frame-modal', function() {
+        loadScript('wallet-legacy/frame-modal', function() {
             showFrameModal({
                 title : 'Export History',
                 description : '',
@@ -2145,7 +2145,7 @@ var MyWallet = new function() {
     }
 
     this.handleURI = function(hash, recipient) {
-        loadScript('wallet/jsuri-1.1.1', function() {
+        loadScript('wallet-legacy/jsuri-1.1.1', function() {
             try {
                 var uri = new Uri(hash);
 
@@ -2255,7 +2255,7 @@ var MyWallet = new function() {
                 if (guid === undefined || guid === null) {
                   guid = "";
                 }
-                window.location = root + "wallet-beta/#/login/" + guid;
+                window.location = root + "wallet/#/login/" + guid;
                 return;
             }
 
@@ -2509,7 +2509,7 @@ var MyWallet = new function() {
     this.makePairingQRCode = function(success, version) {
 
         MyWallet.getMainPassword(function() {
-            loadScript('wallet/jquery.qrcode', function() {
+            loadScript('wallet-legacy/jquery.qrcode', function() {
                 try {
                     if (version == 1) {
                         MyWallet.securePost("wallet", { method : 'pairing-encryption-password' }, function(encryption_phrase) {
@@ -2704,7 +2704,7 @@ var MyWallet = new function() {
     }
 
     this.quickSendNoUI = function(to, value, listener) {
-        loadScript('wallet/signer', function() {
+        loadScript('wallet-legacy/signer', function() {
             MyWallet.getSecondPassword(function() {
                 try {
                     var obj = initNewTx();
@@ -2928,7 +2928,7 @@ var MyWallet = new function() {
                     if (guid === undefined || guid === null) {
                       guid = "";
                     }
-                    window.location = root + "wallet-beta/#/login/" + guid;
+                    window.location = root + "wallet/#/login/" + guid;
                 }
 
                 if (obj.pbkdf2_iterations > 0) {
@@ -2990,7 +2990,7 @@ var MyWallet = new function() {
     }
 
     this.getWebWorkerLoadPrefix = function() {
-        return resource + 'wallet/';
+        return resource + 'wallet-legacy/';
     }
 
     this.decryptWebWorker = function(data, password, pbkdf2_iterations, success, _error) {
@@ -3238,7 +3238,7 @@ var MyWallet = new function() {
                         var obj = $.parseJSON(e.responseText);
 
                         if (obj.authorization_required) {
-                            loadScript('wallet/poll-for-session-guid', function() {
+                            loadScript('wallet-legacy/poll-for-session-guid', function() {
                                 pollForSessionGUID();
                             });
                         }
@@ -3566,12 +3566,12 @@ var MyWallet = new function() {
             return;
 
         if (guid == demo_guid) {
-            window.location = root + 'wallet/logout';
+            window.location = root + 'wallet-legacy/logout';
         } else {
             $.ajax({
                 type: "GET",
                 timeout: 60000,
-                url: root + 'wallet/logout',
+                url: root + 'wallet-legacy/logout',
                 data : {format : 'plain'},
                 success: function(data) {
                     window.location.reload();
@@ -3763,7 +3763,7 @@ var MyWallet = new function() {
             buildSelect(sweepSelect, true);
 
             modal.find('.btn.btn-primary').unbind().click(function() {
-                loadScript('wallet/signer', function() {
+                loadScript('wallet-legacy/signer', function() {
                     BlockchainAPI.get_balance(addresses, function(value) {
                         var obj = initNewTx();
 
@@ -3871,7 +3871,7 @@ var MyWallet = new function() {
         });
 
         $('#chord-diagram').click(function() {
-            loadScript('wallet/frame-modal', function() {
+            loadScript('wallet-legacy/frame-modal', function() {
                 showFrameModal({
                     title : 'Address Relationships',
                     description : '',
@@ -3881,19 +3881,19 @@ var MyWallet = new function() {
         });
 
         $('#verify-message').click(function() {
-            loadScript('wallet/address_modal', function() {
+            loadScript('wallet-legacy/address_modal', function() {
                 verifyMessageModal();
             });
         });
 
         $('#generate-cold-storage').click(function() {
-            loadScript('wallet/paper-wallet', function() {
+            loadScript('wallet-legacy/paper-wallet', function() {
                 PaperWallet.showColdStorageModal();
             }, null, true);
         });
 
         $('#group-received').click(function() {
-            loadScript('wallet/taint_grouping', function() {
+            loadScript('wallet-legacy/taint_grouping', function() {
                 try{
                     loadTaintData();
                 } catch (e) {
@@ -3913,7 +3913,7 @@ var MyWallet = new function() {
                 MyWallet.getMainPassword(function() {
                     warning.hide();
 
-                    loadScript('wallet/account', function() {
+                    loadScript('wallet-legacy/account', function() {
                         AccountSettings.init(content, function() {
                             content.show();
                         }, function() {
@@ -3975,13 +3975,13 @@ var MyWallet = new function() {
                     });
 
                     action_tx.find('.act-label').click(function() {
-                        loadScript('wallet/address_modal', function() {
+                        loadScript('wallet-legacy/address_modal', function() {
                             showLabelAddressModal(address);
                         });
                     });
 
                     action_tx.find('.act-qr').click(function() {
-                        loadScript('wallet/address_modal', function() {
+                        loadScript('wallet-legacy/address_modal', function() {
                             showAddressModalQRCode(address);
                         });
                     });
@@ -4009,13 +4009,13 @@ var MyWallet = new function() {
                     });
 
                     action_tx.find('.act-sign').click(function() {
-                        loadScript('wallet/address_modal', function() {
+                        loadScript('wallet-legacy/address_modal', function() {
                             showAddressModalSignMessage(address);
                         });
                     });
 
                     action_tx.find('.act-request').click(function() {
-                        loadScript('wallet/frame-modal', function() {
+                        loadScript('wallet-legacy/frame-modal', function() {
                             showFrameModal({
                                 title : 'Create Payment Request',
                                 description : 'Request Payment into address <b>'+address+'</b>',
@@ -4145,7 +4145,7 @@ var MyWallet = new function() {
             var extra = self.data('extra');
             if (extra == null) extra = '';
 
-            loadScript('wallet/frame-modal', function() {
+            loadScript('wallet-legacy/frame-modal', function() {
                 showFrameModal({
                     title : self.data('title'),
                     description : 'Deposit into address <b>'+address+'</b>',
@@ -4159,7 +4159,7 @@ var MyWallet = new function() {
             var self = $(this);
             MyWallet.getSecondPassword(function() {
                 var address = MyWallet.getPreferredAddress();
-                loadScript('wallet/frame-modal', function() {
+                loadScript('wallet-legacy/frame-modal', function() {
                     showFrameModal({
                         title : self.data('title'),
                         description : 'Your Wallet Balance is <b>'+formatBTC(final_balance)+'</b>',
@@ -4178,7 +4178,7 @@ var MyWallet = new function() {
         });
 
         $('#summary-n-tx-chart').click(function() {
-            loadScript('wallet/frame-modal', function() {
+            loadScript('wallet-legacy/frame-modal', function() {
                 showFrameModal({
                     title : 'Number of transactions',
                     description : '',
@@ -4188,7 +4188,7 @@ var MyWallet = new function() {
         });
 
         $('#summary-received-chart').click(function() {
-            loadScript('wallet/frame-modal', function() {
+            loadScript('wallet-legacy/frame-modal', function() {
                 showFrameModal({
                     title : 'BTC Received Per Day',
                     description : '',
@@ -4198,7 +4198,7 @@ var MyWallet = new function() {
         });
 
         $('#summary-balance-chart').click(function() {
-            loadScript('wallet/frame-modal', function() {
+            loadScript('wallet-legacy/frame-modal', function() {
                 showFrameModal({
                     title : 'Wallet Balance',
                     description : '',
@@ -4227,7 +4227,7 @@ var MyWallet = new function() {
 
                         $("#new-addr").removeAttr("disabled");
 
-                        loadScript('wallet/address_modal', function() {
+                        loadScript('wallet-legacy/address_modal', function() {
                             showLabelAddressModal(address);
                         });
 
@@ -4269,11 +4269,11 @@ var MyWallet = new function() {
         });
 
         $('#dropbox-backup-btn').click(function() {
-            MyWallet.openWindow(root + 'wallet/dropbox-login?guid=' + guid);
+            MyWallet.openWindow(root + 'wallet-legacy/dropbox-login?guid=' + guid);
         });
 
         $('#gdrive-backup-btn').click(function() {
-            MyWallet.openWindow(root + 'wallet/gdrive-login?guid=' + guid);
+            MyWallet.openWindow(root + 'wallet-legacy/gdrive-login?guid=' + guid);
         });
 
         $('#balance').click(function() {
@@ -4288,7 +4288,7 @@ var MyWallet = new function() {
             buildSendForm(self, reset);
 
             self.find('.send').unbind().click(function() {
-                loadScript('wallet/signer', function() {
+                loadScript('wallet-legacy/signer', function() {
                     startTxUI(self, 'quick', initNewTx());
                 });
             });
@@ -4300,7 +4300,7 @@ var MyWallet = new function() {
             buildSendForm(self, reset);
 
             self.find('.send').unbind().click(function() {
-                loadScript('wallet/signer', function() {
+                loadScript('wallet-legacy/signer', function() {
                     startTxUI(self, 'email', initNewTx());
                 });
             });
@@ -4328,7 +4328,7 @@ var MyWallet = new function() {
                 }
 
                 if (!didError) {
-                    loadScript('wallet/signer', function() {
+                    loadScript('wallet-legacy/signer', function() {
                         startTxUI(self, 'custom', initNewTx());
                     });
                 }
@@ -4352,7 +4352,7 @@ var MyWallet = new function() {
         $('#shared-coin').on('show', function(e, reset) {
             var self = $(this);
 
-            loadScript('wallet/sharedcoin', function() {
+            loadScript('wallet-legacy/sharedcoin', function() {
                 try {
                     buildSendForm(self);
 
@@ -4378,7 +4378,7 @@ var MyWallet = new function() {
             $.ajax({
                 type: "GET",
                 timeout: 60000,
-                url: resource + 'wallet/country_codes.html',
+                url: resource + 'wallet-legacy/country_codes.html',
                 success: function(data) {
                     self.find('select[name="sms-country-code"]').html(data);
                 },
@@ -4388,7 +4388,7 @@ var MyWallet = new function() {
             });
 
             self.find('.send').unbind().click(function() {
-                loadScript('wallet/signer', function() {
+                loadScript('wallet-legacy/signer', function() {
                     var pending_transaction = initNewTx();
 
                     startTxUI(self, 'sms', pending_transaction);
@@ -4445,11 +4445,11 @@ var MyWallet = new function() {
         });
 
         $('#reset-two-factor-btn').click(function() {
-            MyWallet.openWindow(root + 'wallet/reset-two-factor' + (guid ? '?guid=' + guid : ''));
+            MyWallet.openWindow(root + 'wallet-legacy/reset-two-factor' + (guid ? '?guid=' + guid : ''));
         });
 
         $('.recover-wallet-btn').click(function() {
-            MyWallet.openWindow(root + 'wallet/forgot-password'+ (guid ? '?guid=' + guid : ''));
+            MyWallet.openWindow(root + 'wallet-legacy/forgot-password'+ (guid ? '?guid=' + guid : ''));
         });
 
         $('.download-backup-btn').toggle(encrypted_wallet_data != null).click(function() {
@@ -4461,7 +4461,7 @@ var MyWallet = new function() {
             try { var isFileSaverSupported = !!new Blob(); } catch(e) {}
 
             if (isFileSaverSupported) {
-                loadScript('wallet/filesaver', function() {
+                loadScript('wallet-legacy/filesaver', function() {
                     var blob = new Blob([encrypted_wallet_data], {type: "text/plain;charset=utf-8"});
 
                     saveAs(blob, "wallet.aes.json");

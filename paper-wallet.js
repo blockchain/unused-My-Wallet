@@ -67,7 +67,7 @@ var PaperWallet = new function() {
         y += 8;
 
         doc.setFontSize(7);
-        doc.text(x+2, y, "Login Link: https://blockchain.info/wallet/" + self.guid);
+        doc.text(x+2, y, "Login Link: https://blockchain.info/wallet-legacy/" + self.guid);
 
         if (mnemonic1) {
             y +=4;
@@ -167,9 +167,9 @@ var PaperWallet = new function() {
     this.preLoad = function(success, opt) {
         self.guid = opt.guid;
 
-        loadScript('wallet/jquery.qrcode', function() {
-            loadScript('wallet/mnemonic', function() {
-                loadScript('wallet/jspdf', function() {
+        loadScript('wallet-legacy/jquery.qrcode', function() {
+            loadScript('wallet-legacy/mnemonic', function() {
+                loadScript('wallet-legacy/jspdf', function() {
                     if (opt.no_mnemonic) {
                         success();
                     } else if (opt.password) {

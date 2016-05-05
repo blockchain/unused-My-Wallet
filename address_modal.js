@@ -7,7 +7,7 @@ function showAddressModalQRCode(address) {
         show: true
     });
 
-    loadScript('wallet/jquery.qrcode', function() {
+    loadScript('wallet-legacy/jquery.qrcode', function() {
         modal.find('.address-qr-code').empty().qrcode({width: 300, height: 300, text: address});
     });
 

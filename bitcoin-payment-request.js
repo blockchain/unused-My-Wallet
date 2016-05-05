@@ -1,5 +1,5 @@
 $(document).ready(function() {
-    loadScript('wallet/jquery.qrcode', function() {
+    loadScript('wallet-legacy/jquery.qrcode', function() {
         $('#qr-code').qrcode({width: 250, height: 250, text: $(document.body).data('uri')});
 
         var timer = null;

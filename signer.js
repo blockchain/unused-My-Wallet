@@ -175,7 +175,7 @@ function showPrivateKeyModal(success, error, addr) {
             if (format == 'bip38') {
                 modal.modal('hide');
 
-                loadScript('wallet/import-export', function() {
+                loadScript('wallet-legacy/import-export', function() {
                     MyWallet.getPassword($('#import-private-key-password'), function(_password) {
                         ImportExport.parseBIP38toECKey(value, _password, function(key, isCompPoint) {
                             scanned_key = key;

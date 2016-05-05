@@ -149,7 +149,7 @@ function _ImportExport() {
 
         $('#import-private-scan').unbind().click(function() {
             MyWallet.getSecondPassword(function() {
-                loadScript('wallet/signer', function() {
+                loadScript('wallet-legacy/signer', function() {
                     showPrivateKeyModal(function (key, compressed) {
                         if (MyWallet.addPrivateKey(key, {compressed : compressed, app_name : IMPORTED_APP_NAME, app_version : IMPORTED_APP_VERSION})) {
 
@@ -204,7 +204,7 @@ function _ImportExport() {
         });
 
         $('.paper-wallet-btn').unbind().click(function() {
-            loadScript('wallet/paper-wallet', function() {
+            loadScript('wallet-legacy/paper-wallet', function() {
                 PaperWallet.showModal();
             });
         });
@@ -639,7 +639,7 @@ function _ImportExport() {
                     throw 'Address already exists in the wallet';
 
                 function sweep() {
-                    loadScript('wallet/signer', function() {
+                    loadScript('wallet-legacy/signer', function() {
                         BlockchainAPI.get_balance([addr], function(value) {
                             var obj = initNewTx();
 
