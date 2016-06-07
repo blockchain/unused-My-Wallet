@@ -1,124 +1,98 @@
-
-
 $(document).ready(function() {
-    var root = "https://blockchain.info/";
-    var buttons = $('.blockchain-btn');
+  var root = "https://blockchain.info/";
+  var buttons = $('.blockchain-btn');
 
-    buttons.find('.blockchain').hide();
-    buttons.find('.stage-begin').trigger('show').show();
+  buttons.find('.blockchain').hide();
+  buttons.find('.stage-begin').trigger('show').show();
 
-    buttons.each(function(index) {
-        var _button = $(this);
+  buttons.each(function(index) {
+    var _button = $(this);
 
-        (function() {
-            var button = _button;
+    (function() {
+      var button = _button;
 
-            button.click(function() {
-                var receivers_address = $(this).data('address');
-                var shared = $(this).data('shared');
-                var test = $(this).data('test');
+      button.click(function() {
+        var receivers_address = $(this).data('address');
+        var test = $(this).data('test');
 
-                if (!shared) shared = false;
+        button.find('.blockchain').hide();
 
-                var callback_url = $(this).data('callback');
+        button.find('.stage-loading').trigger('show').show();
 
-                if (!callback_url) callback_url = '';
+        button.find('.qr-code').empty();
 
+        button.find('.blockchain').hide();
+
+        function checkBalance() {
+          $.ajax({
+            type: "GET",
+            url: root + 'q/getreceivedbyaddress/'+receivers_address+
+              '?start_time='+(new Date).getTime(),
+            data : {format : 'plain'},
+            success: function(response) {
+              if (!response) return;
+
+              var value = parseInt(response);
+
+              if (value > 0 || test) {
                 button.find('.blockchain').hide();
+                button.find('.stage-paid').trigger('show').show().html(button.find('.stage-paid').html().replace('[[value]]', value / 100000000));
+              } else {
+                setTimeout(checkBalance, 5000);
+              }
+            }
+          });
+        }
 
-                button.find('.stage-loading').trigger('show').show();
+        try {
+          ws = new WebSocket('wss://ws.blockchain.info/inv');
 
-                $.ajax({
-                    type: "GET",
-                    dataType: 'json',
-                    url: root + 'api/receive',
-                    data : {method : 'create', address : encodeURIComponent(receivers_address), shared:shared, callback:callback_url},
-                    success: function(response) {
-                        button.find('.qr-code').empty();
+          if (!ws) return;
 
-                        button.find('.blockchain').hide();
+          ws.onmessage = function(e) {
+            try {
+              var obj = $.parseJSON(e.data);
 
-                        if (!response || !response.input_address) {
-                            button.find('.stage-error').trigger('show').show().html(button.find('.stage-error').html().replace('[[error]]', 'Unknown Error'));
-                            return;
-                        }
+              if (obj.op == 'utx') {
+                var tx = obj.x;
 
-                        function checkBalance() {
-                            $.ajax({
-                                type: "GET",
-                                url: root + 'q/getreceivedbyaddress/'+response.input_address,
-                                data : {format : 'plain'},
-                                success: function(response) {
-                                    if (!response) return;
+                var result = 0;
+                for (var i = 0; i < tx.out.length; i++) {
+                  var output = tx.out[i];
 
-                                    var value = parseInt(response);
+                  if (output.addr == receivers_address) {
+                    result += parseInt(output.value);
+                  }
+                }
+              }
 
-                                    if (value > 0 || test) {
-                                        button.find('.blockchain').hide();
-                                        button.find('.stage-paid').trigger('show').show().html(button.find('.stage-paid').html().replace('[[value]]', value / 100000000));
-                                    } else {
-                                        setTimeout(checkBalance, 5000);
-                                    }
-                                }
-                            });
-                        }
+              button.find('.blockchain').hide();
+              button.find('.stage-paid').trigger('show').show().html(button.find('.stage-paid').html().replace('[[value]]', result / 100000000));
 
-                        try {
-                            ws = new WebSocket('wss://ws.blockchain.info/inv');
+              ws.close();
+            } catch(e) {
+              console.log(e);
 
-                            if (!ws) return;
+              console.log(e.data);
+            }
+          };
 
-                            ws.onmessage = function(e) {
-                                try {
-                                    var obj = $.parseJSON(e.data);
+          ws.onopen = function() {
+            ws.send('{"op":"addr_sub", "addr":"'+ receivers_address +'"}');
+          };
+        } catch (e) {
+          console.log(e);
+        }
 
-                                    if (obj.op == 'utx') {
-                                        var tx = obj.x;
+        button.find('.stage-ready').trigger('show').show().html(button.find('.stage-ready').html().replace('[[address]]', receivers_address));
 
-                                        var result = 0;
-                                        for (var i = 0; i < tx.out.length; i++) {
-                                            var output = tx.out[i];
+        button.find('.qr-code').html('<img style="margin:5px" src="'+root+'qr?data='+receivers_address+'&size=125">');
 
-                                            if (output.addr == response.input_address) {
-                                                result += parseInt(output.value);
-                                            }
-                                        }
-                                    }
+        button.unbind();
 
-                                    button.find('.blockchain').hide();
-                                    button.find('.stage-paid').trigger('show').show().html(button.find('.stage-paid').html().replace('[[value]]', result / 100000000));
-
-                                    ws.close();
-                                } catch(e) {
-                                    console.log(e);
-
-                                    console.log(e.data);
-                                }
-                            };
-
-                            ws.onopen = function() {
-                                ws.send('{"op":"addr_sub", "addr":"'+ response.input_address +'"}');
-                            };
-                        } catch (e) {
-                            console.log(e);
-                        }
-
-                        button.find('.stage-ready').trigger('show').show().html(button.find('.stage-ready').html().replace('[[address]]', response.input_address));
-
-                        button.find('.qr-code').html('<img style="margin:5px" src="'+root+'qr?data='+response.input_address+'&size=125">');
-
-                        button.unbind();
-
-                        ///Check for incoming payment
-                        setTimeout(checkBalance, 5000);
-                    },
-                    error : function(e) {
-                        button.find('.blockchain').hide();
-
-                        button.find('.stage-error').show().trigger('show').html(button.find('.stage-error').html().replace('[[error]]', e.responseText));
-                    }
-                });
-            });
-        })();
-    });
+        ///Check for incoming payment
+        setTimeout(checkBalance, 5000);
+      });
+    })();
+  });
 });
