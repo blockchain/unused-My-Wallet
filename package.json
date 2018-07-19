@@ -1,0 +1,30 @@
+{
+  "name": "blockchain-classic-wallet",
+  "private": true,
+  "version": "0.0.0",
+  "description": "My-Wallet",
+  "dependencies": {},
+  "devDependencies": {
+    "ejs": "^2.3.4",
+    "express": "^4.13.3",
+    "grunt": "^0.4.5",
+    "grunt-contrib-clean": "^0.7.0",
+    "grunt-contrib-copy": "^0.8.2",
+    "grunt-contrib-watch": "^0.6.1",
+    "node-env-file": "^0.1.4"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": "0.10.x"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/blockchain/My-Wallet"
+  },
+  "keywords": [
+    "blockchain"
+  ],
+  "license": ""
+}
